@@ -48,6 +48,11 @@ export interface StateFacet<R extends string, Op extends { op: string }> {
   steps: StateStep<R, Op>[];
   keyframes: Keyframe<R>[];
   truncated?: boolean;
+  /**
+   * Optional label per scope level (outermost first), e.g. AES: [round, operation].
+   * Label templates receive `{{n}}` (1-based level index) and `{{value}}`.
+   */
+  scopeLevels?: { labelKey: string }[];
 }
 
 /** Number of elements a region holds (product of its shape). */

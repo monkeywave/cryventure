@@ -1,4 +1,5 @@
 import type { I18nRef } from './i18n.ts';
+import type { ChoreographyModule } from './choreography.ts';
 import type { ParamField } from './params.ts';
 import type { FacetKey, FacetKind, TraceBundle } from './trace.ts';
 import type { Tracer } from './tracer.ts';
@@ -41,6 +42,8 @@ export interface PrimitiveManifest<P = unknown> {
   /** Schema-library agnostic param validation. */
   validate(params: unknown): ValidationResult<P>;
   load: () => Promise<PrimitiveModule<P>>;
+  /** Optional step choreography (animations); views fall back to `fallbackChoreography` without it. */
+  loadChoreography?: () => Promise<ChoreographyModule>;
 }
 
 export type Lens = 'story' | 'engineer' | 'cryptographer';

@@ -9,3 +9,5 @@ export * from './params.ts';
 export * from './facets/state.ts';
 export * from './facets/values.ts';
 export * from './facets/narration.ts';
+export * from './choreography.ts';
+export * from './facets/derivation.ts';
