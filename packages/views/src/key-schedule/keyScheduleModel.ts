@@ -4,18 +4,20 @@ import {
   isResultNode,
   type DerivationFacet,
   type DerivationNode,
+  type I18nRef,
+  toHex,
 } from '@cryventure/core';
-import { toHex } from '@cryventure/viz';
 
 /**
- * Pure view model of a key schedule (`derivation` facet).
- * Follows core's derivation convention (`isResultNode`): result nodes (with a `group`) are the
- * schedule's words; intermediates only appear in a word's derivation chain. A node's first input
- * continues the chain, further inputs are XOR operands.
+ * Pure view model of a `derivation` facet (e.g. a key schedule).
+ * Follows core's derivation convention (`isResultNode`): result nodes are listed, grouped by their
+ * `group` (labelled by `DerivationFacet.groups`); intermediates only appear in a result's
+ * derivation chain. A node's first input continues the chain, further inputs are XOR operands.
  */
-export interface RoundKeyRow {
-  group: number;
-  /** Earliest state step at which this round key is used (`undefined` when unknown). */
+export interface ResultGroup {
+  /** The nodes' `group` value; `undefined` collects results without a group. */
+  group: number | undefined;
+  /** Earliest state step at which this group is used (`undefined` when unknown). */
   step: number | undefined;
   words: DerivationNode[];
 }
@@ -28,44 +30,41 @@ export interface ChainLink {
   operands: DerivationNode[];
 }
 
-/** A schedule word (core: a derivation result node). */
-export function isPrimary(node: DerivationNode): boolean {
-  return isResultNode(node);
-}
-
 function earliestStep(words: readonly DerivationNode[]): number | undefined {
   const steps = words.flatMap((word) => (word.step === undefined ? [] : [word.step]));
   return steps.length === 0 ? undefined : Math.min(...steps);
 }
 
-/** Primary nodes grouped by `group` (ascending), keeping facet order inside a group. */
-export function roundKeyRows(facet: DerivationFacet): RoundKeyRow[] {
-  const groups = new Map<number, DerivationNode[]>();
+const groupOrder = (group: number | undefined) => group ?? Number.POSITIVE_INFINITY;
+
+/** Result nodes grouped by `group` (ascending, ungrouped last), keeping facet order inside a group. */
+export function resultGroups(facet: DerivationFacet): ResultGroup[] {
+  const groups = new Map<number | undefined, DerivationNode[]>();
   for (const node of facet.nodes) {
-    if (node.group === undefined) continue;
+    if (!isResultNode(node)) continue;
     groups.set(node.group, [...(groups.get(node.group) ?? []), node]);
   }
   return [...groups.entries()]
-    .sort(([a], [b]) => a - b)
+    .sort(([a], [b]) => groupOrder(a) - groupOrder(b))
     .map(([group, words]) => ({ group, step: earliestStep(words), words }));
 }
 
-/** The round key most recently put to use at `step`: the row with the greatest `step ≤ step`. */
-export function currentGroup(rows: readonly RoundKeyRow[], step: number): number | undefined {
-  let current: RoundKeyRow | undefined;
-  for (const row of rows) {
-    if (
-      row.step !== undefined &&
-      row.step <= step &&
-      (current?.step === undefined || row.step >= current.step)
-    )
-      current = row;
-  }
-  return current?.group;
+/** The producer's label of a `group` value (`DerivationFacet.groups`), if it declares one. */
+export function groupLabel(facet: DerivationFacet, group: number | undefined): I18nRef | undefined {
+  return group === undefined ? undefined : facet.groups?.find((entry) => entry.id === group)?.label;
 }
 
-export function rowStatus(row: RoundKeyRow, step: number, current: number | undefined): RowStatus {
-  if (row.group === current) return 'current';
+/** The group most recently put to use at `step`: the row with the greatest `step ≤ step`. */
+export function currentGroup(rows: readonly ResultGroup[], step: number): ResultGroup | undefined {
+  let current: ResultGroup | undefined;
+  for (const row of rows) {
+    if (row.step !== undefined && row.step <= step && (current?.step === undefined || row.step >= current.step)) current = row;
+  }
+  return current;
+}
+
+export function rowStatus(row: ResultGroup, step: number, current: ResultGroup | undefined): RowStatus {
+  if (row === current) return 'current';
   return row.step !== undefined && row.step <= step ? 'used' : 'upcoming';
 }
 
@@ -81,15 +80,15 @@ export function derivationChain(facet: DerivationFacet, id: string): ChainLink[]
     seen.add(current.id);
     const [main, ...operands] = derivationInputs(facet, current.id);
     links.unshift({ node: current, operands });
-    if (main !== undefined && isPrimary(main)) links.unshift({ node: main, operands: [] });
-    current = main !== undefined && !isPrimary(main) ? main : undefined;
+    if (main !== undefined && isResultNode(main)) links.unshift({ node: main, operands: [] });
+    current = main !== undefined && !isResultNode(main) ? main : undefined;
   }
   return links;
 }
 
 /** Bytes as one lowercase hex string, e.g. `a0fafe17`. */
 export function wordHex(bytes: readonly number[]): string {
-  return bytes.map((byte) => toHex(byte)).join('');
+  return toHex(bytes);
 }
 
 /**
@@ -99,10 +98,10 @@ export function wordHex(bytes: readonly number[]): string {
  */
 export function sourceWordIds(facet: DerivationFacet, id: string): string[] {
   const nodes = derivationChain(facet, id).flatMap((link) => [link.node, ...link.operands]);
-  return nodes.filter((node) => node.id !== id && isPrimary(node)).map((node) => node.id);
+  return nodes.filter((node) => node.id !== id && isResultNode(node)).map((node) => node.id);
 }
 
-/** The round key (`group`) whose row lists the word `id`, i.e. the row that hosts its chain. */
-export function hostGroup(rows: readonly RoundKeyRow[], id: string): number | undefined {
-  return rows.find((row) => row.words.some((word) => word.id === id))?.group;
+/** Word id → the row that lists it (and hosts its chain), built once per facet. */
+export function hostRows(rows: readonly ResultGroup[]): ReadonlyMap<string, ResultGroup> {
+  return new Map(rows.flatMap((row) => row.words.map((word) => [word.id, row] as const)));
 }

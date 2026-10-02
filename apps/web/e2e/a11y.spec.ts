@@ -1,6 +1,6 @@
 import { expect, test } from '@playwright/test';
 import { blockingViolations } from './helpers/axe.ts';
-import { LAB_PAGE, openLab } from './labPage.ts';
+import { openLab } from './labPage.ts';
 
 for (const lang of ['en', 'de'] as const) {
   test(`home ${lang} has no serious or critical axe violations`, async ({ page }) => {
@@ -11,7 +11,7 @@ for (const lang of ['en', 'de'] as const) {
   for (const colorScheme of ['light', 'dark'] as const) {
     test(`lab page ${lang} (${colorScheme}) has no serious or critical axe violations`, async ({ page }) => {
       await page.emulateMedia({ colorScheme });
-      await openLab(page, LAB_PAGE(lang));
+      await openLab(page, { lang });
       expect(await blockingViolations(page)).toEqual([]);
     });
   }

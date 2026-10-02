@@ -15,7 +15,7 @@ afterEach(() => rmSync(root, { recursive: true, force: true }));
 describe('planScaffold', () => {
   it('maps commands to folders and templates', () => {
     expect(planScaffold({ kind: 'primitive', id: 'a', family: 'hash' }).folder).toBe('packages/primitives/src/a');
-    expect(planScaffold({ kind: 'view', id: 'b', requires: ['state'] }).files).toHaveLength(5);
+    expect(planScaffold({ kind: 'view', id: 'b', requires: ['state'] }).files).toHaveLength(6);
   });
 });
 

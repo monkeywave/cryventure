@@ -2,7 +2,21 @@ import { assertManifestBasics, getFacet, paramFieldKeys, paramFieldsOf, type Der
 import { beforeAll, describe, expect, it } from 'vitest';
 import { loadPluginCatalogs, type LocaleCatalogs } from './catalogs.ts';
 import { derivationProblems, stepChoreographyProblems } from './choreographyChecks.ts';
-import { emittedNarration, jsonRoundTrip, keysOutsideNamespace, missingFacetKinds, missingKeys, refProblems, replayProblems, runtimeLabelKeys, unknownParamFields, type AnyStateFacet } from './checks.ts';
+import {
+  derivationGroupRefs,
+  emittedNarration,
+  jsonRoundTrip,
+  keysOutsideNamespace,
+  manifestLabelKeys,
+  missingFacetKinds,
+  missingKeys,
+  refProblems,
+  regionLayoutProblems,
+  replayProblems,
+  runtimeLabelKeys,
+  unknownParamFields,
+  type AnyStateFacet,
+} from './checks.ts';
 
 export interface PrimitiveContractOptions<P> {
   /** Plugin EN/DE catalogs; defaults to `packages/primitives/src/<id>/i18n/{en,de}.json`. */
@@ -40,6 +54,8 @@ function manifestSuite<P>(manifest: PrimitiveManifest<P>, catalogs: LocaleCatalo
     expect(missingKeys(keys, catalogs)).toEqual([]);
   });
 
+  it('declares op and output label keys present in EN and DE', () => expect(missingKeys(manifestLabelKeys(manifest), catalogs)).toEqual([]));
+
   it('declares param fields for real params, with label/hint/option keys present in EN and DE', () => {
     const fields = paramFieldsOf(manifest);
     expect(unknownParamFields(fields, manifest.defaults)).toEqual([]);
@@ -66,7 +82,10 @@ function runSuite<P>(manifest: PrimitiveManifest<P>, catalogs: LocaleCatalogs, t
 
   it('is deterministic', () => expect(runOrThrow(module, testCase.params)).toEqual(bundle));
   it('emits every declared facet', () => expect(missingFacetKinds(manifest.facets, bundle)).toEqual([]));
-  it('labels regions and values with keys present in EN and DE', () => expect(missingKeys(runtimeLabelKeys(bundle), catalogs)).toEqual([]));
+  it('labels regions, scope levels and values with keys present in EN and DE', () => expect(missingKeys(runtimeLabelKeys(bundle), catalogs)).toEqual([]));
+  it('declares region layouts whose words fit their regions', () => {
+    expect(regionLayoutProblems(getFacet<AnyStateFacet>(bundle, 'state')?.regions ?? [])).toEqual([]);
+  });
   it('narrates with keys and {{params}} present in EN and DE', () => expect(refProblems(emittedNarration(bundle), catalogs)).toEqual([]));
   it('replays consistently (keyframes and stateAt)', () => {
     const state = getFacet<AnyStateFacet>(bundle, 'state');
@@ -90,6 +109,10 @@ function optionalRunChecks<P>(manifest: PrimitiveManifest<P>, catalogs: LocaleCa
     it('orders its derivation facet topologically', () => {
       const derivation = getFacet<DerivationFacet>(bundle(), 'derivation');
       expect(derivation === undefined ? ['no derivation facet'] : derivationProblems(derivation)).toEqual([]);
+    });
+    it('labels its derivation groups with keys and {{params}} present in EN and DE', () => {
+      const derivation = getFacet<DerivationFacet>(bundle(), 'derivation');
+      expect(refProblems(derivation === undefined ? [] : derivationGroupRefs(derivation), catalogs)).toEqual([]);
     });
   }
 }

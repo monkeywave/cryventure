@@ -1,4 +1,4 @@
-import type { Messages } from '@cryventure/core';
+import type { Messages, PrimitiveManifest } from '@cryventure/core';
 import { loadCoreMessages } from '@cryventure/core/messages';
 import { loadPrimitiveMessages } from '@cryventure/primitives/messages';
 import { loadViewMessages } from '@cryventure/views/messages';
@@ -17,14 +17,17 @@ export function pickPrefix(messages: Messages, prefix: string): Messages {
   return Object.fromEntries(Object.entries(messages).filter(([key]) => key.startsWith(prefix)));
 }
 
-/** viz `ui.*` + views `view.*` + app `ui.lab.*` + `core.*` errors + the producer's `plugin.<id>.*`. */
-export function labMessages(lang: string | undefined, producerId: string): Messages {
+/** The lab's producer, as far as its messages are concerned: catalog folder `id` and key namespace `i18nNamespace`. */
+export type LabMessagesProducer = Pick<PrimitiveManifest, 'id' | 'i18nNamespace'>;
+
+/** viz `ui.*` + views `view.*` + app `ui.lab.*` + `core.*` errors + the producer's own `i18nNamespace`. */
+export function labMessages(lang: string | undefined, producer: LabMessagesProducer): Messages {
   const locale = toLocale(lang);
   return {
     ...loadVizMessages(locale),
     ...loadViewMessages(locale),
     ...pickPrefix(loadMessages(locale, ['ui']), APP_LAB_PREFIX),
     ...loadCoreMessages(locale),
-    ...loadPrimitiveMessages(producerId, locale),
+    ...pickPrefix(loadPrimitiveMessages(producer.id, locale), `${producer.i18nNamespace}.`),
   };
 }

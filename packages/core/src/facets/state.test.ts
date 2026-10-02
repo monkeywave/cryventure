@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { applyWrites, regionSize, type Snapshot } from './state.ts';
+import { applyWrites, elemBits, elemBytes, elemMax, regionSize, type ElemType, type Snapshot } from './state.ts';
 
 type R = 'state' | 'key';
 const base: Snapshot<R> = { state: [0, 0, 0, 0], key: [9, 9] };
@@ -36,5 +36,15 @@ describe('applyWrites', () => {
     expect(() => applyWrites(base, [{ region: 'nope' as R, offset: 0, values: [1] }])).toThrow(/unknown region/);
     expect(() => applyWrites(base, [{ region: 'key', offset: 1, values: [1, 2] }])).toThrow(/exceeds/);
     expect(() => applyWrites(base, [{ region: 'key', offset: -1, values: [1] }])).toThrow(/exceeds/);
+  });
+});
+
+describe('element helpers', () => {
+  it('reports bytes, bits and max values per element type', () => {
+    expect(['u8', 'u16', 'i16', 'u32', 'u64'].map((elem) => elemBytes(elem as ElemType))).toEqual([1, 2, 2, 4, 8]);
+    expect(elemBits('u32')).toBe(32);
+    expect(elemMax('u8')).toBe(0xff);
+    expect(elemMax('i16')).toBe(0x7fff);
+    expect(elemMax('u64')).toBe(Number.MAX_SAFE_INTEGER);
   });
 });

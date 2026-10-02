@@ -4,12 +4,13 @@ import { installResizeObserverMock } from '../workspace/resizeObserverMock.ts';
 import { renderLab } from '../testing/renderLab.tsx';
 import { useLab, useLabActions, useLabStore } from './LabContext.tsx';
 import { useLabLayout } from './LabLayout.tsx';
+import { selectStepCount } from './labReducers.ts';
 
 function Probe() {
   const step = useLab((state) => state.step);
   const actions = useLabActions();
   const store = useLabStore();
-  return <output data-testid="probe">{`${step}:${typeof actions.next}:${store.getState().stepCount}`}</output>;
+  return <output data-testid="probe">{`${step}:${typeof actions.next}:${selectStepCount(store.getState())}`}</output>;
 }
 
 describe('LabRoot / LabContext', () => {

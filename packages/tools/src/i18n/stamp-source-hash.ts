@@ -1,7 +1,8 @@
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
-import { isAbsolute, join, relative, resolve } from 'node:path';
-import { pathToFileURL } from 'node:url';
+import { isAbsolute, join, resolve } from 'node:path';
+import { isEntryPoint } from '../fs/entryPoint.ts';
 import { REPO_ROOT } from '../fs/repoRoot.ts';
+import { relativePosix } from '../fs/walk.ts';
 import { DOCS_ROOT } from './check-parity.ts';
 import { englishCounterpart, sourceHashOf, stampSourceHash } from './translation-freshness.ts';
 
@@ -15,7 +16,7 @@ export type StampResult = { ok: true; dePath: string; enPath: string; hash: stri
 /** Repo-relative, slash-separated form of a CLI path argument (relative to `cwd` or absolute). */
 export function toRepoPath(arg: string, root: string, cwd: string): string {
   const absolute = isAbsolute(arg) ? arg : resolve(cwd, arg);
-  return relative(root, absolute).split('\\').join('/');
+  return relativePosix(root, absolute);
 }
 
 /** Stamps one DE page in the repo at `root`; never throws, reports problems as a failed result. */
@@ -45,11 +46,7 @@ export function runStamp(args: readonly string[], root: string = REPO_ROOT, cwd:
   return { lines: results.map(stampLine), exitCode: results.every((result) => result.ok) ? 0 : 1 };
 }
 
-function isEntryPoint(): boolean {
-  return process.argv[1] !== undefined && import.meta.url === pathToFileURL(process.argv[1]).href;
-}
-
-if (isEntryPoint()) {
+if (isEntryPoint(import.meta.url)) {
   // pnpm runs root scripts from the repo root; INIT_CWD is where the user typed the command.
   const { lines, exitCode } = runStamp(process.argv.slice(2), REPO_ROOT, process.env.INIT_CWD ?? process.cwd());
   lines.forEach((line) => console.log(line));

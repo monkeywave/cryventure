@@ -1,12 +1,7 @@
-import { act, fireEvent, render, screen } from '@testing-library/react';
-import { Profiler } from 'react';
-import { motionValue } from 'motion/react';
+import { fireEvent, render, screen } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
-import type { Track } from '@cryventure/core';
 import { I18nProvider } from '../i18n/I18nProvider.tsx';
 import { vizMessages } from '../i18n/messages.ts';
-import { createLabStore } from '../lab/createLabStore.ts';
-import { LabRoot } from '../lab/LabRoot.tsx';
 import { renderLab } from '../testing/renderLab.tsx';
 import { ByteCell, type ByteCellProps } from './ByteCell.tsx';
 
@@ -57,25 +52,7 @@ describe('ByteCell', () => {
   });
 });
 
-describe('ByteCell motion', () => {
-  const emphasisTrack = (keyframes: Track['keyframes']): Track => ({ target: { region: 'state', index: 0 }, prop: 'emphasis', keyframes });
-  const valueTrack: Track = {
-    target: { region: 'state', index: 0 },
-    prop: 'value',
-    keyframes: [
-      { at: 0.6, value: 0 },
-      { at: 1, value: 1, ease: 'linear' },
-    ],
-  };
-  const allProps: Track[] = (['dx', 'dy', 'scale', 'opacity', 'emphasis'] as const).map((prop, offset) => ({
-    target: { region: 'state', index: 0 },
-    prop,
-    keyframes: [
-      { at: 0, value: offset },
-      { at: 1, value: offset + 10, ease: 'linear' },
-    ],
-  }));
-
+describe('ByteCell states', () => {
   function renderMotionCell(props: Partial<ByteCellProps> = {}) {
     const result = renderLab(
       <div role="grid">
@@ -87,104 +64,17 @@ describe('ByteCell motion', () => {
     return { ...result, cell: () => screen.getByRole('gridcell') };
   }
 
-  it('shows the before value until the middle of the step without a value track; the label states the end value', () => {
-    const progress = motionValue(0);
-    const { cell } = renderMotionCell({ motion: { progress, tracks: [], before: 0x10 } });
+  it('displays `shown` while its label states the end value', () => {
+    const { cell } = renderMotionCell({ shown: 0x10 });
     expect(cell().textContent).toBe('10');
     expect(cell().getAttribute('aria-label')).toBe('row 1, column 1, value 0xaa');
-    act(() => progress.set(0.49));
-    expect(cell().textContent).toBe('10');
-    act(() => progress.set(0.5));
-    expect(cell().textContent).toBe('aa');
-    expect(cell().getAttribute('aria-label')).toBe('row 1, column 1, value 0xaa');
-    act(() => progress.set(0.2));
-    expect(cell().textContent).toBe('10');
   });
 
-  it('switches the value when the value track reaches 0.5', () => {
-    const progress = motionValue(0);
-    const { cell } = renderMotionCell({ motion: { progress, tracks: [valueTrack], before: 0x10 } });
-    act(() => progress.set(0.5));
-    expect(cell().textContent).toBe('10');
-    act(() => progress.set(0.79));
-    expect(cell().textContent).toBe('10');
-    act(() => progress.set(0.8));
-    expect(cell().textContent).toBe('aa');
-  });
-
-  it('writes track samples as CSS custom properties without re-rendering', () => {
-    const progress = motionValue(0);
-    const { cell } = renderMotionCell({ motion: { progress, tracks: allProps, before: 0xaa } });
-    const style = () => cell().style;
-    expect(cell().hasAttribute('data-animated')).toBe(true);
-    expect(style().getPropertyValue('--cv-dx')).toBe('0');
-    expect(style().getPropertyValue('--cv-emphasis')).toBe('4');
-    act(() => progress.set(0.5));
-    expect(style().getPropertyValue('--cv-dx')).toBe('5');
-    expect(style().getPropertyValue('--cv-dy')).toBe('6');
-    expect(style().getPropertyValue('--cv-scale')).toBe('7');
-    expect(style().getPropertyValue('--cv-opacity')).toBe('8');
-    expect(style().getPropertyValue('--cv-emphasis')).toBe('9');
-  });
-
-  it('does not commit React renders while the playhead moves within the same value phase', () => {
-    const progress = motionValue(0.6);
-    const onRender = vi.fn();
-    renderLab(
-      <Profiler id="cell" onRender={onRender}>
-        <div role="grid">
-          <div role="row">
-            <ByteCell value={0xaa} row={0} col={0} index={0} motion={{ progress, tracks: allProps, before: 0xaa }} />
-          </div>
-        </div>
-      </Profiler>,
-    );
-    const commits = onRender.mock.calls.length;
-    act(() => {
-      progress.set(0.7);
-      progress.set(0.75);
-    });
-    expect(onRender.mock.calls.length).toBe(commits);
-    expect(screen.getByRole('gridcell').style.getPropertyValue('--cv-dx')).toBe('7.5');
-  });
-
-  it('only sets the properties its tracks drive', () => {
-    const progress = motionValue(0.5);
-    const { cell } = renderMotionCell({ motion: { progress, tracks: [emphasisTrack([{ at: 0, value: 1 }])], before: 0xaa } });
-    expect(cell().style.getPropertyValue('--cv-emphasis')).toBe('1');
-    expect(cell().style.getPropertyValue('--cv-dx')).toBe('');
-  });
-
-  it('clears styles and data-animated when the tracks go away and on unmount', () => {
-    const progress = motionValue(0);
-    const tracks = [emphasisTrack([{ at: 0, value: 1 }])];
-    const { cell, rerender, unmount } = renderMotionCell({ motion: { progress, tracks, before: 0xaa } });
-    expect(cell().style.getPropertyValue('--cv-emphasis')).toBe('1');
-    const element = cell();
-    rerender(
-      <I18nProvider messages={vizMessages.en}>
-        <LabRoot store={createLabStore()}>
-          <div role="grid">
-            <div role="row">
-              <ByteCell value={0xaa} row={0} col={0} index={0} />
-            </div>
-          </div>
-        </LabRoot>
-      </I18nProvider>,
-    );
-    expect(element.hasAttribute('data-animated')).toBe(false);
-    expect(element.style.getPropertyValue('--cv-emphasis')).toBe('');
-    unmount();
-  });
-
-  it('removes its progress subscription on unmount', () => {
-    const progress = motionValue(0);
-    const { cell, unmount } = renderMotionCell({ motion: { progress, tracks: [emphasisTrack([{ at: 0, value: 0 }, { at: 1, value: 1, ease: 'linear' }])], before: 0xaa } });
-    const element = cell();
-    unmount();
-    expect(element.hasAttribute('data-animated')).toBe(false);
-    progress.set(0.5);
-    expect(element.style.getPropertyValue('--cv-emphasis')).toBe('');
+  it('reports focus by row and column through one shared callback', () => {
+    const onFocusCell = vi.fn();
+    const { cell } = renderMotionCell({ row: 2, col: 3, onFocusCell });
+    fireEvent.focus(cell());
+    expect(onFocusCell).toHaveBeenCalledWith(2, 3);
   });
 
   it('marks dimmed and selected cells', () => {
@@ -211,6 +101,7 @@ describe('ByteCell motion', () => {
     const { cell } = renderMotionCell({ onSelect });
     fireEvent.click(cell());
     expect(onSelect).toHaveBeenCalledTimes(1);
+    expect(onSelect).toHaveBeenLastCalledWith(0);
     const enter = new KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true });
     fireEvent(cell(), enter);
     expect(onSelect).toHaveBeenCalledTimes(2);

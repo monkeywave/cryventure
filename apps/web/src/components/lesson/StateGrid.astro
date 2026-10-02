@@ -1,20 +1,27 @@
 ---
 /**
- * The AES state as a 4×4 table. `cells` is given in column-major order (cells[r + 4c] = s[r,c]),
- * exactly like FIPS 197 §3.4 maps in[r + 4c] onto the state.
+ * A byte grid such as the AES state. `cells` is given in fill `order` (default column-major,
+ * cells[r + 4c] = s[r,c], exactly like FIPS 197 §3.4 maps in[r + 4c] onto the 4×4 state).
  */
+import type { GridShape } from '@cryventure/viz';
 import { lessonTranslator } from './lessonTranslator';
+import { DEFAULT_LESSON_KIND, type LessonKind } from './lessonKinds';
+import { AES_STATE_ORDER, AES_STATE_SHAPE, range, stateGridRows, type GridOrder } from './stateGridLayout';
 
 interface Props {
   cells: string[];
   caption: string;
-  kind?: 'state' | 'plaintext' | 'ciphertext' | 'key';
+  kind?: LessonKind;
+  /** [rows, cols]; defaults to the 4×4 AES state. */
+  shape?: GridShape;
+  /** How `cells` fill the grid; defaults to column-major. */
+  order?: GridOrder;
 }
 
-const { cells, caption, kind = 'state' } = Astro.props;
-if (cells.length !== 16) throw new Error(`<StateGrid>: expected 16 cells, got ${cells.length}`);
+const { cells, caption, kind = DEFAULT_LESSON_KIND, shape = AES_STATE_SHAPE, order = AES_STATE_ORDER } = Astro.props;
+const rows = stateGridRows(cells, shape, order);
+const columnIndices = range(shape[1]);
 const t = lessonTranslator(Astro.currentLocale);
-const indices = [0, 1, 2, 3];
 ---
 
 <figure class="cv-state-grid not-content" data-kind={kind}>
@@ -23,15 +30,15 @@ const indices = [0, 1, 2, 3];
     <thead>
       <tr>
         <td></td>
-        {indices.map((column) => <th scope="col" aria-label={t('lesson.stateGrid.column', { column })}>c={column}</th>)}
+        {columnIndices.map((column) => <th scope="col" aria-label={t('lesson.stateGrid.column', { column })}>c={column}</th>)}
       </tr>
     </thead>
     <tbody>
       {
-        indices.map((row) => (
+        rows.map((rowCells, row) => (
           <tr>
             <th scope="row" aria-label={t('lesson.stateGrid.row', { row })}>r={row}</th>
-            {indices.map((column) => <td>{cells[row + 4 * column]}</td>)}
+            {rowCells.map((cell) => <td>{cell}</td>)}
           </tr>
         ))
       }
@@ -56,6 +63,22 @@ const indices = [0, 1, 2, 3];
 
   .cv-state-grid[data-kind='key'] {
     --cv-grid-accent: var(--cv-key);
+  }
+
+  .cv-state-grid[data-kind='subkey'] {
+    --cv-grid-accent: var(--cv-subkey);
+  }
+
+  .cv-state-grid[data-kind='nonce'] {
+    --cv-grid-accent: var(--cv-nonce);
+  }
+
+  .cv-state-grid[data-kind='constant'] {
+    --cv-grid-accent: var(--cv-constant);
+  }
+
+  .cv-state-grid[data-kind='tag'] {
+    --cv-grid-accent: var(--cv-success);
   }
 
   .cv-state-grid table {

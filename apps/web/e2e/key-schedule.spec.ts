@@ -3,32 +3,25 @@ import viewsEn from '../../../packages/views/src/key-schedule/i18n/en.json' with
 import viewsDe from '../../../packages/views/src/key-schedule/i18n/de.json' with { type: 'json' };
 import aesEn from '../../../packages/primitives/src/aes/i18n/en.json' with { type: 'json' };
 import aesDe from '../../../packages/primitives/src/aes/i18n/de.json' with { type: 'json' };
+import { interpolate } from '@cryventure/core';
 import { blockingViolations } from './helpers/axe.ts';
+import { DESKTOP, KEY_SCHEDULE_LAB, PHONE, expectNoHorizontalOverflow, labLocator, type Lang } from './labPage.ts';
 
-// Relative URLs resolve against baseURL, so the suite also runs for CV_BASE sub-path builds.
-
-type Lang = 'en' | 'de';
-
-const LAB_ID = 'aes-key-schedule';
-const PAGE = (lang: Lang) => `${lang}/symmetric/aes/key-expansion/`;
 const MESSAGES = { en: { view: viewsEn, aes: aesEn }, de: { view: viewsDe, aes: aesDe } } as const;
 /** FIPS 197 App. A.1: w[4] (round key 1) and w[40] (round key 10). */
 const W4 = 'a0fafe17';
 const W40 = 'd014f9a8';
 const W4_CHAIN = ['cf4f3c09', '8a84eb01', '01000000', '8b84eb01', '2b7e1516', W4];
 
-const MOBILE = { width: 390, height: 844 };
-
 /** "How Word w[i] is derived" / "So entsteht Wort w[i]" from the shipped catalogs. */
 function chainTitle(lang: Lang, i: number): string {
   const { view, aes } = MESSAGES[lang];
-  const name = aes['plugin.aes.derivation.word'].replace('{{i}}', String(i));
-  return view['view.key-schedule.chainTitle'].replace('{{name}}', name);
+  return interpolate(view['view.key-schedule.chainTitle'], { name: interpolate(aes['plugin.aes.derivation.word'], { i }) });
 }
 
 async function openKeySchedule(page: Page, lang: Lang): Promise<Locator> {
-  await page.goto(PAGE(lang));
-  const lab = page.locator(`[data-lab-id="${LAB_ID}"]`);
+  await page.goto(`${lang}/${KEY_SCHEDULE_LAB.path}`);
+  const lab = labLocator(page, KEY_SCHEDULE_LAB.labId);
   await lab.scrollIntoViewIfNeeded();
   const schedule = lab.locator('section.cv-keyschedule');
   await expect(schedule.locator('.cv-keyschedule__word')).toHaveCount(44);
@@ -50,13 +43,6 @@ async function hostRow(chain: Locator): Promise<{ index: number; nextIsRow: bool
   }));
 }
 
-async function noHorizontalOverflow(page: Page): Promise<void> {
-  const overflow = await page.evaluate(
-    () => document.documentElement.scrollWidth - document.documentElement.clientWidth,
-  );
-  expect(overflow).toBeLessThanOrEqual(0);
-}
-
 /** Every chain line keeps its hex on one line, inside the panel. */
 async function expectHexFits(chain: Locator): Promise<void> {
   const fits = await chain.locator('.cv-keyschedule__link').evaluateAll((lines) =>
@@ -72,8 +58,8 @@ async function expectHexFits(chain: Locator): Promise<void> {
 
 for (const lang of ['en', 'de'] as const) {
   for (const [device, viewport] of [
-    ['desktop', { width: 1280, height: 900 }],
-    ['mobile', MOBILE],
+    ['desktop', DESKTOP],
+    ['mobile', PHONE],
   ] as const) {
     test(`${lang} ${device}: the chain opens inline beneath its round key`, async ({ page }) => {
       await page.setViewportSize(viewport);
@@ -95,7 +81,7 @@ for (const lang of ['en', 'de'] as const) {
 
       await page.keyboard.press('Escape');
       await expect(schedule.locator('.cv-keyschedule__chain')).toHaveCount(0);
-      await noHorizontalOverflow(page);
+      await expectNoHorizontalOverflow(page);
     });
   }
 }
@@ -122,7 +108,7 @@ test('an open chain has no serious or critical axe violations (EN, dark)', async
 test('an open chain has no serious or critical axe violations on the whole page (DE, light, mobile)', async ({
   page,
 }) => {
-  await page.setViewportSize(MOBILE);
+  await page.setViewportSize(PHONE);
   await page.emulateMedia({ colorScheme: 'light' });
   const schedule = await openKeySchedule(page, 'de');
   await word(schedule, W4).click();
@@ -132,8 +118,8 @@ test('an open chain has no serious or critical axe violations on the whole page 
 
 test.describe('screenshots', () => {
   for (const [lang, scheme, viewport, file] of [
-    ['en', 'dark', { width: 1280, height: 900 }, 'keyschedule-desktop-dark-en.png'],
-    ['de', 'light', MOBILE, 'keyschedule-mobile-light-de.png'],
+    ['en', 'dark', DESKTOP, 'keyschedule-desktop-dark-en.png'],
+    ['de', 'light', PHONE, 'keyschedule-mobile-light-de.png'],
   ] as const) {
     test(file, async ({ page }) => {
       await page.setViewportSize(viewport);

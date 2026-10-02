@@ -1,11 +1,11 @@
 import { INITIAL_STEP } from './labReducers.ts';
 import type { AnyStateStep } from './stateSteps.ts';
 
-/** Scope level of rounds (the outermost scope). */
-export const ROUND_LEVEL = 0;
+/** The outermost scope level (e.g. AES rounds), which the "next/previous section" buttons step by. */
+export const OUTER_SCOPE_LEVEL = 0;
 
 /** Steps that open a new scope at `level`: the first step and every step whose prefix up to `level` changes. */
-export function scopeStarts(steps: readonly Pick<AnyStateStep, 'scope'>[], level: number = ROUND_LEVEL): number[] {
+export function scopeStarts(steps: readonly Pick<AnyStateStep, 'scope'>[], level: number = OUTER_SCOPE_LEVEL): number[] {
   const starts: number[] = [];
   steps.forEach((step, index) => {
     const previous = steps[index - 1];
@@ -20,11 +20,11 @@ function samePrefix(a: readonly number[], b: readonly number[], level: number): 
 }
 
 /** "Step over": the next scope start after `step`, else the last step. */
-export function nextScopeStart(steps: readonly Pick<AnyStateStep, 'scope'>[], step: number, level: number = ROUND_LEVEL): number {
+export function nextScopeStart(steps: readonly Pick<AnyStateStep, 'scope'>[], step: number, level: number = OUTER_SCOPE_LEVEL): number {
   return scopeStarts(steps, level).find((start) => start > step) ?? steps.length - 1;
 }
 
-/** "Previous round": the start of the current scope when inside it, else the previous scope's start. */
-export function prevScopeStart(steps: readonly Pick<AnyStateStep, 'scope'>[], step: number, level: number = ROUND_LEVEL): number {
+/** "Previous section": the start of the current scope when inside it, else the previous scope's start. */
+export function prevScopeStart(steps: readonly Pick<AnyStateStep, 'scope'>[], step: number, level: number = OUTER_SCOPE_LEVEL): number {
   return scopeStarts(steps, level).findLast((start) => start < step) ?? INITIAL_STEP;
 }

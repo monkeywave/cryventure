@@ -2,7 +2,8 @@ import { stateAt, toHex } from '@cryventure/core';
 import fc from 'fast-check';
 import { describe, expect, it } from 'vitest';
 import type { AesOp, AesRegion } from './aesTrace.ts';
-import { decryptBlock, encryptBlock } from './cipher.ts';
+import { decryptBlock, encryptBlock, encryptWithSchedule } from './cipher.ts';
+import { keySchedule } from './keyExpansion.ts';
 import type { AesStateFacet } from './module.ts';
 import { hexBytes, recordingTracerFor } from './testHelpers.ts';
 import vectors from './vectors/fips197.json';
@@ -144,5 +145,17 @@ describe('decryptBlock trace', () => {
       step.op === 'addRoundKey' ? [step.roundKeyIndex] : [],
     );
     expect(roundKeyOrder).toEqual([10, 9, 8, 7, 6, 5, 4, 3, 2, 1, 0]);
+  });
+});
+
+describe('encryptWithSchedule', () => {
+  it('matches encryptBlock (same ciphertext and trace) with a pre-expanded key', () => {
+    const key = hexBytes(appendixB.key);
+    const viaKey = recordingTracerFor(16);
+    const viaSchedule = recordingTracerFor(16);
+    const ciphertext = encryptWithSchedule(keySchedule(key), hexBytes(appendixB.input), viaSchedule);
+    expect(toHex(ciphertext)).toBe(appendixB.output);
+    encryptBlock(key, hexBytes(appendixB.input), viaKey);
+    expect(viaSchedule.toFacet()).toEqual(viaKey.toFacet());
   });
 });

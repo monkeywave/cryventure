@@ -18,8 +18,8 @@ describe('keyToAction', () => {
   });
 
   it('maps Shift+arrows to round navigation and B to the current breakpoint', () => {
-    expect(keyToAction(key('ArrowLeft', { shiftKey: true }), div)).toBe('prevRound');
-    expect(keyToAction(key('ArrowRight', { shiftKey: true }), div)).toBe('nextRound');
+    expect(keyToAction(key('ArrowLeft', { shiftKey: true }), div)).toBe('prevScope');
+    expect(keyToAction(key('ArrowRight', { shiftKey: true }), div)).toBe('nextScope');
     expect(keyToAction(key('b'), div)).toBe('toggleCurrentBreakpoint');
     expect(keyToAction(key('B', { shiftKey: true }), div)).toBe('toggleCurrentBreakpoint');
   });

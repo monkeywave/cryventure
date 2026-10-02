@@ -1,4 +1,4 @@
-import { activeBeat, sampleTrack, VALUE_SWITCH, type Beat, type NodeProps, type StepChoreography, type Track, type TrackProp } from '@cryventure/core';
+import { activeBeat, sampleTrack, VALUE_SWITCH, type Beat, type StepChoreography, type Track, type TrackProp } from '@cryventure/core';
 
 const NO_TRACKS: ReadonlyMap<number, readonly Track[]> = new Map();
 
@@ -15,22 +15,11 @@ export function tracksForRegion(choreography: StepChoreography | undefined, regi
   return byIndex;
 }
 
-/** Samples a node's tracks at `progress`. */
-export function sampleNode(tracks: readonly Track[], progress: number): NodeProps {
-  const props: NodeProps = {};
-  for (const track of tracks) {
-    const value = sampleTrack(track, progress);
-    if (value !== undefined) props[track.prop] = value;
-  }
-  return props;
-}
-
 /** Value switch point (core's `VALUE_SWITCH`): the node's `value` track reaching 0.5, else the middle of the step. */
 export { VALUE_SWITCH };
 
-/** Whether the node shows its `after` value at `progress`. */
-export function showsAfter(tracks: readonly Track[], progress: number): boolean {
-  const valueTrack = tracks.find((track) => track.prop === 'value');
+/** Whether a node with this `value` track (none = switch mid-step) shows its `after` value at `progress`. */
+export function showsAfter(valueTrack: Track | undefined, progress: number): boolean {
   const position = valueTrack === undefined ? progress : (sampleTrack(valueTrack, progress) ?? progress);
   return position >= VALUE_SWITCH;
 }

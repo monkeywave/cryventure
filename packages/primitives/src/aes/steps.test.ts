@@ -3,13 +3,11 @@ import { expandKey } from './keyExpansion.ts';
 import { shiftRows } from './ops.ts';
 import {
   addRoundKeyStep,
-  inputStep,
   keyExpansionStep,
-  mixStep,
   outputStep,
   shiftStep,
   stepKey,
-  substitutionStep,
+  wholeStateStep,
 } from './steps.ts';
 
 const STATE = Array.from({ length: 16 }, (_, i) => i);
@@ -21,10 +19,11 @@ describe('stepKey', () => {
 });
 
 describe('step builders', () => {
-  it('inputStep writes the whole state', () => {
-    const step = inputStep(0, STATE);
+  it("wholeStateStep('input') writes the whole state with an unparameterised narration", () => {
+    const step = wholeStateStep('input', 0, STATE);
     expect(step.writes).toEqual([{ region: 'state', offset: 0, values: STATE }]);
-    expect(step.narration.key).toBe('plugin.aes.step.input');
+    expect(step.highlights).toEqual([{ region: 'state', indices: STATE, kind: 'write' }]);
+    expect(step.narration).toEqual({ key: 'plugin.aes.step.input' });
   });
 
   it('keyExpansionStep writes all words into w', () => {
@@ -42,9 +41,16 @@ describe('step builders', () => {
     expect(step.narration.params).toEqual({ round: 2, roundKey: 2 });
   });
 
-  it('substitutionStep and mixStep highlight the state', () => {
-    expect(substitutionStep('invSubBytes', 4, STATE).highlights[0]?.kind).toBe('sbox');
-    expect(mixStep('mixColumns', 4, STATE)).toMatchObject({ op: 'mixColumns', round: 4 });
+  it.each([
+    ['subBytes', 'sbox'],
+    ['invSubBytes', 'sbox'],
+    ['mixColumns', 'write'],
+    ['invMixColumns', 'write'],
+  ] as const)('wholeStateStep(%s) highlights the whole state as %s and narrates the round', (op, kind) => {
+    const step = wholeStateStep(op, 4, STATE);
+    expect(step).toMatchObject({ op, round: 4, writes: [{ region: 'state', offset: 0, values: STATE }] });
+    expect(step.highlights).toEqual([{ region: 'state', indices: STATE, kind }]);
+    expect(step.narration).toEqual({ key: `plugin.aes.step.${op}`, params: { round: 4 } });
   });
 
   it('shiftStep carries the moves and highlights their targets', () => {

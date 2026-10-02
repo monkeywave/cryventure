@@ -1,4 +1,4 @@
-import type { StateFacet, Translate } from '@cryventure/core';
+import type { AnyStateFacet, Translate } from '@cryventure/core';
 
 /** Message keys per scope depth; deeper levels reuse the last key. Params: `index`, `ordinal` (index + 1). */
 export const DEFAULT_SCOPE_LEVEL_KEYS: readonly string[] = ['ui.scope.round', 'ui.scope.op', 'ui.scope.sub'];
@@ -31,12 +31,12 @@ export function formatScopePath(
 }
 
 /** The producer's `scopeLevels` label keys when declared, else the viz defaults. */
-export function scopeLevelKeys(facet: Pick<StateFacet<string, { op: string }>, 'scopeLevels'> | undefined): readonly string[] {
+export function scopeLevelKeys(facet: Pick<AnyStateFacet, 'scopeLevels'> | undefined): readonly string[] {
   const keys = facet?.scopeLevels?.map((level) => level.labelKey);
   return keys !== undefined && keys.length > 0 ? keys : DEFAULT_SCOPE_LEVEL_KEYS;
 }
 
 /** Scope path of `step` in a state facet; the initial step (-1) has the root scope `[]`. */
-export function scopeAt(facet: Pick<StateFacet<string, { op: string }>, 'steps'> | undefined, step: number): readonly number[] {
+export function scopeAt(facet: Pick<AnyStateFacet, 'steps'> | undefined, step: number): readonly number[] {
   return facet?.steps[step]?.scope ?? [];
 }

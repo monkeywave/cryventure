@@ -4,8 +4,9 @@ import { decryptBlock, encryptBlock } from './cipher.ts';
 import de from './i18n/de.json';
 import en from './i18n/en.json';
 import { aesManifest, AES_PARAM_FIELDS, AES_PRESETS, validateAesParams } from './manifest.ts';
-import { AES_OP_NAMES, AES_SCOPE_LEVELS, aesRegions, opLabelKey, opShortLabelKey } from './aesTrace.ts';
+import { AES_SCOPE_LEVELS, aesRegions } from './aesTrace.ts';
 import { keyScheduleDerivation } from './derivation.ts';
+import { keySchedule } from './keyExpansion.ts';
 import { hexBytes, recordingTracerFor } from './testHelpers.ts';
 
 const LOCALES: Record<string, Messages> = { en, de };
@@ -27,9 +28,9 @@ function declaredKeys(): string[] {
     ...paramFieldKeys(AES_PARAM_FIELDS),
     ...aesRegions(10).map((region) => region.labelKey),
     ...['key', 'plaintext', 'ciphertext', 'roundKey'].map((name) => `plugin.aes.value.${name}`),
-    ...AES_OP_NAMES.map(opLabelKey),
-    ...AES_OP_NAMES.map(opShortLabelKey),
-    ...AES_SCOPE_LEVELS.map((level) => level.labelKey),
+    ...Object.values(aesManifest.ops ?? {}).flatMap((labels) => [labels.labelKey, labels.shortLabelKey ?? labels.labelKey]),
+    ...Object.values(aesManifest.outputs ?? {}).map((output) => output.labelKey),
+    ...AES_SCOPE_LEVELS.flatMap((level) => [level.labelKey, level.nextKey ?? level.labelKey, level.prevKey ?? level.labelKey]),
   ];
 }
 
@@ -82,8 +83,11 @@ describe('i18n coverage', () => {
     }
   });
 
-  it('every derivation label ref (AES-128 and AES-256) exists in both locales with matching params', () => {
-    const labels = [16, 32].flatMap((length) => keyScheduleDerivation(new Array<number>(length).fill(0), length / 4 + 6, () => undefined).nodes.map((node) => node.label));
+  it('every derivation node and group label ref (AES-128 and AES-256) exists in both locales with matching params', () => {
+    const labels = [16, 32].flatMap((length) => {
+      const facet = keyScheduleDerivation(keySchedule(new Array<number>(length).fill(0)));
+      return [...facet.nodes.map((node) => node.label), ...(facet.groups ?? []).map((group) => group.label)];
+    });
     for (const [locale, messages] of Object.entries(LOCALES)) {
       for (const ref of labels) expect(extractParams(messages[ref.key] ?? '').sort(), `${locale}:${ref.key}`).toEqual(Object.keys(ref.params ?? {}).sort());
     }

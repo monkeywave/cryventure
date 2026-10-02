@@ -1,6 +1,4 @@
-import { applyWrites, type Keyframe, type Snapshot, type StateFacet } from './facets/state.ts';
-
-type AnyStateFacet = StateFacet<string, { op: string }>;
+import { applyWrites, type AnyStateFacet, type Keyframe, type Snapshot, type StateFacet } from './facets/state.ts';
 
 export const STATE_CACHE_CAPACITY = 64;
 
@@ -31,13 +29,24 @@ function assertStepInRange(facet: AnyStateFacet, step: number): void {
   }
 }
 
-function replayFrom<R extends string>(facet: StateFacet<R, { op: string }>, step: number): Snapshot<R> {
-  const keyframe = nearestKeyframe(facet.keyframes, step);
+function replayFrom<R extends string>(facet: StateFacet<R, { op: string }>, keyframe: Keyframe<R> | undefined, step: number): Snapshot<R> {
   let snapshot = keyframe?.snapshot ?? facet.initial;
   for (let i = (keyframe?.step ?? -1) + 1; i <= step; i++) {
     snapshot = applyWrites(snapshot, facet.steps[i]?.writes ?? []);
   }
   return snapshot;
+}
+
+/**
+ * Cheapest exact way to `step`: the keyframe AT `step` itself, else the cached previous step plus
+ * this step's writes (sequential playback), else a replay from the nearest keyframe.
+ */
+function computeState<R extends string>(facet: StateFacet<R, { op: string }>, step: number, entries: Map<number, Snapshot<string>>): Snapshot<R> {
+  const keyframe = nearestKeyframe(facet.keyframes, step);
+  if (keyframe?.step === step) return keyframe.snapshot;
+  const previous = entries.get(step - 1) as Snapshot<R> | undefined;
+  if (previous !== undefined) return applyWrites(previous, facet.steps[step]?.writes ?? []);
+  return replayFrom(facet, keyframe, step);
 }
 
 function cacheFor(facet: object): Map<number, Snapshot<string>> {
@@ -59,14 +68,15 @@ function remember(entries: Map<number, Snapshot<string>>, step: number, snapshot
 }
 
 /**
- * State AFTER `step` (step `-1` = `initial`): nearest keyframe ≤ step, then replay deltas.
- * Results are memoised in a small per-facet LRU; facets must be treated as immutable.
+ * State AFTER `step` (step `-1` = `initial`): the cached previous step plus one step of writes, else
+ * the nearest keyframe ≤ step plus replayed deltas. Results are memoised in a small per-facet LRU;
+ * facets must be treated as immutable.
  */
 export function stateAt<R extends string>(facet: StateFacet<R, { op: string }>, step: number): Snapshot<R> {
   assertStepInRange(facet, step);
   if (step === -1) return facet.initial;
   const entries = cacheFor(facet);
-  const snapshot = (entries.get(step) as Snapshot<R> | undefined) ?? replayFrom(facet, step);
+  const snapshot = (entries.get(step) as Snapshot<R> | undefined) ?? computeState(facet, step, entries);
   remember(entries, step, snapshot);
   return snapshot;
 }

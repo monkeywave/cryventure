@@ -14,7 +14,7 @@ export function hintKeyOf(field: ParamField): string | undefined {
   return field.hintKey ?? (field.kind === 'hex' ? HEX_HINT_KEY : undefined);
 }
 
-/** Label key for a producer output, following the `<namespace>.value.<name>` convention. */
-export function outputLabelKey(producer: Pick<PrimitiveManifest, 'i18nNamespace'>, name: string): string {
-  return `${producer.i18nNamespace}.value.${name}`;
+/** The producer-declared label key of an output (`manifest.outputs`); `undefined` when it declares none. */
+export function outputLabelKey(producer: Pick<PrimitiveManifest, 'outputs'>, name: string): string | undefined {
+  return producer.outputs?.[name]?.labelKey;
 }

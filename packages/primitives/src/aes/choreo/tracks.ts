@@ -56,8 +56,3 @@ export function cellRow(index: number): number {
 export function cellColumn(index: number): number {
   return Math.floor(index / STATE_ROWS);
 }
-
-/** Two-digit lowercase hex of a byte, for narration params. */
-export function hexByte(value: number | undefined): string {
-  return (value ?? 0).toString(16).padStart(2, '0');
-}

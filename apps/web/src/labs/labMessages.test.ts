@@ -1,6 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import { extractParams } from '@cryventure/core';
+import { producerRegistry } from './registry.ts';
 import { labMessages, pickPrefix } from './labMessages.ts';
+
+const AES = producerRegistry.require('aes');
 
 describe('pickPrefix', () => {
   it('keeps only keys under the prefix', () => {
@@ -9,8 +12,8 @@ describe('pickPrefix', () => {
 });
 
 describe('labMessages', () => {
-  const en = labMessages('en', 'aes');
-  const de = labMessages('de-AT', 'aes');
+  const en = labMessages('en', AES);
+  const de = labMessages('de-AT', AES);
 
   it('contains exactly the namespaces a lab needs', () => {
     const namespaces = new Set(Object.keys(en).map((key) => key.split('.').slice(0, 2).join('.')));

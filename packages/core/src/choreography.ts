@@ -1,5 +1,6 @@
 import type { I18nRef } from './i18n.ts';
-import type { Snapshot, StateStep } from './facets/state.ts';
+import type { AnyStateFacet, Snapshot, StateStep, Write } from './facets/state.ts';
+import { stateAt } from './stateAt.ts';
 
 /**
  * Choreography: how ONE state step animates between its "before" and "after" snapshots.
@@ -69,6 +70,21 @@ export interface ChoreographyContext<R extends string = string, Op extends { op:
   before: Snapshot<R>;
   after: Snapshot<R>;
   step: StateStep<R, Op>;
+}
+
+function contextOf(facet: AnyStateFacet, index: number, step: StateStep<string, { op: string }>): ChoreographyContext {
+  return { before: stateAt(facet, index - 1), after: stateAt(facet, index), step };
+}
+
+/** Context for `step`: the state before it, after it, and the step itself; `undefined` outside the facet. */
+export function stepContext(facet: AnyStateFacet, step: number): ChoreographyContext | undefined {
+  const current = facet.steps[step];
+  return current === undefined ? undefined : contextOf(facet, step, current);
+}
+
+/** `stepContext` for every step of a facet, in step order. */
+export function stepContexts(facet: AnyStateFacet): ChoreographyContext[] {
+  return facet.steps.map((step, index) => contextOf(facet, index, step));
 }
 
 /** Optional export of a producer plugin; `undefined` means "use the generic fallback". */
@@ -142,24 +158,32 @@ export function activeBeat(choreography: StepChoreography, progress: number): Be
   return active;
 }
 
-function changedIndices(before: readonly number[], after: readonly number[]): number[] {
-  const indices: number[] = [];
-  after.forEach((value, index) => {
-    if (before[index] !== value) indices.push(index);
-  });
-  return indices;
+/** Indices each region's writes cover (`[offset, offset + values.length)`), regions in first-write order. */
+function writtenIndices(writes: readonly Write<string>[]): Map<string, Set<number>> {
+  const byRegion = new Map<string, Set<number>>();
+  for (const write of writes) {
+    const indices = byRegion.get(write.region) ?? new Set<number>();
+    write.values.forEach((_, i) => indices.add(write.offset + i));
+    byRegion.set(write.region, indices);
+  }
+  return byRegion;
 }
 
-/** Generic choreography for producers without their own: written cells pulse in a left-to-right wave. */
+function changedIndices(indices: ReadonlySet<number>, before: readonly number[], after: readonly number[]): number[] {
+  return [...indices].sort((a, b) => a - b).filter((index) => before[index] !== after[index]);
+}
+
+/**
+ * Generic choreography for producers without their own: cells whose value a write changed pulse in a
+ * left-to-right wave per region (one track per cell, even when several writes hit it).
+ */
 export function fallbackChoreography(context: ChoreographyContext): StepChoreography {
   const tracks: Track[] = [];
-  for (const write of context.step.writes) {
-    const before = context.before[write.region] ?? [];
-    const after = context.after[write.region] ?? [];
-    const changed = changedIndices(before, after);
+  for (const [region, indices] of writtenIndices(context.step.writes)) {
+    const changed = changedIndices(indices, context.before[region] ?? [], context.after[region] ?? []);
     changed.forEach((index, order) => {
       const start = changed.length > 1 ? (order / changed.length) * 0.5 : 0;
-      tracks.push(pulseTrack({ region: write.region, index }, start));
+      tracks.push(pulseTrack({ region, index }, start));
     });
   }
   return { duration: DEFAULT_STEP_DURATION, tracks, beats: [{ at: 0, narration: context.step.narration }] };

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { Beat, StepChoreography, Track } from '@cryventure/core';
-import { VALUE_SWITCH, activeBeatIndex, focusIn, sampleNode, showsAfter, tracksForRegion } from './nodeTracks.ts';
+import { VALUE_SWITCH, activeBeatIndex, focusIn, showsAfter, tracksForRegion } from './nodeTracks.ts';
 
 const linear = (region: string, index: number, prop: Track['prop'], from: number, to: number): Track => ({
   target: { region, index },
@@ -32,33 +32,21 @@ describe('tracksForRegion', () => {
   });
 });
 
-describe('sampleNode', () => {
-  it("samples each track's prop at the progress", () => {
-    const tracks = tracksForRegion(choreography, 'state').get(0) ?? [];
-    expect(sampleNode(tracks, 0.5)).toEqual({ emphasis: 0.5, dx: 2 });
-    expect(sampleNode(tracks, 1)).toEqual({ emphasis: 1, dx: 4 });
-  });
-
-  it('skips tracks without keyframes', () => {
-    expect(sampleNode([{ target: { region: 'state', index: 0 }, prop: 'dy', keyframes: [] }], 0.5)).toEqual({});
-  });
-});
-
 describe('showsAfter', () => {
   it('switches at the middle of the step without a value track', () => {
     expect(VALUE_SWITCH).toBe(0.5);
-    expect(showsAfter([], 0.49)).toBe(false);
-    expect(showsAfter([], 0.5)).toBe(true);
+    expect(showsAfter(undefined, 0.49)).toBe(false);
+    expect(showsAfter(undefined, 0.5)).toBe(true);
   });
 
   it('follows the value track reaching 0.5', () => {
     const late: Track = { target: { region: 'state', index: 0 }, prop: 'value', keyframes: [{ at: 0.8, value: 0 }, { at: 0.9, value: 1, ease: 'linear' }] };
-    expect(showsAfter([late], 0.6)).toBe(false);
-    expect(showsAfter([late], 0.84)).toBe(false);
-    expect(showsAfter([late], 0.86)).toBe(true);
+    expect(showsAfter(late, 0.6)).toBe(false);
+    expect(showsAfter(late, 0.84)).toBe(false);
+    expect(showsAfter(late, 0.86)).toBe(true);
     const early: Track = { ...late, keyframes: [{ at: 0, value: 0 }, { at: 0.2, value: 1, ease: 'linear' }] };
-    expect(showsAfter([early], 0.1)).toBe(true);
-    expect(showsAfter([early], 0.05)).toBe(false);
+    expect(showsAfter(early, 0.1)).toBe(true);
+    expect(showsAfter(early, 0.05)).toBe(false);
   });
 });
 

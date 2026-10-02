@@ -33,9 +33,9 @@ describe('resolveStartAt', () => {
     expect(resolveStartAt(undefined, STEPS)).toBe(-1);
   });
 
-  it('clamps step:N to the timeline', () => {
+  it('maps the displayed step:N to its index (clamping is left to store.seek)', () => {
     expect(resolveStartAt(parseStartAt('step:3'), STEPS)).toBe(2);
-    expect(resolveStartAt(parseStartAt('step:99'), STEPS)).toBe(4);
+    expect(resolveStartAt(parseStartAt('step:99'), STEPS)).toBe(98);
     expect(resolveStartAt(parseStartAt('step:0'), STEPS)).toBe(-1);
   });
 });

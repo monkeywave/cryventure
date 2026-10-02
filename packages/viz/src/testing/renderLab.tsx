@@ -5,11 +5,14 @@ import { I18nProvider } from '../i18n/I18nProvider.tsx';
 import { createLabStore, type LabStore } from '../lab/createLabStore.ts';
 import { LabRoot } from '../lab/LabRoot.tsx';
 import { vizMessages } from '../i18n/messages.ts';
+import type { OpLabelMap } from '../player/opLabel.ts';
 
 export interface RenderLabOptions {
   bundle?: TraceBundle | null;
   messages?: Messages;
   store?: LabStore;
+  /** The producer's op labels (`manifest.ops`), as `LabRoot` receives them. */
+  opLabels?: OpLabelMap;
 }
 
 /** Renders `ui` inside a full lab (i18n + store + keyboard + motion) for component tests. */
@@ -17,7 +20,9 @@ export function renderLab(ui: ReactNode, options: RenderLabOptions = {}): Render
   const store = options.store ?? createLabStore(options.bundle ?? null);
   const result = render(
     <I18nProvider messages={{ ...vizMessages.en, ...options.messages }}>
-      <LabRoot store={store}>{ui}</LabRoot>
+      <LabRoot store={store} opLabels={options.opLabels}>
+        {ui}
+      </LabRoot>
     </I18nProvider>,
   );
   return { ...result, store };

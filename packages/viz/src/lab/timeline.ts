@@ -1,4 +1,5 @@
-import { getFacet, type NarrationFacet, type StateFacet, type TraceBundle } from '@cryventure/core';
+import { getFacet, type NarrationFacet, type TraceBundle } from '@cryventure/core';
+import { stateFacetOf } from './stateSteps.ts';
 
 /**
  * Number of steps on the lab's shared timeline: the state facet's step count, else one past
@@ -6,7 +7,7 @@ import { getFacet, type NarrationFacet, type StateFacet, type TraceBundle } from
  */
 export function timelineLength(bundle: TraceBundle | null): number {
   if (bundle === null) return 0;
-  const state = getFacet<StateFacet<string, { op: string }>>(bundle, 'state');
+  const state = stateFacetOf(bundle);
   if (state !== undefined) return state.steps.length;
   const narration = getFacet<NarrationFacet>(bundle, 'narration');
   const lastStep = narration?.entries.at(-1)?.step;

@@ -1,4 +1,4 @@
-import { parsePluralKey } from '@cryventure/core';
+import { parsePluralKey, replacePlaceholders } from '@cryventure/core';
 import type { FlatCatalog, ParityIssue, Severity } from './parity.ts';
 
 /**
@@ -99,7 +99,7 @@ function countFindings(key: string, value: string): Finding[] {
 export function lintGermanCatalog(catalog: FlatCatalog, file: string, options: StyleOptions = {}): ParityIssue[] {
   return Object.entries(catalog).flatMap(([key, value]) => {
     if (typeof value !== 'string') return [];
-    const prose = value.replace(/\{\{[^}]*\}\}/g, blank);
+    const prose = replacePlaceholders(value, blank);
     const findings = [...proseFindings(prose, options), ...countFindings(key, value)];
     return findings.map((finding) => ({ severity: finding.severity, file, key, message: `style: ${finding.message}` }));
   });

@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest';
-import { aesManifest, AES_PARAM_FIELDS, AES_PRESETS, checkHexLength, validateAesParams } from './manifest.ts';
+import { decryptBlock, encryptBlock } from './cipher.ts';
+import { aesManifest, AES_OPS, AES_PARAM_FIELDS, AES_PRESETS, validateAesParams } from './manifest.ts';
+import { hexBytes, recordingTracerFor } from './testHelpers.ts';
 import vectors from './vectors/fips197.json';
 
 const VALID = {
@@ -94,13 +96,32 @@ describe('validateAesParams', () => {
   });
 });
 
-describe('checkHexLength', () => {
-  it('accepts allowed lengths and reports others with the given key', () => {
-    expect(checkHexLength('AABB', [2], 'k')).toEqual({ ok: true, hex: 'aabb' });
-    expect(checkHexLength('AABB', [3], 'k')).toEqual({
-      ok: false,
-      error: { key: 'k', params: { length: 2 } },
-    });
+/** Every op name either cipher emits at either detail level. */
+function emittedOps(): Set<string> {
+  const key = hexBytes(VALID.keyHex);
+  const block = hexBytes(VALID.plaintextHex);
+  const ops = (['op', 'round'] as const).flatMap((detail) =>
+    [encryptBlock, decryptBlock].flatMap((cipher) => {
+      const tracer = recordingTracerFor(16);
+      cipher(key, block, tracer, detail);
+      return tracer.toFacet().steps.map((step) => step.op);
+    }),
+  );
+  return new Set(ops);
+}
+
+describe('aesManifest.ops / outputs', () => {
+  it('labels exactly the ops the trace emits', () => {
+    expect(aesManifest.ops).toBe(AES_OPS);
+    expect(Object.keys(AES_OPS).sort()).toEqual([...emittedOps()].sort());
+  });
+
+  it('uses plugin.aes.op.* and plugin.aes.opShort.* keys', () => {
+    expect(AES_OPS.mixColumns).toEqual({ labelKey: 'plugin.aes.op.mixColumns', shortLabelKey: 'plugin.aes.opShort.mixColumns' });
+  });
+
+  it('labels the ciphertext output', () => {
+    expect(aesManifest.outputs).toEqual({ ciphertext: { labelKey: 'plugin.aes.value.ciphertext' } });
   });
 });
 

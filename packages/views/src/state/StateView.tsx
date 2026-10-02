@@ -1,8 +1,9 @@
-import { useMemo } from 'react';
-import { stateAt, type NodeRef, type RegionSpec, type StateFacet, type StepChoreography } from '@cryventure/core';
+import { memo, useCallback, useMemo } from 'react';
+import { stateAt, type AnyStateFacet, type Beat, type NodeRef, type RegionSpec, type StateStep, type StepChoreography } from '@cryventure/core';
 import {
   ByteGrid,
   INITIAL_STEP,
+  ViewStatus,
   focusIn,
   tracksForRegion,
   useChoreography,
@@ -15,58 +16,70 @@ import {
   type GridMotion,
   type ViewProps,
 } from '@cryventure/viz';
-import { currentWords, type WordStep } from './currentWords.ts';
+import { currentWords } from './currentWords.ts';
 import { RegionDisclosure } from './RegionDisclosure.tsx';
 import { isCollapsibleRegion, regionHighlights, regionLayout } from './regionLayout.ts';
 import { WatchHint, WatchPanel } from './WatchPanel.tsx';
 import { wordHeaders } from './wordHeaders.ts';
+import './state.css';
 
-type AnyStateFacet = StateFacet<string, { op: string }>;
+const STATUS_KEYS = { loading: 'view.state.loading', missing: 'view.state.missing' } as const;
 
 interface RegionPanelProps {
   region: RegionSpec<string>;
   values: readonly number[];
-  step: WordStep | undefined;
+  step: StateStep<string, { op: string }> | undefined;
   motion: GridMotion | undefined;
-  focus: ReadonlySet<number> | undefined;
-  selected: NodeRef | null;
+  beat: Beat | undefined;
+  /** Flat index of the watched node when it lies in this region. */
+  selectedIndex: number | undefined;
   onSelect: (node: NodeRef) => void;
+  /** Hide the caption visually (it stays for screen readers) when a disclosure button already names the region. */
+  captionHidden?: boolean;
 }
 
-function RegionPanel({ region, values, step, motion, focus, selected, onSelect }: RegionPanelProps) {
+/** One region as a grid, laid out by the producer's hint; re-renders only when its own inputs change. */
+const RegionPanel = memo(function RegionPanel({ region, values, step, motion, beat, selectedIndex, onSelect, captionHidden }: RegionPanelProps) {
   const t = useT();
   const label = t(region.labelKey);
-  const layout = regionLayout(region);
-  const isWords = layout.kind === 'words';
-  const rowHeaders = isWords ? wordHeaders(layout.shape[0], currentWords(step, region.id), t) : undefined;
+  const layout = useMemo(() => regionLayout(region), [region]);
+  const highlights = useMemo(() => regionHighlights(step, region.id), [step, region.id]);
+  const { words } = layout;
+  const rowHeaders = useMemo(
+    () => (words === undefined ? undefined : wordHeaders(layout.shape[0], currentWords(highlights, words.elemsPerWord), t, words.labelPrefix)),
+    [words, layout.shape, highlights, t],
+  );
+  const focus = useMemo(() => focusIn(beat, region.id), [beat, region.id]);
+  const onSelectCell = useCallback((index: number) => onSelect({ region: region.id, index }), [onSelect, region.id]);
   return (
-    <figure className={isWords ? 'cv-region cv-region--words' : 'cv-region'} data-region={region.id}>
-      <figcaption className="cv-region__title">{label}</figcaption>
+    <figure className={words === undefined ? 'cv-region' : 'cv-region cv-region--words'} data-region={region.id}>
+      <figcaption className={captionHidden ? 'cv-region__title cv-visually-hidden' : 'cv-region__title'}>{label}</figcaption>
       <ByteGrid
         values={values}
         shape={layout.shape}
         order={layout.order}
         elem={region.elem}
-        highlights={regionHighlights(step, region.id)}
+        highlights={highlights}
         rowOffsets={layout.rowOffsets}
         rowHeaders={rowHeaders}
-        layout={isWords ? 'wrap' : 'stack'}
+        layout={words === undefined ? 'stack' : 'wrap'}
+        wrapColumns={words?.wordsPerLine}
         label={label}
         motion={motion}
         focus={focus}
-        selectedIndex={selected?.region === region.id ? selected.index : undefined}
-        onSelectCell={(index) => onSelect({ region: region.id, index })}
+        selectedIndex={selectedIndex}
+        onSelectCell={onSelectCell}
       />
     </figure>
   );
-}
+});
 
 /** Large regions (e.g. a key schedule) sit behind a disclosure; small ones render directly. */
 function CollapsibleRegionPanel(props: RegionPanelProps) {
   if (!isCollapsibleRegion(props.region)) return <RegionPanel {...props} />;
   return (
     <RegionDisclosure region={props.region}>
-      <RegionPanel {...props} />
+      <RegionPanel {...props} captionHidden />
     </RegionDisclosure>
   );
 }
@@ -108,8 +121,8 @@ function StateRegions({ facet }: { facet: AnyStateFacet }) {
           values={snapshot[region.id] ?? []}
           step={current}
           motion={motions.get(region.id)}
-          focus={focusIn(beat, region.id)}
-          selected={selected}
+          beat={beat}
+          selectedIndex={selected?.region === region.id ? selected.index : undefined}
           onSelect={selectNode}
         />
       ))}
@@ -121,17 +134,11 @@ function StateRegions({ facet }: { facet: AnyStateFacet }) {
 /**
  * Every region of the state facet at the playhead, animated by the step's choreography (moves,
  * pulses, value switch, beat focus), with the step's highlights and a debugger watch of one cell.
- * Regions with more than 64 elements are collapsible (collapsed by default on narrow labs).
+ * Regions follow the producer's layout hint; those with more than 64 elements are collapsible
+ * (collapsed by default on narrow labs).
  */
 export default function StateView(_props: ViewProps) {
-  const t = useT();
   const facet = useFacet<AnyStateFacet>('state');
-  if (facet.status !== 'ready') {
-    return (
-      <p className="cv-view__status" role="status">
-        {t(facet.status === 'loading' ? 'view.state.loading' : 'view.state.missing')}
-      </p>
-    );
-  }
+  if (facet.status !== 'ready') return <ViewStatus status={facet.status} keys={STATUS_KEYS} />;
   return <StateRegions facet={facet.data} />;
 }

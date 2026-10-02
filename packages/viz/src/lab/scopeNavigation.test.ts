@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { createFixtureBundle } from '../testing/fixtureBundle.ts';
-import { ROUND_LEVEL, nextScopeStart, prevScopeStart, scopeStarts } from './scopeNavigation.ts';
+import { OUTER_SCOPE_LEVEL, nextScopeStart, prevScopeStart, scopeStarts } from './scopeNavigation.ts';
 import { stateSteps } from './stateSteps.ts';
 
 const steps = stateSteps(createFixtureBundle());
@@ -8,7 +8,7 @@ const scoped = (...scopes: number[][]) => scopes.map((scope) => ({ scope }));
 
 describe('scopeStarts', () => {
   it('lists the first step and every step that opens a new round', () => {
-    expect(ROUND_LEVEL).toBe(0);
+    expect(OUTER_SCOPE_LEVEL).toBe(0);
     expect(scopeStarts(steps)).toEqual([0, 1]);
   });
 

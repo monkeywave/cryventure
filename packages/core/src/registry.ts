@@ -22,6 +22,18 @@ export interface Preset<P> {
   params: P;
 }
 
+/** Producer-declared labels of one op (`StateStep.op`): debugger pickers use `labelKey`, tight spots `shortLabelKey`. */
+export interface OpLabels {
+  labelKey: string;
+  /** Compact name for the player's scope path ("Round 1 · SubBytes"); falls back to `labelKey`. */
+  shortLabelKey?: string;
+}
+
+/** Producer-declared label of one `TraceBundle.output` entry. */
+export interface OutputLabel {
+  labelKey: string;
+}
+
 export interface PrimitiveManifest<P = unknown> {
   kind: 'primitive';
   id: string;
@@ -39,6 +51,13 @@ export interface PrimitiveManifest<P = unknown> {
    * Without it, string defaults named `…Hex` become hex fields labelled `<ns>.param.<name>`.
    */
   paramFields?: ParamField[];
+  /**
+   * Optional op labels keyed by `StateStep.op` (additive); the only source of op labels. Ops
+   * without an entry are shown by their raw name.
+   */
+  ops?: Record<string, OpLabels>;
+  /** Optional labels keyed by `TraceBundle.output` name (additive), e.g. `{ ciphertext: { labelKey } }`. */
+  outputs?: Record<string, OutputLabel>;
   /** Schema-library agnostic param validation. */
   validate(params: unknown): ValidationResult<P>;
   load: () => Promise<PrimitiveModule<P>>;
@@ -48,6 +67,8 @@ export interface PrimitiveManifest<P = unknown> {
 
 export type Lens = 'story' | 'engineer' | 'cryptographer';
 export type ViewSlot = 'main' | 'side' | 'bottom';
+/** Where a view goes on narrow screens: its normal panel, or replaced by the lab caption. */
+export type NarrowPlacement = 'panel' | 'caption';
 
 /** `C` is the component type; kept generic so core has no React dependency. */
 export interface ViewManifest<C = unknown> {
@@ -61,6 +82,8 @@ export interface ViewManifest<C = unknown> {
   lenses?: Lens[];
   defaultSlot?: ViewSlot;
   order?: number;
+  /** Optional (additive): `'caption'` = on narrow screens the lab caption replaces this view; default `'panel'`. */
+  narrowPlacement?: NarrowPlacement;
   load: () => Promise<{ default: C }>;
 }
 
@@ -153,11 +176,17 @@ export function reachableFacetKinds(
   return reachable;
 }
 
-function compareViews(a: ViewManifest<unknown>, b: ViewManifest<unknown>): number {
+/** Sort comparator by `id` (code-unit order, locale independent). */
+export function compareById(a: { id: string }, b: { id: string }): number {
+  return a.id < b.id ? -1 : a.id > b.id ? 1 : 0;
+}
+
+/** The one view order: `order` ascending (unset last), then id. Prefer `viewsFor`, which applies it. */
+export function compareViews(a: Pick<ViewManifest<unknown>, 'id' | 'order'>, b: Pick<ViewManifest<unknown>, 'id' | 'order'>): number {
   const orderA = a.order ?? Number.POSITIVE_INFINITY;
   const orderB = b.order ?? Number.POSITIVE_INFINITY;
   if (orderA !== orderB) return orderA < orderB ? -1 : 1;
-  return a.id < b.id ? -1 : a.id > b.id ? 1 : 0;
+  return compareById(a, b);
 }
 
 /**

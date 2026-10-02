@@ -93,8 +93,9 @@ Smaller fixes: em dashes in titles → spaced en dash („AES – ein erster Bli
 
 1. **Geheimtext vs. Chiffrat:** OK to prefer the didactic „Geheimtext“ over the BSI term
    „Chiffrat“? (Could be mentioned once as a synonym on the AES overview page.)
-2. **„Teilschritt {{ordinal}}“** (AES scope label) vs. „Operation {{ordinal}}“ (viz scope label):
-   should both say „Operation“? Kept as is because a primitives test requires DE ≠ EN.
+2. ~~**„Teilschritt {{ordinal}}“** (AES scope label) vs. „Operation {{ordinal}}“ (viz scope label)~~ –
+   resolved: both scope labels and the op-level navigation („Nächster/Voriger Teilschritt“) now use
+   the glossary term „Teilschritt“.
 3. **„Knack es“** as the part name for *Break it*: fine, or „Brich es“ / „Angriff“?
 4. **„Spielwiese“** for *Playground* and **„Erzählmodus“** for *Story*: natural for the audience?
 5. **„Nichts im Ärmel?“** as a heading for *Nothing up the sleeve?*: keep the image, or use

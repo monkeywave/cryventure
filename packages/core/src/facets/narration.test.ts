@@ -20,6 +20,24 @@ describe('narrationAt', () => {
   });
 });
 
+describe('narrationAt on sparse and dense facets', () => {
+  const sparse: NarrationFacet = {
+    kind: 'narration',
+    schemaVersion: 1,
+    entries: [1, 4, 5, 9, 20].map((step) => ({ step, ref: { key: `s${step}` } })),
+  };
+  it('finds every recorded step by binary search and nothing in between', () => {
+    for (let step = -1; step <= 21; step++) {
+      const expected = sparse.entries.some((entry) => entry.step === step) ? { key: `s${step}` } : undefined;
+      expect(narrationAt(sparse, step)).toEqual(expected);
+    }
+  });
+  it('reads dense entries by index', () => {
+    const dense: NarrationFacet = { kind: 'narration', schemaVersion: 1, entries: [0, 1, 2].map((step) => ({ step, ref: { key: `d${step}` } })) };
+    expect([0, 1, 2, 3].map((step) => narrationAt(dense, step)?.key)).toEqual(['d0', 'd1', 'd2', undefined]);
+  });
+});
+
 describe('narrationFromState', () => {
   it('maps each state step to an entry', () => {
     const step = (key: string) => ({ op: 'x', scope: [], writes: [], highlights: [], narration: { key } });

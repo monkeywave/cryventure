@@ -44,8 +44,43 @@ export function parseHex(input: string): ParseHexResult {
   return { ok: true, bytes: decodeHexDigits(digits) };
 }
 
-function byteToHex(byte: number): string {
+/** Two lowercase hex digits of one byte, e.g. `byteToHex(10)` → `"0a"` (expects 0..255). */
+export function byteToHex(byte: number): string {
   return byte.toString(16).padStart(2, '0');
+}
+
+/**
+ * `parseHex` for input that validation has already accepted: returns the bytes or throws an `Error`
+ * whose message carries the `I18nRef` key (a programming error, not user feedback).
+ */
+export function parseHexOrThrow(input: string): Uint8Array {
+  const parsed = parseHex(input);
+  if (!parsed.ok) throw new Error(`parseHexOrThrow: ${parsed.error.key} ${JSON.stringify(parsed.error.params ?? {})}`);
+  return parsed.bytes;
+}
+
+export type HexOfLengthResult = { ok: true; bytes: Uint8Array; hex: string } | { ok: false; error: I18nRef };
+
+/** Message keys `parseHexOfLength` reports with (hex syntax errors keep their `core.error.*` keys). */
+export interface HexLengthErrorKeys {
+  /** The input is not a string (no params). */
+  invalidType: string;
+  /** The byte length is not allowed (param `length`, the parsed byte count). */
+  wrongLength: string;
+}
+
+/**
+ * Param validation for one hex field: a string that parses (`parseHex`) to one of `allowedLengths`
+ * bytes. On success also returns the normalised lowercase `hex`.
+ */
+export function parseHexOfLength(input: unknown, allowedLengths: readonly number[], errorKeys: HexLengthErrorKeys): HexOfLengthResult {
+  if (typeof input !== 'string') return { ok: false, error: { key: errorKeys.invalidType } };
+  const parsed = parseHex(input);
+  if (!parsed.ok) return parsed;
+  if (!allowedLengths.includes(parsed.bytes.length)) {
+    return { ok: false, error: { key: errorKeys.wrongLength, params: { length: parsed.bytes.length } } };
+  }
+  return { ok: true, bytes: parsed.bytes, hex: toHex(parsed.bytes) };
 }
 
 /** Lowercase hex; optionally groups `group` bytes separated by `sep`. */

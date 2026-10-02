@@ -32,7 +32,13 @@ describe('hintKeyOf', () => {
 });
 
 describe('outputLabelKey', () => {
-  it('follows the plugin convention', () => {
+  it("uses the producer's declared output label", () => {
     expect(outputLabelKey(aes, 'ciphertext')).toBe('plugin.aes.value.ciphertext');
+    expect(outputLabelKey({ outputs: { tag: { labelKey: 'plugin.x.output.tag' } } }, 'tag')).toBe('plugin.x.output.tag');
+  });
+
+  it('is undefined for an undeclared output', () => {
+    expect(outputLabelKey({}, 'ciphertext')).toBeUndefined();
+    expect(outputLabelKey(aes, 'unknown')).toBeUndefined();
   });
 });

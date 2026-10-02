@@ -40,6 +40,10 @@
   "plugin.aes.error.detail": "Unbekannter Detailgrad „{{detail}}“; erlaubt sind „round“ und „op“.",
   "plugin.aes.scope.round": "Runde {{value}}",
   "plugin.aes.scope.op": "Teilschritt {{ordinal}}",
+  "plugin.aes.scope.roundNext": "Nächste Runde",
+  "plugin.aes.scope.roundPrev": "Vorige Runde",
+  "plugin.aes.scope.opNext": "Nächster Teilschritt",
+  "plugin.aes.scope.opPrev": "Voriger Teilschritt",
   "plugin.aes.op.input": "Eingabe – Block laden",
   "plugin.aes.op.keyExpansion": "KeyExpansion – Schlüsselplan erzeugen",
   "plugin.aes.op.addRoundKey": "AddRoundKey – XOR mit dem Rundenschlüssel",
@@ -83,5 +87,6 @@
   "plugin.aes.derivation.rotWord": "RotWord für w[{{i}}]",
   "plugin.aes.derivation.subWord": "SubWord für w[{{i}}]",
   "plugin.aes.derivation.rcon": "Rundenkonstante Rcon[{{i}}]",
-  "plugin.aes.derivation.xorRcon": "⊕ Rcon für w[{{i}}]"
+  "plugin.aes.derivation.xorRcon": "⊕ Rcon für w[{{i}}]",
+  "plugin.aes.derivation.roundKey": "Rundenschlüssel {{n}}"
 }

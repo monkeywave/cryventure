@@ -1,0 +1,130 @@
+/*
+ * State view styles (regions, collapsible regions, debugger watch). Imported by the view component, so it ships in the view's lazy chunk.
+ * Colours come only from the semantic tokens (--cv-*, --sl-color-*); fallbacks keep it usable standalone.
+ */
+
+/* ---------- Collapsible large regions (e.g. a key schedule) ---------- */
+/* The disclosure is the stack's flex item: it takes a full line (like `.cv-region--words`), so the
+   words container inside measures the panel width rather than shrinking to one word per line. */
+.cv-region-disclosure {
+  flex: 1 1 100%;
+  min-width: 0;
+}
+
+.cv-region-disclosure__toggle {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  width: 100%;
+  min-height: 2.25rem;
+  padding: 0.35rem 0.6rem;
+  font: inherit;
+  font-weight: 600;
+  color: inherit;
+  text-align: start;
+  background: var(--cv-surface-elevated, ButtonFace);
+  border: 1px solid var(--cv-border, ButtonBorder);
+  border-radius: 0.375rem;
+  cursor: pointer;
+}
+
+.cv-region-disclosure__toggle:hover {
+  border-color: var(--sl-color-accent, Highlight);
+}
+
+/* Shape, not only state colour: a triangle that points right (collapsed) or down (expanded). */
+.cv-region-disclosure__marker {
+  width: 0;
+  height: 0;
+  border-block: 0.3rem solid transparent;
+  border-inline-start: 0.45rem solid currentColor;
+}
+
+.cv-region-disclosure__toggle[aria-expanded='true'] .cv-region-disclosure__marker {
+  rotate: 90deg;
+}
+
+.cv-region-disclosure > [id]:not([hidden]) {
+  margin-block-start: 0.5rem;
+}
+
+/* ---------- Regions, words and the debugger watch ---------- */
+.cv-stack {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+  align-items: flex-start;
+}
+
+.cv-region {
+  margin: 0;
+}
+
+.cv-region--words {
+  flex: 1 1 100%;
+  min-width: 0;
+  container-type: inline-size;
+}
+
+.cv-region__title {
+  margin: 0 0 0.35rem;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--cv-text-muted, GrayText);
+}
+
+.cv-watch {
+  flex: 1 1 100%;
+  font-size: 0.85rem;
+}
+
+.cv-watch__header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+  margin: 0 0 0.35rem;
+  font-weight: 600;
+  color: var(--cv-text-muted, GrayText);
+}
+
+.cv-watch__list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-family: var(--sl-font-mono, ui-monospace, monospace);
+}
+
+.cv-watch__entry {
+  display: grid;
+  grid-template-rows: 1.5rem auto;
+  justify-items: center;
+  min-width: 3.5em;
+  padding: 0.15rem 0.25rem;
+  border: 1px solid var(--cv-border-subtle, GrayText);
+  border-radius: 0.25rem;
+}
+
+.cv-watch__entry[aria-current='step'] {
+  border-color: var(--sl-color-accent, Highlight);
+  border-width: 2px;
+  font-weight: 700;
+}
+
+/* Sparkline bar: height ∝ byte value. */
+.cv-watch__bar {
+  align-self: end;
+  width: 0.5rem;
+  height: calc(var(--cv-watch-level, 0) * 100%);
+  min-height: 1px;
+  background: var(--cv-state, GrayText);
+}
+
+.cv-watch__hint {
+  margin: 0;
+  color: var(--cv-text-muted, GrayText);
+  font-size: 0.8rem;
+}

@@ -1,0 +1,196 @@
+/*
+ * Key-schedule view styles (class names only, no inline styles). Imported by the view component, so it ships in the view's lazy chunk.
+ * Colours come only from the semantic tokens (--cv-*, --sl-color-*); fallbacks keep it usable standalone.
+ */
+
+.cv-keyschedule {
+  display: grid;
+  gap: 0.75rem;
+  min-width: 0;
+  container-type: inline-size;
+}
+
+.cv-keyschedule__rows,
+.cv-keyschedule__words,
+.cv-keyschedule__links {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.cv-keyschedule__hint {
+  margin: 0;
+  font-size: 0.8em;
+  color: var(--cv-text-muted, GrayText);
+}
+
+.cv-keyschedule__rows {
+  display: grid;
+  gap: 0.4rem;
+}
+
+.cv-keyschedule__row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.25rem 0.5rem;
+}
+
+.cv-keyschedule__label {
+  flex: 0 0 auto;
+  min-width: 7.5em;
+  font-size: 0.8em;
+  color: var(--cv-text-muted, GrayText);
+}
+
+/* Current round key: marker glyph (in the label) + weight + accent, never colour alone. */
+.cv-keyschedule__row[data-status='current'] {
+  font-weight: 700;
+}
+
+.cv-keyschedule__row[data-status='current'] .cv-keyschedule__label {
+  color: var(--cv-text, CanvasText);
+}
+
+.cv-keyschedule__words {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem;
+}
+
+.cv-keyschedule__word {
+  font: inherit;
+  font-family: var(--sl-font-mono, ui-monospace, monospace);
+  font-size: 0.8em;
+  padding: 0.15em 0.4em;
+  color: inherit;
+  background: var(--cv-surface-elevated, Canvas);
+  border: 1px solid var(--cv-border, GrayText);
+  border-radius: 0.25rem;
+  cursor: pointer;
+}
+
+/* Upcoming round keys: dashed in a ≥ 3:1 tone, so the pattern is perceivable (WCAG 1.4.11); :where()
+   keeps hover/selected/source states stronger. */
+:where(.cv-keyschedule__row[data-status='upcoming']) .cv-keyschedule__word {
+  border-style: dashed;
+  border-color: var(--cv-cell-dim-border, GrayText);
+}
+
+.cv-keyschedule__word:hover,
+.cv-keyschedule__row[data-status='current'] .cv-keyschedule__word {
+  border-color: var(--cv-subkey, Highlight);
+}
+
+/* Selected (chain open): a second (inset) ring keeps the size stable; aria-expanded carries the state. */
+.cv-keyschedule__word[aria-expanded='true'] {
+  border-color: var(--cv-subkey, Highlight);
+  box-shadow: inset 0 0 0 1px var(--cv-subkey, Highlight);
+  font-weight: 700;
+}
+
+/* Source word of the hovered/focused/selected word: a dotted outline (shape cue, no layout shift). */
+.cv-keyschedule__word[data-source] {
+  outline: 2px dotted var(--cv-subkey, Highlight);
+  outline-offset: 1px;
+}
+
+.cv-keyschedule__word[data-source]:focus-visible {
+  outline-style: solid;
+}
+
+/* Inline disclosure: a full-width panel inside the row, attached by a left rule in the key colour. */
+.cv-keyschedule__chain {
+  flex: 1 0 100%;
+  display: grid;
+  gap: 0.35rem;
+  min-width: 0;
+  margin: 0.15rem 0 0.35rem 0.4rem;
+  padding: 0.4rem 0.6rem;
+  font-size: 0.85em;
+  font-weight: 400;
+  background: var(--cv-surface-elevated, Canvas);
+  border-left: 3px solid var(--cv-subkey, Highlight);
+  border-radius: 0 0.25rem 0.25rem 0;
+  scroll-margin-block: 0.5rem;
+}
+
+.cv-keyschedule__chain p {
+  margin: 0;
+}
+
+.cv-keyschedule__chain-title {
+  font-weight: 700;
+}
+
+.cv-keyschedule__links {
+  display: grid;
+  gap: 0.15rem;
+  max-width: 28rem;
+}
+
+/* One chain line: glyph | name (wraps) | hex (one line, right-aligned like FIPS 197 App. A). */
+.cv-keyschedule__link {
+  display: grid;
+  grid-template-columns: 1.25em minmax(0, 1fr) auto;
+  align-items: baseline;
+  column-gap: 0.5rem;
+}
+
+.cv-keyschedule__link[data-operand] .cv-keyschedule__name {
+  color: var(--cv-text-muted, GrayText);
+}
+
+/* The derived word itself: bold and set off by a rule, not colour alone. */
+.cv-keyschedule__link[data-result] {
+  font-weight: 700;
+  padding-top: 0.15rem;
+  border-top: 1px solid var(--cv-border, GrayText);
+}
+
+.cv-keyschedule__glyph {
+  color: var(--cv-subkey, Highlight);
+  text-align: center;
+}
+
+.cv-keyschedule__hex {
+  font-family: var(--sl-font-mono, ui-monospace, monospace);
+  white-space: nowrap;
+  text-align: end;
+}
+
+.cv-keyschedule__announcer {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .cv-keyschedule__chain {
+    animation: cv-keyschedule-open 120ms ease-out;
+  }
+}
+
+@keyframes cv-keyschedule-open {
+  from {
+    opacity: 0;
+  }
+}
+
+/* Narrow panels (phones, half-width side slot): the round label sits above its words. */
+@container (max-width: 22rem) {
+  .cv-keyschedule__label {
+    flex-basis: 100%;
+    min-width: 0;
+  }
+
+  .cv-keyschedule__chain {
+    margin-left: 0;
+  }
+}

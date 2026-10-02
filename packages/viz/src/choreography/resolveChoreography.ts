@@ -1,12 +1,4 @@
-import { fallbackChoreography, stateAt, type ChoreographyContext, type ChoreographyModule, type StepChoreography } from '@cryventure/core';
-import type { AnyStateFacet } from '../lab/stateSteps.ts';
-
-/** Context for `step`: the state before it, after it, and the step itself. */
-export function choreographyContext(facet: AnyStateFacet, step: number): ChoreographyContext | undefined {
-  const current = facet.steps[step];
-  if (current === undefined) return undefined;
-  return { before: stateAt(facet, step - 1), after: stateAt(facet, step), step: current };
-}
+import { fallbackChoreography, stepContext, type AnyStateFacet, type ChoreographyContext, type ChoreographyModule, type StepChoreography } from '@cryventure/core';
 
 /** The producer's choreography for one step, or the generic fallback (also when the producer throws). */
 export function choreographStep(module: ChoreographyModule | undefined, context: ChoreographyContext): StepChoreography {
@@ -37,7 +29,7 @@ export function createChoreographyResolver(module?: ChoreographyModule): Choreog
       const byStep = byStepOf(facet);
       const cached = byStep.get(step);
       if (cached !== undefined) return cached;
-      const context = choreographyContext(facet, step);
+      const context = stepContext(facet, step);
       if (context === undefined) return undefined;
       const choreography = choreographStep(module, context);
       byStep.set(step, choreography);

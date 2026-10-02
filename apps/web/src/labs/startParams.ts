@@ -1,9 +1,6 @@
 import type { PrimitiveManifest } from '@cryventure/core';
 import type { LabLinkRead } from './deepLink.ts';
 
-/** Initial step of a lab: the state before the first event (matches viz `INITIAL_STEP`). */
-export const START_STEP = -1;
-
 export interface StartParams<P> {
   params: P;
   /** The deep link's step; `undefined` when the link has none (the lab then uses `startAt` or the initial state). */

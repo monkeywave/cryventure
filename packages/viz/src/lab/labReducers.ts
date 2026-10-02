@@ -27,8 +27,7 @@ export interface Selection {
 
 export interface LabData {
   bundle: TraceBundle | null;
-  stepCount: number;
-  /** Integer in [-1, stepCount - 1]. */
+  /** Integer in [-1, stepCount - 1] (see `selectStepCount`). */
   step: number;
   playing: boolean;
   speed: number;
@@ -43,8 +42,18 @@ export interface LabData {
   regionsExpanded: Readonly<Record<string, boolean>>;
 }
 
-export function lastStep(state: Pick<LabData, 'stepCount'>): number {
-  return state.stepCount - 1;
+/** Steps on the lab's timeline, derived from the bundle (not stored); use as `useLab(selectStepCount)`. */
+export function selectStepCount(state: Pick<LabData, 'bundle'>): number {
+  return timelineLength(state.bundle);
+}
+
+export function lastStep(state: Pick<LabData, 'bundle'>): number {
+  return selectStepCount(state) - 1;
+}
+
+/** Whether `step` is the last one of a `stepCount`-step timeline (always for an empty timeline). */
+export function isLastStep(step: number, stepCount: number): boolean {
+  return step >= stepCount - 1;
 }
 
 export function clampStep(step: number, stepCount: number): number {
@@ -61,7 +70,6 @@ export function clampSpeed(speed: number): number {
 export function initialLabData(bundle: TraceBundle | null = null): LabData {
   return {
     bundle,
-    stepCount: timelineLength(bundle),
     step: INITIAL_STEP,
     playing: false,
     speed: DEFAULT_SPEED,
@@ -87,7 +95,7 @@ export function setRegionExpanded(state: Pick<LabData, 'regionsExpanded'>, regio
 
 /** Exact jump: the target step is shown at its end state. */
 export function seekTo(state: LabData, step: number): Partial<LabData> {
-  return { step: clampStep(step, state.stepCount), transition: 'jump' };
+  return { step: clampStep(step, selectStepCount(state)), transition: 'jump' };
 }
 
 /** One step forward: animated in story mode, an exact jump in debugger mode. */
@@ -100,13 +108,13 @@ export function stepBy(state: LabData, delta: number): Partial<LabData> {
   return seekTo(state, state.step + delta);
 }
 
-export function isAtEnd(state: Pick<LabData, 'step' | 'stepCount'>): boolean {
-  return state.step >= lastStep(state);
+export function isAtEnd(state: Pick<LabData, 'step' | 'bundle'>): boolean {
+  return isLastStep(state.step, selectStepCount(state));
 }
 
 /** Playing from the end restarts at the initial state; an empty timeline cannot play. */
 export function startPlaying(state: LabData): Partial<LabData> {
-  if (state.stepCount === 0) return { playing: false };
+  if (selectStepCount(state) === 0) return { playing: false };
   if (isAtEnd(state)) return { playing: true, step: INITIAL_STEP, transition: 'jump' };
   return { playing: true, transition: state.transition === 'hold' ? 'advance' : state.transition };
 }

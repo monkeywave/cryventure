@@ -2,6 +2,11 @@ import type { ChoreographyContext } from '@cryventure/core';
 import type { CellMove } from '../ops.ts';
 
 /** Typed reads of AES op fields from the generic choreography context. */
+/** The step's op, narrowed to the ops a choreographer is registered for (`choreograph` dispatches by op). */
+export function stepOp<Op extends string>(context: ChoreographyContext): Op {
+  return context.step.op as Op;
+}
+
 export function stepRound(context: ChoreographyContext): number {
   const round = (context.step as { round?: unknown }).round;
   return typeof round === 'number' ? round : 0;

@@ -29,7 +29,9 @@ This creates `packages/primitives/src/my-cipher/`:
 | `i18n/en.json`, `i18n/de.json` | The plugin's catalogs. Every key sits under `plugin.<id>.*`. DE starts as `[DE] …` stubs. |
 
 There is no list to edit: `packages/primitives/src/index.ts` discovers `*/manifest.ts` with
-`import.meta.glob`, and the contract kit (below) picks the new plugin up automatically.
+`import.meta.glob`, and the contract kit (below) picks the new plugin up automatically. The
+minimal `import.meta.glob` typing lives once in `types/import-meta.d.ts` and is pulled in by the
+`include` of each package that discovers plugins (primitives, views, tools).
 
 ### Manifest rules
 
@@ -61,15 +63,57 @@ There is no list to edit: `packages/primitives/src/index.ts` discovers `*/manife
   Each `name` must be a key of `defaults`. Edits go through `validate()` before they are applied.
   Without `paramFields`, string defaults named `…Hex` become hex fields labelled
   `plugin.<id>.param.<name>`. `paramFieldsOf(manifest)` in core implements this fallback.
+- **`ops`** (optional, additive) labels every op the module records in `StateStep.op`:
+  `ops: { subBytes: { labelKey: 'plugin.my-cipher.op.subBytes', shortLabelKey: 'plugin.my-cipher.opShort.subBytes' } }`.
+  `labelKey` is used in debugger pickers, `shortLabelKey` in tight spots such as the player's scope
+  path ("Round 1 · SubBytes"); it falls back to `labelKey`. This declaration is the only source of
+  op labels: there is no key-naming convention, and an op without an entry is shown by its raw name
+  (and the scope path keeps the level's template). The keys may be named freely; the scaffold uses
+  `plugin.<id>.op.<op>` / `plugin.<id>.opShort.<op>`.
+- **`outputs`** (optional, additive) labels the entries of `TraceBundle.output` in the lab's output
+  panel: `outputs: { ciphertext: { labelKey: 'plugin.my-cipher.output.ciphertext' } }`.
+- Core helpers for hex params: `parseHexOfLength(input, [16, 24, 32], { invalidType, wrongLength })`
+  validates one field (non-string → `invalidType`; wrong byte count → `wrongLength` with
+  `{{length}}`; hex syntax errors keep their `core.error.hex*` keys) and returns
+  `HexOfLengthResult` (the bytes plus the normalised `hex`). In `run()`, `parseHexOrThrow(hex)`
+  decodes hex that `validate()` already accepted. The scaffolded manifest shows both in use.
 
 ### State regions and the views that render them
 
-`RegionSpec.shape` controls the layout in the state view. `[4, 4]` renders as a matrix. `[n, 4]`
-with `n > 4` renders as **words**: one row per 4-byte word with a `w<i>` header, laid out 1, 2 or 4
-words per line depending on the panel width. When a step highlights the region, its words are
-marked. If the step's op carries a numeric `roundKeyIndex`, words `4·i … 4·i+3` are marked;
-otherwise the words containing highlighted bytes are. Any other shape renders as rows of 16 bytes
-with an offset gutter.
+**`RegionSpec.layout`** (optional, additive) is the producer's presentation hint. It is the only
+way to get a word layout; views do not guess one from the shape:
+
+- `{ kind: 'grid' }`: one cell per element, laid out by `shape` and `order`.
+- `{ kind: 'words', wordBytes: 4, labelPrefix: 'w', wordsPerGroup: 4 }`: a list of `wordBytes`-byte
+  words named `w0`, `w1`, … (`labelPrefix` is a symbol, not translated), grouped `wordsPerGroup` per
+  row (for example the four words of one AES round key). `wordBytes` must divide the region's byte
+  size (`regionSize × elemBytes(elem)`); the contract kit checks this.
+
+In a `words` region the state view marks the words that contain the step's highlighted elements,
+so a producer selects "the current round key" simply by highlighting its bytes. Without a hint (or
+with `{ kind: 'grid' }`), `RegionSpec.shape` decides: 2-D shapes up to 8×8 (such as `[4, 4]`)
+render as a matrix in their `order`; anything else renders as rows of 16 bytes with an offset
+gutter. Regions above 64 elements are collapsible.
+
+### Scope levels
+
+`StateFacet.scopeLevels` labels each scope level, outermost first (AES: round, op).
+`labelKey` is the template for the current value (`{{value}}`, `{{ordinal}}`, `{{n}}`). The optional
+`nextKey` and `prevKey` (`ScopeLevel.nextKey` / `prevKey`) are full button labels for stepping by
+that level, such as "Next round" / „Nächste Runde“ or "Next step" / „Nächster Teilschritt“. Give
+whole phrases rather than a noun for a generic template, because German adjectives must agree with
+the noun's gender. Without them the player falls back to its generic `ui.player.nextSection` /
+`prevSection` ("Next section" / „Nächster Abschnitt“). At the deepest level the scope path shows
+the op's `ops[op]` short label instead of the level template when the manifest declares one.
+
+### Derivation facets
+
+Mark the nodes that views should list with `result: true`; intermediates (RotWord, SubWord, …)
+leave it unset. Producers that only set `group` still work: `isResultNode(node)` is
+`node.result ?? node.group !== undefined`. The optional `DerivationFacet.groups`
+(`{ id, label: I18nRef }[]`) names each `group` value, for example "Round key 3"; the key-schedule
+view lists results under these labels (generic "Group n" otherwise). The contract kit checks the
+label keys and `{{params}}` in EN and DE.
 
 ## Add a view
 
@@ -78,21 +122,34 @@ pnpm cv new view bit-planes --requires state,values
 ```
 
 This creates `packages/views/src/bit-planes/` with `manifest.ts` (`defineView`, lazily loaded
-component), `BitPlanesView.tsx`, a test, and `i18n/{en,de}.json` under `view.<id>.*`.
+component), `BitPlanesView.tsx`, its stylesheet `bitPlanes.css`, a test, and `i18n/{en,de}.json`
+under `view.<id>.*`.
 
 - A view reads data through hooks only: `useFacet(kind)`, `useLab(selector)` for the playhead and
   `useT()` for text. Its props are just `{ labId, lens }`.
-- Always handle `facet.status` `loading` and `missing` with a translated `role="status"` message.
+- Always handle `facet.status` `loading` and `missing`: return
+  `<ViewStatus status={facet.status} keys={STATUS_KEYS} />` (from `@cryventure/viz`), where
+  `STATUS_KEYS` maps the statuses to the view's own keys (`view.<id>.loading` / `.missing`); viz
+  falls back to generic messages for a status without a key.
+- Styles live next to the view (`bitPlanes.css`) and are imported by the component
+  (`import './bitPlanes.css'`), so Vite ships them in the view's lazy chunk and the built page loads
+  them with it. `packages/views/src/css.d.ts` types such imports; Vitest stubs them. Use the
+  semantic colour tokens (`--cv-*`, `--sl-color-*`) only, so both themes work.
 - Grids are `role="grid"` with roving focus (`ByteGrid`). Highlights pair colour with a glyph,
   border style or weight, so they never rely on colour alone.
 - Test with `renderLab()` and `createFixtureBundle()` from `@cryventure/viz/testing`, and load
   messages with `loadViewMessages('en')` from `../messages.ts`.
+- `ViewManifest.narrowPlacement` (optional, additive) is `'panel'` (default) or `'caption'`. On
+  narrow labs the viz `Workspace` leaves `'caption'` views out of the stacked panels, because the
+  player's caption shows the same content there (the narration view does this). Views are ordered
+  by `order` (unset last), then id; `viewsFor` applies this order (`compareViews` in core).
 
 ### Layout presets
 
 `<Lab layout="state:65|narration:35" />` picks the panels in order. Sizes are optional percentages
 and are applied only when every panel has one; they are normalised to 100. Sizes a reader saves win
-over the preset. When the workspace container is narrower than 720px, panels stack vertically.
+over the preset. When the lab container is narrower than 720px, panels stack vertically
+(minus `'caption'` views, see above).
 
 ## What the contract kit checks
 
@@ -103,12 +160,17 @@ over the preset. When the workspace container is narrower than 720px, panels sta
 - manifest basics: kebab-case id, `apiVersion` 1, `kind`, `i18nNamespace === plugin.<id>`
 - title and preset label keys exist in EN and DE
 - param fields name real params, and their label, hint and option keys exist in EN and DE
+- declared `ops` label and short-label keys and `outputs` label keys exist in EN and DE
 - every catalog key sits under the plugin's namespace
 - `defaults` and all presets pass `validate()`
 - for `defaults` and every preset: `run()` is deterministic, emits every declared facet, labels
-  regions and values with existing keys, narrates with existing keys whose `{{params}}` match the
-  templates, replays consistently (keyframes and `stateAt` equal a sequential replay), and is
-  JSON-serializable
+  regions, scope levels (including `nextKey`/`prevKey`) and values with existing keys, declares
+  `words` region layouts whose `wordBytes` divide the region, narrates with existing keys whose
+  `{{params}}` match the templates, replays consistently (keyframes and `stateAt` equal a
+  sequential replay), and is JSON-serializable
+- with `loadChoreography`: every step's choreography targets existing cells, ends neutral and
+  narrates with existing keys; with a `derivation` facet: topological order and `groups` labels
+  with existing keys and matching `{{params}}`
 - optionally, conformance to the plugin's `vectors/` (pass `vectorsCheck`)
 
 **Views** (`viewContract`):

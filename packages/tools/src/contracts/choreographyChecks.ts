@@ -3,8 +3,8 @@ import {
   NEUTRAL_NODE_PROPS,
   regionSize,
   sampleChoreography,
-  stateAt,
-  type ChoreographyContext,
+  stepContexts,
+  type AnyStateFacet,
   type ChoreographyModule,
   type DerivationFacet,
   type NodeRef,
@@ -14,14 +14,12 @@ import {
   type TrackProp,
 } from '@cryventure/core';
 import type { LocaleCatalogs } from './catalogs.ts';
-import { refProblems, type AnyStateFacet } from './checks.ts';
+import { refProblems } from './checks.ts';
 
 /** Pure checks for producer choreographies and derivation facets (empty list = pass). */
 
-/** Before/after snapshots and the step, for every step of a state facet. */
-export function stepContexts(facet: AnyStateFacet): ChoreographyContext[] {
-  return facet.steps.map((step, index) => ({ before: stateAt(facet, index - 1), after: stateAt(facet, index), step }));
-}
+/** Before/after snapshots and the step, for every step of a state facet (re-exported from core). */
+export { stepContexts } from '@cryventure/core';
 
 function nodeProblem(node: NodeRef, regions: readonly RegionSpec<string>[]): string | undefined {
   const region = regions.find((candidate) => candidate.id === node.region);

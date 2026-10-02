@@ -33,12 +33,6 @@ function useWidthObserver<T extends Element>(onWidth: (width: number) => void): 
   return ref;
 }
 
-/** Tracks an element's own (container) width via ResizeObserver; attach the returned ref. */
-export function useContainerWidth<T extends Element>(): [RefCallback<T>, number | undefined] {
-  const [width, setWidth] = useState<number | undefined>(undefined);
-  return [useWidthObserver<T>(setWidth), width];
-}
-
 /**
  * `true` while the element behind the returned ref is narrower than the breakpoint. Only the
  * boolean is state, so resizes within one side of the breakpoint never re-render (no layout thrash);

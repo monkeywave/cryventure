@@ -1,7 +1,7 @@
 import { assertTopologicalOrder, derivationAncestors, derivationInputs, derivationNode, getFacet, toHex, type DerivationFacet, type DerivationNode, type StateFacet } from '@cryventure/core';
 import { describe, expect, it } from 'vitest';
 import { keyScheduleDerivation, rconNodeId, wordNodeId } from './derivation.ts';
-import { expandKey, roundCount } from './keyExpansion.ts';
+import { expandKey, keySchedule } from './keyExpansion.ts';
 import { AES_PRESETS } from './manifest.ts';
 import { run } from './module.ts';
 import { hexBytes } from './testHelpers.ts';
@@ -10,9 +10,8 @@ import vectors from './vectors/fips197.json';
 const KEY_128 = '2b7e151628aed2a6abf7158809cf4f3c';
 const KEY_256 = '603deb1015ca71be2b73aef0857d77811f352c073b6108d72d9810a30914dff4';
 
-function schedule(keyHex: string, stepOf: (round: number) => number | undefined = () => undefined): DerivationFacet {
-  const key = hexBytes(keyHex);
-  return keyScheduleDerivation(key, roundCount(key.length), stepOf);
+function schedule(keyHex: string, roundKeySteps: ReadonlyMap<number, number> = new Map()): DerivationFacet {
+  return keyScheduleDerivation(keySchedule(hexBytes(keyHex)), roundKeySteps);
 }
 
 function hexOf(facet: DerivationFacet, id: string): string {
@@ -92,9 +91,10 @@ describe('keyScheduleDerivation structure', () => {
     expect(() => assertTopologicalOrder(facet)).not.toThrow();
   });
 
-  it('marks words as primary (group = ⌊i/4⌋, valueRef) and intermediates as ungrouped', () => {
+  it('marks words as results (result, group = ⌊i/4⌋, valueRef) and intermediates as ungrouped', () => {
     const facet = schedule(KEY_128);
     expect(primary(facet).map((node) => node.group)).toEqual(Array.from({ length: 44 }, (_, i) => Math.floor(i / 4)));
+    expect(facet.nodes.filter((node) => node.result === true)).toEqual(primary(facet));
     expect(derivationNode(facet, wordNodeId(17))?.valueRef).toBe('4/roundKey');
     const intermediates = facet.nodes.filter((node) => node.group === undefined);
     expect(intermediates.every((node) => node.step === undefined && node.valueRef === undefined)).toBe(true);
@@ -114,8 +114,18 @@ describe('keyScheduleDerivation structure', () => {
     expect(derivationAncestors(facet, wordNodeId(4)).map((node) => node.id)).toEqual(['w/4/xorRcon', 'w/0', 'w/4/subWord', 'rcon/1', 'w/4/rotWord', 'w/3']);
   });
 
+  it.each([
+    [16, 11],
+    [32, 15],
+  ])('a %i-byte key declares %i round-key groups labelled plugin.aes.derivation.roundKey', (bytes, count) => {
+    const facet = schedule(KEY_256.slice(0, bytes * 2));
+    expect(facet.groups?.map((group) => group.id)).toEqual(Array.from({ length: count }, (_, n) => n));
+    expect(facet.groups?.[3]?.label).toEqual({ key: 'plugin.aes.derivation.roundKey', params: { n: 3 } });
+    expect(new Set(primary(facet).map((node) => node.group))).toEqual(new Set(facet.groups?.map((group) => group.id)));
+  });
+
   it('sets step to the state step that first uses the round key', () => {
-    const facet = schedule(KEY_128, (round) => (round === 0 ? undefined : round * 10));
+    const facet = schedule(KEY_128, new Map(Array.from({ length: 10 }, (_, i) => [i + 1, (i + 1) * 10])));
     expect(derivationNode(facet, wordNodeId(1))?.step).toBeUndefined();
     expect(derivationNode(facet, wordNodeId(5))?.step).toBe(10);
   });

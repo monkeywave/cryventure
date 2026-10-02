@@ -1,4 +1,4 @@
-import { i18nRef, type I18nRef, type PrimitiveManifest, type RunResult } from '@cryventure/core';
+import { i18nRef, type ChoreographyModule, type I18nRef, type PrimitiveManifest, type RunResult } from '@cryventure/core';
 import { createLabStore, stateSteps, type LabMode, type LabStore, type ReactViewManifest } from '@cryventure/viz';
 import type { LabLinkRead } from './deepLink.ts';
 import { resolveLab, type LabRegistries } from './registry.ts';
@@ -14,9 +14,14 @@ export interface ReadySession {
   store: LabStore;
   params: LabParams;
   notice: boolean;
+  /** The producer's choreography, loaded up front; `undefined` = the generic fallback. */
+  choreography: ChoreographyModule | undefined;
 }
 
 export type LabSession = { status: 'loading' } | { status: 'error'; error: I18nRef } | ReadySession;
+
+/** What `startLab` / `rerunLab` resolve to: never `loading`. */
+export type SettledLabSession = Exclude<LabSession, { status: 'loading' }>;
 
 export interface StartLabOptions {
   producerId: string;
@@ -39,24 +44,42 @@ export async function runProducer<P>(producer: PrimitiveManifest<P>, params: P):
   }
 }
 
-/** manifest → start params (link / preset / defaults) → run → store in `mode`, seeked to the start step. */
-export async function startLab({ producerId, presetId, link, startAt, mode, registries }: StartLabOptions): Promise<Exclude<LabSession, { status: 'loading' }>> {
+/** Loads the producer's optional choreography (code-split); a failed import keeps the generic fallback. */
+export async function loadChoreographyModule(producer: Pick<PrimitiveManifest, 'loadChoreography'>): Promise<ChoreographyModule | undefined> {
+  try {
+    return await producer.loadChoreography?.();
+  } catch {
+    return undefined;
+  }
+}
+
+/** Warms the views' code-split chunks; a failed chunk is left to the view's own error boundary. */
+export async function preloadViews(views: readonly Pick<ReactViewManifest, 'load'>[]): Promise<void> {
+  await Promise.allSettled(views.map((view) => view.load()));
+}
+
+/**
+ * manifest → start params (link / preset / defaults) → run → store in `mode`, seeked to the start step.
+ * The producer module, its choreography and the views load in parallel, not one after another.
+ */
+export async function startLab({ producerId, presetId, link, startAt, mode, registries }: StartLabOptions): Promise<SettledLabSession> {
   const resolved = resolveLab(producerId, registries);
   if (!resolved.ok) return { status: 'error', error: resolved.error };
   const producer = resolved.lab.producer as PrimitiveManifest<LabParams>;
+  const { views } = resolved.lab;
   const start = resolveStartParams(producer, link, presetId);
-  const result = await runProducer(producer, start.params);
+  const [result, choreography] = await Promise.all([runProducer(producer, start.params), loadChoreographyModule(producer), preloadViews(views)]);
   if (!result.ok) return { status: 'error', error: result.error };
   const store = createLabStore(result.trace);
   if (mode !== undefined) store.getState().setMode(mode);
   store.getState().seek(initialStep(start.step, startAt, stateSteps(result.trace)));
-  return { status: 'ready', producer, views: resolved.lab.views, store, params: start.params, notice: start.notice };
+  return { status: 'ready', producer, views, store, params: start.params, notice: start.notice, choreography };
 }
 
-/** Re-runs with new params, keeping the playhead where it was (clamped to the new timeline). */
-export async function rerunLab(session: ReadySession, params: LabParams): Promise<ReadySession | I18nRef> {
+/** Re-runs with new params, keeping the playhead where it was (clamped to the new timeline); a failed run becomes an error session. */
+export async function rerunLab(session: ReadySession, params: LabParams): Promise<SettledLabSession> {
   const result = await runProducer(session.producer, params);
-  if (!result.ok) return result.error;
+  if (!result.ok) return { status: 'error', error: result.error };
   const { store } = session;
   const step = store.getState().step;
   store.getState().setBundle(result.trace);

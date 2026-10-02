@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import {
   assertManifestBasics,
+  compareById,
+  compareViews,
   defineDeriver,
   definePrimitive,
   defineView,
@@ -155,5 +157,29 @@ describe('viewsFor', () => {
     const input = [view('b', []), view('a', [])];
     viewsFor(input, []);
     expect(input.map((v) => v.id)).toEqual(['b', 'a']);
+  });
+});
+
+describe('compareById / compareViews', () => {
+  it('orders ids by code unit, independent of locale', () => {
+    expect([{ id: 'b' }, { id: 'B' }, { id: 'a' }].sort(compareById).map((item) => item.id)).toEqual(['B', 'a', 'b']);
+    expect(compareById({ id: 'x' }, { id: 'x' })).toBe(0);
+  });
+
+  it('sorts by order (unset last), then id', () => {
+    const sorted = [view('z', []), view('b', [], 2), view('a', [], 2), view('m', [], 1)].sort(compareViews);
+    expect(sorted.map((manifest) => manifest.id)).toEqual(['m', 'a', 'b', 'z']);
+  });
+});
+
+describe('optional manifest fields', () => {
+  it('accepts producer-declared op and output labels and a narrow placement', () => {
+    const manifest = definePrimitive({
+      ...primitive('demo'),
+      ops: { xor: { labelKey: 'plugin.demo.op.xor', shortLabelKey: 'plugin.demo.opShort.xor' } },
+      outputs: { ciphertext: { labelKey: 'plugin.demo.output.ciphertext' } },
+    });
+    expect(manifest.ops?.['xor']?.shortLabelKey).toBe('plugin.demo.opShort.xor');
+    expect(defineView({ ...view('caption-view', ['state']), narrowPlacement: 'caption' }).narrowPlacement).toBe('caption');
   });
 });

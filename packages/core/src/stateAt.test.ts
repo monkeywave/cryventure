@@ -83,3 +83,22 @@ describe('nearestKeyframe', () => {
     expect(nearestKeyframe([], 5)).toBeUndefined();
   });
 });
+
+describe('stateAt incremental playback', () => {
+  it('matches naive replay when walked forward and backward step by step (property)', () => {
+    fc.assert(
+      fc.property(stepsArb, fc.integer({ min: 1, max: 8 }), (steps, interval) => {
+        const facet = record(steps, interval);
+        for (let i = 0; i < steps.length; i++) expect(stateAt(facet, i)).toEqual(naiveReplay(steps, i));
+        for (let i = steps.length - 1; i >= 0; i--) expect(stateAt(facet, i)).toEqual(naiveReplay(steps, i));
+      }),
+    );
+  });
+  it('derives the next step from the cached previous one (untouched regions are shared)', () => {
+    const facet = record([[{ region: 'b', offset: 0, values: [7] }], [{ region: 'a', offset: 1, values: [2] }]], 32);
+    const first = stateAt(facet, 0);
+    const second = stateAt(facet, 1);
+    expect(second).toEqual({ a: [0, 2, 0, 0], b: [7, 1, 1] });
+    expect(second.b).toBe(first.b);
+  });
+});

@@ -32,7 +32,7 @@ describe('NarrationView', () => {
     expect(screen.getByRole('region', { name: 'Erläuterung' })).toBeTruthy();
     act(() => store.getState().seek(0));
     expect(live()?.textContent).toBe('Block laden');
-    expect(screen.getByText('Runde 0 · Operation 1')).toBeTruthy();
+    expect(screen.getByText('Runde 0 · Teilschritt 1')).toBeTruthy();
   });
 
   it('handles bundles without narration and steps without entries', () => {

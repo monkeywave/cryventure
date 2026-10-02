@@ -1,18 +1,18 @@
-import { i18nRef, valueId, type DerivationFacet, type DerivationNode } from '@cryventure/core';
-import { rcon, rotWord, subWord, WORDS_PER_ROUND_KEY, xorWords, type Word } from './keyExpansion.ts';
+import { i18nRef, valueId, type DerivationFacet, type DerivationGroup, type DerivationNode } from '@cryventure/core';
+import { rcon, rotWord, subWord, WORDS_PER_ROUND_KEY, xorWords, type KeySchedule, type Word } from './keyExpansion.ts';
 
 /**
  * The AES key schedule (FIPS 197 §5.2) as a `derivation@default` facet.
  *
- * Convention: every schedule word w[i] is a *primary* node carrying `group` (= round key index
- * ⌊i/4⌋), `step` and `valueRef`; intermediate nodes (RotWord, SubWord, Rcon, ⊕Rcon) carry none of
- * them and only appear inside a word's derivation chain. A primary node's FIRST input is the
- * main chain (the temp word), further inputs are XOR operands (w[i−Nk]).
+ * Convention: every schedule word w[i] is a *result* node (`result: true`) carrying `group` (= round
+ * key index ⌊i/4⌋, labelled by `groups`), `step` and `valueRef`; intermediate nodes (RotWord, SubWord,
+ * Rcon, ⊕Rcon) carry none of them and only appear inside a word's derivation chain. A result node's
+ * FIRST input is the main chain (the temp word), further inputs are XOR operands (w[i−Nk]).
  */
 const LABEL_PREFIX = 'plugin.aes.derivation.';
 
-/** State step at which round key `round` is first used, or `undefined` when unknown. */
-export type RoundKeyStepLookup = (round: number) => number | undefined;
+/** Round key index → state step at which it is first used (rounds without an entry are unknown). */
+export type RoundKeySteps = ReadonlyMap<number, number>;
 
 export function wordNodeId(i: number): string {
   return valueId(['w'], String(i));
@@ -43,7 +43,7 @@ interface PartSpec {
 class DerivationBuilder {
   readonly nodes: DerivationNode[] = [];
 
-  constructor(private readonly stepOf: RoundKeyStepLookup) {}
+  constructor(private readonly roundKeySteps: RoundKeySteps) {}
 
   part(spec: PartSpec): Computed {
     const { id, op, label, labelIndex, bytes, inputs } = spec;
@@ -53,7 +53,7 @@ class DerivationBuilder {
 
   word(i: number, op: string, bytes: Word, inputs: string[], label: string): Computed {
     const group = Math.floor(i / WORDS_PER_ROUND_KEY);
-    const step = this.stepOf(group);
+    const step = this.roundKeySteps.get(group);
     const id = wordNodeId(i);
     this.nodes.push({
       id,
@@ -62,6 +62,7 @@ class DerivationBuilder {
       op,
       inputs,
       group,
+      result: true,
       valueRef: valueId([group], 'roundKey'),
       ...(step === undefined ? {} : { step }),
     });
@@ -94,20 +95,26 @@ function tempFor(builder: DerivationBuilder, previous: Computed, i: number, nk: 
   return previous;
 }
 
-function keyWord(key: ArrayLike<number>, i: number): Word {
-  return Array.from({ length: 4 }, (_, b) => key[4 * i + b] ?? 0);
+/** One group per round key, labelled "Round key n". */
+function roundKeyGroups(rounds: number): DerivationGroup[] {
+  return Array.from({ length: rounds + 1 }, (_, n) => ({ id: n, label: i18nRef(`${LABEL_PREFIX}roundKey`, { n }) }));
 }
 
-/** KeyExpansion as a topologically ordered DAG: Nk key words, then each w[i] after its inputs. */
-export function keyScheduleDerivation(key: ArrayLike<number>, rounds: number, stepOf: RoundKeyStepLookup): DerivationFacet {
-  const nk = key.length / 4;
-  const builder = new DerivationBuilder(stepOf);
+/**
+ * KeyExpansion as a topologically ordered DAG: Nk key words, then each w[i] after its inputs.
+ * Word bytes come from the shared `schedule`; only the intermediates are computed here.
+ */
+export function keyScheduleDerivation(schedule: KeySchedule, roundKeySteps: RoundKeySteps = new Map()): DerivationFacet {
+  const { keyWords: nk, rounds, words: scheduleWords } = schedule;
+  const builder = new DerivationBuilder(roundKeySteps);
   const words: Computed[] = [];
-  for (let i = 0; i < nk; i++) words.push(builder.word(i, 'input', keyWord(key, i), [], 'keyWord'));
-  for (let i = nk; i < WORDS_PER_ROUND_KEY * (rounds + 1); i++) {
+  scheduleWords.forEach((bytes, i) => {
+    if (i < nk) {
+      words.push(builder.word(i, 'input', bytes, [], 'keyWord'));
+      return;
+    }
     const temp = tempFor(builder, words[i - 1]!, i, nk);
-    const back = words[i - nk]!;
-    words.push(builder.word(i, 'xor', xorWords(back.bytes, temp.bytes), [temp.id, back.id], 'word'));
-  }
-  return { kind: 'derivation', schemaVersion: 1, nodes: builder.nodes };
+    words.push(builder.word(i, 'xor', bytes, [temp.id, words[i - nk]!.id], 'word'));
+  });
+  return { kind: 'derivation', schemaVersion: 1, nodes: builder.nodes, groups: roundKeyGroups(rounds) };
 }

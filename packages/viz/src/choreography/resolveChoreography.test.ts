@@ -1,27 +1,14 @@
 import { describe, expect, it, vi } from 'vitest';
-import { fallbackChoreography, stateAt, type ChoreographyModule, type StepChoreography } from '@cryventure/core';
+import { fallbackChoreography, stepContext, type ChoreographyModule, type StepChoreography } from '@cryventure/core';
 import { stateFacetOf, type AnyStateFacet } from '../lab/stateSteps.ts';
 import { createFixtureBundle } from '../testing/fixtureBundle.ts';
-import { choreographStep, choreographyContext, createChoreographyResolver } from './resolveChoreography.ts';
+import { choreographStep, createChoreographyResolver } from './resolveChoreography.ts';
 
 const facet = () => stateFacetOf(createFixtureBundle()) as AnyStateFacet;
 const custom: StepChoreography = { duration: 2, tracks: [], beats: [{ at: 0.25 }] };
 
-describe('choreographyContext', () => {
-  it('pairs the state before and after a step with the step itself', () => {
-    const state = facet();
-    expect(choreographyContext(state, 1)).toEqual({ before: stateAt(state, 0), after: stateAt(state, 1), step: state.steps[1] });
-    expect(choreographyContext(state, 0)?.before).toEqual(stateAt(state, -1));
-  });
-
-  it('is undefined for the initial state and past the end', () => {
-    expect(choreographyContext(facet(), -1)).toBeUndefined();
-    expect(choreographyContext(facet(), 3)).toBeUndefined();
-  });
-});
-
 describe('choreographStep', () => {
-  const context = () => choreographyContext(facet(), 1)!;
+  const context = () => stepContext(facet(), 1)!;
 
   it("uses the module's choreography", () => {
     expect(choreographStep({ choreograph: () => custom }, context())).toBe(custom);
@@ -58,7 +45,7 @@ describe('createChoreographyResolver', () => {
     const choreograph = vi.fn(() => custom);
     const state = facet();
     expect(createChoreographyResolver({ choreograph }).at(state, 2)).toBe(custom);
-    expect(choreograph).toHaveBeenCalledWith(choreographyContext(state, 2));
+    expect(choreograph).toHaveBeenCalledWith(stepContext(state, 2));
   });
 
   it('is undefined without a facet or at the initial state', () => {

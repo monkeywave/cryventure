@@ -1,129 +1,145 @@
 import {
+  memo,
+  useCallback,
   useEffect,
   useId,
   useMemo,
   useRef,
   useState,
+  useSyncExternalStore,
   type ComponentProps,
   type KeyboardEvent,
   type ReactNode,
   type Ref,
 } from 'react';
 import { derivationNode, type DerivationFacet, type DerivationNode } from '@cryventure/core';
-import { useFacet, useLab, useLabActions, useT, type ViewProps } from '@cryventure/viz';
+import { ViewStatus, useFacet, useLab, useLabActions, useT, type ViewProps } from '@cryventure/viz';
 import {
   currentGroup,
   derivationChain,
-  hostGroup,
-  roundKeyRows,
+  groupLabel,
+  hostRows,
+  resultGroups,
   rowStatus,
-  sourceWordIds,
   wordHex,
   type ChainLink,
-  type RoundKeyRow,
+  type ResultGroup,
   type RowStatus,
 } from './keyScheduleModel.ts';
+import { createSourceMarks, type SourceMarks } from './sourceMarks.ts';
+import './keySchedule.css';
 
 /**
- * Key schedule: round keys as rows of words (wrapping at narrow widths), the most recently used
- * round key marked. Selecting a word (click / Enter / Space) discloses its derivation chain inline,
- * directly beneath the round key that lists it; selecting it again or Escape closes it. Hover and
- * focus never change the layout: they only mark the word's source words (`data-source`).
- * Styled by the `cv-keyschedule` block of `@cryventure/viz/viz.css` (class names only, no inline styles).
+ * Key schedule (any `derivation` facet): result words grouped into rows headed by the producer's
+ * group labels (wrapping at narrow widths), the most recently used group marked. Selecting a word
+ * (click / Enter / Space) discloses its derivation chain inline, directly beneath the row that lists
+ * it; selecting it again or Escape closes it. Hover and focus never change the layout: they only
+ * mark the word's source words (`data-source`), re-rendering just the words whose mark flips.
+ * Styled by `keySchedule.css` (class names only, no inline styles).
  */
 const XOR_GLYPH = '⊕';
 const ARROW_GLYPH = '→';
 const CURRENT_GLYPH = '▸';
 
-const ROW_LABEL_KEY: Record<RowStatus, string> = {
-  current: 'view.key-schedule.roundKeyCurrent',
-  used: 'view.key-schedule.roundKey',
-  upcoming: 'view.key-schedule.roundKeyUpcoming',
+const STATUS_KEYS = { loading: 'view.key-schedule.loading', missing: 'view.key-schedule.missing' } as const;
+
+/** Row heading per status; `{{group}}` is the group's label. Used rows show the label alone. */
+const STATUS_LABEL_KEY: Readonly<Record<RowStatus, string | undefined>> = {
+  current: 'view.key-schedule.groupCurrent',
+  used: undefined,
+  upcoming: 'view.key-schedule.groupUpcoming',
 };
 
-/** What a word button needs to render its state and report interaction. */
-interface WordInteraction {
-  selectedId: string | null;
-  sourceIds: ReadonlySet<string>;
+interface WordButtonProps {
+  word: DerivationNode;
+  expanded: boolean;
   chainId: string;
-  toggle: (id: string) => void;
-  preview: (id: string | null) => void;
+  onToggle: (id: string) => void;
+  marks: SourceMarks;
 }
 
-function WordButton({ word, interaction }: { word: DerivationNode; interaction: WordInteraction }) {
+const WordButton = memo(function WordButton({ word, expanded, chainId, onToggle, marks }: WordButtonProps) {
   const t = useT();
   const name = t(word.label);
   const hex = wordHex(word.bytes);
-  const expanded = interaction.selectedId === word.id;
+  const isSource = useSyncExternalStore(marks.subscribe, () => marks.isSource(word.id));
+  const preview = () => marks.preview(word.id);
+  const clearPreview = () => marks.preview(null);
   return (
     <button
       type="button"
       className="cv-keyschedule__word"
       aria-expanded={expanded}
-      aria-controls={expanded ? interaction.chainId : undefined}
+      aria-controls={expanded ? chainId : undefined}
       aria-label={t('view.key-schedule.word', { name, hex })}
       title={name}
       data-node={word.id}
-      data-source={interaction.sourceIds.has(word.id) ? '' : undefined}
-      onClick={() => interaction.toggle(word.id)}
-      onMouseEnter={() => interaction.preview(word.id)}
-      onMouseLeave={() => interaction.preview(null)}
-      onFocus={() => interaction.preview(word.id)}
-      onBlur={() => interaction.preview(null)}
+      data-source={isSource ? '' : undefined}
+      onClick={() => onToggle(word.id)}
+      onMouseEnter={preview}
+      onMouseLeave={clearPreview}
+      onFocus={preview}
+      onBlur={clearPreview}
     >
       {hex}
     </button>
   );
+});
+
+/** The translated group label: the producer's (`DerivationFacet.groups`), else a generic one. */
+function useGroupName(facet: DerivationFacet, group: number | undefined): string {
+  const t = useT();
+  const label = groupLabel(facet, group);
+  if (label !== undefined) return t(label);
+  return group === undefined ? t('view.key-schedule.ungrouped') : t('view.key-schedule.group', { n: group });
 }
 
-interface RoundKeyItemProps {
-  row: RoundKeyRow;
+interface GroupItemProps {
+  facet: DerivationFacet;
+  row: ResultGroup;
   status: RowStatus;
-  interaction: WordInteraction;
+  /** The selected word when this row lists it, else `null`. */
+  selectedId: string | null;
+  chainId: string;
+  onToggle: (id: string) => void;
+  marks: SourceMarks;
   /** The open derivation chain when this row lists the selected word. */
   children?: ReactNode;
 }
 
-function RoundKeyItem({ row, status, interaction, children }: RoundKeyItemProps) {
+const GroupItem = memo(function GroupItem({ facet, row, status, selectedId, chainId, onToggle, marks, children }: GroupItemProps) {
   const t = useT();
   const labelId = useId();
+  const name = useGroupName(facet, row.group);
+  const statusKey = STATUS_LABEL_KEY[status];
   const current = status === 'current';
   return (
-    <li
-      className="cv-keyschedule__row"
-      data-status={status}
-      aria-current={current ? 'step' : undefined}
-    >
+    <li className="cv-keyschedule__row" data-status={status} aria-current={current ? 'step' : undefined}>
       <span id={labelId} className="cv-keyschedule__label">
         {current && <span aria-hidden="true">{CURRENT_GLYPH} </span>}
-        {t(ROW_LABEL_KEY[status], { round: row.group })}
+        {statusKey === undefined ? name : t(statusKey, { group: name })}
       </span>
       <ul className="cv-keyschedule__words" aria-labelledby={labelId}>
         {row.words.map((word) => (
           <li key={word.id}>
-            <WordButton word={word} interaction={interaction} />
+            <WordButton word={word} expanded={selectedId === word.id} chainId={chainId} onToggle={onToggle} marks={marks} />
           </li>
         ))}
       </ul>
       {children}
     </li>
   );
-}
+});
 
 /** One line of the chain: a glyph column, the value's name and its hex (FIPS 197 Appendix A layout). */
-function ChainRow({
-  glyph,
-  node,
-  ...rest
-}: { glyph: string; node: DerivationNode } & Omit<ComponentProps<'li'>, 'children'>) {
+function ChainRow({ glyph, node, ...rest }: { glyph: string; node: DerivationNode } & Omit<ComponentProps<'li'>, 'children'>) {
   const t = useT();
   return (
     <li className="cv-keyschedule__link" {...rest}>
       <span className="cv-keyschedule__glyph" aria-hidden="true">
         {glyph}
       </span>
-      <span className="cv-keyschedule__name">{t(node.label)}</span>{' '}
-      <code className="cv-keyschedule__hex">{wordHex(node.bytes)}</code>
+      <span className="cv-keyschedule__name">{t(node.label)}</span> <code className="cv-keyschedule__hex">{wordHex(node.bytes)}</code>
     </li>
   );
 }
@@ -141,12 +157,7 @@ function LinkRows({ link, first, last }: { link: ChainLink; first: boolean; last
       {link.operands.map((operand) => (
         <OperandRow key={operand.id} node={operand} />
       ))}
-      <ChainRow
-        glyph={first ? '' : ARROW_GLYPH}
-        node={link.node}
-        data-op={link.node.op}
-        data-result={last ? '' : undefined}
-      />
+      <ChainRow glyph={first ? '' : ARROW_GLYPH} node={link.node} data-op={link.node.op} data-result={last ? '' : undefined} />
     </>
   );
 }
@@ -157,12 +168,7 @@ function ChainBody({ links, name }: { links: ChainLink[]; name: string }) {
   return (
     <ol className="cv-keyschedule__links">
       {links.map((link, index) => (
-        <LinkRows
-          key={link.node.id}
-          link={link}
-          first={index === 0}
-          last={index === links.length - 1}
-        />
+        <LinkRows key={link.node.id} link={link} first={index === 0} last={index === links.length - 1} />
       ))}
     </ol>
   );
@@ -181,13 +187,7 @@ function ChainPanel({ id, word, links, ref }: ChainPanelProps) {
   const titleId = useId();
   const name = t(word.label);
   return (
-    <div
-      id={id}
-      ref={ref}
-      className="cv-keyschedule__chain"
-      role="region"
-      aria-labelledby={titleId}
-    >
+    <div id={id} ref={ref} className="cv-keyschedule__chain" role="region" aria-labelledby={titleId}>
       <p id={titleId} className="cv-keyschedule__chain-title">
         {t('view.key-schedule.chainTitle', { name })}
       </p>
@@ -197,18 +197,10 @@ function ChainPanel({ id, word, links, ref }: ChainPanelProps) {
 }
 
 /** The single polite announcement of the current selection (empty when nothing is selected). */
-function SelectionAnnouncer({
-  word,
-  round,
-}: {
-  word: DerivationNode | undefined;
-  round: number | undefined;
-}) {
+function SelectionAnnouncer({ facet, word, host }: { facet: DerivationFacet; word: DerivationNode | undefined; host: ResultGroup | undefined }) {
   const t = useT();
-  const text =
-    word === undefined
-      ? ''
-      : t('view.key-schedule.announceOpen', { name: t(word.label), round: round ?? '' });
+  const group = useGroupName(facet, host?.group);
+  const text = word === undefined ? '' : t('view.key-schedule.announceOpen', { name: t(word.label), group });
   return (
     <p className="cv-keyschedule__announcer" aria-live="polite">
       {text}
@@ -217,10 +209,7 @@ function SelectionAnnouncer({
 }
 
 function prefersReducedMotion(): boolean {
-  return (
-    typeof window.matchMedia === 'function' &&
-    window.matchMedia('(prefers-reduced-motion: reduce)').matches
-  );
+  return typeof window.matchMedia === 'function' && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 }
 
 /** Keeps a freshly opened chain in view without yanking the page (`block: 'nearest'`). */
@@ -228,60 +217,44 @@ function useRevealOnOpen(selectedId: string | null): Ref<HTMLDivElement> {
   const ref = useRef<HTMLDivElement>(null);
   useEffect(() => {
     if (selectedId === null) return;
-    ref.current?.scrollIntoView?.({
-      block: 'nearest',
-      behavior: prefersReducedMotion() ? 'auto' : 'smooth',
-    });
+    ref.current?.scrollIntoView?.({ block: 'nearest', behavior: prefersReducedMotion() ? 'auto' : 'smooth' });
   }, [selectedId]);
   return ref;
 }
 
-/** Selected word (one open chain at most), published as the lab's linked-brushing selection. */
-function useSelectedWord(facet: DerivationFacet) {
+/**
+ * Selected word (one open chain at most), published as the lab's linked-brushing selection and to
+ * the source marks. `toggle` is stable, so memoised rows and words never re-render because of it.
+ */
+function useSelectedWord(facet: DerivationFacet, marks: SourceMarks) {
   const { select } = useLabActions();
   const [selectedId, setSelectedId] = useState<string | null>(null);
-  const choose = (id: string | null) => {
-    setSelectedId(id);
-    select(id === null ? null : (derivationNode(facet, id)?.valueRef ?? null));
-  };
-  return {
-    selectedId,
-    toggle: (id: string) => choose(selectedId === id ? null : id),
-    close: () => choose(null),
-  };
-}
-
-function useWordInteraction(facet: DerivationFacet) {
-  const chainId = useId();
-  const selection = useSelectedWord(facet);
-  const [previewId, setPreviewId] = useState<string | null>(null);
-  const markedId = previewId ?? selection.selectedId;
-  const sourceIds = useMemo(
-    () => new Set(markedId === null ? [] : sourceWordIds(facet, markedId)),
-    [facet, markedId],
+  const selectedRef = useRef<string | null>(null);
+  const choose = useCallback(
+    (id: string | null) => {
+      selectedRef.current = id;
+      setSelectedId(id);
+      marks.select(id);
+      select(id === null ? null : (derivationNode(facet, id)?.valueRef ?? null));
+    },
+    [facet, marks, select],
   );
-  const interaction: WordInteraction = {
-    selectedId: selection.selectedId,
-    sourceIds,
-    chainId,
-    toggle: selection.toggle,
-    preview: setPreviewId,
-  };
-  return { interaction, close: selection.close };
+  const toggle = useCallback((id: string) => choose(selectedRef.current === id ? null : id), [choose]);
+  const close = useCallback(() => choose(null), [choose]);
+  return { selectedId, toggle, close };
 }
 
 function KeySchedule({ facet }: { facet: DerivationFacet }) {
   const t = useT();
+  const chainId = useId();
   const step = useLab((state) => state.step);
-  const rows = useMemo(() => roundKeyRows(facet), [facet]);
-  const { interaction, close } = useWordInteraction(facet);
-  const { selectedId } = interaction;
+  const rows = useMemo(() => resultGroups(facet), [facet]);
+  const hosts = useMemo(() => hostRows(rows), [rows]);
+  const marks = useMemo(() => createSourceMarks(facet), [facet]);
+  const { selectedId, toggle, close } = useSelectedWord(facet, marks);
   const selectedWord = selectedId === null ? undefined : derivationNode(facet, selectedId);
-  const host = selectedId === null ? undefined : hostGroup(rows, selectedId);
-  const links = useMemo(
-    () => (selectedId === null ? [] : derivationChain(facet, selectedId)),
-    [facet, selectedId],
-  );
+  const host = selectedId === null ? undefined : hosts.get(selectedId);
+  const links = useMemo(() => (selectedId === null ? [] : derivationChain(facet, selectedId)), [facet, selectedId]);
   const chainRef = useRevealOnOpen(selectedId);
   const current = currentGroup(rows, step);
   const onKeyDown = (event: KeyboardEvent) => {
@@ -290,46 +263,32 @@ function KeySchedule({ facet }: { facet: DerivationFacet }) {
     close();
   };
   return (
-    <section
-      className="cv-keyschedule"
-      aria-label={t('view.key-schedule.title')}
-      onKeyDown={onKeyDown}
-    >
+    <section className="cv-keyschedule" aria-label={t('view.key-schedule.title')} onKeyDown={onKeyDown}>
       <p className="cv-keyschedule__hint">{t('view.key-schedule.hint')}</p>
       <ol className="cv-keyschedule__rows">
         {rows.map((row) => (
-          <RoundKeyItem
-            key={row.group}
+          <GroupItem
+            key={row.group ?? 'ungrouped'}
+            facet={facet}
             row={row}
             status={rowStatus(row, step, current)}
-            interaction={interaction}
+            selectedId={row === host ? selectedId : null}
+            chainId={chainId}
+            onToggle={toggle}
+            marks={marks}
           >
-            {row.group === host && selectedWord !== undefined && (
-              <ChainPanel
-                id={interaction.chainId}
-                word={selectedWord}
-                links={links}
-                ref={chainRef}
-              />
-            )}
-          </RoundKeyItem>
+            {row === host && selectedWord !== undefined && <ChainPanel id={chainId} word={selectedWord} links={links} ref={chainRef} />}
+          </GroupItem>
         ))}
       </ol>
-      <SelectionAnnouncer word={selectedWord} round={host} />
+      <SelectionAnnouncer facet={facet} word={selectedWord} host={host} />
     </section>
   );
 }
 
-/** Words of the `derivation` facet grouped into round keys, with the derivation of one word. */
+/** Result words of the `derivation` facet grouped into rows, with the derivation of one word. */
 export default function KeyScheduleView(_props: ViewProps) {
-  const t = useT();
   const facet = useFacet<DerivationFacet>('derivation');
-  if (facet.status !== 'ready') {
-    return (
-      <p className="cv-view__status" role="status">
-        {t(facet.status === 'loading' ? 'view.key-schedule.loading' : 'view.key-schedule.missing')}
-      </p>
-    );
-  }
+  if (facet.status !== 'ready') return <ViewStatus status={facet.status} keys={STATUS_KEYS} />;
   return <KeySchedule facet={facet.data} />;
 }

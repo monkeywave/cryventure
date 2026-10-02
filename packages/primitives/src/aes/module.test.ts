@@ -1,7 +1,7 @@
 import { getFacet, toHex, type NarrationFacet, type ValuesFacet } from '@cryventure/core';
 import { describe, expect, it } from 'vitest';
 import { AES_PRESETS } from './manifest.ts';
-import { blockCipher, run, type AesStateFacet } from './module.ts';
+import { blockCipher, roundKeySteps, run, type AesStateFacet } from './module.ts';
 import { hexBytes } from './testHelpers.ts';
 import vectors from './vectors/fips197.json';
 
@@ -54,6 +54,20 @@ describe('run', () => {
 
   it('is deterministic', () => {
     expect(JSON.stringify(run(C1))).toBe(JSON.stringify(run(C1)));
+  });
+});
+
+describe('roundKeySteps', () => {
+  it.each(['op', 'round'] as const)("maps every round to its first round-key step ('%s' detail)", (detail) => {
+    const result = run({ ...C1, detail });
+    if (!result.ok) throw new Error('expected ok');
+    const state = getFacet<AesStateFacet>(result.trace, 'state')!;
+    const steps = roundKeySteps(state);
+    expect([...steps.keys()]).toEqual(Array.from({ length: 11 }, (_, round) => round));
+    for (const [round, index] of steps) {
+      const first = state.steps.findIndex((step) => step.round === round && step.writes.some((write) => write.region === 'roundKey'));
+      expect(index).toBe(first);
+    }
   });
 });
 

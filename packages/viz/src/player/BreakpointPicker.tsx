@@ -2,7 +2,7 @@ import { useId, useMemo } from 'react';
 import { useT } from '../i18n/I18nProvider.tsx';
 import { useLab, useLabActions } from '../lab/LabContext.tsx';
 import { distinctOps, stateSteps } from '../lab/stateSteps.ts';
-import { opLabel } from './opLabel.ts';
+import { opLabel, useOpLabels } from './opLabel.ts';
 
 /** Debugger breakpoints: one toggle chip per distinct op of the trace (B toggles the current op). */
 export function BreakpointPicker() {
@@ -12,6 +12,7 @@ export function BreakpointPicker() {
   const bundle = useLab((state) => state.bundle);
   const breakpoints = useLab((state) => state.breakpoints);
   const { toggleBreakpoint } = useLabActions();
+  const opLabels = useOpLabels();
   const ops = useMemo(() => distinctOps(stateSteps(bundle)), [bundle]);
   if (!debugging || bundle === null || ops.length === 0) return null;
 
@@ -20,7 +21,7 @@ export function BreakpointPicker() {
       <span className="cv-breakpoints__title">{t('ui.player.breakpoints')}</span>
       {ops.map((op) => (
         <button key={op} type="button" className="cv-chip" data-op={op} aria-pressed={breakpoints.includes(op)} onClick={() => toggleBreakpoint(op)}>
-          {opLabel(t, bundle.producer.id, op)}
+          {opLabel(t, opLabels, op)}
         </button>
       ))}
       <span id={hintId} className="cv-breakpoints__hint">

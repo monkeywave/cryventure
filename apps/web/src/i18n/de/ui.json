@@ -1,10 +1,5 @@
 {
-  "ui.lab.play": "Abspielen",
-  "ui.lab.pause": "Pause",
-  "ui.lab.stepForward": "Schritt vor",
-  "ui.lab.stepBack": "Schritt zurück",
   "ui.lab.reset": "Lab zurücksetzen",
-  "ui.lab.step": "Schritt {{current}} von {{total}}",
   "ui.notFound.title": "Seite nicht gefunden",
   "ui.notFound.body": "Diese Seite gibt es nicht – vielleicht hat Eve den Link verwürfelt.",
   "ui.notFound.back": "Zur deutschen Startseite",

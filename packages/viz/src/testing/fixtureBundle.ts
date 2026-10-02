@@ -6,7 +6,7 @@ type FixtureOp = { op: 'load' } | { op: 'sub' } | { op: 'mix' };
 
 export const fixtureRegions: RegionSpec<FixtureRegion>[] = [
   { id: 'state', labelKey: 'fixture.region.state', elem: 'u8', shape: [4, 4], order: 'col-major' },
-  { id: 'w', labelKey: 'fixture.region.w', elem: 'u8', shape: [12, 4], order: 'row-major' },
+  { id: 'w', labelKey: 'fixture.region.w', elem: 'u8', shape: [12, 4], order: 'row-major', layout: { kind: 'words', wordBytes: 4, labelPrefix: 'w', wordsPerGroup: 4 } },
 ];
 
 const range = (length: number, from = 0) => Array.from({ length }, (_, i) => from + i);

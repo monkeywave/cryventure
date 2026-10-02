@@ -1,5 +1,5 @@
 /** Decorative 16×16 player icons; buttons carry the accessible names. */
-export type PlayerIconName = 'first' | 'prev' | 'play' | 'pause' | 'next' | 'last' | 'prevRound' | 'nextRound';
+export type PlayerIconName = 'first' | 'prev' | 'play' | 'pause' | 'next' | 'last' | 'prevScope' | 'nextScope';
 
 const PATHS: Readonly<Record<PlayerIconName, string>> = {
   first: 'M3 3h2v10H3zM13 3v10L6 8z',
@@ -8,8 +8,8 @@ const PATHS: Readonly<Record<PlayerIconName, string>> = {
   pause: 'M4 3h3v10H4zM9 3h3v10H9z',
   next: 'M4 3v10l7-5z',
   last: 'M3 3v10l7-5zM11 3h2v10h-2z',
-  prevRound: 'M8 3v10L2 8zM14 3v10L8 8z',
-  nextRound: 'M2 3v10l6-5zM8 3v10l6-5z',
+  prevScope: 'M8 3v10L2 8zM14 3v10L8 8z',
+  nextScope: 'M2 3v10l6-5zM8 3v10l6-5z',
 };
 
 export function PlayerIcon({ name }: { name: PlayerIconName }) {

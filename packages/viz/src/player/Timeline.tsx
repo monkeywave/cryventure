@@ -1,6 +1,6 @@
 import { useId, useMemo, type ChangeEvent, type CSSProperties } from 'react';
 import { useT } from '../i18n/I18nProvider.tsx';
-import { INITIAL_STEP } from '../lab/labReducers.ts';
+import { INITIAL_STEP, selectStepCount } from '../lab/labReducers.ts';
 import { useLab, useLabActions } from '../lab/LabContext.tsx';
 import { stateSteps } from '../lab/stateSteps.ts';
 import { markerPosition, timelineMarkers } from './timelineMarkers.ts';
@@ -14,7 +14,7 @@ function Marker({ step, stepCount, kind }: { step: number; stepCount: number; ki
 /** Round ticks and breakpoint dots under the slider (decorative; the same info is in the controls). */
 function TimelineMarks() {
   const bundle = useLab((state) => state.bundle);
-  const stepCount = useLab((state) => state.stepCount);
+  const stepCount = useLab(selectStepCount);
   const breakpoints = useLab((state) => state.breakpoints);
   const markers = useMemo(() => timelineMarkers(stateSteps(bundle), breakpoints), [bundle, breakpoints]);
   return (
@@ -34,7 +34,7 @@ export function Timeline() {
   const t = useT();
   const id = useId();
   const step = useLab((state) => state.step);
-  const stepCount = useLab((state) => state.stepCount);
+  const stepCount = useLab(selectStepCount);
   const { seek } = useLabActions();
   const scopeLabel = useScopeLabel();
   const stepText = t('ui.player.stepOf', { current: step + 1, total: stepCount });

@@ -2,18 +2,10 @@ import { Suspense, lazy, useMemo, useState } from 'react';
 import { useT } from '../i18n/I18nProvider.tsx';
 import { ErrorBoundary } from './ErrorBoundary.tsx';
 import type { ReactViewManifest, ViewProps } from './viewTypes.ts';
+import { ViewStatus } from './ViewStatus.tsx';
 
 export interface ViewHostProps extends ViewProps {
   manifest: ReactViewManifest;
-}
-
-function ViewLoading() {
-  const t = useT();
-  return (
-    <p className="cv-view__status" role="status">
-      {t('ui.view.loading')}
-    </p>
-  );
 }
 
 function ViewError({ titleKey, reset }: { titleKey: string; reset: () => void }) {
@@ -41,7 +33,7 @@ export function ViewHost({ manifest, labId, lens }: ViewHostProps) {
   return (
     <div className="cv-view" data-view={manifest.id}>
       <ErrorBoundary onReset={() => setAttempt((n) => n + 1)} fallback={(reset) => <ViewError titleKey={manifest.titleKey} reset={reset} />}>
-        <Suspense fallback={<ViewLoading />}>
+        <Suspense fallback={<ViewStatus status="loading" />}>
           {/* Memoised lazy component (stable per manifest/attempt), not recreated on every render. */}
           {/* eslint-disable-next-line react-hooks/static-components */}
           <View labId={labId} lens={lens} />

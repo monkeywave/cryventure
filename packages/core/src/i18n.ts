@@ -60,6 +60,14 @@ export function interpolate(template: string, params: TranslateParams = {}): str
   );
 }
 
+/** Any `{{…}}` span, even with a malformed name (so lint/parity tools can mask placeholders out of prose). */
+const PLACEHOLDER_SPAN = /\{\{[^}]*\}\}/g;
+
+/** Replaces every `{{…}}` span of `template` with `replacer(span)`, e.g. to blank placeholders before a prose check. */
+export function replacePlaceholders(template: string, replacer: (placeholder: string) => string): string {
+  return template.replace(PLACEHOLDER_SPAN, (span) => replacer(span));
+}
+
 /** Lists the distinct `{{param}}` names used in a template, in first-seen order. */
 export function extractParams(template: string): string[] {
   const names = Array.from(template.matchAll(PLACEHOLDER), (match) => match[1] ?? '');

@@ -5,7 +5,7 @@ import type { Track } from '@cryventure/core';
 import { renderLab } from '../testing/renderLab.tsx';
 import { I18nProvider } from '../i18n/I18nProvider.tsx';
 import { vizMessages } from '../i18n/messages.ts';
-import { ByteGrid, cellMotion, type ByteGridProps, type GridMotion } from './ByteGrid.tsx';
+import { ByteGrid, type ByteGridProps } from './ByteGrid.tsx';
 
 const values = Array.from({ length: 16 }, (_, i) => i);
 
@@ -66,9 +66,18 @@ describe('ByteGrid', () => {
     expect(screen.getByRole('grid').classList.contains('cv-grid--wrap')).toBe(true);
   });
 
+  it('groups wrap rows into lines of wrapColumns rows, marking each line start', () => {
+    renderGrid({ shape: [4, 4], layout: 'wrap', wrapColumns: 2 });
+    const grid = screen.getByRole('grid');
+    expect(grid.style.getPropertyValue('--cv-wrap-columns')).toBe('2');
+    expect(screen.getAllByRole('row').map((row) => row.hasAttribute('data-line-start'))).toEqual([true, false, true, false]);
+  });
+
   it('uses the stacked layout by default', () => {
     renderGrid();
     expect(screen.getByRole('grid').className).toBe('cv-grid');
+    expect(screen.getByRole('grid').hasAttribute('style')).toBe(false);
+    expect(document.querySelectorAll('[data-line-start]')).toHaveLength(0);
   });
 
   it('uses a roving tabindex moved by arrow keys, consuming the key', () => {
@@ -92,29 +101,6 @@ describe('ByteGrid', () => {
     const event = new KeyboardEvent('keydown', { key: ' ', bubbles: true, cancelable: true });
     fireEvent(screen.getAllByRole('gridcell')[0]!, event);
     expect(event.defaultPrevented).toBe(false);
-  });
-});
-
-describe('cellMotion', () => {
-  const progress = motionValue(0);
-  const track: Track = { target: { region: 'state', index: 1 }, prop: 'emphasis', keyframes: [{ at: 0, value: 1 }] };
-  const motion: GridMotion = { progress, before: [0, 9, 2], tracks: new Map([[1, [track]]]) };
-
-  it('is undefined without grid motion', () => {
-    expect(cellMotion(undefined, 0, 0)).toBeUndefined();
-  });
-
-  it('is undefined for an unchanged cell without tracks', () => {
-    expect(cellMotion(motion, 0, 0)).toBeUndefined();
-    expect(cellMotion(motion, 5, 7)).toBeUndefined();
-  });
-
-  it('animates a changed cell without tracks from its before value', () => {
-    expect(cellMotion(motion, 2, 3)).toEqual({ progress, tracks: [], before: 2 });
-  });
-
-  it('animates a cell with tracks even when unchanged', () => {
-    expect(cellMotion(motion, 1, 9)).toEqual({ progress, tracks: [track], before: 9 });
   });
 });
 

@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { createTranslator, extractParams, i18nRef, interpolate, parsePluralKey, pluralCandidates, resolveMessageKey } from './i18n.ts';
+import { createTranslator, extractParams, i18nRef, interpolate, parsePluralKey, pluralCandidates, replacePlaceholders, resolveMessageKey } from './i18n.ts';
 
 describe('interpolate', () => {
   it('replaces named placeholders', () => {
@@ -101,5 +101,14 @@ describe('i18nRef', () => {
   it('omits params when not given', () => {
     expect(i18nRef('a.b')).toEqual({ key: 'a.b' });
     expect(i18nRef('a.b', { n: 1 })).toEqual({ key: 'a.b', params: { n: 1 } });
+  });
+});
+
+describe('replacePlaceholders', () => {
+  it('replaces every {{…}} span, including malformed names', () => {
+    expect(replacePlaceholders('a {{x}} b {{ y z }} c', (span) => `[${span.length}]`)).toBe('a [5] b [9] c');
+  });
+  it('leaves text without placeholders untouched', () => {
+    expect(replacePlaceholders('no params', () => '?')).toBe('no params');
   });
 });

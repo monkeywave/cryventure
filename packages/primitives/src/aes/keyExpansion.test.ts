@@ -1,21 +1,17 @@
-import { parseHex, toHex } from '@cryventure/core';
+import { toHex } from '@cryventure/core';
 import { describe, expect, it } from 'vitest';
 import vectors from './vectors/fips197.json';
 import {
   expandKey,
   isValidKeySize,
+  keySchedule,
   rcon,
   rotWord,
   roundCount,
   roundKeyBytes,
   subWord,
 } from './keyExpansion.ts';
-
-function bytes(hex: string): number[] {
-  const parsed = parseHex(hex);
-  if (!parsed.ok) throw new Error(`bad hex ${hex}`);
-  return Array.from(parsed.bytes);
-}
+import { hexBytes as bytes } from './testHelpers.ts';
 
 describe('rotWord / subWord', () => {
   it('matches FIPS 197 App. A.1 (i = 4)', () => {
@@ -57,5 +53,16 @@ describe('roundKeyBytes', () => {
     expect(toHex(roundKeyBytes(words, 0))).toBe(vectors.appendixB.key);
     expect(toHex(roundKeyBytes(words, 1))).toBe(vectors.appendixB.rounds[0]?.k_sch);
     expect(toHex(roundKeyBytes(words, 10))).toBe(vectors.appendixB.rounds[9]?.k_sch);
+  });
+});
+
+describe('keySchedule', () => {
+  it.each([
+    [16, 4, 10],
+    [24, 6, 12],
+    [32, 8, 14],
+  ])('a %i-byte key has Nk = %i, Nr = %i and the expandKey words', (length, keyWords, rounds) => {
+    const key = Array.from({ length }, (_, i) => i);
+    expect(keySchedule(key)).toEqual({ keyWords, rounds, words: expandKey(key) });
   });
 });

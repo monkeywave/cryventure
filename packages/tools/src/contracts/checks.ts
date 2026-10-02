@@ -1,22 +1,27 @@
 import {
   applyWrites,
+  elemBytes,
   extractParams,
   getFacet,
   resolveMessageKey,
+  regionSize,
   stateAt,
+  type AnyStateFacet,
+  type DerivationFacet,
   type FacetKind,
   type I18nRef,
   type NarrationFacet,
   type ParamField,
+  type PrimitiveManifest,
+  type RegionSpec,
   type Snapshot,
-  type StateFacet,
   type TraceBundle,
   type ValuesFacet,
 } from '@cryventure/core';
 import { CONTRACT_LOCALES, type LocaleCatalogs } from './catalogs.ts';
 
 /** Pure contract checks; each returns a list of human-readable problems (empty = pass). */
-export type AnyStateFacet = StateFacet<string, { op: string }>;
+export type { AnyStateFacet } from '@cryventure/core';
 
 /** `locale:key` for every key absent from a locale catalog. */
 export function missingKeys(keys: readonly string[], catalogs: LocaleCatalogs): string[] {
@@ -56,11 +61,41 @@ export function emittedNarration(bundle: TraceBundle): I18nRef[] {
   return uniqueRefs([...narration, ...steps]);
 }
 
-/** Label keys a run declares at runtime: state region labels and ValueRef labels. */
+/** Label keys of a state facet's scope levels: each level's template plus its optional next/prev labels. */
+export function scopeLevelKeys(facet: Pick<AnyStateFacet, 'scopeLevels'>): string[] {
+  return (facet.scopeLevels ?? []).flatMap((level) => [level.labelKey, level.nextKey, level.prevKey].filter((key) => key !== undefined));
+}
+
+/** Label keys a run declares at runtime: state region and scope-level labels and ValueRef labels. */
 export function runtimeLabelKeys(bundle: TraceBundle): string[] {
-  const regions = getFacet<AnyStateFacet>(bundle, 'state')?.regions.map((region) => region.labelKey) ?? [];
+  const state = getFacet<AnyStateFacet>(bundle, 'state');
+  const regions = state?.regions.map((region) => region.labelKey) ?? [];
+  const scopes = state === undefined ? [] : scopeLevelKeys(state);
   const values = getFacet<ValuesFacet>(bundle, 'values')?.values.map((value) => value.labelKey) ?? [];
-  return [...new Set([...regions, ...values])];
+  return [...new Set([...regions, ...scopes, ...values])];
+}
+
+/** Op label keys (`ops[op].labelKey`/`shortLabelKey`) and output label keys a primitive manifest declares. */
+export function manifestLabelKeys(manifest: Pick<PrimitiveManifest, 'ops' | 'outputs'>): string[] {
+  const ops = Object.values(manifest.ops ?? {}).flatMap((labels) => [labels.labelKey, labels.shortLabelKey].filter((key) => key !== undefined));
+  const outputs = Object.values(manifest.outputs ?? {}).map((label) => label.labelKey);
+  return [...new Set([...ops, ...outputs])];
+}
+
+/** `words` layouts whose `wordBytes` is not a positive integer dividing the region's byte size. */
+export function regionLayoutProblems(regions: readonly RegionSpec<string>[]): string[] {
+  return regions.flatMap((region) => {
+    if (region.layout?.kind !== 'words') return [];
+    const { wordBytes } = region.layout;
+    const bytes = regionSize(region) * elemBytes(region.elem);
+    const divides = Number.isInteger(wordBytes) && wordBytes > 0 && bytes % wordBytes === 0;
+    return divides ? [] : [`region "${region.id}": wordBytes ${wordBytes} does not divide its ${bytes} bytes`];
+  });
+}
+
+/** The label refs of a derivation facet's declared groups. */
+export function derivationGroupRefs(facet: DerivationFacet): I18nRef[] {
+  return (facet.groups ?? []).map((group) => group.label);
 }
 
 /** Param field names that are not keys of the manifest's `defaults`. */

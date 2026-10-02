@@ -1,4 +1,4 @@
-import { parseHex, toHex } from '@cryventure/core';
+import { toHex } from '@cryventure/core';
 import fc from 'fast-check';
 import { describe, expect, it } from 'vitest';
 import {
@@ -12,12 +12,7 @@ import {
   shiftRows,
   subBytes,
 } from './ops.ts';
-
-function bytes(hex: string): number[] {
-  const parsed = parseHex(hex);
-  if (!parsed.ok) throw new Error(`bad hex ${hex}`);
-  return Array.from(parsed.bytes);
-}
+import { hexBytes as bytes } from './testHelpers.ts';
 
 const arbitraryState = fc.array(fc.integer({ min: 0, max: 255 }), { minLength: 16, maxLength: 16 });
 const arbitraryColumn = fc.array(fc.integer({ min: 0, max: 255 }), { minLength: 4, maxLength: 4 });

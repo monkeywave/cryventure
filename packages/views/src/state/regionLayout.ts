@@ -1,18 +1,24 @@
-import { regionSize, type ElemType, type Highlight, type RegionSpec, type StateStep } from '@cryventure/core';
+import { elemBytes, regionSize, type Highlight, type RegionSpec, type StateStep } from '@cryventure/core';
 import type { GridHighlight, GridShape } from '@cryventure/viz';
 
 /** Regions up to this many rows/columns render as a matrix; longer ones as hex rows. */
 export const MATRIX_MAX_DIM = 8;
 export const BYTES_PER_ROW = 16;
-/** A region of shape `[n, WORD_BYTES]` with `n > WORD_BYTES` is a list of 32-bit words (e.g. a key schedule). */
-export const WORD_BYTES = 4;
 
 /** Regions with more elements than this (e.g. the 176-byte AES key schedule) render collapsible. */
 export const COLLAPSIBLE_ABOVE_ELEMENTS = 64;
 
-const ELEM_BYTES: Readonly<Record<ElemType, number>> = { u8: 1, u16: 2, i16: 2, u32: 4, u64: 8 };
-
 export type RegionLayoutKind = 'matrix' | 'words' | 'rows';
+
+/** How a `words` region (producer hint `RegionSpec.layout`) is drawn: one grid row per word. */
+export interface WordRows {
+  /** Elements per word (`wordBytes / elemBytes(elem)`). */
+  elemsPerWord: number;
+  /** Words shown side by side on one line (`wordsPerGroup`, e.g. the 4 words of an AES round key). */
+  wordsPerLine: number;
+  /** Row header symbol before the word index, e.g. `w` → `w0`, `w1`, … */
+  labelPrefix: string;
+}
 
 export interface RegionLayout {
   kind: RegionLayoutKind;
@@ -20,16 +26,14 @@ export interface RegionLayout {
   order: 'row-major' | 'col-major';
   /** Offset gutter for long byte rows; `undefined` otherwise. */
   rowOffsets?: number[];
+  /** Word rows of a `words` layout; `undefined` otherwise. */
+  words?: WordRows;
 }
 
-/** `[n, 4]` with more than four rows: one row per word, so it renders as labelled words. */
-export function isWordRegion(region: Pick<RegionSpec<string>, 'shape'>): boolean {
-  const [rows = 0, cols = 0] = region.shape;
-  return region.shape.length === 2 && cols === WORD_BYTES && rows > WORD_BYTES;
-}
+type WordsHint = Extract<NonNullable<RegionSpec<string>['layout']>, { kind: 'words' }>;
 
 export function isMatrixRegion(region: Pick<RegionSpec<string>, 'shape'>): boolean {
-  return region.shape.length === 2 && region.shape.every((dim) => dim <= MATRIX_MAX_DIM) && !isWordRegion(region);
+  return region.shape.length === 2 && region.shape.every((dim) => dim <= MATRIX_MAX_DIM);
 }
 
 function byteRowsLayout(region: RegionSpec<string>): RegionLayout {
@@ -39,12 +43,22 @@ function byteRowsLayout(region: RegionSpec<string>): RegionLayout {
   return { kind: 'rows', shape: [rowCount, width], order: 'row-major', rowOffsets: Array.from({ length: rowCount }, (_, row) => row * width) };
 }
 
-/** 4×4 state → matrix in its own order; `[n,4]` → word rows; anything else → rows of 16 with offsets. */
+function wordsLayout(region: RegionSpec<string>, hint: WordsHint): RegionLayout {
+  const elemsPerWord = Math.max(1, Math.round(hint.wordBytes / elemBytes(region.elem)));
+  const words = { elemsPerWord, wordsPerLine: Math.max(1, hint.wordsPerGroup ?? 1), labelPrefix: hint.labelPrefix ?? '' };
+  return { kind: 'words', shape: [Math.ceil(regionSize(region) / elemsPerWord), elemsPerWord], order: 'row-major', words };
+}
+
+/**
+ * The producer's layout hint decides: `words` → one labelled row per word, `wordsPerGroup` per line.
+ * Without a hint (or `grid`): small 2-D regions → matrix in their own order; anything else → rows
+ * of 16 with offsets.
+ */
 export function regionLayout(region: RegionSpec<string>): RegionLayout {
+  if (region.layout?.kind === 'words') return wordsLayout(region, region.layout);
+  if (!isMatrixRegion(region)) return byteRowsLayout(region);
   const [rows = 1, cols = 1] = region.shape;
-  if (isWordRegion(region)) return { kind: 'words', shape: [rows, cols], order: 'row-major' };
-  if (isMatrixRegion(region)) return { kind: 'matrix', shape: [rows, cols], order: region.order ?? 'row-major' };
-  return byteRowsLayout(region);
+  return { kind: 'matrix', shape: [rows, cols], order: region.order ?? 'row-major' };
 }
 
 /** The current step's highlights for one region (none at the initial state). */
@@ -59,5 +73,5 @@ export function isCollapsibleRegion(region: Pick<RegionSpec<string>, 'shape'>): 
 
 /** Size of a region in bytes (elements × element width). */
 export function regionByteSize(region: Pick<RegionSpec<string>, 'shape' | 'elem'>): number {
-  return regionSize(region) * ELEM_BYTES[region.elem];
+  return regionSize(region) * elemBytes(region.elem);
 }

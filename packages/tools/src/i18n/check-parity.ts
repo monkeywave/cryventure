@@ -1,68 +1,106 @@
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { pathToFileURL } from 'node:url';
+import { supportedLocales } from '@cryventure/core';
+import { isEntryPoint } from '../fs/entryPoint.ts';
 import { REPO_ROOT } from '../fs/repoRoot.ts';
-import { lintGermanCatalog, lintGermanMdx } from './de-style.ts';
 import { listFiles } from '../fs/walk.ts';
+import { readCatalogFile } from './catalogFile.ts';
+import { lintGermanCatalog, lintGermanMdx } from './de-style.ts';
 import { checkTranslationFreshness } from './translation-freshness.ts';
 import {
   compareCatalogs,
   compareDocTrees,
-  flattenCatalog,
   formatIssues,
   hasErrors,
   pairCatalogPaths,
   SOURCE_LOCALE,
   TARGET_LOCALE,
+  type CatalogPairs,
+  type FlatCatalog,
   type ParityIssue,
 } from './parity.ts';
 
-/** Where catalogs live, relative to the repo root: plugin/package `i18n/{en,de}.json` and app dictionaries. */
+/** Where catalogs live, relative to the repo root: plugin/package `i18n/<locale>.json` and app dictionaries. */
 const CATALOG_ROOTS = ['packages', 'apps/web/src'];
-const CATALOG_PATTERN = /(^|\/)i18n\/(?:en|de)(?:\.json|\/[^/]+\.json)$/;
+const CATALOG_PATTERN = new RegExp(`(^|/)i18n/(?:${supportedLocales.join('|')})(?:\\.json|/[^/]+\\.json)$`);
 export const DOCS_ROOT = 'apps/web/src/content/docs';
 const PAGE_PATTERN = /\.mdx?$/;
 
+/** Repo-relative paths of every file under the catalog roots (which also contain `DOCS_ROOT`), walked once. */
+function listRepoFiles(root: string): string[] {
+  return CATALOG_ROOTS.flatMap((base) => listFiles(join(root, base)).map((path) => `${base}/${path}`));
+}
+
+function catalogsIn(files: readonly string[]): string[] {
+  return files.filter((path) => CATALOG_PATTERN.test(path));
+}
+
+/** Doc pages of one locale, relative to `DOCS_ROOT/<locale>`. */
+function pagesIn(files: readonly string[], locale: string): string[] {
+  const prefix = `${DOCS_ROOT}/${locale}/`;
+  return files.filter((path) => path.startsWith(prefix) && PAGE_PATTERN.test(path)).map((path) => path.slice(prefix.length));
+}
+
 /** Repo-relative paths of every EN/DE message catalog. */
 export function discoverCatalogs(root: string): string[] {
-  return CATALOG_ROOTS.flatMap((base) => listFiles(join(root, base), (path) => CATALOG_PATTERN.test(path)).map((path) => `${base}/${path}`));
+  return catalogsIn(listRepoFiles(root));
 }
 
-function readCatalog(root: string, path: string): Record<string, unknown> {
-  return flattenCatalog(JSON.parse(readFileSync(join(root, path), 'utf8')));
+/** Everything the checks need, discovered once and with every file read once. */
+interface ParityInputs {
+  catalogPaths: string[];
+  catalogPairs: CatalogPairs;
+  /** Repo-relative path → flat catalog, for every paired catalog. */
+  catalogs: ReadonlyMap<string, FlatCatalog>;
+  sourcePages: string[];
+  targetPages: string[];
+  /** Target-locale page (relative to its locale root) → source text. */
+  targetTexts: ReadonlyMap<string, string>;
 }
 
-function catalogIssues(root: string): ParityIssue[] {
-  const { pairs, issues } = pairCatalogPaths(discoverCatalogs(root));
-  return [...issues, ...pairs.flatMap((pair) => compareCatalogs(readCatalog(root, pair.en), readCatalog(root, pair.de), pair.en))];
+function loadParityInputs(root: string): ParityInputs {
+  const files = listRepoFiles(root);
+  const catalogPaths = catalogsIn(files);
+  const catalogPairs = pairCatalogPaths(catalogPaths);
+  const paired = catalogPairs.pairs.flatMap((pair) => [pair.en, pair.de]);
+  const catalogs = new Map(paired.map((path) => [path, readCatalogFile(join(root, path))]));
+  const targetPages = pagesIn(files, TARGET_LOCALE);
+  const targetTexts = new Map(targetPages.map((page) => [page, readFileSync(join(root, DOCS_ROOT, TARGET_LOCALE, page), 'utf8')]));
+  return { catalogPaths, catalogPairs, catalogs, sourcePages: pagesIn(files, SOURCE_LOCALE), targetPages, targetTexts };
 }
 
-function docIssues(root: string): ParityIssue[] {
-  const pages = (locale: string) => listFiles(join(root, DOCS_ROOT, locale), (path) => PAGE_PATTERN.test(path));
-  return compareDocTrees(pages(SOURCE_LOCALE), pages(TARGET_LOCALE), DOCS_ROOT);
+function catalogAt(inputs: ParityInputs, path: string): FlatCatalog {
+  return inputs.catalogs.get(path) ?? {};
+}
+
+function catalogIssues(inputs: ParityInputs): ParityIssue[] {
+  const { pairs, issues } = inputs.catalogPairs;
+  return [...issues, ...pairs.flatMap((pair) => compareCatalogs(catalogAt(inputs, pair.en), catalogAt(inputs, pair.de), pair.en))];
+}
+
+function docIssues(inputs: ParityInputs): ParityIssue[] {
+  return compareDocTrees(inputs.sourcePages, inputs.targetPages, DOCS_ROOT);
+}
+
+function targetPagePath(page: string): string {
+  return `${DOCS_ROOT}/${TARGET_LOCALE}/${page}`;
 }
 
 /** German style lint (docs/GLOSSARY.md) over every DE catalog and DE page. */
-function styleIssues(root: string): ParityIssue[] {
-  const deCatalogs = pairCatalogPaths(discoverCatalogs(root)).pairs.map((pair) => pair.de);
-  const dePages = listFiles(join(root, DOCS_ROOT, TARGET_LOCALE), (path) => PAGE_PATTERN.test(path)).map((page) => `${DOCS_ROOT}/${TARGET_LOCALE}/${page}`);
+function styleIssues(inputs: ParityInputs): ParityIssue[] {
   return [
-    ...deCatalogs.flatMap((path) => lintGermanCatalog(readCatalog(root, path), path)),
-    ...dePages.flatMap((path) => lintGermanMdx(readFileSync(join(root, path), 'utf8'), path)),
+    ...inputs.catalogPairs.pairs.flatMap((pair) => lintGermanCatalog(catalogAt(inputs, pair.de), pair.de)),
+    ...[...inputs.targetTexts].flatMap(([page, text]) => lintGermanMdx(text, targetPagePath(page))),
   ];
 }
 
 /** Every DE page with an EN counterpart must carry the current `sourceHash` of that EN page. */
-function freshnessIssues(root: string): ParityIssue[] {
-  const enPages = new Set(listFiles(join(root, DOCS_ROOT, SOURCE_LOCALE), (path) => PAGE_PATTERN.test(path)));
-  return listFiles(join(root, DOCS_ROOT, TARGET_LOCALE), (path) => PAGE_PATTERN.test(path))
-    .filter((page) => enPages.has(page))
-    .flatMap((page) =>
-      checkTranslationFreshness({
-        dePath: `${DOCS_ROOT}/${TARGET_LOCALE}/${page}`,
-        deSource: readFileSync(join(root, DOCS_ROOT, TARGET_LOCALE, page), 'utf8'),
-        enBytes: readFileSync(join(root, DOCS_ROOT, SOURCE_LOCALE, page)),
-      }),
+function freshnessIssues(root: string, inputs: ParityInputs): ParityIssue[] {
+  const sourcePages = new Set(inputs.sourcePages);
+  return [...inputs.targetTexts]
+    .filter(([page]) => sourcePages.has(page))
+    .flatMap(([page, deSource]) =>
+      checkTranslationFreshness({ dePath: targetPagePath(page), deSource, enBytes: readFileSync(join(root, DOCS_ROOT, SOURCE_LOCALE, page)) }),
     );
 }
 
@@ -74,8 +112,9 @@ export interface ParityReport {
 
 /** Runs every parity check against the repo at `root`. Exit code 1 when any error was found. */
 export function runParityCheck(root: string = REPO_ROOT): ParityReport {
-  const issues = [...catalogIssues(root), ...docIssues(root), ...freshnessIssues(root), ...styleIssues(root)];
-  return { catalogs: discoverCatalogs(root).length, issues, exitCode: hasErrors(issues) ? 1 : 0 };
+  const inputs = loadParityInputs(root);
+  const issues = [...catalogIssues(inputs), ...docIssues(inputs), ...freshnessIssues(root, inputs), ...styleIssues(inputs)];
+  return { catalogs: inputs.catalogPaths.length, issues, exitCode: hasErrors(issues) ? 1 : 0 };
 }
 
 /** Human-readable summary lines for the CLI. */
@@ -85,11 +124,7 @@ export function reportLines(report: ParityReport): string[] {
   return [...formatIssues(report.issues), `i18n parity: ${report.catalogs} catalogs, ${errors} error(s), ${warnings} warning(s)`];
 }
 
-function isEntryPoint(): boolean {
-  return process.argv[1] !== undefined && import.meta.url === pathToFileURL(process.argv[1]).href;
-}
-
-if (isEntryPoint()) {
+if (isEntryPoint(import.meta.url)) {
   const report = runParityCheck();
   reportLines(report).forEach((line) => console.log(line));
   process.exitCode = report.exitCode;

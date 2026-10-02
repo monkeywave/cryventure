@@ -42,6 +42,14 @@ describe('StateView large regions', () => {
     expect(screen.getAllByRole('button')).toHaveLength(1);
   });
 
+  it('hides the region caption visually inside a disclosure (the button already names it) but keeps it for screen readers', () => {
+    const { container } = renderStateView(false);
+    const caption = (id: string) => container.querySelector(`[data-region="${id}"] figcaption`);
+    expect(caption('w')?.classList.contains('cv-visually-hidden')).toBe(true);
+    expect(caption('w')?.textContent).toBe('Key schedule w[i]');
+    expect(caption('state')?.classList.contains('cv-visually-hidden')).toBe(false);
+  });
+
   it('collapses large regions on narrow labs and expands them on request', async () => {
     const { store } = renderStateView(true);
     const button = toggle();

@@ -1,6 +1,6 @@
 import fc from 'fast-check';
 import { describe, expect, it } from 'vitest';
-import { bytesEqual, parseHex, toHex, xorBytes } from './bytes.ts';
+import { byteToHex, bytesEqual, parseHex, parseHexOfLength, parseHexOrThrow, toHex, xorBytes } from './bytes.ts';
 
 const bytesOf = (input: string): number[] => {
   const result = parseHex(input);
@@ -71,5 +71,37 @@ describe('xorBytes', () => {
   });
   it('throws on length mismatch', () => {
     expect(() => xorBytes([1], [1, 2])).toThrow(RangeError);
+  });
+});
+
+describe('byteToHex', () => {
+  it('pads to two lowercase digits', () => {
+    expect(byteToHex(0)).toBe('00');
+    expect(byteToHex(0xab)).toBe('ab');
+  });
+});
+
+describe('parseHexOrThrow', () => {
+  it('returns the bytes of valid hex', () => expect([...parseHexOrThrow('0a ff')]).toEqual([10, 255]));
+  it('throws with the error key in the message', () => {
+    expect(() => parseHexOrThrow('zz')).toThrow(/core\.error\.hexInvalidChar/);
+    expect(() => parseHexOrThrow('abc')).toThrow(/core\.error\.hexOddLength/);
+  });
+});
+
+describe('parseHexOfLength', () => {
+  const keys = { invalidType: 'x.invalid', wrongLength: 'x.length' };
+  it('accepts allowed lengths and normalises the hex', () => {
+    const result = parseHexOfLength('0A:0b', [1, 2], keys);
+    expect(result.ok && { hex: result.hex, bytes: [...result.bytes] }).toEqual({ hex: '0a0b', bytes: [10, 11] });
+  });
+  it('rejects non-strings with the invalidType key', () => {
+    expect(parseHexOfLength(5, [1], keys)).toEqual({ ok: false, error: { key: 'x.invalid' } });
+  });
+  it('passes hex syntax errors through', () => {
+    expect(parseHexOfLength('zz', [1], keys)).toEqual({ ok: false, error: { key: 'core.error.hexInvalidChar', params: { char: 'z', index: 0 } } });
+  });
+  it('reports a wrong byte length with the wrongLength key', () => {
+    expect(parseHexOfLength('00', [16, 32], keys)).toEqual({ ok: false, error: { key: 'x.length', params: { length: 1 } } });
   });
 });

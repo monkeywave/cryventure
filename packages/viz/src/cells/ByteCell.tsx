@@ -1,10 +1,9 @@
-import { useEffect, useRef, type KeyboardEvent } from 'react';
+import { memo, useEffect, useRef, type KeyboardEvent } from 'react';
 import { m, useReducedMotion } from 'motion/react';
 import type { ElemType, HighlightKind } from '@cryventure/core';
 import { useT } from '../i18n/I18nProvider.tsx';
 import { HIGHLIGHT_GLYPHS } from './glyphs.ts';
 import { formatHex, toHex } from './hex.ts';
-import { useNodeStyle, useShowsAfter, type CellMotion } from './useCellMotion.ts';
 
 export interface ByteCellProps {
   value: number;
@@ -15,17 +14,18 @@ export interface ByteCellProps {
   elem?: ElemType;
   highlight?: HighlightKind;
   tabbable?: boolean;
-  onFocus?: () => void;
-  /** Choreography of the current step (moves, pulses, value switch); static without it. */
-  motion?: CellMotion;
+  /** Focus moved onto this cell (index-based, so one stable callback serves every cell). */
+  onFocusCell?: (row: number, col: number) => void;
+  /** Displayed value while a step animates (the value before its switch); defaults to `value`. */
+  shown?: number;
   /** Outside the current beat's focus: recedes, but stays legible. */
   dimmed?: boolean;
   /** Inside the current beat's focus: stands out (weight, ring, lift). */
   focused?: boolean;
   /** The selected (watched) cell. */
   selected?: boolean;
-  /** Click / Enter selects the cell. */
-  onSelect?: () => void;
+  /** Click / Enter selects the cell (called with its flat `index`). */
+  onSelect?: (index: number) => void;
 }
 
 const FLASH_FROM = { scale: 1.25, opacity: 0.5 };
@@ -55,27 +55,24 @@ function cellClassName(highlight: HighlightKind | undefined): string {
 }
 
 /**
- * One labelled grid cell. With `motion` it follows the step's choreography (CSS custom properties
- * written per frame, value switching from `before` to `value`); a changed value flashes briefly
- * unless reduced motion is requested (then CSS only cross-fades). The label always states the end value.
+ * One labelled grid cell (memoised: it re-renders only when its own props change). Its grid drives
+ * the step's choreography (CSS custom properties, `shown` switching to `value`); a changed shown
+ * value flashes briefly unless reduced motion is requested (then CSS only cross-fades). The label
+ * always states the end value.
  */
-export function ByteCell(props: ByteCellProps) {
-  const { value, row, col, index, elem = 'u8', highlight, tabbable = false, onFocus, motion, dimmed = false, focused = false, selected, onSelect } = props;
+export const ByteCell = memo(function ByteCell(props: ByteCellProps) {
+  const { value, shown = value, row, col, index, elem = 'u8', highlight, tabbable = false, onFocusCell, dimmed = false, focused = false, selected, onSelect } = props;
   const label = useCellLabel(props);
-  const cellRef = useRef<HTMLDivElement>(null);
   const reduceMotion = useReducedMotion() ?? false;
   const animateChange = useHasMounted() && !reduceMotion;
-  const shown = useShowsAfter(motion) ? value : (motion?.before ?? value);
-  useNodeStyle(cellRef, motion);
   const onKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
     if (event.key !== 'Enter' || onSelect === undefined) return;
     event.preventDefault();
-    onSelect();
+    onSelect(index);
   };
 
   return (
     <div
-      ref={cellRef}
       role="gridcell"
       className={cellClassName(highlight)}
       aria-label={label}
@@ -87,8 +84,8 @@ export function ByteCell(props: ByteCellProps) {
       data-highlight={highlight}
       data-dimmed={dimmed ? '' : undefined}
       data-focused={focused ? '' : undefined}
-      onFocus={onFocus}
-      onClick={onSelect}
+      onFocus={onFocusCell === undefined ? undefined : () => onFocusCell(row, col)}
+      onClick={onSelect === undefined ? undefined : () => onSelect(index)}
       onKeyDown={onKeyDown}
     >
       <m.span key={shown} className="cv-cell__value" aria-hidden="true" initial={animateChange ? FLASH_FROM : false} animate={FLASH_TO} transition={FLASH_TRANSITION}>
@@ -101,4 +98,4 @@ export function ByteCell(props: ByteCellProps) {
       )}
     </div>
   );
-}
+});

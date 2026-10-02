@@ -1,7 +1,7 @@
-import { pulseTrack, type ChoreographyContext, type StepChoreography, type Track } from '@cryventure/core';
+import { byteToHex, pulseTrack, type ChoreographyContext, type StepChoreography, type Track } from '@cryventure/core';
 import { STATE_COLUMNS } from '../state.ts';
-import { stateAfter, stateBefore } from './context.ts';
-import { beat, columnIndices, focusState, hexByte, stateNode, valueFlip } from './tracks.ts';
+import { stateAfter, stateBefore, stepOp } from './context.ts';
+import { beat, columnIndices, focusState, stateNode, valueFlip } from './tracks.ts';
 
 /**
  * MixColumns / InvMixColumns, one column at a time: column c owns [c/4, (c+1)/4]. Its four cells
@@ -41,7 +41,8 @@ function columnTracks(col: number): Track[] {
 function formulaParams(context: ChoreographyContext, col: number): Record<string, string | number> {
   const [i0 = 0, i1 = 0, i2 = 0, i3 = 0] = columnIndices(col);
   const before = stateBefore(context);
-  return { col, a0: hexByte(before[i0]), a1: hexByte(before[i1]), a2: hexByte(before[i2]), a3: hexByte(before[i3]), out: hexByte(stateAfter(context)[i0]) };
+  const hexBefore = (index: number): string => byteToHex(before[index] ?? 0);
+  return { col, a0: hexBefore(i0), a1: hexBefore(i1), a2: hexBefore(i2), a3: hexBefore(i3), out: byteToHex(stateAfter(context)[i0] ?? 0) };
 }
 
 function columnBeats(op: 'mixColumns' | 'invMixColumns', context: ChoreographyContext, col: number): StepChoreography['beats'] {
@@ -50,7 +51,8 @@ function columnBeats(op: 'mixColumns' | 'invMixColumns', context: ChoreographyCo
   return [beat(start, op, 'column', { col }, focus), beat(start + FORMULA_BEAT_OFFSET, op, 'formula', formulaParams(context, col), focus)];
 }
 
-export function mixChoreography(op: 'mixColumns' | 'invMixColumns', context: ChoreographyContext): StepChoreography {
+export function mixChoreography(context: ChoreographyContext): StepChoreography {
+  const op = stepOp<'mixColumns' | 'invMixColumns'>(context);
   const columns = Array.from({ length: STATE_COLUMNS }, (_, col) => col);
   return {
     duration: MIX_DURATION,

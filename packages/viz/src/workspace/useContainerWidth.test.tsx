@@ -1,6 +1,6 @@
 import { act, render } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { COMPACT_BREAKPOINT_PX, isCompactWidth, useCompactContainer, useContainerWidth } from './useContainerWidth.ts';
+import { COMPACT_BREAKPOINT_PX, isCompactWidth, useCompactContainer } from './useContainerWidth.ts';
 import { installResizeObserverMock, type ResizeObserverMock } from './resizeObserverMock.ts';
 
 describe('isCompactWidth', () => {
@@ -11,30 +11,6 @@ describe('isCompactWidth', () => {
     expect(isCompactWidth(0)).toBe(false);
     expect(isCompactWidth(undefined)).toBe(false);
     expect(isCompactWidth(500, 400)).toBe(false);
-  });
-});
-
-function Probe() {
-  const [ref, width] = useContainerWidth<HTMLDivElement>();
-  return <div ref={ref} data-testid="probe">{String(width)}</div>;
-}
-
-describe('useContainerWidth', () => {
-  let mock: ResizeObserverMock;
-  afterEach(() => {
-    mock.restore();
-    vi.restoreAllMocks();
-  });
-
-  it('reports the initial width and follows resizes until unmounted', () => {
-    mock = installResizeObserverMock();
-    vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockReturnValue({ width: 800 } as DOMRect);
-    const { getByTestId, unmount } = render(<Probe />);
-    expect(getByTestId('probe').textContent).toBe('800');
-    act(() => mock.resize(getByTestId('probe'), 500));
-    expect(getByTestId('probe').textContent).toBe('500');
-    unmount();
-    expect(mock.observed()).toBe(0);
   });
 });
 
@@ -55,7 +31,7 @@ describe('useCompactContainer', () => {
     mock = installResizeObserverMock();
     vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockReturnValue({ width: 0 } as DOMRect);
     const onRender = vi.fn();
-    const { getByTestId } = render(<CompactProbe onRender={onRender} />);
+    const { getByTestId, unmount } = render(<CompactProbe onRender={onRender} />);
     const probe = getByTestId('compact');
     expect(probe.textContent).toBe('false');
     act(() => mock.resize(probe, 390));
@@ -65,5 +41,7 @@ describe('useCompactContainer', () => {
     expect(onRender.mock.calls.length).toBe(renders);
     act(() => mock.resize(probe, COMPACT_BREAKPOINT_PX));
     expect(probe.textContent).toBe('false');
+    unmount();
+    expect(mock.observed()).toBe(0);
   });
 });

@@ -41,9 +41,11 @@ export const derivationLabels: Record<'en' | 'de', Messages> = {
     'plugin.aes.derivation.subWord': 'SubWord for w[{{i}}]',
     'plugin.aes.derivation.rcon': 'Round constant Rcon[{{i}}]',
     'plugin.aes.derivation.xorRcon': '⊕ Rcon for w[{{i}}]',
+    'plugin.aes.derivation.roundKey': 'Round key {{n}}',
   },
   de: {
     'plugin.aes.derivation.keyWord': 'Schlüsselwort w[{{i}}]',
     'plugin.aes.derivation.word': 'Wort w[{{i}}]',
+    'plugin.aes.derivation.roundKey': 'Rundenschlüssel {{n}}',
   },
 };

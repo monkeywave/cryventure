@@ -1,6 +1,6 @@
-import { getFacet, type StateFacet, type StateStep, type TraceBundle } from '@cryventure/core';
+import { getFacet, type AnyStateFacet, type StateStep, type TraceBundle } from '@cryventure/core';
 
-export type AnyStateFacet = StateFacet<string, { op: string }>;
+export type { AnyStateFacet } from '@cryventure/core';
 export type AnyStateStep = StateStep<string, { op: string }>;
 
 const NO_STEPS: readonly AnyStateStep[] = [];

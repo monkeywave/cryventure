@@ -30,12 +30,11 @@ interface Props {
 
 const { labId, producerId, presetId, layout, lens, startAt, mode } = Astro.props;
 const lang = Astro.currentLocale ?? 'en';
-const messages = labMessages(lang, producerId);
-const t = createTranslator(messages, { locale: lang });
-
 const resolved = resolveLab(producerId);
 if (!resolved.ok) throw new Error(`<Lab labId="${labId}">: unknown producer "${producerId}"`);
 const { producer } = resolved.lab;
+const messages = labMessages(lang, producer);
+const t = createTranslator(messages, { locale: lang });
 const preset = producer.presets.find((entry) => entry.id === presetId);
 if (presetId !== undefined && preset === undefined) throw new Error(`<Lab labId="${labId}">: unknown preset "${presetId}"`);
 if (startAt !== undefined && parseStartAt(startAt) === undefined) throw new Error(`<Lab labId="${labId}">: invalid startAt "${startAt}"`);

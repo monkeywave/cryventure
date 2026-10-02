@@ -1,12 +1,12 @@
-import { Fragment, useMemo, type RefCallback } from 'react';
+import { Fragment, useMemo } from 'react';
 import { Group, Panel, Separator, type Layout, type LayoutChangedMeta } from 'react-resizable-panels';
 import { useT } from '../i18n/I18nProvider.tsx';
 import { loadPanelSizes, savePanelSizes, type PanelSizes } from './layoutStorage.ts';
-import { useOptionalLabLayout } from '../lab/LabLayout.tsx';
+import { useLabLayout } from '../lab/LabLayout.tsx';
 import { defaultPanelSizes, MAX_PANELS, planPanels, stackedOrder, type PanelPlan } from './planPanels.ts';
 import { TabbedViews } from './TabbedViews.tsx';
-import { isCompactWidth, useContainerWidth } from './useContainerWidth.ts';
 import { ViewHost } from './ViewHost.tsx';
+import { ViewStatus } from './ViewStatus.tsx';
 import type { ReactViewManifest, ViewProps } from './viewTypes.ts';
 
 export interface WorkspaceProps extends ViewProps {
@@ -15,14 +15,15 @@ export interface WorkspaceProps extends ViewProps {
   /** Panel preset such as `"state|narration"` or `"state:60|narration:40"`; unknown ids are ignored. */
   layout?: string;
   maxPanels?: number;
-  /**
-   * Views left out while the panels are stacked, because the lab chrome already shows their content
-   * there (e.g. `['narration']` next to a caption). Wide layouts always show every view.
-   */
-  hiddenWhenNarrow?: readonly string[];
 }
 
-const NOTHING_HIDDEN: readonly string[] = [];
+/**
+ * Ids of the views the lab caption replaces on narrow screens (`narrowPlacement: 'caption'`); the
+ * stacked workspace leaves them out. Wide layouts always show every view.
+ */
+function captionViewIds(views: readonly ReactViewManifest[]): string[] {
+  return views.filter((view) => view.narrowPlacement === 'caption').map((view) => view.id);
+}
 
 const MIN_PANEL_SIZE = '15%';
 
@@ -83,13 +84,6 @@ function ResizablePanels({ plans, byId, labId, lens }: PanelsProps) {
   );
 }
 
-/** Inside a lab the lab container decides (one measurement for chrome and workspace); standalone, the workspace measures itself. */
-function useCompactWorkspace(): [RefCallback<HTMLDivElement>, boolean] {
-  const labLayout = useOptionalLabLayout();
-  const [containerRef, width] = useContainerWidth<HTMLDivElement>();
-  return [containerRef, labLayout === null ? isCompactWidth(width) : labLayout.narrow];
-}
-
 /** Panel plans for the current layout: stacked plans skip `hidden` views and put main-slot views first. */
 function usePanelPlans(byId: ReadonlyMap<string, ReactViewManifest>, layout: string | undefined, maxPanels: number, compact: boolean, hidden: readonly string[]) {
   return useMemo(() => {
@@ -99,24 +93,22 @@ function usePanelPlans(byId: ReadonlyMap<string, ReactViewManifest>, layout: str
   }, [byId, layout, maxPanels, compact, hidden]);
 }
 
-/** Side-by-side resizable panels (tabs for overflow) that stack vertically in narrow containers. */
-export function Workspace({ views, layout, maxPanels = MAX_PANELS, hiddenWhenNarrow = NOTHING_HIDDEN, labId, lens }: WorkspaceProps) {
+/**
+ * Side-by-side resizable panels (tabs for overflow) that stack vertically on narrow labs. The lab
+ * container measures the width once (`useLabLayout`); outside a lab the workspace is wide.
+ */
+export function Workspace({ views, layout, maxPanels = MAX_PANELS, labId, lens }: WorkspaceProps) {
   const t = useT();
-  const [containerRef, compact] = useCompactWorkspace();
+  const { narrow: compact } = useLabLayout();
   const byId = useMemo(() => new Map(views.map((view) => [view.id, view])), [views]);
-  const plans = usePanelPlans(byId, layout, maxPanels, compact, hiddenWhenNarrow);
+  const hidden = useMemo(() => captionViewIds(views), [views]);
+  const plans = usePanelPlans(byId, layout, maxPanels, compact, hidden);
 
-  if (plans.length === 0) {
-    return (
-      <p className="cv-view__status" role="status">
-        {t('ui.workspace.empty')}
-      </p>
-    );
-  }
+  if (plans.length === 0) return <ViewStatus status="empty" />;
 
   const Panels = compact ? StackedPanels : ResizablePanels;
   return (
-    <div ref={containerRef} className="cv-workspace" role="group" aria-label={t('ui.workspace.label')} data-layout={compact ? 'stacked' : 'columns'}>
+    <div className="cv-workspace" role="group" aria-label={t('ui.workspace.label')} data-layout={compact ? 'stacked' : 'columns'}>
       <Panels plans={plans} byId={byId} labId={labId} lens={lens} />
     </div>
   );

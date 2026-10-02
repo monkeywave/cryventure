@@ -38,4 +38,23 @@ describe('isResultNode', () => {
     expect(isResultNode({ group: 3 })).toBe(true);
     expect(isResultNode({})).toBe(false);
   });
+
+  it('prefers an explicit result flag over the group convention', () => {
+    expect(isResultNode({ result: true })).toBe(true);
+    expect(isResultNode({ group: 2, result: false })).toBe(false);
+  });
+});
+
+describe('derivation node index', () => {
+  it('returns the first node for a repeated id and stays consistent across calls', () => {
+    const first = node('x');
+    const repeated: DerivationFacet = { kind: 'derivation', schemaVersion: 1, nodes: [first, { ...node('x'), op: 'other' }] };
+    expect(derivationNode(repeated, 'x')).toBe(first);
+    expect(derivationNode(repeated, 'x')).toBe(first);
+  });
+
+  it('accepts optional group labels', () => {
+    const labelled: DerivationFacet = { ...facet, groups: [{ id: 0, label: i18nRef('g.0') }] };
+    expect(derivationInputs(labelled, 'c').map((n) => n.id)).toEqual(['a', 'b']);
+  });
 });

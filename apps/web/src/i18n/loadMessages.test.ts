@@ -19,8 +19,8 @@ describe('toLocale / isLocale', () => {
 
 describe('loadMessages', () => {
   it('returns the flat dictionary of the requested locale', () => {
-    expect(loadMessages('de', ['ui'])['ui.lab.play']).toBe('Abspielen');
-    expect(loadMessages('en', ['ui'])['ui.lab.play']).toBe('Play');
+    expect(loadMessages('de', ['ui'])['ui.lab.reset']).toBe('Lab zurücksetzen');
+    expect(loadMessages('en', ['ui'])['ui.lab.reset']).toBe('Reset lab');
   });
 
   it('falls back to English for unsupported locales', () => {

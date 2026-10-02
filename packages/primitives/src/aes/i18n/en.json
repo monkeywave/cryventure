@@ -40,6 +40,10 @@
   "plugin.aes.error.detail": "Unknown detail level \"{{detail}}\"; use \"round\" or \"op\".",
   "plugin.aes.scope.round": "Round {{value}}",
   "plugin.aes.scope.op": "Operation {{ordinal}}",
+  "plugin.aes.scope.roundNext": "Next round",
+  "plugin.aes.scope.roundPrev": "Previous round",
+  "plugin.aes.scope.opNext": "Next operation",
+  "plugin.aes.scope.opPrev": "Previous operation",
   "plugin.aes.op.input": "Input – load the block",
   "plugin.aes.op.keyExpansion": "KeyExpansion – build the key schedule",
   "plugin.aes.op.addRoundKey": "AddRoundKey – XOR with the round key",
@@ -83,5 +87,6 @@
   "plugin.aes.derivation.rotWord": "RotWord for w[{{i}}]",
   "plugin.aes.derivation.subWord": "SubWord for w[{{i}}]",
   "plugin.aes.derivation.rcon": "Round constant Rcon[{{i}}]",
-  "plugin.aes.derivation.xorRcon": "⊕ Rcon for w[{{i}}]"
+  "plugin.aes.derivation.xorRcon": "⊕ Rcon for w[{{i}}]",
+  "plugin.aes.derivation.roundKey": "Round key {{n}}"
 }

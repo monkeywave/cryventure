@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react';
 import { LazyMotion, MotionConfig, domAnimation } from 'motion/react';
 import type { ChoreographyModule } from '@cryventure/core';
+import { OpLabelsContext, type OpLabelMap } from '../player/opLabel.ts';
 import { ChoreographyProvider } from '../choreography/ChoreographyContext.tsx';
 import { useT } from '../i18n/I18nProvider.tsx';
 import { useCompactContainer } from '../workspace/useContainerWidth.ts';
@@ -15,6 +16,8 @@ export interface LabRootProps {
   store: LabStore;
   /** The producer's optional choreography (`manifest.loadChoreography?.()`); the generic fallback otherwise. */
   choreography?: ChoreographyModule;
+  /** The producer's op labels (`manifest.ops`) for breakpoint chips and the scope path; raw op names otherwise. */
+  opLabels?: OpLabelMap;
   /** Frame clock for the playhead; injected by tests. */
   scheduler?: FrameScheduler;
   children: ReactNode;
@@ -36,15 +39,17 @@ function LabContainer({ scheduler, children }: { scheduler?: FrameScheduler; chi
  * One lab instance: store context, choreography, keyboard scope, playback clock, the lab's layout
  * (`useLabLayout`, measured on the lab container) and the motion runtime (`domAnimation` only; animations follow the user's reduced-motion preference).
  */
-export function LabRoot({ store, choreography, scheduler, children }: LabRootProps) {
+export function LabRoot({ store, choreography, opLabels, scheduler, children }: LabRootProps) {
   return (
     <LabProvider store={store}>
       <ChoreographyProvider module={choreography}>
-        <LazyMotion features={domAnimation}>
-          <MotionConfig reducedMotion="user">
-            <LabContainer scheduler={scheduler}>{children}</LabContainer>
-          </MotionConfig>
-        </LazyMotion>
+        <OpLabelsContext.Provider value={opLabels}>
+          <LazyMotion features={domAnimation}>
+            <MotionConfig reducedMotion="user">
+              <LabContainer scheduler={scheduler}>{children}</LabContainer>
+            </MotionConfig>
+          </LazyMotion>
+        </OpLabelsContext.Provider>
       </ChoreographyProvider>
     </LabProvider>
   );

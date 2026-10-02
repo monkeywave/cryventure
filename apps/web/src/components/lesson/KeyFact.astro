@@ -1,14 +1,14 @@
 ---
 /** A compact label/value fact tile; wrap several in <KeyFacts> to form a row. */
-type FactKind = 'key' | 'plaintext' | 'ciphertext' | 'state' | 'constant';
+import { DEFAULT_LESSON_KIND, type LessonKind } from './lessonKinds';
 
 interface Props {
   label: string;
   value: string;
-  kind?: FactKind;
+  kind?: LessonKind;
 }
 
-const { label, value, kind = 'state' } = Astro.props;
+const { label, value, kind = DEFAULT_LESSON_KIND } = Astro.props;
 ---
 
 <div class="cv-fact" data-kind={kind}>
@@ -27,6 +27,18 @@ const { label, value, kind = 'state' } = Astro.props;
 
   .cv-fact[data-kind='key'] {
     --cv-fact-accent: var(--cv-key);
+  }
+
+  .cv-fact[data-kind='subkey'] {
+    --cv-fact-accent: var(--cv-subkey);
+  }
+
+  .cv-fact[data-kind='nonce'] {
+    --cv-fact-accent: var(--cv-nonce);
+  }
+
+  .cv-fact[data-kind='tag'] {
+    --cv-fact-accent: var(--cv-success);
   }
 
   .cv-fact[data-kind='plaintext'] {

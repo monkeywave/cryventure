@@ -43,9 +43,7 @@ export function useLabSession({ labId, producerId, presetId, startAt, mode }: Us
   const applyParams = useCallback(
     (params: LabParams) => {
       if (session.status !== 'ready') return;
-      void rerunLab(session, params).then((next) => {
-        if ('status' in next) setSession(next);
-      });
+      void rerunLab(session, params).then(setSession);
     },
     [session],
   );

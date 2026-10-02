@@ -8,6 +8,7 @@ import { fakeView } from './testViews.tsx';
 import { initialPanelSizes, Workspace, type WorkspaceProps } from './Workspace.tsx';
 import { planPanels } from './planPanels.ts';
 import { LabLayoutProvider } from '../lab/LabLayout.tsx';
+import { renderLab } from '../testing/renderLab.tsx';
 
 afterEach(() => vi.restoreAllMocks());
 
@@ -43,6 +44,7 @@ describe('Workspace', () => {
   it('shows an empty-state message without views', () => {
     renderWorkspace({ views: [] });
     expect(screen.getByRole('status').textContent).toBe('No views are available for this lab.');
+    expect(screen.getByRole('status').dataset['status']).toBe('empty');
   });
 
   it('applies saved sizes for the same panel set', () => {
@@ -66,17 +68,18 @@ describe('Workspace', () => {
     expect(panel?.style.flexGrow ?? '').toMatch(/^60/);
   });
 
-  it('stacks panels without separators in a narrow container and returns to columns when wide', async () => {
+  it('stacks panels without separators in a narrow lab and returns to columns when wide', async () => {
     const mock = installResizeObserverMock();
-    renderWorkspace({ layout: 'state|narration', views: views.slice(0, 2) });
+    renderLab(<Workspace labId="aes" lens="engineer" views={views.slice(0, 2)} layout="state|narration" />, { messages });
     const group = screen.getByRole('group', { name: 'Lab workspace' });
+    const lab = screen.getByRole('region', { name: 'Interactive lab' });
     expect(group.dataset['layout']).toBe('columns');
-    act(() => mock.resize(group, 390));
+    act(() => mock.resize(lab, 390));
     expect(group.dataset['layout']).toBe('stacked');
     expect(screen.queryByRole('separator')).toBeNull();
     expect(await screen.findByText('view narration (aes/engineer)')).toBeTruthy();
     expect([...document.querySelectorAll('[data-panel-id]')].map((el) => el.getAttribute('data-panel-id'))).toEqual(['state', 'narration']);
-    act(() => mock.resize(group, 1000));
+    act(() => mock.resize(lab, 1000));
     expect(group.dataset['layout']).toBe('columns');
     expect(screen.getByRole('separator', { name: 'Resize panels' })).toBeTruthy();
     mock.restore();
@@ -85,11 +88,12 @@ describe('Workspace', () => {
 
 describe('Workspace inside a lab layout', () => {
   const mainState = { ...fakeView('state'), defaultSlot: 'main' as const };
+  const captionNarration = { ...fakeView('narration'), narrowPlacement: 'caption' as const };
   const renderInLab = (narrow: boolean, props: Partial<WorkspaceProps> = {}) =>
     render(
       <I18nProvider messages={messages}>
         <LabLayoutProvider narrow={narrow}>
-          <Workspace labId="aes" lens="engineer" views={[fakeView('narration'), mainState, fakeView('memory')]} layout="narration|state|memory" {...props} />
+          <Workspace labId="aes" lens="engineer" views={[captionNarration, mainState, fakeView('memory')]} layout="narration|state|memory" {...props} />
         </LabLayoutProvider>
       </I18nProvider>,
     );
@@ -100,14 +104,19 @@ describe('Workspace inside a lab layout', () => {
     expect(screen.getByRole('group', { name: 'Lab workspace' }).dataset['layout']).toBe('stacked');
   });
 
-  it('stacks main-slot views first and leaves out views hidden when narrow', () => {
-    renderInLab(true, { hiddenWhenNarrow: ['narration'] });
+  it('stacks main-slot views first and leaves out caption views (narrowPlacement: caption) when narrow', () => {
+    renderInLab(true);
     expect(stackedIds()).toEqual(['state', 'memory']);
     expect(screen.queryByText('view narration (aes/engineer)')).toBeNull();
   });
 
+  it('is wide outside a lab', () => {
+    renderWorkspace({ layout: 'state|narration', views: views.slice(0, 2) });
+    expect(screen.getByRole('group', { name: 'Lab workspace' }).dataset['layout']).toBe('columns');
+  });
+
   it('shows every view in preset order when wide', async () => {
-    renderInLab(false, { hiddenWhenNarrow: ['narration'] });
+    renderInLab(false);
     expect(screen.getByRole('group', { name: 'Lab workspace' }).dataset['layout']).toBe('columns');
     expect(await screen.findByText('view narration (aes/engineer)')).toBeTruthy();
     expect(panelOrder()).toEqual(['narration', 'state', 'memory']);

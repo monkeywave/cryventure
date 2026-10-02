@@ -1,0 +1,16 @@
+/*
+ * Narration view styles. Imported by the view component, so it ships in the view's lazy chunk.
+ * Colours come only from the semantic tokens (--cv-*, --sl-color-*); fallbacks keep it usable standalone.
+ */
+
+.cv-narration {
+  margin: 0;
+  font-size: 1rem;
+  line-height: 1.5;
+}
+
+.cv-narration__scope {
+  margin: 0 0 0.25rem;
+  font-size: 0.8rem;
+  color: var(--cv-text-muted, GrayText);
+}

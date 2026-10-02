@@ -1,7 +1,7 @@
 import { applyEase, type ChoreoKeyframe, type ChoreographyContext, type StepChoreography, type Track } from '@cryventure/core';
 import type { CellMove } from '../ops.ts';
 import { STATE_COLUMNS } from '../state.ts';
-import { stepMoves, stepRound } from './context.ts';
+import { stepMoves, stepOp, stepRound } from './context.ts';
 import { beat, cellColumn, cellRow, focusState, rowIndices, stateNode, track, valueFlip } from './tracks.ts';
 
 /**
@@ -126,7 +126,8 @@ function rowBeats(op: 'shiftRows' | 'invShiftRows', rows: number[]): StepChoreog
   return rows.map((row) => beat(rowWindow(row).start, op, 'row', { row, count: row }, focusState(rowIndices(row))));
 }
 
-export function shiftChoreography(op: 'shiftRows' | 'invShiftRows', context: ChoreographyContext): StepChoreography {
+export function shiftChoreography(context: ChoreographyContext): StepChoreography {
+  const op = stepOp<'shiftRows' | 'invShiftRows'>(context);
   const moves = stepMoves(context);
   const rows = [...new Set(moves.map((move) => cellRow(move.from)))].sort((a, b) => a - b);
   return {

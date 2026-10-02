@@ -50,6 +50,10 @@ export function primitiveMessages(id: string): Record<string, string> {
     [`${ns}.value.key`]: 'Key',
     [`${ns}.value.input`]: 'Input block',
     [`${ns}.value.output`]: 'Output block',
+    [`${ns}.op.load`]: 'Load – copy the input block into the state',
+    [`${ns}.op.xor`]: 'XOR – combine the state with the key',
+    [`${ns}.opShort.load`]: 'Load',
+    [`${ns}.opShort.xor`]: 'XOR',
     [`${ns}.step.load`]: 'The input block is loaded into the state.',
     [`${ns}.step.xor`]: 'All {{count}} state bytes are XORed with the matching key bytes.',
     [`${ns}.error.invalidParams`]: 'Give the key and the input block as hex text.',
@@ -61,7 +65,7 @@ export function primitiveMessages(id: string): Record<string, string> {
 function primitiveManifestSource(id: string, family: string): string {
   const pascal = toPascalCase(id);
   const camel = toCamelCase(id);
-  return `import { definePrimitive, i18nRef, parseHex, toHex, type I18nRef, type ParamField, type Preset, type ValidationResult } from '@cryventure/core';
+  return `import { definePrimitive, i18nRef, parseHexOfLength, type HexOfLengthResult, type OpLabels, type ParamField, type Preset, type ValidationResult } from '@cryventure/core';
 
 /** Manifest for the ${id} primitive. Imports core only; the implementation loads lazily. */
 export interface ${pascal}Params {
@@ -85,15 +89,15 @@ export const ${toConstantCase(id)}_PARAM_FIELDS: ParamField[] = [
   { name: 'inputHex', kind: 'hex', labelKey: \`\${NS}.param.input\`, hintKey: \`\${NS}.param.blockHint\` },
 ];
 
-type HexCheck = { ok: true; hex: string } | { ok: false; error: I18nRef };
+/** Labels of every op the module records (\`StateStep.op\`); the player and debugger show them. */
+export const ${toConstantCase(id)}_OPS: Record<'load' | 'xor', OpLabels> = {
+  load: { labelKey: \`\${NS}.op.load\`, shortLabelKey: \`\${NS}.opShort.load\` },
+  xor: { labelKey: \`\${NS}.op.xor\`, shortLabelKey: \`\${NS}.opShort.xor\` },
+};
 
 /** Parses one block of hex; \`lengthErrorKey\` reports a wrong byte length. */
-export function readBlockHex(input: unknown, lengthErrorKey: string): HexCheck {
-  if (typeof input !== 'string') return { ok: false, error: i18nRef(\`\${NS}.error.invalidParams\`) };
-  const parsed = parseHex(input);
-  if (!parsed.ok) return parsed;
-  if (parsed.bytes.length !== ${toConstantCase(id)}_BLOCK_BYTES) return { ok: false, error: i18nRef(lengthErrorKey, { length: parsed.bytes.length }) };
-  return { ok: true, hex: toHex(parsed.bytes) };
+export function readBlockHex(input: unknown, lengthErrorKey: string): HexOfLengthResult {
+  return parseHexOfLength(input, [${toConstantCase(id)}_BLOCK_BYTES], { invalidType: \`\${NS}.error.invalidParams\`, wrongLength: lengthErrorKey });
 }
 
 /** Validates and normalises params (hex lowercased, separators stripped). */
@@ -120,6 +124,8 @@ export const ${camel}Manifest = definePrimitive<${pascal}Params>({
   defaults: EXAMPLE,
   i18nNamespace: NS,
   paramFields: ${toConstantCase(id)}_PARAM_FIELDS,
+  ops: ${toConstantCase(id)}_OPS,
+  outputs: { output: { labelKey: \`\${NS}.value.output\` } },
   validate: validate${pascal}Params,
   load: () => import('./module.ts'),
   // Optional step animations: export \`choreograph(context)\` from ./choreography.ts (see aes/choreography.ts)
@@ -138,7 +144,7 @@ function primitiveModuleSource(id: string): string {
   facetKey,
   i18nRef,
   narrationFromState,
-  parseHex,
+  parseHexOrThrow,
   RecordingTracer,
   valueId,
   xorBytes,
@@ -165,9 +171,7 @@ const REGIONS: RegionSpec<Region>[] = [
 
 /** Decodes hex that validation has already accepted. */
 function validatedBytes(hex: string): number[] {
-  const parsed = parseHex(hex);
-  if (!parsed.ok) throw new Error(\`${id}: unvalidated hex "\${hex}"\`);
-  return Array.from(parsed.bytes);
+  return Array.from(parseHexOrThrow(hex));
 }
 
 function record(key: number[], input: number[]) {
@@ -314,27 +318,42 @@ export default defineView<ViewComponent>({
 `;
 }
 
+/** The view's own stylesheet, e.g. `bitPlanes.css` (imported by the component, see `views/src/css.d.ts`). */
+export function viewStylesheetName(id: string): string {
+  return `${toCamelCase(id)}.css`;
+}
+
 function viewComponentSource(id: string, requires: readonly string[]): string {
   const name = `${toPascalCase(id)}View`;
-  return `import { useFacet, useLab, useT, type ViewProps } from '@cryventure/viz';
+  return `import { ViewStatus, useFacet, useLab, useT, type ViewProps } from '@cryventure/viz';
+import './${viewStylesheetName(id)}';
+
+const STATUS_KEYS = { loading: 'view.${id}.loading', missing: 'view.${id}.missing' } as const;
 
 /** TODO: describe what the ${id} view shows. Reads the '${requires[0]}' facet at the playhead. */
 export default function ${name}(_props: ViewProps) {
   const t = useT();
   const facet = useFacet<unknown>('${requires[0]}');
   const step = useLab((state) => state.step);
-  if (facet.status !== 'ready') {
-    return (
-      <p className="cv-view__status" role="status">
-        {t(facet.status === 'loading' ? 'view.${id}.loading' : 'view.${id}.missing')}
-      </p>
-    );
-  }
+  if (facet.status !== 'ready') return <ViewStatus status={facet.status} keys={STATUS_KEYS} />;
   return (
-    <section className="cv-view" aria-label={t('view.${id}.title')}>
-      <p>{t('view.${id}.step', { step: step + 1 })}</p>
+    <section className="cv-view cv-${id}" aria-label={t('view.${id}.title')}>
+      <p className="cv-${id}__step">{t('view.${id}.step', { step: step + 1 })}</p>
     </section>
   );
+}
+`;
+}
+
+function viewStylesheetSource(id: string): string {
+  return `/*
+ * ${toPascalCase(id)} view styles. Imported by the view component, so it ships in the view's lazy chunk.
+ * Colours come only from the semantic tokens (--cv-*, --sl-color-*); fallbacks keep it usable standalone.
+ */
+
+.cv-${id}__step {
+  margin: 0;
+  color: var(--cv-text-muted, GrayText);
 }
 `;
 }
@@ -383,6 +402,7 @@ export function viewTemplate(id: string, requires: readonly string[]): ScaffoldF
   return [
     { path: `${folder}/manifest.ts`, content: viewManifestSource(id, requires) },
     { path: `${folder}/${name}.tsx`, content: viewComponentSource(id, requires) },
+    { path: `${folder}/${viewStylesheetName(id)}`, content: viewStylesheetSource(id) },
     { path: `${folder}/${name}.test.tsx`, content: viewTestSource(id, requires) },
     { path: `${folder}/i18n/en.json`, content: toJson(en) },
     { path: `${folder}/i18n/de.json`, content: toJson(deStubs(en)) },

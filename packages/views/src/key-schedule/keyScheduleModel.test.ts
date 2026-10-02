@@ -1,11 +1,11 @@
-import type { DerivationFacet, DerivationNode } from '@cryventure/core';
+import { isResultNode, type DerivationFacet, type DerivationNode } from '@cryventure/core';
 import { describe, expect, it } from 'vitest';
 import {
   currentGroup,
   derivationChain,
-  hostGroup,
-  isPrimary,
-  roundKeyRows,
+  groupLabel,
+  hostRows,
+  resultGroups,
   rowStatus,
   sourceWordIds,
   wordHex,
@@ -14,8 +14,8 @@ import { aesDerivation } from './testFixture.ts';
 
 const ids = (nodes: { node: DerivationNode }[]) => nodes.map((link) => link.node.id);
 
-describe('roundKeyRows', () => {
-  const rows = roundKeyRows(aesDerivation);
+describe('resultGroups', () => {
+  const rows = resultGroups(aesDerivation);
 
   it('groups the 44 AES-128 words into 11 round keys of 4 words', () => {
     expect(rows.map((row) => row.group)).toEqual(Array.from({ length: 11 }, (_, round) => round));
@@ -30,7 +30,7 @@ describe('roundKeyRows', () => {
 
   it("uses the words' earliest step as the row step and skips intermediates", () => {
     expect(rows[0]?.step).toBe(2);
-    expect(rows.flatMap((row) => row.words).every(isPrimary)).toBe(true);
+    expect(rows.flatMap((row) => row.words).every(isResultNode)).toBe(true);
     const node = (id: string, step?: number): DerivationNode => ({
       id,
       label: { key: 'k' },
@@ -41,28 +41,28 @@ describe('roundKeyRows', () => {
       ...(step === undefined ? {} : { step }),
     });
     expect(
-      roundKeyRows({
+      resultGroups({
         kind: 'derivation',
         schemaVersion: 1,
         nodes: [node('a', 7), node('b', 3), node('c')],
       })[0]?.step,
     ).toBe(3);
     expect(
-      roundKeyRows({ kind: 'derivation', schemaVersion: 1, nodes: [node('a')] })[0]?.step,
+      resultGroups({ kind: 'derivation', schemaVersion: 1, nodes: [node('a')] })[0]?.step,
     ).toBeUndefined();
   });
 });
 
 describe('currentGroup / rowStatus', () => {
-  const rows = roundKeyRows(aesDerivation);
+  const rows = resultGroups(aesDerivation);
 
   it('picks the round key most recently used at the playhead', () => {
     expect(currentGroup(rows, -1)).toBeUndefined();
     expect(currentGroup(rows, 1)).toBeUndefined();
-    expect(currentGroup(rows, 2)).toBe(0);
-    expect(currentGroup(rows, 5)).toBe(0);
-    expect(currentGroup(rows, rows[3]!.step!)).toBe(3);
-    expect(currentGroup(rows, 10_000)).toBe(10);
+    expect(currentGroup(rows, 2)?.group).toBe(0);
+    expect(currentGroup(rows, 5)?.group).toBe(0);
+    expect(currentGroup(rows, rows[3]!.step!)?.group).toBe(3);
+    expect(currentGroup(rows, 10_000)?.group).toBe(10);
   });
 
   it('classifies rows as current, used or upcoming', () => {
@@ -161,13 +161,33 @@ describe('sourceWordIds', () => {
   });
 });
 
-describe('hostGroup', () => {
-  const rows = roundKeyRows(aesDerivation);
+describe('hostRows', () => {
+  const hosts = hostRows(resultGroups(aesDerivation));
 
-  it('finds the round key whose row lists the word', () => {
-    expect(hostGroup(rows, 'w/4')).toBe(1);
-    expect(hostGroup(rows, 'w/7')).toBe(1);
-    expect(hostGroup(rows, 'w/40')).toBe(10);
-    expect(hostGroup(rows, 'w/4/subWord')).toBeUndefined();
+  it('maps each listed word to the row that lists it', () => {
+    expect(hosts.get('w/4')?.group).toBe(1);
+    expect(hosts.get('w/7')?.group).toBe(1);
+    expect(hosts.get('w/40')?.group).toBe(10);
+    expect(hosts.get('w/4/subWord')).toBeUndefined();
+  });
+});
+
+describe('groupLabel', () => {
+  it("returns the producer's label of a group, else undefined", () => {
+    expect(groupLabel(aesDerivation, 3)).toEqual({ key: 'plugin.aes.derivation.roundKey', params: { n: 3 } });
+    expect(groupLabel(aesDerivation, 99)).toBeUndefined();
+    expect(groupLabel(aesDerivation, undefined)).toBeUndefined();
+    expect(groupLabel({ ...aesDerivation, groups: undefined }, 3)).toBeUndefined();
+  });
+});
+
+describe('resultGroups without groups', () => {
+  it('lists `result: true` nodes without a group in one row after the grouped ones', () => {
+    const node = (id: string, extra: Partial<DerivationNode>): DerivationNode => ({ id, label: { key: 'k' }, bytes: [], op: 'input', inputs: [], ...extra });
+    const facet: DerivationFacet = { kind: 'derivation', schemaVersion: 1, nodes: [node('a', { result: true }), node('b', { group: 2 }), node('c', {}), node('d', { group: 1, result: false })] };
+    expect(resultGroups(facet).map((row) => [row.group, row.words.map((word) => word.id)])).toEqual([
+      [2, ['b']],
+      [undefined, ['a']],
+    ]);
   });
 });

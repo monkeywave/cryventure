@@ -1,5 +1,5 @@
-import { INITIAL_STEP, type AnyStateFacet } from '@cryventure/viz';
-import type { NodeRef } from '@cryventure/core';
+import { nodeId, type AnyStateFacet, type NodeRef } from '@cryventure/core';
+import { INITIAL_STEP } from '@cryventure/viz';
 
 export interface WatchEntry {
   /** Step that wrote the value (`-1` = initial state). */
@@ -19,19 +19,52 @@ function writtenValue(step: AnyStateFacet['steps'][number], node: NodeRef): numb
   return value;
 }
 
-/**
- * Value history of one node up to and including `uptoStep`: the initial value, then every step that
- * changed it; only the last `limit` entries are kept.
- */
-export function watchHistory(facet: AnyStateFacet, node: NodeRef, uptoStep: number, limit: number = WATCH_LIMIT): WatchEntry[] {
+/** Every change of one node over the whole facet: the initial value, then each step that changed it. */
+function changePoints(facet: AnyStateFacet, node: NodeRef): readonly WatchEntry[] {
   const initial = facet.initial[node.region]?.[node.index];
   if (initial === undefined) return [];
   const entries: WatchEntry[] = [{ step: INITIAL_STEP, value: initial }];
-  for (let step = 0; step <= uptoStep && step < facet.steps.length; step++) {
-    const value = writtenValue(facet.steps[step]!, node);
-    if (value !== undefined && value !== entries.at(-1)!.value) entries.push({ step, value });
+  facet.steps.forEach((step, index) => {
+    const value = writtenValue(step, node);
+    if (value !== undefined && value !== entries.at(-1)!.value) entries.push({ step: index, value });
+  });
+  return entries;
+}
+
+const changeCache = new WeakMap<AnyStateFacet, Map<string, readonly WatchEntry[]>>();
+
+/** `changePoints`, computed once per (facet, node); facets are immutable. */
+export function nodeChanges(facet: AnyStateFacet, node: NodeRef): readonly WatchEntry[] {
+  let byNode = changeCache.get(facet);
+  if (byNode === undefined) changeCache.set(facet, (byNode = new Map()));
+  const key = nodeId(node);
+  let changes = byNode.get(key);
+  if (changes === undefined) byNode.set(key, (changes = changePoints(facet, node)));
+  return changes;
+}
+
+/** Number of entries with `step ≤ uptoStep` (entries are sorted by step): a binary search. */
+function countUpTo(entries: readonly WatchEntry[], uptoStep: number): number {
+  let low = 0;
+  let high = entries.length;
+  while (low < high) {
+    const middle = (low + high) >>> 1;
+    if (entries[middle]!.step <= uptoStep) low = middle + 1;
+    else high = middle;
   }
-  return entries.slice(-limit);
+  return low;
+}
+
+/**
+ * Value history of one node up to and including `uptoStep`: the initial value, then every step that
+ * changed it; only the last `limit` entries are kept. The changes are computed once per node and
+ * the playhead is found by binary search, so moving the playhead costs O(log steps).
+ */
+export function watchHistory(facet: AnyStateFacet, node: NodeRef, uptoStep: number, limit: number = WATCH_LIMIT): WatchEntry[] {
+  const changes = nodeChanges(facet, node);
+  // The initial value is always part of the history (as before any step).
+  const end = Math.max(Math.min(1, changes.length), countUpTo(changes, uptoStep));
+  return changes.slice(Math.max(0, end - limit), end);
 }
 
 /** Bar height of a value, 0..1 of the element type's range (u8 by default). */

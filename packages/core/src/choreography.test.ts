@@ -12,6 +12,8 @@ import {
   pulseTrack,
   sampleChoreography,
   sampleTrack,
+  stepContext,
+  stepContexts,
   type StepChoreography,
   type Track,
 } from './choreography.ts';
@@ -107,6 +109,50 @@ describe('fallbackChoreography', () => {
     });
     expect(choreography.tracks.map((t) => nodeId(t.target))).toEqual(['state:1', 'state:3']);
     expect(choreography.beats[0]?.narration?.key).toBe('n');
+  });
+
+  it('diffs only the written ranges and emits one track per cell for overlapping writes to one region', () => {
+    const writes = [
+      { region: 'state', offset: 2, values: [5, 6] },
+      { region: 'state', offset: 0, values: [7, 0, 5] },
+    ];
+    const choreography = fallbackChoreography({
+      before: { state: [0, 0, 0, 0, 0] },
+      after: { state: [7, 0, 5, 6, 0] },
+      step: { op: 'x', scope: [0], writes, highlights: [], narration: i18nRef('n') },
+    });
+    expect(choreography.tracks.map((t) => nodeId(t.target))).toEqual(['state:0', 'state:2', 'state:3']);
+    expect(choreography.tracks.map((t) => t.keyframes[0]?.at)).toEqual([0, 0.5 / 3, 1 / 3]);
+  });
+
+  it('ignores cells outside every write even when the snapshots differ there', () => {
+    const choreography = fallbackChoreography({
+      before: { state: [1, 0] },
+      after: { state: [2, 9] },
+      step: { op: 'x', scope: [0], writes: [{ region: 'state', offset: 1, values: [9] }], highlights: [], narration: i18nRef('n') },
+    });
+    expect(choreography.tracks.map((t) => nodeId(t.target))).toEqual(['state:1']);
+  });
+});
+
+describe('stepContext / stepContexts', () => {
+  const facet = {
+    kind: 'state' as const,
+    schemaVersion: 1 as const,
+    regions: [{ id: 'a', labelKey: 'a', elem: 'u8' as const, shape: [2] }],
+    initial: { a: [0, 0] },
+    steps: [0, 1].map((index) => ({ op: 'w', scope: [], writes: [{ region: 'a', offset: index, values: [index + 1] }], highlights: [], narration: i18nRef('n') })),
+    keyframes: [],
+  };
+
+  it('pairs each step with the snapshots before and after it', () => {
+    expect(stepContext(facet, 1)).toEqual({ before: { a: [1, 0] }, after: { a: [1, 2] }, step: facet.steps[1] });
+    expect(stepContexts(facet).map((context) => context.after)).toEqual([{ a: [1, 0] }, { a: [1, 2] }]);
+  });
+
+  it('returns undefined outside the facet', () => {
+    expect(stepContext(facet, -1)).toBeUndefined();
+    expect(stepContext(facet, 2)).toBeUndefined();
   });
 });
 

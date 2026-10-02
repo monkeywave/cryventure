@@ -1,8 +1,10 @@
 import { useCurrentNarration, useScopeLabel, useT, type ViewProps } from '@cryventure/viz';
+import './narration.css';
 
 /**
  * The current step's (story mode: beat's) translated narration, announced politely, under its scope path.
- * Narrow labs show the same text in the player's caption instead (the workspace hides this view there).
+ * Narrow labs show the same text in the player's caption instead (`narrowPlacement: 'caption'`, so the
+ * workspace hides this view there).
  */
 export default function NarrationView(_props: ViewProps) {
   const t = useT();

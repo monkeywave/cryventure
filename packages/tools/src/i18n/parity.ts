@@ -1,4 +1,4 @@
-import { extractParams, parsePluralKey } from '@cryventure/core';
+import { defaultLocale, extractParams, parsePluralKey, replacePlaceholders, supportedLocales, type Locale } from '@cryventure/core';
 
 /** Pure EN↔DE parity rules (no I/O); `check-parity.ts` feeds them files from disk. */
 export type Severity = 'error' | 'warning';
@@ -13,8 +13,17 @@ export interface ParityIssue {
 
 export type FlatCatalog = Record<string, unknown>;
 
-export const SOURCE_LOCALE = 'en';
-export const TARGET_LOCALE = 'de';
+/** The locale every other one is translated from (core's `defaultLocale`). */
+export const SOURCE_LOCALE: Locale = defaultLocale;
+
+function targetLocale(): Locale {
+  const target = supportedLocales.find((locale) => locale !== SOURCE_LOCALE);
+  if (target === undefined) throw new Error('i18n parity: core.supportedLocales needs a locale besides the source locale');
+  return target;
+}
+
+/** The translated locale the parity rules compare against (the supported locale that is not the source). */
+export const TARGET_LOCALE: Locale = targetLocale();
 
 /** Words that legitimately read the same in EN and DE (proper nouns, acronyms, shared words). */
 export const SAME_IN_BOTH_LOCALES: ReadonlySet<string> = new Set([
@@ -64,14 +73,13 @@ export function flattenCatalog(json: unknown, prefix = ''): FlatCatalog {
   }, {});
 }
 
-const PLACEHOLDER = /\{\{[^}]*\}\}/g;
 const TOKEN = /[\p{L}\p{N}]+/gu;
 const HAS_LETTER = /\p{L}/u;
 const HEX_LIKE = /^(?:0x)?[0-9a-f]+$/i;
 
 /** True when an identical EN/DE value is expected (no words, hex, or only allowlisted words). */
 export function isTranslationExempt(value: string, allowlist: ReadonlySet<string> = SAME_IN_BOTH_LOCALES): boolean {
-  const text = value.replace(PLACEHOLDER, ' ');
+  const text = replacePlaceholders(value, () => ' ');
   const tokens = text.match(TOKEN) ?? [];
   return tokens.every((token) => !HAS_LETTER.test(token) || HEX_LIKE.test(token) || allowlist.has(token));
 }

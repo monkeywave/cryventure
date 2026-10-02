@@ -1,7 +1,7 @@
 import {
   facetKey,
   narrationFromState,
-  parseHex,
+  parseHexOrThrow,
   RecordingTracer,
   valueId,
   type RunOptions,
@@ -13,9 +13,9 @@ import {
   type ValuesFacet,
 } from '@cryventure/core';
 import { AES_SCOPE_LEVELS, aesRegions, emptySnapshot, type AesOp, type AesRegion } from './aesTrace.ts';
-import { decryptBlock, encryptBlock } from './cipher.ts';
-import { keyScheduleDerivation } from './derivation.ts';
-import { expandKey, roundCount, roundKeyBytes, VALID_KEY_SIZES } from './keyExpansion.ts';
+import { decryptBlock, encryptBlock, encryptWithSchedule } from './cipher.ts';
+import { keyScheduleDerivation, type RoundKeySteps } from './derivation.ts';
+import { keySchedule, roundKeyBytes, VALID_KEY_SIZES, type KeySchedule } from './keyExpansion.ts';
 import { aesManifest, type AesParams } from './manifest.ts';
 import { BLOCK_BYTES } from './state.ts';
 
@@ -24,24 +24,20 @@ export type AesStateFacet = StateFacet<AesRegion, AesOp>;
 
 /** Decodes hex that validation has already accepted. */
 function validatedBytes(hex: string): number[] {
-  const parsed = parseHex(hex);
-  if (!parsed.ok) throw new Error(`AES: unvalidated hex "${hex}"`);
-  return Array.from(parsed.bytes);
+  return Array.from(parseHexOrThrow(hex));
 }
 
 /**
- * First step of `round` that loads a round key (encryption uses round key r in round r):
- * the addRoundKey step at 'op' detail, the round step at 'round' detail.
+ * For every round, the first step that loads a round key (encryption uses round key r in round r):
+ * the addRoundKey step at 'op' detail, the round step at 'round' detail. One pass over the steps.
  */
-export function findRoundKeyStep(facet: AesStateFacet, round: number): number | undefined {
-  const loadsRoundKey = (step: AesStateFacet['steps'][number]): boolean =>
-    step.round === round && step.writes.some((write) => write.region === 'roundKey');
-  const index = facet.steps.findIndex(loadsRoundKey);
-  return index === -1 ? undefined : index;
-}
-
-function roundKeyStep(facet: AesStateFacet, round: number): number {
-  return findRoundKeyStep(facet, round) ?? 0;
+export function roundKeySteps(facet: AesStateFacet): Map<number, number> {
+  const steps = new Map<number, number>();
+  facet.steps.forEach((step, index) => {
+    const loadsRoundKey = step.writes.some((write) => write.region === 'roundKey');
+    if (loadsRoundKey && !steps.has(step.round)) steps.set(step.round, index);
+  });
+  return steps;
 }
 
 function valueRef(
@@ -54,21 +50,18 @@ function valueRef(
   return { id: valueId(scope, name), labelKey: `plugin.aes.value.${name}`, role, bytes, createdAt };
 }
 
-function buildValues(
-  key: number[],
-  plaintext: number[],
-  ciphertext: number[],
-  facet: AesStateFacet,
-): ValuesFacet {
-  const words = expandKey(key);
-  const roundKeys = Array.from({ length: roundCount(key.length) + 1 }, (_, round) =>
-    valueRef(
-      [round],
-      'roundKey',
-      'subkey',
-      roundKeyBytes(words, round),
-      roundKeyStep(facet, round),
-    ),
+interface Encryption {
+  key: number[];
+  plaintext: number[];
+  ciphertext: number[];
+  schedule: KeySchedule;
+  facet: AesStateFacet;
+  roundKeySteps: RoundKeySteps;
+}
+
+function buildValues({ key, plaintext, ciphertext, schedule, facet, roundKeySteps: steps }: Encryption): ValuesFacet {
+  const roundKeys = Array.from({ length: schedule.rounds + 1 }, (_, round) =>
+    valueRef([round], 'roundKey', 'subkey', roundKeyBytes(schedule.words, round), steps.get(round) ?? 0),
   );
   const values = [
     valueRef([], 'key', 'key', key, 0),
@@ -79,15 +72,15 @@ function buildValues(
   return { kind: 'values', schemaVersion: 1, values };
 }
 
-function recordEncryption(
-  params: AesParams,
-  key: number[],
-  plaintext: number[],
-): { facet: AesStateFacet; ciphertext: number[] } {
-  const rounds = roundCount(key.length);
-  const tracer = new RecordingTracer<AesRegion, AesOp>(aesRegions(rounds), emptySnapshot(rounds));
-  const ciphertext = encryptBlock(key, plaintext, tracer, params.detail);
-  return { facet: { ...tracer.toFacet(), scopeLevels: AES_SCOPE_LEVELS }, ciphertext };
+/** Expands the key once and records the traced encryption with it. */
+function recordEncryption(params: AesParams): Encryption {
+  const key = validatedBytes(params.keyHex);
+  const plaintext = validatedBytes(params.plaintextHex);
+  const schedule = keySchedule(key);
+  const tracer = new RecordingTracer<AesRegion, AesOp>(aesRegions(schedule.rounds), emptySnapshot(schedule.rounds));
+  const ciphertext = encryptWithSchedule(schedule, plaintext, tracer, params.detail);
+  const facet: AesStateFacet = { ...tracer.toFacet(), scopeLevels: AES_SCOPE_LEVELS };
+  return { key, plaintext, ciphertext, schedule, facet, roundKeySteps: roundKeySteps(facet) };
 }
 
 /**
@@ -97,21 +90,19 @@ function recordEncryption(
 export function run(params: AesParams, _options: RunOptions = {}): RunResult {
   const validated = aesManifest.validate(params);
   if (!validated.ok) return validated;
-  const key = validatedBytes(validated.value.keyHex);
-  const plaintext = validatedBytes(validated.value.plaintextHex);
-  const { facet, ciphertext } = recordEncryption(validated.value, key, plaintext);
+  const encryption = recordEncryption(validated.value);
   const trace: TraceBundle = {
     schemaVersion: 1,
     producer: { kind: 'primitive', id: 'aes', apiVersion: 1 },
     provenance: 'modeled',
     params: validated.value,
     facets: {
-      [facetKey('state')]: facet,
-      [facetKey('values')]: buildValues(key, plaintext, ciphertext, facet),
-      [facetKey('narration')]: narrationFromState(facet),
-      [facetKey('derivation')]: keyScheduleDerivation(key, roundCount(key.length), (round) => findRoundKeyStep(facet, round)),
+      [facetKey('state')]: encryption.facet,
+      [facetKey('values')]: buildValues(encryption),
+      [facetKey('narration')]: narrationFromState(encryption.facet),
+      [facetKey('derivation')]: keyScheduleDerivation(encryption.schedule, encryption.roundKeySteps),
     },
-    output: { ciphertext },
+    output: { ciphertext: encryption.ciphertext },
   };
   return { ok: true, trace };
 }

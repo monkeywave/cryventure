@@ -1,11 +1,12 @@
 import { act, fireEvent, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { Profiler } from 'react';
 import { describe, expect, it, vi } from 'vitest';
 import { renderLab } from '@cryventure/viz/testing';
 import { loadVizMessages } from '@cryventure/viz/messages';
 import { loadViewMessages } from '../messages.ts';
 import KeyScheduleView from './KeyScheduleView.tsx';
-import { derivationLabels, keyScheduleBundle } from './testFixture.ts';
+import { aesDerivation, derivationLabels, keyScheduleBundle } from './testFixture.ts';
 
 const view = <KeyScheduleView labId="fixture" lens="engineer" />;
 
@@ -27,6 +28,32 @@ const sources = () =>
     .sort();
 
 describe('KeyScheduleView', () => {
+  it('falls back to generic group headings without producer group labels', () => {
+    const bundle = keyScheduleBundle();
+    const derivation = { ...aesDerivation, groups: undefined };
+    renderLab(view, {
+      bundle: { ...bundle, facets: { ...bundle.facets, 'derivation@default': derivation } },
+      messages: { ...loadViewMessages('en'), ...derivationLabels.en },
+    });
+    expect(screen.getAllByText(/^Group \d+/)).toHaveLength(11);
+    expect(screen.getByRole('list', { name: 'Group 1 – not used yet' })).toBeTruthy();
+  });
+
+  it('re-renders only the words whose source mark flips on hover', () => {
+    const renders = vi.fn();
+    renderLab(
+      <Profiler id="ks" onRender={(_id, _phase, actual) => renders(actual)}>
+        {view}
+      </Profiler>,
+      { bundle: keyScheduleBundle(), messages: { ...loadViewMessages('en'), ...derivationLabels.en } },
+    );
+    renders.mockClear();
+    fireEvent.mouseEnter(word('a0fafe17'));
+    expect(sources()).toEqual(['w/0', 'w/3']);
+    expect(document.querySelectorAll('[aria-expanded="true"]')).toHaveLength(0);
+    expect(renders).toHaveBeenCalledTimes(1);
+  });
+
   it('is styled by cv-keyschedule classes only (no inline styles)', () => {
     renderEnglish();
     expect(document.querySelector('section.cv-keyschedule')).toBeTruthy();
@@ -92,7 +119,7 @@ describe('KeyScheduleView', () => {
     expect(word('a0fafe17').getAttribute('aria-controls')).toBe(chain()?.id);
     expect(document.querySelectorAll('[aria-live]')).toHaveLength(1);
     expect(live().textContent).toBe(
-      'Word w[4] selected – its derivation is shown below round key 1.',
+      'Word w[4] selected – its derivation is shown below “Round key 1”.',
     );
     expect(document.activeElement).toBe(word('a0fafe17'));
   });

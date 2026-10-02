@@ -5,8 +5,7 @@ import type { LabParams, ReadySession } from '../labs/labSession.ts';
 import { InvalidLinkNotice, LabError } from './lab/LabMessages.tsx';
 import { OutputPanel } from './lab/OutputPanel.tsx';
 import { ParamPanel } from './lab/ParamPanel.tsx';
-import { PlayerBar, VIEWS_SHOWN_IN_CAPTION } from './lab/PlayerBar.tsx';
-import { useChoreographyModule } from './lab/useChoreographyModule.ts';
+import { PlayerBar } from './lab/PlayerBar.tsx';
 import { useHashSync } from './lab/useHashSync.ts';
 import { useLabSession } from './lab/useLabSession.ts';
 
@@ -41,14 +40,13 @@ interface ReadyLabProps {
 function ReadyLab({ labId, layout, lens, session, onParams }: ReadyLabProps) {
   const t = useT();
   useHashSync(labId, session.store, session.params);
-  const choreography = useChoreographyModule(session.producer);
   return (
-    <LabRoot store={session.store} choreography={choreography}>
+    <LabRoot store={session.store} choreography={session.choreography} opLabels={session.producer.ops}>
       <p className="cv-lab__title">{t(session.producer.titleKey)}</p>
       {session.notice && <InvalidLinkNotice />}
       <ParamPanel producer={session.producer} params={session.params} onApply={onParams} />
       <PlayerBar />
-      <Workspace views={session.views} layout={layout} hiddenWhenNarrow={VIEWS_SHOWN_IN_CAPTION} labId={labId} lens={lens} />
+      <Workspace views={session.views} layout={layout} labId={labId} lens={lens} />
       <OutputPanel producer={session.producer} />
     </LabRoot>
   );

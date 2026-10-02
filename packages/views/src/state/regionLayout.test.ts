@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import type { RegionSpec } from '@cryventure/core';
-import { COLLAPSIBLE_ABOVE_ELEMENTS, isCollapsibleRegion, isMatrixRegion, isWordRegion, regionByteSize, regionHighlights, regionLayout } from './regionLayout.ts';
+import { COLLAPSIBLE_ABOVE_ELEMENTS, isCollapsibleRegion, isMatrixRegion, regionByteSize, regionHighlights, regionLayout } from './regionLayout.ts';
 
-const region = (shape: number[], order?: RegionSpec<string>['order']): RegionSpec<string> => ({ id: 'r', labelKey: 'k', elem: 'u8', shape, order });
+const region = (shape: number[], order?: RegionSpec<string>['order'], layout?: RegionSpec<string>['layout']): RegionSpec<string> => ({ id: 'r', labelKey: 'k', elem: 'u8', shape, order, layout });
 
 describe('regionLayout', () => {
   it('keeps small 2-D regions as matrices in their own order', () => {
@@ -10,12 +10,28 @@ describe('regionLayout', () => {
     expect(regionLayout(region([4, 4], 'col-major'))).toEqual({ kind: 'matrix', shape: [4, 4], order: 'col-major' });
   });
 
-  it('renders [n,4] regions with more than four rows as word rows', () => {
-    expect(isWordRegion(region([44, 4]))).toBe(true);
-    expect(isWordRegion(region([4, 4]))).toBe(false);
-    expect(isWordRegion(region([8, 8]))).toBe(false);
-    expect(isMatrixRegion(region([8, 4]))).toBe(false);
-    expect(regionLayout(region([60, 4], 'col-major'))).toEqual({ kind: 'words', shape: [60, 4], order: 'row-major' });
+  it("renders the producer's words hint as one row per word, grouped per line", () => {
+    const words = { kind: 'words' as const, wordBytes: 4, labelPrefix: 'w', wordsPerGroup: 4 };
+    expect(regionLayout(region([44, 4], 'col-major', words))).toEqual({
+      kind: 'words',
+      shape: [44, 4],
+      order: 'row-major',
+      words: { elemsPerWord: 4, wordsPerLine: 4, labelPrefix: 'w' },
+    });
+    expect(regionLayout(region([16], undefined, { kind: 'words', wordBytes: 8 }))).toEqual({
+      kind: 'words',
+      shape: [2, 8],
+      order: 'row-major',
+      words: { elemsPerWord: 8, wordsPerLine: 1, labelPrefix: '' },
+    });
+    const u32Words: RegionSpec<string> = { id: 'k', labelKey: 'k', elem: 'u32', shape: [8], layout: { kind: 'words', wordBytes: 4, labelPrefix: 'k' } };
+    expect(regionLayout(u32Words).shape).toEqual([8, 1]);
+  });
+
+  it('never guesses words from the shape: without a hint [n,4] is a long byte region', () => {
+    expect(isMatrixRegion(region([8, 4]))).toBe(true);
+    expect(regionLayout(region([44, 4])).kind).toBe('rows');
+    expect(regionLayout(region([4, 4], 'col-major', { kind: 'grid' }))).toEqual({ kind: 'matrix', shape: [4, 4], order: 'col-major' });
   });
 
   it('wraps other long regions into rows of 16 with offsets', () => {

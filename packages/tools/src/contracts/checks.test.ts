@@ -1,6 +1,21 @@
 import { narrationFromState, RecordingTracer, type RegionSpec, type TraceBundle } from '@cryventure/core';
 import { describe, expect, it } from 'vitest';
-import { emittedNarration, jsonRoundTrip, keysOutsideNamespace, missingFacetKinds, missingKeys, refProblems, replayProblems, runtimeLabelKeys, sequentialReplay, unknownParamFields } from './checks.ts';
+import {
+  derivationGroupRefs,
+  emittedNarration,
+  jsonRoundTrip,
+  keysOutsideNamespace,
+  manifestLabelKeys,
+  missingFacetKinds,
+  missingKeys,
+  refProblems,
+  regionLayoutProblems,
+  replayProblems,
+  runtimeLabelKeys,
+  scopeLevelKeys,
+  sequentialReplay,
+  unknownParamFields,
+} from './checks.ts';
 
 const catalogs = {
   en: { 'plugin.x.title': 'X', 'plugin.x.step': 'Step {{n}}', 'other.key': 'O' },
@@ -87,5 +102,48 @@ describe('unknownParamFields', () => {
     ];
     expect(unknownParamFields(fields, { keyHex: '00' })).toEqual(['ivHex']);
     expect(unknownParamFields(fields, null)).toEqual(['keyHex', 'ivHex']);
+  });
+});
+
+describe('scopeLevelKeys', () => {
+  it('lists each level template plus its optional next/prev labels', () => {
+    const scopeLevels = [{ labelKey: 'p.scope.round', nextKey: 'p.scope.round.next', prevKey: 'p.scope.round.prev' }, { labelKey: 'p.scope.op' }];
+    expect(scopeLevelKeys({ scopeLevels })).toEqual(['p.scope.round', 'p.scope.round.next', 'p.scope.round.prev', 'p.scope.op']);
+    expect(scopeLevelKeys({})).toEqual([]);
+  });
+
+  it('is part of the runtime label keys', () => {
+    const base = bundle();
+    const state = { ...(base.facets['state@default'] as object), scopeLevels: [{ labelKey: 'plugin.x.scope', nextKey: 'plugin.x.scope.next' }] };
+    expect(runtimeLabelKeys({ ...base, facets: { ...base.facets, 'state@default': state } })).toContain('plugin.x.scope.next');
+  });
+});
+
+describe('manifestLabelKeys', () => {
+  it('collects op label/short keys and output label keys, each once', () => {
+    const ops = { a: { labelKey: 'p.op.a', shortLabelKey: 'p.opShort.a' }, b: { labelKey: 'p.op.b' } };
+    expect(manifestLabelKeys({ ops, outputs: { out: { labelKey: 'p.op.a' } } })).toEqual(['p.op.a', 'p.opShort.a', 'p.op.b']);
+    expect(manifestLabelKeys({})).toEqual([]);
+  });
+});
+
+describe('regionLayoutProblems', () => {
+  const region = (layout: RegionSpec<'r'>['layout'], elem: RegionSpec<'r'>['elem'] = 'u8'): RegionSpec<'r'> => ({ id: 'r', labelKey: 'l', elem, shape: [4, 4], ...(layout === undefined ? {} : { layout }) });
+
+  it('accepts grids, missing layouts and word sizes that divide the region bytes', () => {
+    expect(regionLayoutProblems([region(undefined), region({ kind: 'grid' }), region({ kind: 'words', wordBytes: 4 }), region({ kind: 'words', wordBytes: 32 }, 'u16')])).toEqual([]);
+  });
+
+  it('flags word sizes that do not divide the region bytes', () => {
+    expect(regionLayoutProblems([region({ kind: 'words', wordBytes: 3 })])).toEqual(['region "r": wordBytes 3 does not divide its 16 bytes']);
+    expect(regionLayoutProblems([region({ kind: 'words', wordBytes: 0 })])).toHaveLength(1);
+  });
+});
+
+describe('derivationGroupRefs', () => {
+  it('returns the declared group labels', () => {
+    const label = { key: 'plugin.x.step', params: { n: 1 } };
+    expect(derivationGroupRefs({ kind: 'derivation', schemaVersion: 1, nodes: [], groups: [{ id: 0, label }] })).toEqual([label]);
+    expect(derivationGroupRefs({ kind: 'derivation', schemaVersion: 1, nodes: [] })).toEqual([]);
   });
 });

@@ -1,12 +1,14 @@
-import { useMemo } from 'react';
-import type { MotionValue } from 'motion/react';
-import type { ElemType, HighlightKind, Track } from '@cryventure/core';
+import { useCallback, useMemo, type CSSProperties } from 'react';
+import type { ElemType, HighlightKind } from '@cryventure/core';
 import { useT } from '../i18n/I18nProvider.tsx';
 import { ByteCell } from './ByteCell.tsx';
 import { formatOffset } from './hex.ts';
 import { cellIndex, highlightMap, type GridHighlight, type GridOrder, type GridShape } from './gridLayout.ts';
-import type { CellMotion } from './useCellMotion.ts';
+import type { GridMotion } from './gridMotion.ts';
+import { useGridMotion } from './useGridMotion.ts';
 import { useGridNavigation } from './useGridNavigation.ts';
+
+export type { GridMotion } from './gridMotion.ts';
 
 export interface ByteGridProps {
   values: readonly number[];
@@ -24,6 +26,11 @@ export interface ByteGridProps {
   rowHeaders?: readonly GridRowHeader[];
   /** `wrap`: rows flow side by side and wrap to the available width (e.g. key-schedule words). */
   layout?: GridLayoutMode;
+  /**
+   * `wrap` layout: rows per visual line when the container is wide enough (e.g. a producer's
+   * `wordsPerGroup`); narrow containers show one row per line. Default 1.
+   */
+  wrapColumns?: number;
   /** The current step's choreography for this grid (cells animate between `before` and `values`). */
   motion?: GridMotion;
   /** Flat indices in the current beat's focus (marked focused); every other cell is dimmed. */
@@ -32,24 +39,6 @@ export interface ByteGridProps {
   selectedIndex?: number;
   /** Makes cells selectable (click / Enter). */
   onSelectCell?: (index: number) => void;
-}
-
-/** Per-grid choreography: the shared progress playhead, the values before the step and tracks per flat index. */
-export interface GridMotion {
-  progress: MotionValue<number>;
-  before: readonly number[];
-  tracks: ReadonlyMap<number, readonly Track[]>;
-}
-
-const NO_TRACKS: readonly Track[] = [];
-
-/** A cell animates when it has tracks or its value changes in this step. */
-export function cellMotion(motion: GridMotion | undefined, index: number, value: number): CellMotion | undefined {
-  if (motion === undefined) return undefined;
-  const tracks = motion.tracks.get(index) ?? NO_TRACKS;
-  const before = motion.before[index] ?? value;
-  if (tracks.length === 0 && before === value) return undefined;
-  return { progress: motion.progress, tracks, before };
 }
 
 export type GridLayoutMode = 'stack' | 'wrap';
@@ -73,8 +62,8 @@ const NO_HIGHLIGHTS: readonly GridHighlight[] = [];
 interface CellModel {
   index: number;
   value: number;
+  shown: number;
   highlight: HighlightKind | undefined;
-  motion: CellMotion | undefined;
   dimmed: boolean;
   focused: boolean;
   selected: boolean | undefined;
@@ -82,12 +71,14 @@ interface CellModel {
 
 interface RowProps {
   row: number;
+  /** First row of a visual line in the `wrap` layout (only it shows its header there). */
+  lineStart: boolean;
   cols: number;
   header: GridRowHeader | undefined;
   cellAt: (row: number, col: number) => CellModel;
   elem: ElemType;
   isActive: (row: number, col: number) => boolean;
-  activate: (row: number, col: number) => void;
+  onFocusCell: (row: number, col: number) => void;
   onSelectCell: ((index: number) => void) | undefined;
 }
 
@@ -99,19 +90,21 @@ function RowHeader({ header }: { header: GridRowHeader }) {
   );
 }
 
-/** Explicit headers win; otherwise the offset gutter is translated into headers. */
+/** Explicit headers win; otherwise the offset gutter is translated into headers (memoised). */
 function useRowHeaders(rowOffsets: readonly number[] | undefined, rowHeaders: readonly GridRowHeader[] | undefined): readonly GridRowHeader[] | undefined {
   const t = useT();
-  if (rowHeaders !== undefined) return rowHeaders;
-  return rowOffsets?.map((offset) => {
-    const text = formatOffset(offset);
-    return { text, label: t('ui.grid.offset', { offset: text }) };
-  });
+  return useMemo(() => {
+    if (rowHeaders !== undefined) return rowHeaders;
+    return rowOffsets?.map((offset) => {
+      const text = formatOffset(offset);
+      return { text, label: t('ui.grid.offset', { offset: text }) };
+    });
+  }, [rowOffsets, rowHeaders, t]);
 }
 
-function GridRow({ row, cols, header, cellAt, elem, isActive, activate, onSelectCell }: RowProps) {
+function GridRow({ row, lineStart, cols, header, cellAt, elem, isActive, onFocusCell, onSelectCell }: RowProps) {
   return (
-    <div role="row" className="cv-grid__row" data-current={header?.current ? '' : undefined}>
+    <div role="row" className="cv-grid__row" data-current={header?.current ? '' : undefined} data-line-start={lineStart ? '' : undefined}>
       {header !== undefined && <RowHeader header={header} />}
       {Array.from({ length: cols }, (_, col) => {
         const cell = cellAt(row, col);
@@ -122,15 +115,15 @@ function GridRow({ row, cols, header, cellAt, elem, isActive, activate, onSelect
             col={col}
             index={cell.index}
             value={cell.value}
+            shown={cell.shown}
             elem={elem}
             highlight={cell.highlight}
             tabbable={isActive(row, col)}
-            onFocus={() => activate(row, col)}
-            motion={cell.motion}
+            onFocusCell={onFocusCell}
             dimmed={cell.dimmed}
             focused={cell.focused}
             selected={cell.selected}
-            onSelect={onSelectCell === undefined ? undefined : () => onSelectCell(cell.index)}
+            onSelect={onSelectCell}
           />
         );
       })}
@@ -144,36 +137,48 @@ function GridRow({ row, cols, header, cellAt, elem, isActive, activate, onSelect
  */
 export function ByteGrid(props: ByteGridProps) {
   const { values, shape, order = 'row-major', elem = 'u8', highlights = NO_HIGHLIGHTS, label, rowOffsets, rowHeaders, layout = 'stack' } = props;
-  const { motion, focus, selectedIndex, onSelectCell } = props;
+  const { motion, focus, selectedIndex, onSelectCell, wrapColumns = 1 } = props;
+  const wrap = layout === 'wrap';
   const [rows, cols] = shape;
   const headers = useRowHeaders(rowOffsets, rowHeaders);
   const byIndex = useMemo(() => highlightMap(highlights), [highlights]);
   const { gridRef, onKeyDown, isActive, setActive } = useGridNavigation(shape);
+  const showsAfter = useGridMotion(gridRef, motion, values);
+  const onFocusCell = useCallback((row: number, col: number) => setActive({ row, col }), [setActive]);
   const cellAt = (row: number, col: number): CellModel => {
     const index = cellIndex(row, col, shape, order);
     const value = values[index] ?? 0;
     return {
       index,
       value,
+      shown: showsAfter(index) ? value : (motion?.before[index] ?? value),
       highlight: byIndex.get(index),
-      motion: cellMotion(motion, index, value),
       ...beatFocus(focus, index),
       selected: onSelectCell === undefined ? undefined : index === selectedIndex,
     };
   };
 
   return (
-    <div ref={gridRef} role="grid" className={layout === 'wrap' ? 'cv-grid cv-grid--wrap' : 'cv-grid'} aria-label={label} data-order={order} onKeyDown={onKeyDown}>
+    <div
+      ref={gridRef}
+      role="grid"
+      className={wrap ? 'cv-grid cv-grid--wrap' : 'cv-grid'}
+      style={wrap ? ({ '--cv-wrap-columns': wrapColumns } as CSSProperties) : undefined}
+      aria-label={label}
+      data-order={order}
+      onKeyDown={onKeyDown}
+    >
       {Array.from({ length: rows }, (_, row) => (
         <GridRow
           key={row}
           row={row}
+          lineStart={wrap && row % wrapColumns === 0}
           cols={cols}
           header={headers?.[row]}
           cellAt={cellAt}
           elem={elem}
           isActive={isActive}
-          activate={(r, c) => setActive({ row: r, col: c })}
+          onFocusCell={onFocusCell}
           onSelectCell={onSelectCell}
         />
       ))}

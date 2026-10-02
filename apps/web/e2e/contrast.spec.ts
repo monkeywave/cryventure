@@ -1,8 +1,7 @@
 import AxeBuilder from '@axe-core/playwright';
 import { expect, test, type Locator, type Page } from '@playwright/test';
-import vizEn from '../../../packages/viz/src/i18n/en.json' with { type: 'json' };
 import { contrastRatio, effectiveBackground, parseCssColor } from './helpers/contrast.ts';
-import { LAB_ID, LAB_PAGE, openLab } from './labPage.ts';
+import { C1, DESKTOP, KEY_SCHEDULE_LAB, LAB_ID, PHONE, VIZ, expectStep, labButton, labLocator, openLab, useStoryMode } from './labPage.ts';
 
 /**
  * Static legibility: in light and dark, desktop and phone, every state cell (dimmed or focused by the
@@ -15,12 +14,9 @@ type Scheme = 'light' | 'dark';
 const AA_TEXT = 4.5;
 const SCHEMES: readonly Scheme[] = ['light', 'dark'];
 const VIEWPORTS = [
-  ['desktop', { width: 1280, height: 900 }],
-  ['mobile', { width: 390, height: 844 }],
+  ['desktop', DESKTOP],
+  ['mobile', PHONE],
 ] as const;
-/** FIPS 197 C.1 at 'op' detail: step 4 ends round 1's ShiftRows, step 5 is its MixColumns (4 column beats). */
-const SHIFT_ROWS_STEP = 4;
-const MIX_COLUMNS_STEP_TEXT = vizEn['ui.player.stepOf'].replace('{{current}}', '6').replace('{{total}}', '43');
 const STATE_CELLS = '[data-region="state"] .cv-cell';
 /** Muted / secondary text of the player and views, wherever present. */
 const LAB_LABELS = [
@@ -34,8 +30,6 @@ const LAB_LABELS = [
   '.cv-watch__hint',
   '.cv-caption__text',
 ].join(', ');
-const KEY_SCHEDULE_LAB_ID = 'aes-key-schedule';
-const KEY_SCHEDULE_PAGE = 'en/symmetric/aes/key-expansion/';
 const KEY_SCHEDULE_TEXT = [
   '.cv-keyschedule__hint',
   '.cv-keyschedule__label',
@@ -95,17 +89,15 @@ async function colorContrastViolations(page: Page, labId: string): Promise<strin
   return results.violations.flatMap((violation) => violation.nodes.map((node) => node.target.join(' ')));
 }
 
-const button = (lab: Locator, key: keyof typeof vizEn) => lab.getByRole('button', { name: vizEn[key], exact: true });
-
-/** Story mode, paused while round 1's MixColumns is in flight: one column focused, the rest dimmed. */
+/** Story mode, paused while round 1's MixColumns (4 column beats) is in flight: one column focused, the rest dimmed. */
 async function pauseMidMixColumns(page: Page): Promise<Locator> {
-  const lab = await openLab(page, `${LAB_PAGE('en')}#lab=${LAB_ID}&s=${SHIFT_ROWS_STEP}&v=1`);
-  await button(lab, 'ui.player.mode.story').click();
-  await lab.getByLabel(vizEn['ui.player.speed']).selectOption('0.5');
-  await button(lab, 'ui.player.play').click();
-  await expect(lab.locator('.cv-timeline__step')).toHaveText(MIX_COLUMNS_STEP_TEXT);
+  const lab = await openLab(page, { step: C1.step.round1ShiftRows });
+  await useStoryMode(lab);
+  await lab.getByLabel(VIZ.en['ui.player.speed']).selectOption('0.5');
+  await labButton(lab, 'ui.player.play').click();
+  await expectStep(lab, C1.step.round1MixColumns);
   await expect(lab.locator(`${STATE_CELLS}[data-focused]`).first()).toBeAttached();
-  await button(lab, 'ui.player.pause').click();
+  await labButton(lab, 'ui.player.pause').click();
   await expect(lab.locator(`${STATE_CELLS}[data-focused]`)).toHaveCount(4);
   await expect(lab.locator(`${STATE_CELLS}[data-dimmed]`)).toHaveCount(12);
   return lab;
@@ -117,8 +109,8 @@ async function expandKeyWords(lab: Locator): Promise<void> {
 }
 
 async function openKeyScheduleChain(page: Page): Promise<Locator> {
-  await page.goto(KEY_SCHEDULE_PAGE);
-  const lab = page.locator(`[data-lab-id="${KEY_SCHEDULE_LAB_ID}"]`);
+  await page.goto(`en/${KEY_SCHEDULE_LAB.path}`);
+  const lab = labLocator(page, KEY_SCHEDULE_LAB.labId);
   await lab.scrollIntoViewIfNeeded();
   await lab.getByRole('button', { name: /a0fafe17$/ }).click();
   await expect(lab.locator('.cv-keyschedule__chain')).toBeVisible();
@@ -144,7 +136,7 @@ for (const scheme of SCHEMES) {
         const lab = await openKeyScheduleChain(page);
         await expectLegible(lab, KEY_SCHEDULE_TEXT);
         await expectLegible(lab, LAB_LABELS);
-        expect(await colorContrastViolations(page, KEY_SCHEDULE_LAB_ID)).toEqual([]);
+        expect(await colorContrastViolations(page, KEY_SCHEDULE_LAB.labId)).toEqual([]);
         await lab.locator('.cv-keyschedule__chain').scrollIntoViewIfNeeded();
         await page.screenshot({ path: `test-results/contrast-keyschedule-${scheme}-${device}.png` });
       });

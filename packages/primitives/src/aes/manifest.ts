@@ -1,9 +1,8 @@
 import {
   definePrimitive,
   i18nRef,
-  parseHex,
-  toHex,
-  type I18nRef,
+  parseHexOfLength,
+  type OpLabels,
   type ParamField,
   type Preset,
   type ValidationResult,
@@ -54,23 +53,29 @@ export const AES_PARAM_FIELDS: ParamField[] = [
   },
 ];
 
-type HexCheck = { ok: true; hex: string } | { ok: false; error: I18nRef };
+const INVALID_PARAMS = `${NS}.error.invalidParams`;
 
-/** Parses hex and checks its byte length against `allowed`; `lengthErrorKey` reports a mismatch. */
-export function checkHexLength(
-  input: unknown,
-  allowed: readonly number[],
-  lengthErrorKey: string,
-): HexCheck {
-  if (typeof input !== 'string')
-    return { ok: false, error: i18nRef('plugin.aes.error.invalidParams') };
-  const parsed = parseHex(input);
-  if (!parsed.ok) return parsed;
-  if (!allowed.includes(parsed.bytes.length)) {
-    return { ok: false, error: i18nRef(lengthErrorKey, { length: parsed.bytes.length }) };
-  }
-  return { ok: true, hex: toHex(parsed.bytes) };
-}
+/**
+ * Every op the trace emits (cipher and inverse cipher, both detail levels), labelled for debugger
+ * pickers (`op.*`) and the player's compact scope path (`opShort.*`).
+ */
+export const AES_OP_NAMES = [
+  'input',
+  'keyExpansion',
+  'addRoundKey',
+  'subBytes',
+  'shiftRows',
+  'mixColumns',
+  'invSubBytes',
+  'invShiftRows',
+  'invMixColumns',
+  'output',
+  'round',
+] as const;
+
+export const AES_OPS: Record<(typeof AES_OP_NAMES)[number], OpLabels> = Object.fromEntries(
+  AES_OP_NAMES.map((op) => [op, { labelKey: `${NS}.op.${op}`, shortLabelKey: `${NS}.opShort.${op}` }]),
+) as Record<(typeof AES_OP_NAMES)[number], OpLabels>;
 
 function readDetail(input: unknown): AesDetail | undefined {
   if (input === undefined) return 'op';
@@ -80,15 +85,11 @@ function readDetail(input: unknown): AesDetail | undefined {
 /** Validates and normalises params (hex lowercased, separators stripped, detail defaults to 'op'). */
 export function validateAesParams(params: unknown): ValidationResult<AesParams> {
   if (typeof params !== 'object' || params === null)
-    return { ok: false, error: i18nRef('plugin.aes.error.invalidParams') };
+    return { ok: false, error: i18nRef(INVALID_PARAMS) };
   const record = params as Record<string, unknown>;
-  const key = checkHexLength(record['keyHex'], KEY_LENGTHS, 'plugin.aes.error.keyLength');
+  const key = parseHexOfLength(record['keyHex'], KEY_LENGTHS, { invalidType: INVALID_PARAMS, wrongLength: `${NS}.error.keyLength` });
   if (!key.ok) return key;
-  const plaintext = checkHexLength(
-    record['plaintextHex'],
-    [BLOCK_LENGTH],
-    'plugin.aes.error.plaintextLength',
-  );
+  const plaintext = parseHexOfLength(record['plaintextHex'], [BLOCK_LENGTH], { invalidType: INVALID_PARAMS, wrongLength: `${NS}.error.plaintextLength` });
   if (!plaintext.ok) return plaintext;
   const detail = readDetail(record['detail']);
   if (detail === undefined)
@@ -118,6 +119,8 @@ export const aesManifest = definePrimitive<AesParams>({
   defaults: { ...AES_PRESETS[0]!.params },
   i18nNamespace: NS,
   paramFields: AES_PARAM_FIELDS,
+  ops: AES_OPS,
+  outputs: { ciphertext: { labelKey: `${NS}.value.ciphertext` } },
   validate: validateAesParams,
   load: () => import('./module.ts'),
   loadChoreography: () => import('./choreography.ts'),

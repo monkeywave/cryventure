@@ -18,7 +18,7 @@ describe('formatScopePath', () => {
   });
 
   it('is translated', () => {
-    expect(formatScopePath([3, 1], createTranslator(vizMessages.de))).toBe('Runde 3 · Operation 2');
+    expect(formatScopePath([3, 1], createTranslator(vizMessages.de))).toBe('Runde 3 · Teilschritt 2');
   });
 });
 

@@ -28,8 +28,8 @@ describe('Timeline', () => {
     const bundle = createFixtureBundle();
     const state = bundle.facets['state@default'] as StateFacet<string, { op: string }>;
     bundle.facets['state@default'] = { ...state, scopeLevels: [{ labelKey: 'p.round' }, { labelKey: 'p.op' }] };
-    const messages = { 'p.round': 'Round {{value}}', 'p.op': 'Operation {{ordinal}}', 'plugin.fixture.op.mix': 'Mix – long', 'plugin.fixture.opShort.mix': 'Mix' };
-    const { store } = renderLab(<Timeline />, { bundle, messages });
+    const messages = { 'p.round': 'Round {{value}}', 'p.op': 'Operation {{ordinal}}', 'p.mix': 'Mix – long', 'p.mixShort': 'Mix' };
+    const { store } = renderLab(<Timeline />, { bundle, messages, opLabels: { mix: { labelKey: 'p.mix', shortLabelKey: 'p.mixShort' } } });
     act(() => store.getState().seek(2));
     expect(screen.getByText('Round 1 · Mix')).toBeTruthy();
     act(() => store.getState().seek(1));

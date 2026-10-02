@@ -4,7 +4,7 @@ import { useLabStore } from './LabContext.tsx';
 
 export type LabKeyAction = keyof Pick<
   LabActions,
-  'prev' | 'next' | 'togglePlay' | 'first' | 'last' | 'prevRound' | 'nextRound' | 'toggleCurrentBreakpoint'
+  'prev' | 'next' | 'togglePlay' | 'first' | 'last' | 'prevScope' | 'nextScope' | 'toggleCurrentBreakpoint'
 >;
 
 const KEY_ACTIONS: Readonly<Record<string, LabKeyAction>> = {
@@ -17,10 +17,10 @@ const KEY_ACTIONS: Readonly<Record<string, LabKeyAction>> = {
   B: 'toggleCurrentBreakpoint',
 };
 
-/** Shift + key: coarser navigation (by round). */
+/** Shift + key: coarser navigation (by section, the outermost scope level). */
 const SHIFT_KEY_ACTIONS: Readonly<Record<string, LabKeyAction>> = {
-  ArrowLeft: 'prevRound',
-  ArrowRight: 'nextRound',
+  ArrowLeft: 'prevScope',
+  ArrowRight: 'nextScope',
   B: 'toggleCurrentBreakpoint',
 };
 
@@ -45,7 +45,7 @@ export function keyToAction(event: KeyInfo, target: Element | null): LabKeyActio
 }
 
 /**
- * ←/→ (Shift: by round), Space, Home/End and B (breakpoint) drive the player. Returns a React
+ * ←/→ (Shift: by section), Space, Home/End and B (breakpoint) drive the player. Returns a React
  * `onKeyDown` handler for the lab container, so it only sees keys while focus is inside, and runs
  * after nested handlers (grids, tablists) that claim a key with `preventDefault()`.
  */

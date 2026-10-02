@@ -1,13 +1,9 @@
-import { expect, test, type Locator, type Page } from '@playwright/test';
-import vizEn from '../../../packages/viz/src/i18n/en.json' with { type: 'json' };
-import vizDe from '../../../packages/viz/src/i18n/de.json' with { type: 'json' };
+import { expect, test } from '@playwright/test';
+import { interpolate } from '@cryventure/core';
 import aesEn from '../../../packages/primitives/src/aes/i18n/en.json' with { type: 'json' };
 import aesDe from '../../../packages/primitives/src/aes/i18n/de.json' with { type: 'json' };
 import { blockingViolations } from './helpers/axe.ts';
-
-// Relative URLs resolve against baseURL, so the suite also runs for CV_BASE sub-path builds.
-
-type Lang = 'en' | 'de';
+import { KEY_SCHEDULE_LAB, VIZ, WELCOME_LAB, expectStep, labButton, waitForLab, type Lang } from './labPage.ts';
 
 interface LessonPage {
   slug: string;
@@ -23,7 +19,7 @@ const AES_LESSONS: readonly LessonPage[] = [
     title: { en: 'ShiftRows and MixColumns', de: 'ShiftRows und MixColumns' },
     labId: 'aes-diffusion',
   },
-  { slug: 'symmetric/aes/key-expansion/', title: { en: 'Key expansion', de: 'Schlüsselexpansion' }, labId: 'aes-key-schedule' },
+  { slug: KEY_SCHEDULE_LAB.path, title: { en: 'Key expansion', de: 'Schlüsselexpansion' }, labId: KEY_SCHEDULE_LAB.labId },
   { slug: 'symmetric/aes/memory-and-hardware/', title: { en: 'AES in memory and hardware', de: 'AES in Speicher und Hardware' } },
 ];
 
@@ -32,26 +28,18 @@ const SIX_PARTS: Record<Lang, RegExp> = {
   de: /^Teil 6 · Selbsttest$/,
 };
 
-/** Waits until the page's lab island has replaced its poster with the interactive workspace. */
-async function waitForLab(page: Page, labId: string): Promise<Locator> {
-  const lab = page.locator(`[data-lab-id="${labId}"]`);
-  await lab.scrollIntoViewIfNeeded();
-  await expect(lab.locator('section.cv-lab')).toBeVisible();
-  return lab;
-}
-
-const MESSAGES = { en: { viz: vizEn, aes: aesEn }, de: { viz: vizDe, aes: aesDe } } as const;
+const AES = { en: aesEn, de: aesDe } as const;
 
 /** Expected scope text "Round 1 · SubBytes" / "Runde 1 · SubBytes" for round 1 and `op`. */
 function roundOneScope(lang: Lang, op: 'subBytes' | 'shiftRows' | 'addRoundKey'): string {
-  const { viz, aes } = MESSAGES[lang];
-  return `${aes['plugin.aes.scope.round'].replace('{{value}}', '1')}${viz['ui.scope.separator']}${aes[`plugin.aes.opShort.${op}`]}`;
+  const aes = AES[lang];
+  return `${interpolate(aes['plugin.aes.scope.round'], { value: 1 })}${VIZ[lang]['ui.scope.separator']}${aes[`plugin.aes.opShort.${op}`]}`;
 }
 
 const START_POSITIONS = [
   { slug: 'symmetric/aes/subbytes-sbox/', labId: 'aes-subbytes', op: 'subBytes' },
   { slug: 'symmetric/aes/shiftrows-mixcolumns/', labId: 'aes-diffusion', op: 'shiftRows' },
-  { slug: 'symmetric/aes/key-expansion/', labId: 'aes-key-schedule', op: 'addRoundKey' },
+  { slug: KEY_SCHEDULE_LAB.path, labId: KEY_SCHEDULE_LAB.labId, op: 'addRoundKey' },
 ] as const;
 
 for (const lang of ['en', 'de'] as const) {
@@ -70,7 +58,7 @@ for (const lang of ['en', 'de'] as const) {
 }
 
 test('sidebar walks through the AES lessons in order (EN)', async ({ page }) => {
-  await page.goto('en/foundations/welcome-lab/');
+  await page.goto(`en/${WELCOME_LAB.path}`);
   const sidebar = page.locator('#starlight__sidebar');
   for (const lesson of AES_LESSONS) {
     await sidebar.getByRole('link', { name: lesson.title.en, exact: true }).click();
@@ -122,20 +110,20 @@ for (const lang of ['en', 'de'] as const) {
 test('a deep-link step wins over startAt', async ({ page }) => {
   await page.goto('en/symmetric/aes/subbytes-sbox/#lab=aes-subbytes&s=0&v=1');
   const lab = await waitForLab(page, 'aes-subbytes');
-  await expect(lab.locator('.cv-timeline__step')).toHaveText(/^Step 1 \//);
+  await expectStep(lab, 0);
 });
 
 test('AES overview preselects story mode without starting playback', async ({ page }) => {
   await page.goto('en/symmetric/aes/');
   const lab = await waitForLab(page, 'aes-overview');
-  await expect(lab.getByRole('button', { name: vizEn['ui.player.mode.story'], exact: true })).toHaveAttribute('aria-pressed', 'true');
-  await expect(lab.getByRole('button', { name: vizEn['ui.player.play'], exact: true })).toBeVisible();
+  await expect(labButton(lab, 'ui.player.mode.story')).toHaveAttribute('aria-pressed', 'true');
+  await expect(labButton(lab, 'ui.player.play')).toBeVisible();
   await page.waitForTimeout(1_500);
-  await expect(lab.locator('.cv-timeline__step')).toHaveText(/^Step 0 \//);
+  await expectStep(lab, -1);
 });
 
 test('other AES labs stay in debugger mode', async ({ page }) => {
   await page.goto('en/symmetric/aes/subbytes-sbox/');
   const lab = await waitForLab(page, 'aes-subbytes');
-  await expect(lab.getByRole('button', { name: vizEn['ui.player.mode.debugger'], exact: true })).toHaveAttribute('aria-pressed', 'true');
+  await expect(labButton(lab, 'ui.player.mode.debugger')).toHaveAttribute('aria-pressed', 'true');
 });

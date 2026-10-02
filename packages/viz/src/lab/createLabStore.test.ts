@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { createFixtureBundle } from '../testing/fixtureBundle.ts';
 import { createLabStore } from './createLabStore.ts';
+import { selectStepCount } from './labReducers.ts';
 
 describe('createLabStore', () => {
   it('creates independent stores per lab', () => {
@@ -56,26 +57,28 @@ describe('createLabStore', () => {
 
   it('setBundle resets the lab but keeps speed', () => {
     const store = createLabStore(null);
-    expect(store.getState().stepCount).toBe(0);
+    expect(selectStepCount(store.getState())).toBe(0);
     store.getState().setSpeed(2);
     store.getState().setBundle(createFixtureBundle());
-    expect(store.getState()).toMatchObject({ stepCount: 3, step: -1, speed: 2 });
+    expect(store.getState()).toMatchObject({ step: -1, speed: 2 });
+    expect(selectStepCount(store.getState())).toBe(3);
+    expect(store.getState()).not.toHaveProperty('stepCount');
   });
 
   it('navigates by round', () => {
     const store = createLabStore(createFixtureBundle());
-    const { nextRound, prevRound } = store.getState();
-    nextRound();
+    const { nextScope, prevScope } = store.getState();
+    nextScope();
     expect(store.getState()).toMatchObject({ step: 0, transition: 'jump' });
-    nextRound();
+    nextScope();
     expect(store.getState().step).toBe(1);
-    nextRound();
+    nextScope();
     expect(store.getState().step).toBe(2);
-    prevRound();
+    prevScope();
     expect(store.getState().step).toBe(1);
-    prevRound();
+    prevScope();
     expect(store.getState().step).toBe(0);
-    prevRound();
+    prevScope();
     expect(store.getState().step).toBe(-1);
   });
 

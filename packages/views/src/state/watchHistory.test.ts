@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { AnyStateFacet } from '@cryventure/viz';
 import { createFixtureBundle, fixtureRegions } from '@cryventure/viz/testing';
-import { WATCH_LIMIT, watchHistory, watchLevel } from './watchHistory.ts';
+import { WATCH_LIMIT, nodeChanges, watchHistory, watchLevel } from './watchHistory.ts';
 
 const fixtureFacet = () => createFixtureBundle().facets['state@default'] as AnyStateFacet;
 
@@ -74,6 +74,28 @@ describe('watchHistory', () => {
   it('is empty for unknown regions or indices', () => {
     expect(watchHistory(fixtureFacet(), { region: 'nope', index: 0 }, 2)).toEqual([]);
     expect(watchHistory(fixtureFacet(), { region: 'state', index: 99 }, 2)).toEqual([]);
+  });
+});
+
+describe('nodeChanges', () => {
+  it('computes the change points of a node once per facet and node', () => {
+    const facet = facetWriting([1, 1, 2]);
+    const node = { region: 'state', index: 3 };
+    const changes = nodeChanges(facet, node);
+    expect(changes).toEqual([
+      { step: -1, value: 0 },
+      { step: 0, value: 1 },
+      { step: 2, value: 2 },
+    ]);
+    expect(nodeChanges(facet, { region: 'state', index: 3 })).toBe(changes);
+    expect(nodeChanges(facetWriting([1, 1, 2]), node)).not.toBe(changes);
+  });
+
+  it('serves every playhead from the cached changes (binary search)', () => {
+    const facet = facetWriting([5, 6, 7, 8]);
+    const node = { region: 'state', index: 3 };
+    expect([-1, 0, 1, 2, 3].map((step) => watchHistory(facet, node, step).at(-1)?.value)).toEqual([0, 5, 6, 7, 8]);
+    expect(watchHistory(facet, node, -5)).toEqual([{ step: -1, value: 0 }]);
   });
 });
 

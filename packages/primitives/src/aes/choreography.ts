@@ -12,12 +12,12 @@ import { substitutionChoreography } from './choreo/substitution.ts';
 type Choreographer = (context: ChoreographyContext) => StepChoreography;
 
 const CHOREOGRAPHERS: ReadonlyMap<AesOpName, Choreographer> = new Map<AesOpName, Choreographer>([
-  ['subBytes', (context) => substitutionChoreography('subBytes', context)],
-  ['invSubBytes', (context) => substitutionChoreography('invSubBytes', context)],
-  ['shiftRows', (context) => shiftChoreography('shiftRows', context)],
-  ['invShiftRows', (context) => shiftChoreography('invShiftRows', context)],
-  ['mixColumns', (context) => mixChoreography('mixColumns', context)],
-  ['invMixColumns', (context) => mixChoreography('invMixColumns', context)],
+  ['subBytes', substitutionChoreography],
+  ['invSubBytes', substitutionChoreography],
+  ['shiftRows', shiftChoreography],
+  ['invShiftRows', shiftChoreography],
+  ['mixColumns', mixChoreography],
+  ['invMixColumns', mixChoreography],
   ['addRoundKey', addRoundKeyChoreography],
 ]);
 

@@ -1,7 +1,10 @@
 import { useId } from 'react';
 import { useT } from '../i18n/I18nProvider.tsx';
-import { INITIAL_STEP, SPEEDS, isAtEnd } from '../lab/labReducers.ts';
+import { INITIAL_STEP, SPEEDS, isLastStep, selectStepCount } from '../lab/labReducers.ts';
+import type { AnyStateFacet } from '@cryventure/core';
 import { useLab, useLabActions } from '../lab/LabContext.tsx';
+import { OUTER_SCOPE_LEVEL } from '../lab/scopeNavigation.ts';
+import { useFacet } from '../lab/useFacet.ts';
 import { PlayerIcon, type PlayerIconName } from './icons.tsx';
 
 interface ControlButtonProps {
@@ -39,24 +42,34 @@ function SpeedSelect() {
   );
 }
 
+const SECTION_KEYS = { next: 'ui.player.nextSection', prev: 'ui.player.prevSection' } as const;
+
+/** Labels of the "step over a section" buttons: the producer's outermost scope level, else generic. */
+function useSectionLabels(): { next: string; prev: string } {
+  const t = useT();
+  const level = useFacet<AnyStateFacet>('state').data?.scopeLevels?.[OUTER_SCOPE_LEVEL];
+  return { next: t(level?.nextKey ?? SECTION_KEYS.next), prev: t(level?.prevKey ?? SECTION_KEYS.prev) };
+}
+
 /**
- * First / (previous round) / previous / play-pause / next / (next round) / last plus a speed picker.
- * The round buttons ("step over" a whole round) appear in debugger mode.
+ * First / (previous section) / previous / play-pause / next / (next section) / last plus a speed
+ * picker. The section buttons ("step over" the outermost scope, e.g. an AES round) appear in debugger mode.
  */
 export function Controls() {
   const t = useT();
+  const section = useSectionLabels();
   const step = useLab((state) => state.step);
-  const stepCount = useLab((state) => state.stepCount);
+  const stepCount = useLab(selectStepCount);
   const playing = useLab((state) => state.playing);
   const debugging = useLab((state) => state.mode === 'debugger');
   const actions = useLabActions();
   const atStart = step === INITIAL_STEP;
-  const atEnd = isAtEnd({ step, stepCount });
+  const atEnd = isLastStep(step, stepCount);
 
   return (
     <div className="cv-controls" role="group" aria-label={t('ui.player.controls')}>
       <ControlButton label={t('ui.player.first')} icon="first" shortcut="Home" disabled={atStart} onClick={actions.first} />
-      {debugging && <ControlButton label={t('ui.player.prevRound')} icon="prevRound" shortcut="Shift+ArrowLeft" disabled={atStart} onClick={actions.prevRound} />}
+      {debugging && <ControlButton label={section.prev} icon="prevScope" shortcut="Shift+ArrowLeft" disabled={atStart} onClick={actions.prevScope} />}
       <ControlButton label={t('ui.player.prev')} icon="prev" shortcut="ArrowLeft" disabled={atStart} onClick={actions.prev} />
       <ControlButton
         label={t(playing ? 'ui.player.pause' : 'ui.player.play')}
@@ -66,7 +79,7 @@ export function Controls() {
         onClick={actions.togglePlay}
       />
       <ControlButton label={t('ui.player.next')} icon="next" shortcut="ArrowRight" disabled={atEnd} onClick={actions.next} />
-      {debugging && <ControlButton label={t('ui.player.nextRound')} icon="nextRound" shortcut="Shift+ArrowRight" disabled={atEnd} onClick={actions.nextRound} />}
+      {debugging && <ControlButton label={section.next} icon="nextScope" shortcut="Shift+ArrowRight" disabled={atEnd} onClick={actions.nextScope} />}
       <ControlButton label={t('ui.player.last')} icon="last" shortcut="End" disabled={atEnd} onClick={actions.last} />
       <SpeedSelect />
     </div>

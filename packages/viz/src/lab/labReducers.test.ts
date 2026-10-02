@@ -8,7 +8,9 @@ import {
   initialLabData,
   isAtEnd,
   isBreakpointStep,
+  isLastStep,
   lastStep,
+  selectStepCount,
   pausePlaying,
   seekTo,
   setRegionExpanded,
@@ -41,7 +43,8 @@ describe('lab reducers', () => {
   });
 
   it('initialLabData derives the step count and starts paused at the initial state', () => {
-    expect(data()).toMatchObject({ stepCount: 3, step: -1, playing: false, speed: 1, selection: { valueRefId: null }, derivedFacets: {} });
+    expect(data()).toMatchObject({ step: -1, playing: false, speed: 1, selection: { valueRefId: null }, derivedFacets: {} });
+    expect(selectStepCount(data())).toBe(3);
     expect(lastStep(data())).toBe(2);
   });
 
@@ -49,7 +52,6 @@ describe('lab reducers', () => {
     const next = withBundle(null);
     expect(next).toMatchObject({
       bundle: null,
-      stepCount: 0,
       step: -1,
       playing: false,
       transition: 'jump',
@@ -78,15 +80,18 @@ describe('lab reducers', () => {
   });
 
   it('isAtEnd is true on the last step and for empty timelines', () => {
-    expect(isAtEnd({ step: 2, stepCount: 3 })).toBe(true);
-    expect(isAtEnd({ step: 1, stepCount: 3 })).toBe(false);
-    expect(isAtEnd({ step: -1, stepCount: 0 })).toBe(true);
+    expect(isAtEnd(data({ step: 2 }))).toBe(true);
+    expect(isAtEnd(data({ step: 1 }))).toBe(false);
+    expect(isAtEnd({ step: -1, bundle: null })).toBe(true);
+    expect(isLastStep(2, 3)).toBe(true);
+    expect(isLastStep(1, 3)).toBe(false);
+    expect(isLastStep(-1, 0)).toBe(true);
   });
 
   it('startPlaying restarts from the beginning at the end and refuses empty timelines', () => {
     expect(startPlaying(data({ step: 0 }))).toEqual({ playing: true, transition: 'jump' });
     expect(startPlaying(data({ step: 2 }))).toEqual({ playing: true, step: -1, transition: 'jump' });
-    expect(startPlaying(data({ stepCount: 0 }))).toEqual({ playing: false });
+    expect(startPlaying(data({ bundle: null }))).toEqual({ playing: false });
   });
 
   it('startPlaying resumes a held step animation and keeps other transitions', () => {

@@ -4,15 +4,18 @@ import { screen } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
 import { LabLayoutProvider } from '@cryventure/viz';
 import { createFixtureBundle, fixtureMessages, renderLab } from '@cryventure/viz/testing';
+import { producerRegistry } from '../../labs/registry.ts';
 import { labMessages } from '../../labs/labMessages.ts';
-import { PlayerBar, VIEWS_SHOWN_IN_CAPTION } from './PlayerBar.tsx';
+import { PlayerBar } from './PlayerBar.tsx';
+
+const AES = producerRegistry.require('aes');
 
 function renderBar(narrow: boolean, lang = 'en') {
   const result = renderLab(
     <LabLayoutProvider narrow={narrow}>
       <PlayerBar />
     </LabLayoutProvider>,
-    { bundle: createFixtureBundle(), messages: { ...labMessages(lang, 'aes'), ...fixtureMessages } },
+    { bundle: createFixtureBundle(), messages: { ...labMessages(lang, AES), ...fixtureMessages } },
   );
   return { ...result, player: document.querySelector<HTMLElement>('.cv-lab__player') };
 }
@@ -37,9 +40,5 @@ describe('PlayerBar', () => {
   it('renders the German caption', () => {
     renderBar(true, 'de');
     expect(screen.getByRole('group', { name: 'Erläuterung' }).textContent).toContain('Ausgangszustand');
-  });
-
-  it('hands the narration view over to the caption on narrow labs', () => {
-    expect(VIEWS_SHOWN_IN_CAPTION).toEqual(['narration']);
   });
 });

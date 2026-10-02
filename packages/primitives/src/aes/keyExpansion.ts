@@ -63,6 +63,20 @@ export function expandKey(key: ArrayLike<number>): Word[] {
   return words;
 }
 
+/** An expanded cipher key: computed once per run and shared by the cipher trace, values and derivation. */
+export interface KeySchedule {
+  /** Nk: number of 32-bit words in the cipher key (4, 6 or 8). */
+  keyWords: number;
+  /** Nr: number of rounds (10, 12 or 14). */
+  rounds: number;
+  /** w[0 … 4·(Nr+1)−1]. */
+  words: Word[];
+}
+
+export function keySchedule(key: ArrayLike<number>): KeySchedule {
+  return { keyWords: key.length / 4, rounds: roundCount(key.length), words: expandKey(key) };
+}
+
 /** The 16-byte round key for `round` (words 4·round .. 4·round+3, concatenated). */
 export function roundKeyBytes(words: readonly Word[], round: number): number[] {
   const start = WORDS_PER_ROUND_KEY * round;

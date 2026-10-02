@@ -5,6 +5,7 @@ import {
   INITIAL_STEP,
   clampSpeed,
   initialLabData,
+  lastStep,
   pausePlaying,
   seekTo,
   setRegionExpanded,
@@ -32,10 +33,10 @@ export interface LabActions {
   next(): void;
   /** Exact jump to the end state of the previous step. */
   prev(): void;
-  /** Jump to the start of the next round (scope level 0). */
-  nextRound(): void;
-  /** Jump to the start of the current round, or of the previous one when already there. */
-  prevRound(): void;
+  /** Jump to the start of the next section (outermost scope level, e.g. an AES round). */
+  nextScope(): void;
+  /** Jump to the start of the current section, or of the previous one when already there. */
+  prevScope(): void;
   play(): void;
   pause(): void;
   togglePlay(): void;
@@ -86,11 +87,11 @@ export function createLabStore(bundle: TraceBundle | null = null): LabStore {
     setBundle: (next) => set(withBundle(next)),
     seek: (step) => set((state) => seekTo(state, step)),
     first: () => set((state) => seekTo(state, INITIAL_STEP)),
-    last: () => set((state) => seekTo(state, state.stepCount - 1)),
+    last: () => set((state) => seekTo(state, lastStep(state))),
     next: () => set(stepForward),
     prev: () => set((state) => stepBy(state, -1)),
-    nextRound: () => set((state) => seekTo(state, nextScopeStart(stateSteps(state.bundle), state.step))),
-    prevRound: () => set((state) => seekTo(state, prevScopeStart(stateSteps(state.bundle), state.step))),
+    nextScope: () => set((state) => seekTo(state, nextScopeStart(stateSteps(state.bundle), state.step))),
+    prevScope: () => set((state) => seekTo(state, prevScopeStart(stateSteps(state.bundle), state.step))),
     play: () => set(startPlaying),
     pause: () => set(pausePlaying),
     togglePlay: () => (get().playing ? get().pause() : get().play()),

@@ -13,7 +13,7 @@ const aes = producerRegistry.require('aes') as PrimitiveManifest<LabParams>;
 
 function renderPanel(lang = 'en', onApply = vi.fn()) {
   render(
-    <I18nProvider messages={labMessages(lang, 'aes')}>
+    <I18nProvider messages={labMessages(lang, aes)}>
       <ParamPanel producer={aes} params={aes.defaults as LabParams} onApply={onApply} />
     </I18nProvider>,
   );

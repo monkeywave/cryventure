@@ -40,6 +40,15 @@ describe('primitiveTemplate', () => {
     expect([...manifest.matchAll(/from '([^']+)'/g)].map((match) => match[1])).toEqual(['@cryventure/core']);
   });
 
+  it('declares op and output labels and validates hex with the core helpers', () => {
+    const manifest = contentOf(files, 'manifest.ts');
+    expect(manifest).toContain('ops: DEMO_XOR_OPS');
+    expect(manifest).toContain('outputs: { output: { labelKey: `${NS}.value.output` } }');
+    expect(manifest).toContain('parseHexOfLength(input, [DEMO_XOR_BLOCK_BYTES]');
+    expect(contentOf(files, 'module.ts')).toContain('parseHexOrThrow(hex)');
+    expect(primitiveMessages('demo-xor')).toMatchObject({ 'plugin.demo-xor.op.load': expect.any(String), 'plugin.demo-xor.opShort.xor': 'XOR' });
+  });
+
   it('keeps every message key under plugin.<id> with [DE] stubs', () => {
     const en = JSON.parse(contentOf(files, 'en.json')) as Record<string, string>;
     expect(en).toEqual(primitiveMessages('demo-xor'));
@@ -59,8 +68,8 @@ describe('primitiveTemplate', () => {
 describe('viewTemplate', () => {
   const files = viewTemplate('demo-bits', ['values', 'state']);
 
-  it('creates manifest, component, test and EN/DE catalogs', () => {
-    expect(files.map((file) => file.path)).toEqual(['manifest.ts', 'DemoBitsView.tsx', 'DemoBitsView.test.tsx', 'i18n/en.json', 'i18n/de.json'].map((name) => `packages/views/src/demo-bits/${name}`));
+  it('creates manifest, component, stylesheet, test and EN/DE catalogs', () => {
+    expect(files.map((file) => file.path)).toEqual(['manifest.ts', 'DemoBitsView.tsx', 'demoBits.css', 'DemoBitsView.test.tsx', 'i18n/en.json', 'i18n/de.json'].map((name) => `packages/views/src/demo-bits/${name}`));
   });
 
   it('declares the required facets and lazily loads the component', () => {
@@ -68,6 +77,13 @@ describe('viewTemplate', () => {
     expect(manifest).toContain("requires: ['values', 'state']");
     expect(manifest).toContain("load: () => import('./DemoBitsView.tsx')");
     expect(contentOf(files, 'DemoBitsView.tsx')).toContain("useFacet<unknown>('values')");
+  });
+
+  it('imports its own stylesheet and shows loading/missing through ViewStatus', () => {
+    const component = contentOf(files, 'DemoBitsView.tsx');
+    expect(component).toContain("import './demoBits.css';");
+    expect(component).toContain('<ViewStatus status={facet.status} keys={STATUS_KEYS} />');
+    expect(contentOf(files, 'demoBits.css')).toContain('.cv-demo-bits__step');
   });
 
   it('keeps every message key under view.<id> with [DE] stubs', () => {

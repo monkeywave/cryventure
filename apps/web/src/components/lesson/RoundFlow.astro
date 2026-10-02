@@ -3,11 +3,11 @@
  * Round-structure diagram as semantic HTML (ordered list of stages, each a row of operation chips).
  * Colours follow the --cv-* semantic tokens; every chip also carries a glyph so colour is never the only cue.
  */
-type OpKind = 'key' | 'plaintext' | 'ciphertext' | 'state' | 'constant';
+import { lessonKindGlyph, type LessonKind } from './lessonKinds';
 
 interface Op {
   label: string;
-  kind: OpKind;
+  kind: LessonKind;
 }
 
 interface Stage {
@@ -22,13 +22,12 @@ interface Props {
   caption: string;
 }
 
-const GLYPHS: Record<OpKind, string> = { key: '⚷', plaintext: 'P', ciphertext: 'C', state: '▦', constant: 'π' };
 const { input, output, stages, caption } = Astro.props;
 ---
 
 <figure class="cv-flow not-content">
   <ol class="cv-flow__list">
-    <li class="cv-flow__io" data-kind="plaintext"><span aria-hidden="true">{GLYPHS.plaintext}</span> {input}</li>
+    <li class="cv-flow__io" data-kind="plaintext"><span aria-hidden="true">{lessonKindGlyph('plaintext')}</span> {input}</li>
     {
       stages.map((stage) => (
         <li class="cv-flow__stage">
@@ -36,14 +35,14 @@ const { input, output, stages, caption } = Astro.props;
           <ul class="cv-flow__ops">
             {stage.ops.map((op) => (
               <li class="cv-flow__op" data-kind={op.kind}>
-                <span aria-hidden="true">{GLYPHS[op.kind]}</span> {op.label}
+                <span aria-hidden="true">{lessonKindGlyph(op.kind)}</span> {op.label}
               </li>
             ))}
           </ul>
         </li>
       ))
     }
-    <li class="cv-flow__io" data-kind="ciphertext"><span aria-hidden="true">{GLYPHS.ciphertext}</span> {output}</li>
+    <li class="cv-flow__io" data-kind="ciphertext"><span aria-hidden="true">{lessonKindGlyph('ciphertext')}</span> {output}</li>
   </ol>
   <figcaption>{caption}</figcaption>
 </figure>
@@ -121,6 +120,18 @@ const { input, output, stages, caption } = Astro.props;
 
   [data-kind='key'] {
     --cv-op-accent: var(--cv-key);
+  }
+
+  [data-kind='subkey'] {
+    --cv-op-accent: var(--cv-subkey);
+  }
+
+  [data-kind='nonce'] {
+    --cv-op-accent: var(--cv-nonce);
+  }
+
+  [data-kind='tag'] {
+    --cv-op-accent: var(--cv-success);
   }
 
   [data-kind='plaintext'] {

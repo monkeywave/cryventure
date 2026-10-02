@@ -11,5 +11,6 @@ export default defineView<ViewComponent>({
   optional: ['state'],
   defaultSlot: 'side',
   order: 20,
+  narrowPlacement: 'caption',
   load: () => import('./NarrationView.tsx'),
 });

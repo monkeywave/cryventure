@@ -1,3 +1,4 @@
+import { INITIAL_STEP } from '@cryventure/viz';
 import { decodeJsonBase64Url, encodeJsonBase64Url } from './base64url.ts';
 
 /**
@@ -16,8 +17,6 @@ export interface LabLinkState {
 export type LabLinkRead = { status: 'absent' } | { status: 'valid'; state: LabLinkState } | { status: 'invalid' };
 
 type Fields = Map<string, string>;
-
-const MIN_STEP = -1;
 
 /** Splits `lab=a&p=..&s=..&lab=b&..` into one field map per lab id (later duplicates win). */
 export function parseLabGroups(hash: string): Map<string, Fields> {
@@ -44,7 +43,7 @@ function splitToken(token: string): [string, string] {
 function decodeStep(text: string | undefined): { ok: boolean; step?: number } {
   if (text === undefined) return { ok: true };
   const step = Number(text);
-  const valid = /^-?\d+$/.test(text) && Number.isSafeInteger(step) && step >= MIN_STEP;
+  const valid = /^-?\d+$/.test(text) && Number.isSafeInteger(step) && step >= INITIAL_STEP;
   return valid ? { ok: true, step } : { ok: false };
 }
 

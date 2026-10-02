@@ -1,6 +1,6 @@
 import { existsSync, mkdirSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
-import { pathToFileURL } from 'node:url';
+import { isEntryPoint } from '../fs/entryPoint.ts';
 import { REPO_ROOT } from '../fs/repoRoot.ts';
 import { parseArgs, type ScaffoldCommand } from './args.ts';
 import { primitiveFolder, primitiveTemplate, viewFolder, viewTemplate, type ScaffoldFile } from './templates.ts';
@@ -39,8 +39,4 @@ export function main(args: readonly string[], root: string = REPO_ROOT, log = co
   }
 }
 
-function isEntryPoint(): boolean {
-  return process.argv[1] !== undefined && import.meta.url === pathToFileURL(process.argv[1]).href;
-}
-
-if (isEntryPoint()) process.exitCode = main(process.argv.slice(2));
+if (isEntryPoint(import.meta.url)) process.exitCode = main(process.argv.slice(2));

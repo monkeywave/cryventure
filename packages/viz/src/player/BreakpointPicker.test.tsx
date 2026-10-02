@@ -25,7 +25,7 @@ describe('BreakpointPicker', () => {
   });
 
   it('uses the producer op labels when given', () => {
-    renderLab(<BreakpointPicker />, { bundle: createFixtureBundle(), messages: { 'plugin.fixture.op.sub': 'SubBytes' } });
+    renderLab(<BreakpointPicker />, { bundle: createFixtureBundle(), messages: { 'p.sub': 'SubBytes' }, opLabels: { sub: { labelKey: 'p.sub' } } });
     expect(chips().map((chip) => chip.textContent)).toEqual(['load', 'SubBytes', 'mix']);
   });
 

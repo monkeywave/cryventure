@@ -1,6 +1,6 @@
 import type { CSSProperties } from 'react';
-import type { NodeRef, RegionSpec } from '@cryventure/core';
-import { INITIAL_STEP, formatHex, useLab, useLabActions, useT, type AnyStateFacet } from '@cryventure/viz';
+import { elemMax, type AnyStateFacet, type ElemType, type NodeRef } from '@cryventure/core';
+import { INITIAL_STEP, formatHex, useLab, useLabActions, useT } from '@cryventure/viz';
 import { watchHistory, watchLevel, type WatchEntry } from './watchHistory.ts';
 
 interface WatchPanelProps {
@@ -8,12 +8,10 @@ interface WatchPanelProps {
   node: NodeRef;
 }
 
-const ELEM_MAX: Readonly<Record<RegionSpec<string>['elem'], number>> = { u8: 0xff, u16: 0xffff, u32: 0xffffffff, u64: Number.MAX_SAFE_INTEGER, i16: 0x7fff };
-
-function WatchItem({ entry, current, elem }: { entry: WatchEntry; current: boolean; elem: RegionSpec<string>['elem'] }) {
+function WatchItem({ entry, current, elem }: { entry: WatchEntry; current: boolean; elem: ElemType }) {
   const t = useT();
   const step = entry.step === INITIAL_STEP ? t('view.state.watch.initial') : String(entry.step + 1);
-  const style = { '--cv-watch-level': watchLevel(entry.value, ELEM_MAX[elem]) } as CSSProperties;
+  const style = { '--cv-watch-level': watchLevel(entry.value, elemMax(elem)) } as CSSProperties;
   return (
     <li className="cv-watch__entry" aria-current={current ? 'step' : undefined} data-step={entry.step}>
       <span className="cv-watch__bar" style={style} aria-hidden="true" />

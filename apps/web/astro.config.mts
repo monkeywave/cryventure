@@ -34,13 +34,8 @@ export default defineConfig({
             {
               label: 'AES',
               translations: { de: 'AES' },
-              items: [
-                { slug: 'symmetric/aes' },
-                { slug: 'symmetric/aes/subbytes-sbox' },
-                { slug: 'symmetric/aes/shiftrows-mixcolumns' },
-                { slug: 'symmetric/aes/key-expansion' },
-                { slug: 'symmetric/aes/memory-and-hardware' },
-              ],
+              // Page order comes from each page's frontmatter `sidebar.order` (EN and DE).
+              items: [{ autogenerate: { directory: 'symmetric/aes' } }],
             },
           ],
         },

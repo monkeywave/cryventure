@@ -23,13 +23,32 @@ function stateWrite(state: readonly number[]): AesStep['writes'] {
   return [{ region: 'state', offset: 0, values: [...state] }];
 }
 
-export function inputStep(round: number, state: readonly number[]): AesStep {
+/** Ops that write the whole state in one go (traced by `wholeStateStep`). */
+export type WholeStateOp = 'input' | 'subBytes' | 'invSubBytes' | 'mixColumns' | 'invMixColumns';
+
+interface WholeStateStepSpec {
+  highlight: HighlightKind;
+  /** Whether the narration template takes `{{round}}`. */
+  narratesRound: boolean;
+}
+
+const WHOLE_STATE_STEPS: Record<WholeStateOp, WholeStateStepSpec> = {
+  input: { highlight: 'write', narratesRound: false },
+  subBytes: { highlight: 'sbox', narratesRound: true },
+  invSubBytes: { highlight: 'sbox', narratesRound: true },
+  mixColumns: { highlight: 'write', narratesRound: true },
+  invMixColumns: { highlight: 'write', narratesRound: true },
+};
+
+/** Input, (Inv)SubBytes and (Inv)MixColumns: the new state, highlighted as a whole. */
+export function wholeStateStep(op: WholeStateOp, round: number, state: readonly number[]): AesStep {
+  const spec = WHOLE_STATE_STEPS[op];
   return {
-    op: 'input',
+    op,
     round,
     writes: stateWrite(state),
-    highlights: [wholeRegion('state', 'write')],
-    narration: i18nRef(stepKey('input')),
+    highlights: [wholeRegion('state', spec.highlight)],
+    narration: i18nRef(stepKey(op), spec.narratesRound ? { round } : undefined),
   };
 }
 
@@ -68,20 +87,6 @@ export function addRoundKeyStep(
   };
 }
 
-export function substitutionStep(
-  op: 'subBytes' | 'invSubBytes',
-  round: number,
-  state: readonly number[],
-): AesStep {
-  return {
-    op,
-    round,
-    writes: stateWrite(state),
-    highlights: [wholeRegion('state', 'sbox')],
-    narration: i18nRef(stepKey(op), { round }),
-  };
-}
-
 export function shiftStep(
   op: 'shiftRows' | 'invShiftRows',
   round: number,
@@ -94,20 +99,6 @@ export function shiftStep(
     moves,
     writes: stateWrite(state),
     highlights: [{ region: 'state', indices: moves.map((move) => move.to), kind: 'move' }],
-    narration: i18nRef(stepKey(op), { round }),
-  };
-}
-
-export function mixStep(
-  op: 'mixColumns' | 'invMixColumns',
-  round: number,
-  state: readonly number[],
-): AesStep {
-  return {
-    op,
-    round,
-    writes: stateWrite(state),
-    highlights: [wholeRegion('state', 'write')],
     narration: i18nRef(stepKey(op), { round }),
   };
 }

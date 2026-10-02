@@ -1,5 +1,4 @@
-import { LAB_MODES, type AnyStateStep, type LabMode } from '@cryventure/viz';
-import { START_STEP } from './startParams.ts';
+import { INITIAL_STEP, LAB_MODES, type AnyStateStep, type LabMode } from '@cryventure/viz';
 
 /**
  * Lesson-authored start position of a lab (`<Lab startAt="…">`), used when the deep link has no step:
@@ -41,12 +40,12 @@ function matches(step: AnyStateStep, fields: StartAt & { kind: 'match' }): boole
   return Object.entries(fields.fields).every(([key, value]) => record[key] === value);
 }
 
-/** Step index `startAt` points to in `steps` (clamped to the timeline), else the initial step. */
+/** Step index `startAt` points to in `steps`, else the initial step. Out-of-range steps are left to `store.seek`, which clamps. */
 export function resolveStartAt(startAt: StartAt | undefined, steps: readonly AnyStateStep[]): number {
-  if (startAt === undefined) return START_STEP;
-  if (startAt.kind === 'step') return Math.min(Math.max(startAt.step, START_STEP), steps.length - 1);
+  if (startAt === undefined) return INITIAL_STEP;
+  if (startAt.kind === 'step') return startAt.step;
   const index = steps.findIndex((step) => matches(step, startAt));
-  return index < 0 ? START_STEP : index;
+  return index < 0 ? INITIAL_STEP : index;
 }
 
 /** The step a lab opens at: the deep link's step wins, then `startAt`, then the initial state. */

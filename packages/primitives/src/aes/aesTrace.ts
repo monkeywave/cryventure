@@ -1,4 +1,4 @@
-import type { I18nRef, RegionSpec, Snapshot, StepInput, Tracer, Write } from '@cryventure/core';
+import type { I18nRef, RegionSpec, ScopeLevel, Snapshot, StepInput, Tracer, Write } from '@cryventure/core';
 import type { CellMove } from './ops.ts';
 import { BLOCK_BYTES, STATE_COLUMNS, STATE_ROWS } from './state.ts';
 import { WORDS_PER_ROUND_KEY } from './keyExpansion.ts';
@@ -23,46 +23,26 @@ export type AesOp =
 
 export type AesOpName = AesOp['op'];
 
-/** Every op name the trace can emit (cipher and inverse cipher, both detail levels). */
-export const AES_OP_NAMES = [
-  'input',
-  'keyExpansion',
-  'addRoundKey',
-  'subBytes',
-  'shiftRows',
-  'mixColumns',
-  'invSubBytes',
-  'invShiftRows',
-  'invMixColumns',
-  'output',
-  'round',
-] as const satisfies readonly AesOpName[];
-
-/** Label key of an op name (debugger breakpoints, op pickers): `plugin.aes.op.<op>`. */
-export function opLabelKey(op: AesOpName): string {
-  return `plugin.aes.op.${op}`;
-}
-
-/** Compact op name for the player's scope path ("Round 1 · SubBytes"): `plugin.aes.opShort.<op>`. */
-export function opShortLabelKey(op: AesOpName): string {
-  return `plugin.aes.opShort.${op}`;
-}
-
 /**
  * Labels of the scope levels [round, op]: the round template uses `{{value}}` (round 0 is real),
  * the op template `{{ordinal}}` (1-based); the player prefers the op's `opShort` label at the op level.
+ * `nextKey`/`prevKey` are the full step-by-level button labels ("Next round", "Nächste Runde").
  */
-export const AES_SCOPE_LEVELS: { labelKey: string }[] = [
-  { labelKey: 'plugin.aes.scope.round' },
-  { labelKey: 'plugin.aes.scope.op' },
-];
+export const AES_SCOPE_LEVELS: ScopeLevel[] = ['round', 'op'].map((level) => ({
+  labelKey: `plugin.aes.scope.${level}`,
+  nextKey: `plugin.aes.scope.${level}Next`,
+  prevKey: `plugin.aes.scope.${level}Prev`,
+}));
 
 export type AesStep = StepInput<AesRegion, AesOp>;
 export type AesTracer = Tracer<AesRegion, AesOp>;
 
 const BYTES_PER_WORD = 4;
 
-/** Region layout: state and round key as col-major 4×4, the key schedule as one row per word. */
+/**
+ * Region layout: state and round key as col-major 4×4 grids, the key schedule as one row per word,
+ * shown as words w0 … w(4·Nr+3), four per round key.
+ */
 export function aesRegions(rounds: number): RegionSpec<AesRegion>[] {
   return [
     {
@@ -71,6 +51,7 @@ export function aesRegions(rounds: number): RegionSpec<AesRegion>[] {
       elem: 'u8',
       shape: [STATE_ROWS, STATE_COLUMNS],
       order: 'col-major',
+      layout: { kind: 'grid' },
     },
     {
       id: 'roundKey',
@@ -78,6 +59,7 @@ export function aesRegions(rounds: number): RegionSpec<AesRegion>[] {
       elem: 'u8',
       shape: [STATE_ROWS, STATE_COLUMNS],
       order: 'col-major',
+      layout: { kind: 'grid' },
     },
     {
       id: 'w',
@@ -85,6 +67,7 @@ export function aesRegions(rounds: number): RegionSpec<AesRegion>[] {
       elem: 'u8',
       shape: [WORDS_PER_ROUND_KEY * (rounds + 1), BYTES_PER_WORD],
       order: 'row-major',
+      layout: { kind: 'words', wordBytes: BYTES_PER_WORD, labelPrefix: 'w', wordsPerGroup: WORDS_PER_ROUND_KEY },
     },
   ];
 }

@@ -1,11 +1,9 @@
 import { RecordingTracer, regionSize } from '@cryventure/core';
 import { describe, expect, it } from 'vitest';
 import {
-  AES_OP_NAMES,
   AES_SCOPE_LEVELS,
   AesTraceEmitter,
   aesRegions,
-  opLabelKey,
   emptySnapshot,
   type AesOp,
   type AesRegion,
@@ -33,6 +31,14 @@ describe('aesRegions / emptySnapshot', () => {
     expect(regions[2]?.shape).toEqual([60, 4]);
     const snapshot = emptySnapshot(14);
     for (const region of regions) expect(snapshot[region.id]).toHaveLength(regionSize(region));
+  });
+
+  it('hints grids for state and round key and 4-byte words (4 per round key) for the schedule', () => {
+    expect(aesRegions(10).map((region) => region.layout)).toEqual([
+      { kind: 'grid' },
+      { kind: 'grid' },
+      { kind: 'words', wordBytes: 4, labelPrefix: 'w', wordsPerGroup: 4 },
+    ]);
   });
 });
 
@@ -76,13 +82,11 @@ describe('AesTraceEmitter', () => {
   });
 });
 
-describe('AES_OP_NAMES / opLabelKey / AES_SCOPE_LEVELS', () => {
-  it('lists distinct op names and maps them to plugin.aes.op.* keys', () => {
-    expect(new Set(AES_OP_NAMES).size).toBe(AES_OP_NAMES.length);
-    expect(opLabelKey('mixColumns')).toBe('plugin.aes.op.mixColumns');
-  });
-
-  it('labels the two scope levels round and op', () => {
-    expect(AES_SCOPE_LEVELS.map((level) => level.labelKey)).toEqual(['plugin.aes.scope.round', 'plugin.aes.scope.op']);
+describe('AES_SCOPE_LEVELS', () => {
+  it('labels the two scope levels round and op, with next/prev button labels', () => {
+    expect(AES_SCOPE_LEVELS).toEqual([
+      { labelKey: 'plugin.aes.scope.round', nextKey: 'plugin.aes.scope.roundNext', prevKey: 'plugin.aes.scope.roundPrev' },
+      { labelKey: 'plugin.aes.scope.op', nextKey: 'plugin.aes.scope.opNext', prevKey: 'plugin.aes.scope.opPrev' },
+    ]);
   });
 });
