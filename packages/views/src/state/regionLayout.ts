@@ -1,4 +1,4 @@
-import { regionSize, type Highlight, type RegionSpec, type StateStep } from '@cryventure/core';
+import { regionSize, type ElemType, type Highlight, type RegionSpec, type StateStep } from '@cryventure/core';
 import type { GridHighlight, GridShape } from '@cryventure/viz';
 
 /** Regions up to this many rows/columns render as a matrix; longer ones as hex rows. */
@@ -6,6 +6,11 @@ export const MATRIX_MAX_DIM = 8;
 export const BYTES_PER_ROW = 16;
 /** A region of shape `[n, WORD_BYTES]` with `n > WORD_BYTES` is a list of 32-bit words (e.g. a key schedule). */
 export const WORD_BYTES = 4;
+
+/** Regions with more elements than this (e.g. the 176-byte AES key schedule) render collapsible. */
+export const COLLAPSIBLE_ABOVE_ELEMENTS = 64;
+
+const ELEM_BYTES: Readonly<Record<ElemType, number>> = { u8: 1, u16: 2, i16: 2, u32: 4, u64: 8 };
 
 export type RegionLayoutKind = 'matrix' | 'words' | 'rows';
 
@@ -45,4 +50,14 @@ export function regionLayout(region: RegionSpec<string>): RegionLayout {
 /** The current step's highlights for one region (none at the initial state). */
 export function regionHighlights(step: Pick<StateStep<string, { op: string }>, 'highlights'> | undefined, regionId: string): GridHighlight[] {
   return (step?.highlights ?? []).filter((highlight: Highlight<string>) => highlight.region === regionId);
+}
+
+/** Large regions go into a disclosure so they never push the rest of the lab off a small screen. */
+export function isCollapsibleRegion(region: Pick<RegionSpec<string>, 'shape'>): boolean {
+  return regionSize(region) > COLLAPSIBLE_ABOVE_ELEMENTS;
+}
+
+/** Size of a region in bytes (elements × element width). */
+export function regionByteSize(region: Pick<RegionSpec<string>, 'shape' | 'elem'>): number {
+  return regionSize(region) * ELEM_BYTES[region.elem];
 }

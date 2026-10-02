@@ -39,5 +39,11 @@
   "ui.workspace.empty": "No views are available for this lab.",
   "ui.view.loading": "Loading view…",
   "ui.view.error": "The view “{{view}}” could not be displayed.",
-  "ui.view.reset": "Reset view"
+  "ui.view.reset": "Reset view",
+  "ui.narration.initial": "This is the initial state. Press Play or step forward to begin.",
+  "ui.narration.none": "Nothing to explain for this step.",
+  "ui.narration.missing": "This lab has no narration.",
+  "ui.caption.label": "Narration",
+  "ui.caption.expand": "Show full text",
+  "ui.caption.collapse": "Show less"
 }

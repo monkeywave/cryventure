@@ -328,6 +328,8 @@ defineView({ id: 'memory', titleKey, icon, requires: ['memory'], optional: ['val
   - Key types are generated.
   - A parity script fails CI on missing, extra or empty keys, or mismatched `{{params}}`.
   - The ESLint `no-literal-string` rule applies to JSX.
+  - Plural forms: `<key>_one` / `<key>_other` (optional `_zero`), chosen by `Intl.PluralRules` of the page locale when `params.count` is a number.
+- **German style:** term base and style guide in `docs/GLOSSARY.md`; `pnpm i18n:check` lints DE catalogs and pages (quotes, du-form, glossary terms, abbreviations). DE pages carry `translation.status` (`ai-reviewed` → `human-reviewed`).
 - **Language switch:** the `LanguageSelect` override carries `location.hash`, so switching EN↔DE keeps the lab state.
 - **Search:** Pagefind indexes per `<html lang>`. Lab islands get `data-pagefind-ignore`.
 

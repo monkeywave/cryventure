@@ -10,6 +10,7 @@ export { browserScheduler, runTimed, type FrameScheduler } from './lab/frameSche
 export { createPlaybackDriver, type PlaybackDriverOptions } from './lab/playbackDriver.ts';
 export { LabProvider, useLab, useLabActions, useLabStore, type LabProviderProps } from './lab/LabContext.tsx';
 export { LabRoot, type LabRootProps } from './lab/LabRoot.tsx';
+export { LabLayoutProvider, useLabLayout, useOptionalLabLayout, type LabLayout, type LabLayoutProviderProps } from './lab/LabLayout.tsx';
 export { lookupFacet, useFacet, type FacetResult } from './lab/useFacet.ts';
 export { PLAYBACK_BASE_INTERVAL_MS, playbackIntervalMs, stepDurationMs, usePlayback, type UsePlaybackOptions } from './lab/usePlayback.ts';
 // choreography
@@ -17,7 +18,11 @@ export { ChoreographyProvider, useActiveBeat, useChoreography, useFocusBeat, use
 export { choreographStep, choreographyContext, createChoreographyResolver, type ChoreographyResolver } from './choreography/resolveChoreography.ts';
 export { NODE_STYLE_VARS, VALUE_SWITCH, activeBeatIndex, focusIn, sampleNode, showsAfter, tracksForRegion } from './choreography/nodeTracks.ts';
 export { keyToAction, useLabKeyboard, type LabKeyAction } from './lab/useLabKeyboard.ts';
+// narration
+export { currentNarrationRef, NARRATION_KEYS, type NarrationInput } from './narration/currentNarration.ts';
+export { useCurrentNarration } from './narration/useCurrentNarration.ts';
 // player
+export { Caption } from './player/Caption.tsx';
 export { Timeline } from './player/Timeline.tsx';
 export { Controls } from './player/Controls.tsx';
 export { ModeToggle } from './player/ModeToggle.tsx';
@@ -40,6 +45,6 @@ export { initialPanelSizes, Workspace, type WorkspaceProps } from './workspace/W
 export { ViewHost, type ViewHostProps } from './workspace/ViewHost.tsx';
 export { TabbedViews, type TabbedViewsProps } from './workspace/TabbedViews.tsx';
 export { ErrorBoundary, type ErrorBoundaryProps } from './workspace/ErrorBoundary.tsx';
-export { defaultPanelSizes, MAX_PANELS, parseLayoutEntries, parseLayoutPreset, planPanels, type LayoutEntry, type PanelPlan } from './workspace/planPanels.ts';
-export { COMPACT_BREAKPOINT_PX, isCompactWidth, useContainerWidth } from './workspace/useContainerWidth.ts';
+export { defaultPanelSizes, MAX_PANELS, parseLayoutEntries, parseLayoutPreset, planPanels, stackedOrder, type LayoutEntry, type PanelPlan } from './workspace/planPanels.ts';
+export { COMPACT_BREAKPOINT_PX, isCompactWidth, useCompactContainer, useContainerWidth } from './workspace/useContainerWidth.ts';
 export { LAYOUT_VERSION, layoutStorageKey, loadPanelSizes, savePanelSizes, type PanelSizes } from './workspace/layoutStorage.ts';

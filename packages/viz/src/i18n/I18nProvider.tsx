@@ -7,11 +7,13 @@ const I18nContext = createContext<Translate>(createTranslator({}));
 export interface I18nProviderProps {
   /** Flat key → template table for the current locale (only the namespaces this lab needs). */
   messages: Messages;
+  /** Page locale; selects plural forms (`<key>_one` / `<key>_other`). Default `en`. */
+  locale?: string;
   children: ReactNode;
 }
 
-export function I18nProvider({ messages, children }: I18nProviderProps) {
-  const translate = useMemo(() => createTranslator(messages), [messages]);
+export function I18nProvider({ messages, locale, children }: I18nProviderProps) {
+  const translate = useMemo(() => createTranslator(messages, { locale }), [messages, locale]);
   return <I18nContext.Provider value={translate}>{children}</I18nContext.Provider>;
 }
 

@@ -1,4 +1,4 @@
-import { extractParams } from '@cryventure/core';
+import { extractParams, parsePluralKey } from '@cryventure/core';
 
 /** Pure EN↔DE parity rules (no I/O); `check-parity.ts` feeds them files from disk. */
 export type Severity = 'error' | 'warning';
@@ -80,14 +80,45 @@ function issue(severity: Severity, file: string, key: string, message: string): 
   return { severity, file, key, message };
 }
 
+/** Plural variants (`x_one`, `x_other`, …) collapse to their base key `x`; other keys stay as they are. */
+export function logicalKey(key: string): string {
+  return parsePluralKey(key)?.base ?? key;
+}
+
+function logicalKeys(catalog: FlatCatalog): Set<string> {
+  return new Set(Object.keys(catalog).map(logicalKey));
+}
+
 function presenceIssues(en: FlatCatalog, de: FlatCatalog, file: string): ParityIssue[] {
-  const missing = Object.keys(en)
-    .filter((key) => !Object.hasOwn(de, key))
+  const enKeys = logicalKeys(en);
+  const deKeys = logicalKeys(de);
+  const missing = [...enKeys]
+    .filter((key) => !deKeys.has(key))
     .map((key) => issue('error', file, key, `missing in ${TARGET_LOCALE}`));
-  const extra = Object.keys(de)
-    .filter((key) => !Object.hasOwn(en, key))
+  const extra = [...deKeys]
+    .filter((key) => !enKeys.has(key))
     .map((key) => issue('error', file, key, `extra in ${TARGET_LOCALE} (not in ${SOURCE_LOCALE})`));
   return [...missing, ...extra];
+}
+
+/** Base key → plural categories present (`one`, `other`, …) for every plural group of a catalog. */
+export function pluralGroups(catalog: FlatCatalog): Map<string, string[]> {
+  return Object.keys(catalog).reduce((groups, key) => {
+    const plural = parsePluralKey(key);
+    if (plural !== undefined) groups.set(plural.base, [...(groups.get(plural.base) ?? []), plural.category]);
+    return groups;
+  }, new Map<string, string[]>());
+}
+
+/** Every plural group needs `_other`; a category the locale never selects (except the `_zero` override) only warns. */
+export function pluralIssues(catalog: FlatCatalog, locale: string, file: string): ParityIssue[] {
+  const used = new Set<string>(new Intl.PluralRules(locale).resolvedOptions().pluralCategories);
+  return [...pluralGroups(catalog)].flatMap(([base, categories]) => [
+    ...(categories.includes('other') ? [] : [issue('error', file, base, `plural forms need "${base}_other" in ${locale}`)]),
+    ...categories
+      .filter((category) => category !== 'zero' && !used.has(category))
+      .map((category) => issue('warning', file, `${base}_${category}`, `plural category "${category}" is never selected in ${locale}`)),
+  ]);
 }
 
 function valueIssues(catalog: FlatCatalog, locale: string, file: string): ParityIssue[] {
@@ -101,25 +132,75 @@ function sortedParams(value: string): string {
   return extractParams(value).sort().join(', ');
 }
 
+function variantsOf(catalog: FlatCatalog, base: string): Array<[string, string]> {
+  return Object.entries(catalog).filter(
+    (entry): entry is [string, string] => typeof entry[1] === 'string' && logicalKey(entry[0]) === base,
+  );
+}
+
+/** Params of a plural group: those of `_other` (else the bare key); `count` may be spelled out in other forms. */
+function referenceParams(variants: ReadonlyArray<[string, string]>, base: string): string | undefined {
+  const reference = variants.find(([key]) => key === `${base}_other`) ?? variants.find(([key]) => key === base);
+  return reference === undefined ? undefined : sortedParams(reference[1]);
+}
+
+function paramsMatch(key: string, value: string, expected: string): boolean {
+  const actual = sortedParams(value);
+  if (actual === expected) return true;
+  const isOther = parsePluralKey(key)?.category === 'other';
+  const withoutCount = expected.split(', ').filter((name) => name !== 'count' && name !== '').join(', ');
+  return !isOther && parsePluralKey(key) !== undefined && actual === withoutCount;
+}
+
+function textIssues(file: string, key: string, enValue: string | undefined, deValue: string): ParityIssue[] {
+  if (deValue.startsWith(UNTRANSLATED_PREFIX)) return [issue('warning', file, key, 'untranslated scaffold stub in de')];
+  if (deValue === enValue && !isTranslationExempt(enValue)) return [issue('warning', file, key, 'de value is identical to en')];
+  return [];
+}
+
+function pluralPairIssues(en: FlatCatalog, de: FlatCatalog, base: string, file: string): ParityIssue[] {
+  const enVariants = variantsOf(en, base);
+  const expected = referenceParams(enVariants, base);
+  if (expected === undefined) return [];
+  const variants = [...enVariants.map(([key, value]) => ({ locale: SOURCE_LOCALE, key, value })), ...variantsOf(de, base).map(([key, value]) => ({ locale: TARGET_LOCALE, key, value }))];
+  const mismatched = variants
+    .filter((variant) => !paramsMatch(variant.key, variant.value, expected))
+    .map((variant) => issue('error', file, variant.key, `{{params}} differ: en [${expected}] vs ${variant.locale} [${sortedParams(variant.value)}]`));
+  if (mismatched.length > 0) return mismatched;
+  const enText = new Map(enVariants);
+  return variantsOf(de, base).flatMap(([key, value]) => textIssues(file, key, enText.get(key), value));
+}
+
 function pairIssues(en: FlatCatalog, de: FlatCatalog, file: string): ParityIssue[] {
-  return Object.entries(en).flatMap(([key, enValue]) => {
+  const enPlural = pluralGroups(en);
+  const dePlural = pluralGroups(de);
+  const plural = [...logicalKeys(en)].filter((base) => enPlural.has(base) || dePlural.has(base));
+  const singular = Object.entries(en).flatMap(([key, enValue]) => {
     const deValue = de[key];
+    const base = logicalKey(key);
+    if (enPlural.has(base) || dePlural.has(base)) return [];
     if (typeof enValue !== 'string' || typeof deValue !== 'string') return [];
     if (sortedParams(enValue) !== sortedParams(deValue)) {
       return [issue('error', file, key, `{{params}} differ: en [${sortedParams(enValue)}] vs de [${sortedParams(deValue)}]`)];
     }
-    if (deValue.startsWith(UNTRANSLATED_PREFIX)) return [issue('warning', file, key, 'untranslated scaffold stub in de')];
-    if (deValue === enValue && !isTranslationExempt(enValue)) return [issue('warning', file, key, 'de value is identical to en')];
-    return [];
+    return textIssues(file, key, enValue, deValue);
   });
+  return [...singular, ...plural.flatMap((base) => pluralPairIssues(en, de, base, file))];
 }
 
-/** Missing/extra/empty keys and `{{param}}` mismatches are errors; identical or stub DE values warn. */
+/**
+ * Missing/extra/empty keys and `{{param}}` mismatches are errors; identical or stub DE values warn.
+ * Plural variants (`x_one`, `x_other`, …) count as one key `x`: EN and DE may use different
+ * category sets, but both need `_other`, and every variant uses the params of EN `x_other`
+ * (a non-`other` form may spell out `count`).
+ */
 export function compareCatalogs(en: FlatCatalog, de: FlatCatalog, file: string): ParityIssue[] {
   return [
     ...presenceIssues(en, de, file),
     ...valueIssues(en, SOURCE_LOCALE, file),
     ...valueIssues(de, TARGET_LOCALE, file),
+    ...pluralIssues(en, SOURCE_LOCALE, file),
+    ...pluralIssues(de, TARGET_LOCALE, file),
     ...pairIssues(en, de, file),
   ];
 }

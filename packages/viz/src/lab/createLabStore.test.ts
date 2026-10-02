@@ -46,6 +46,14 @@ describe('createLabStore', () => {
     expect(store.getState()).toMatchObject({ speed: 4, selection: { valueRefId: '0/key' }, derivedFacets: { 'instructions@x86': { ok: true } } });
   });
 
+  it('remembers expanded regions per lab store, across new bundles', () => {
+    const store = createLabStore(createFixtureBundle());
+    store.getState().setRegionExpanded('w', true);
+    store.getState().setBundle(createFixtureBundle());
+    expect(store.getState().regionsExpanded).toEqual({ w: true });
+    expect(createLabStore(createFixtureBundle()).getState().regionsExpanded).toEqual({});
+  });
+
   it('setBundle resets the lab but keeps speed', () => {
     const store = createLabStore(null);
     expect(store.getState().stepCount).toBe(0);

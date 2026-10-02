@@ -26,7 +26,7 @@ export interface ByteGridProps {
   layout?: GridLayoutMode;
   /** The current step's choreography for this grid (cells animate between `before` and `values`). */
   motion?: GridMotion;
-  /** Flat indices in the current beat's focus; every other cell is dimmed. */
+  /** Flat indices in the current beat's focus (marked focused); every other cell is dimmed. */
   focus?: ReadonlySet<number>;
   /** Flat index of the selected (watched) cell. */
   selectedIndex?: number;
@@ -61,6 +61,13 @@ export interface GridRowHeader {
   current?: boolean;
 }
 
+/** Camera-lite: with a beat focus, cells inside it are focused and every other cell is dimmed. */
+function beatFocus(focus: ReadonlySet<number> | undefined, index: number): Pick<CellModel, 'dimmed' | 'focused'> {
+  if (focus === undefined) return { dimmed: false, focused: false };
+  const inFocus = focus.has(index);
+  return { dimmed: !inFocus, focused: inFocus };
+}
+
 const NO_HIGHLIGHTS: readonly GridHighlight[] = [];
 
 interface CellModel {
@@ -69,6 +76,7 @@ interface CellModel {
   highlight: HighlightKind | undefined;
   motion: CellMotion | undefined;
   dimmed: boolean;
+  focused: boolean;
   selected: boolean | undefined;
 }
 
@@ -120,6 +128,7 @@ function GridRow({ row, cols, header, cellAt, elem, isActive, activate, onSelect
             onFocus={() => activate(row, col)}
             motion={cell.motion}
             dimmed={cell.dimmed}
+            focused={cell.focused}
             selected={cell.selected}
             onSelect={onSelectCell === undefined ? undefined : () => onSelectCell(cell.index)}
           />
@@ -148,7 +157,7 @@ export function ByteGrid(props: ByteGridProps) {
       value,
       highlight: byIndex.get(index),
       motion: cellMotion(motion, index, value),
-      dimmed: focus !== undefined && !focus.has(index),
+      ...beatFocus(focus, index),
       selected: onSelectCell === undefined ? undefined : index === selectedIndex,
     };
   };

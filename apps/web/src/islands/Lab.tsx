@@ -1,10 +1,11 @@
 import type { ReactNode } from 'react';
 import { i18nRef, type Lens, type Messages } from '@cryventure/core';
-import { BreakpointPicker, Controls, ErrorBoundary, I18nProvider, LabRoot, ModeToggle, Timeline, Workspace, useT, type LabMode } from '@cryventure/viz';
+import { ErrorBoundary, I18nProvider, LabRoot, Workspace, useT, type LabMode } from '@cryventure/viz';
 import type { LabParams, ReadySession } from '../labs/labSession.ts';
 import { InvalidLinkNotice, LabError } from './lab/LabMessages.tsx';
 import { OutputPanel } from './lab/OutputPanel.tsx';
 import { ParamPanel } from './lab/ParamPanel.tsx';
+import { PlayerBar, VIEWS_SHOWN_IN_CAPTION } from './lab/PlayerBar.tsx';
 import { useChoreographyModule } from './lab/useChoreographyModule.ts';
 import { useHashSync } from './lab/useHashSync.ts';
 import { useLabSession } from './lab/useLabSession.ts';
@@ -23,6 +24,8 @@ export interface LabProps {
   mode?: LabMode;
   /** Only the namespaces this lab needs, in the page's locale (assembled by `Lab.astro`). */
   messages: Messages;
+  /** Page locale (e.g. `de`), used for plural forms. */
+  locale?: string;
   /** Static poster rendered on the server and shown until the lab is ready. */
   children?: ReactNode;
 }
@@ -44,13 +47,8 @@ function ReadyLab({ labId, layout, lens, session, onParams }: ReadyLabProps) {
       <p className="cv-lab__title">{t(session.producer.titleKey)}</p>
       {session.notice && <InvalidLinkNotice />}
       <ParamPanel producer={session.producer} params={session.params} onApply={onParams} />
-      <div className="cv-lab__player">
-        <ModeToggle />
-        <Controls />
-        <Timeline />
-        <BreakpointPicker />
-      </div>
-      <Workspace views={session.views} layout={layout} labId={labId} lens={lens} />
+      <PlayerBar />
+      <Workspace views={session.views} layout={layout} hiddenWhenNarrow={VIEWS_SHOWN_IN_CAPTION} labId={labId} lens={lens} />
       <OutputPanel producer={session.producer} />
     </LabRoot>
   );
@@ -71,9 +69,9 @@ function LabBody({ labId, producerId, presetId, startAt, mode, layout, lens = 'e
  * Generic lab island: producer manifest → params (hash / preset / defaults) → lazy `run()` →
  * lab store → player + workspace of every view the producer's facets can feed.
  */
-export default function Lab({ messages, ...props }: LabProps) {
+export default function Lab({ messages, locale, ...props }: LabProps) {
   return (
-    <I18nProvider messages={messages}>
+    <I18nProvider messages={messages} locale={locale}>
       <div className="cv-lab-island" data-lab-id={props.labId}>
         <LabBody {...props} />
       </div>

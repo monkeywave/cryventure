@@ -28,7 +28,7 @@
   "ui.grid.offset": "Offset {{offset}}",
   "ui.grid.highlight.read": "gelesen",
   "ui.grid.highlight.write": "geschrieben",
-  "ui.grid.highlight.xor": "per XOR verknüpft",
+  "ui.grid.highlight.xor": "XOR-verknüpft",
   "ui.grid.highlight.sbox": "durch die S-Box ersetzt",
   "ui.grid.highlight.move": "verschoben",
   "ui.grid.highlight.carry": "Übertrag",
@@ -39,5 +39,11 @@
   "ui.workspace.empty": "Für dieses Lab sind keine Ansichten verfügbar.",
   "ui.view.loading": "Ansicht wird geladen …",
   "ui.view.error": "Die Ansicht „{{view}}“ konnte nicht angezeigt werden.",
-  "ui.view.reset": "Ansicht zurücksetzen"
+  "ui.view.reset": "Ansicht zurücksetzen",
+  "ui.narration.initial": "Das ist der Ausgangszustand. Drücke „Abspielen“ oder gehe einen Schritt vor, um zu beginnen.",
+  "ui.narration.none": "Zu diesem Schritt gibt es nichts zu erläutern.",
+  "ui.narration.missing": "Dieses Lab enthält keine Erläuterungen.",
+  "ui.caption.label": "Erläuterung",
+  "ui.caption.expand": "Ganzen Text zeigen",
+  "ui.caption.collapse": "Weniger zeigen"
 }

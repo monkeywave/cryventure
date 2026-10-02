@@ -16,7 +16,8 @@ import {
   type ViewProps,
 } from '@cryventure/viz';
 import { currentWords, type WordStep } from './currentWords.ts';
-import { regionHighlights, regionLayout } from './regionLayout.ts';
+import { RegionDisclosure } from './RegionDisclosure.tsx';
+import { isCollapsibleRegion, regionHighlights, regionLayout } from './regionLayout.ts';
 import { WatchHint, WatchPanel } from './WatchPanel.tsx';
 import { wordHeaders } from './wordHeaders.ts';
 
@@ -60,6 +61,16 @@ function RegionPanel({ region, values, step, motion, focus, selected, onSelect }
   );
 }
 
+/** Large regions (e.g. a key schedule) sit behind a disclosure; small ones render directly. */
+function CollapsibleRegionPanel(props: RegionPanelProps) {
+  if (!isCollapsibleRegion(props.region)) return <RegionPanel {...props} />;
+  return (
+    <RegionDisclosure region={props.region}>
+      <RegionPanel {...props} />
+    </RegionDisclosure>
+  );
+}
+
 /** Per-region choreography input: the values before the step and its tracks (none at the initial state). */
 function useRegionMotions(facet: AnyStateFacet, step: number, choreography: StepChoreography | undefined): ReadonlyMap<string, GridMotion> {
   const progress = useStepProgress();
@@ -91,7 +102,7 @@ function StateRegions({ facet }: { facet: AnyStateFacet }) {
   return (
     <div className="cv-stack">
       {facet.regions.map((region) => (
-        <RegionPanel
+        <CollapsibleRegionPanel
           key={region.id}
           region={region}
           values={snapshot[region.id] ?? []}
@@ -110,6 +121,7 @@ function StateRegions({ facet }: { facet: AnyStateFacet }) {
 /**
  * Every region of the state facet at the playhead, animated by the step's choreography (moves,
  * pulses, value switch, beat focus), with the step's highlights and a debugger watch of one cell.
+ * Regions with more than 64 elements are collapsible (collapsed by default on narrow labs).
  */
 export default function StateView(_props: ViewProps) {
   const t = useT();

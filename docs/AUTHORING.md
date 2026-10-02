@@ -51,26 +51,84 @@ The schema lives in `apps/web/src/content.config.ts`.
 
 1. Write the English page first: `apps/web/src/content/docs/en/<path>.mdx`.
 2. Create the German page at the same path under `de/`. Keep the structure identical: the same
-   components and props, and translated text only. Use the established terms: Runde,
-   Rundenschlüssel, Schlüsselexpansion, Zustandsmatrix, S-Box, Klartext, Chiffretext,
-   Verzweigungszahl. A native speaker reviews every German page.
-3. Stamp the German page with the hash of the English source it translates:
+   components and props, and translated text only. Follow the term base and style guide in
+   `docs/GLOSSARY.md` (du-form, „…“ quotes, „16 Byte“, Klartext/Geheimtext, Schlüsselexpansion vs.
+   Schlüsselplan, …). Every German page goes through the review workflow below.
+3. Stamp the German page with the hash of the English source it translates (run from the repo
+   root, or use `pnpm -w i18n:stamp …` from a subdirectory; several pages at once are fine):
+
+   ```sh
+   pnpm i18n:stamp apps/web/src/content/docs/de/<path>.mdx
+   ```
+
+   This writes `sourceHash: sha256:<hex>` (SHA-256 of the EN file at the same path) into the DE
+   frontmatter, replacing an older value. Stamp only after the German text matches the current
+   English page: the stamp is the claim "this translation is up to date".
+
+   Manual fallback (same value):
 
    ```sh
    shasum -a 256 apps/web/src/content/docs/en/<path>.mdx | cut -c1-64
    # → put "sourceHash: sha256:<hex>" into the DE frontmatter
    ```
 
-   When the English page changes, the hash no longer matches, which marks the translation as stale.
-   Update the German text, then re-stamp the hash.
+   `pnpm i18n:check` fails when a DE page has no `sourceHash` or when its hash no longer matches the
+   English page (the translation is stale). Then update the German text, re-stamp the hash, and set
+   `translation.status` back to `ai-reviewed` if it was `human-reviewed`.
 4. Add the page to the `sidebar` in `apps/web/astro.config.mts` by `slug`. Group labels need a `de`
    translation.
 5. Verify:
-   - `pnpm i18n:check` (fails if a page exists in only one locale)
+   - `pnpm i18n:check` (fails if a page exists in only one locale, on a missing or stale
+     `sourceHash`, and on German style errors)
    - `pnpm --filter @cryventure/web build`
    - `pnpm --filter @cryventure/web typecheck`
    - `pnpm lint`
    - `pnpm e2e` (add the page to `apps/web/e2e/lessons.spec.ts`)
+
+## Translation review
+
+German pages record their review state in the frontmatter (schema: `apps/web/src/content.config.ts`):
+
+```yaml
+translation:
+  status: ai-reviewed          # or human-reviewed
+  reviewedAt: '2026-10-02'     # YYYY-MM-DD (quote it)
+  reviewer: AI editorial review (Claude)   # optional
+```
+
+Workflow:
+
+1. **Author EN.** Write and fact-check the English page.
+2. **Translate DE.** Create the German page, stamp `sourceHash`, run `pnpm i18n:check` until it
+   reports no errors (style lint included).
+3. **AI review → `ai-reviewed`.** An editorial pass against the EN source and `docs/GLOSSARY.md`
+   (meaning, terminology, grammar, typography). Set `status: ai-reviewed` and the date. Note open
+   questions in a `docs/translation-review-*.md` report.
+4. **Native speaker → `human-reviewed`.** A native German speaker with crypto background reads the
+   page, resolves the open questions, and sets `status: human-reviewed`, `reviewedAt` and
+   `reviewer` (name or handle).
+
+When the EN page changes (new `sourceHash`), update the DE text and drop the status back to
+`ai-reviewed` until a human has looked at the changed part again. UI catalogs follow the same
+rules; their review state is tracked in the review report.
+
+## Plural forms in catalogs
+
+`t(key, params)` picks a plural form when `params.count` is a number and plural keys exist
+(`Intl.PluralRules` of the page locale; see `createTranslator` in `packages/core/src/i18n.ts`):
+
+```json
+"plugin.aes.beat.shiftRows.row_one": "Zeile {{row}} rotiert um {{count}} Position nach links …",
+"plugin.aes.beat.shiftRows.row_other": "Zeile {{row}} rotiert um {{count}} Positionen nach links …"
+```
+
+- The producer must pass `count` (e.g. `i18nRef(key, { row, count: row })`); the bare key is used
+  as a fallback.
+- `_other` is required in every locale; EN and DE may use different category sets. `_zero` is an
+  optional explicit override for 0.
+- All forms use the params of EN `_other`; a non-`other` form may spell the number out and drop
+  `{{count}}`.
+- Unit words that do not inflect need no plural keys: „{{bytes}} Byte“.
 
 ## Components
 

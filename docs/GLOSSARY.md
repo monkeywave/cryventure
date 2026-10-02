@@ -1,0 +1,103 @@
+# German glossary and style guide
+
+The English→German term base for every German string in CryVenture: catalogs
+(`packages/**/i18n/de.json`, `apps/web/src/i18n/de/*.json`), lesson pages
+(`apps/web/src/content/docs/de/**`) and sidebar labels. `pnpm i18n:check` enforces the
+mechanical parts (see "Automated checks" below). Sources for the decisions: BSI TR-02102-1,
+German Wikipedia articles on AES and cryptography, Paar/Pelzl *Kryptografie verständlich*,
+Beutelspacher *Kryptologie*, Duden.
+
+Status: drafted in an AI editorial review (2026-10). A native-speaker sign-off is still pending
+(see `docs/translation-review-2026-10.md`).
+
+## Term base
+
+| English | German | Decision and rationale |
+|---|---|---|
+| plaintext | **Klartext** (der) | Standard term everywhere (BSI, textbooks). |
+| ciphertext | **Geheimtext** (der) | One term only. „Geheimtext“ forms a transparent pair with „Klartext“ and is the common term in German teaching material (Beutelspacher, Wikipedia). „Chiffrat“ (BSI) is correct but opaque for beginners; „Chiffretext“ is an anglicism. Both are rejected by the lint. |
+| cipher | **Chiffre** (die), **Verschlüsselungsverfahren** | „die Chiffre“ for the algorithm (AES as a whole). |
+| cipher key | **Schlüssel**; „Chiffrierschlüssel“ only where it must be set apart from round keys | |
+| key schedule (the result: all round-key words `w[i]`) | **Schlüsselplan** (der) | The data structure. Used in the key-schedule view and wherever memory dumps are discussed. „Schlüsselablaufplan“ is rejected (long, rare). |
+| KeyExpansion (the process, FIPS 197 §5.2) | **Schlüsselexpansion** (die), with the FIPS name `KeyExpansion` in parentheses on first use | Process ≠ result: the expansion *produces* the schedule. Never use „strecken“ (key stretching is a different concept: password KDFs). |
+| round key | **Rundenschlüssel** (der) | |
+| round / final round | **Runde** / **Schlussrunde** | „letzte Runde“ is fine in running text. |
+| round constant (Rcon) | **Rundenkonstante** (die) | |
+| state | **Zustand** (der); **Zustandsmatrix** for the 4×4 arrangement | UI and narration say „Zustand“; lesson text says „Zustandsmatrix“ when rows/columns matter. First mention on a page may add „(engl. *state*)“. |
+| S-box | **S-Box** (die), compounds **S-Box-Tabelle**, **AES-S-Box** | Hyphenated, capital B. |
+| block cipher / stream cipher | **Blockchiffre** / **Stromchiffre** | |
+| mode of operation | **Betriebsmodus** (der) | |
+| padding | **Padding** (das); explain once as „Auffüllen“ | Established technical term. |
+| nonce | **Nonce** (die) | Established; explain once („einmal verwendete Zahl“). |
+| IV | **Initialisierungsvektor (IV)** (der) | |
+| XOR | **XOR**; verb **XOR-verknüpfen** or „per XOR verknüpfen“ | Both verb forms are fine; never „xoren“. |
+| byte / bit | **das Byte**, **das Bit** | After a number use the unit form: „16 Byte“, „128 Bit“ (no plural -s). Without a number the plural is „Bytes“/„Bits“. Compounds: „16-Byte-Block“, „128-Bit-Schlüssel“, „AES-128-Schlüssel“. |
+| word (32 bit) | **Wort** (das), plural **Wörter** | Not „Worte“. |
+| step | **Schritt** (der) | „Teilschritt“ for a single operation inside a round (scope label). |
+| operation (SubBytes, …) | **Operation** (die) | |
+| breakpoint | **Haltepunkt** (der) | |
+| watch (a cell) | **beobachten** | „Beobachtet: …“, „Nicht mehr beobachten“. |
+| story mode / debugger | **Erzählmodus** / **Debugger** | |
+| narration | **Erläuterung** (die) | |
+| lab | **das Lab**, plural **Labs** | Not „Labor“ (lint warning). |
+| lens names (`story`, `engineer`, `cryptographer`) | **Erzählung**, **Technik**, **Kryptografie** (proposed) | Lens ids have no UI labels yet; name the perspective, not a person, to stay gender-neutral („Ingenieur“/„Kryptograf“ would need gendering). |
+| SubBytes, ShiftRows, MixColumns, AddRoundKey, KeyExpansion, RotWord, SubWord, Inv… | **unchanged** (proper names from FIPS 197) plus a German gloss: „SubBytes – Bytes ersetzen“, „ShiftRows – Zeilen rotieren“, „MixColumns – Spalten mischen“, „AddRoundKey – XOR mit dem Rundenschlüssel“ | Students meet these names in FIPS 197, in code and in AES-NI mnemonics. |
+| GF(2⁸) | **GF(2⁸)**, „der endliche Körper GF(2⁸)“ (also: Galois-Körper) | „Körper“, never „Feld“ (false friend of *field*). |
+| irreducible / primitive polynomial | **irreduzibles** / **primitives Polynom** | |
+| multiplicative inverse | **multiplikatives Inverses** (das) | |
+| affine transformation | **affine Abbildung** | |
+| fixed point / opposite fixed point | **Fixpunkt** / **entgegengesetzter Fixpunkt** | |
+| branch number | **Verzweigungszahl** (die) | |
+| MDS matrix | **MDS-Matrix** | |
+| wide trail strategy | **Wide-Trail-Strategie** | |
+| non-zero | **von null verschieden** | Not „Nicht-Null-…“. |
+| nothing up my sleeve (numbers) | **„Nothing up my sleeve“-Zahlen**, gloss „nichts im Ärmel“ | The English idiom is the technical term; the gloss keeps the image. |
+| side channel | **Seitenkanal** (der), **Seitenkanalangriff** | |
+| constant-time (code) | **(Code mit) konstanter Laufzeit**, optionally „(constant-time)“ | Standard German rendering; strictly it means *secret-independent* timing. „Konstantzeit“ is rejected. |
+| key recovery | **Schlüsselrekonstruktion** | |
+| brute force | **vollständige Schlüsselsuche (Brute Force)** | |
+| related-key attack / slide attack | **Related-Key-Angriff** / **Slide-Angriff** | Established names. |
+| memory dump | **Speicherabbild** (das) | |
+| cold-boot attack | **Cold-Boot-Angriff** | |
+| test vector | **Testvektor** (der) | |
+| endianness / host byte order | **Bytereihenfolge**, „Bytereihenfolge des Hosts“, **Big-Endian** | |
+
+## Style guide
+
+- **Address the reader with „du“** everywhere (imperative „Drück …“, „Geh …“, „Wähle …“). No
+  „Sie“, avoid „man“ where „du“ reads naturally.
+- **Quotation marks:** „…“ (U+201E / U+201C), nested ‚…‘. Never straight `"` in German prose.
+- **Dashes:** a spaced en dash „ – “ for parenthetical dashes, also in titles („AES – ein erster
+  Blick“). The en dash without spaces for ranges („Zeilen 1–3“). No em dash „—“.
+- **Ellipsis:** „…“ (U+2026); with a space after a complete word („Wird geladen …“).
+- **Abbreviations:** „z. B.“, „d. h.“, „u. a.“ with a space (ideally a narrow no-break space
+  U+202F) between the parts.
+- **Numbers and units:** „16 Byte“, „128 Bit“, „1 KiB“, „2¹²⁸“. Use a space between number and unit.
+- **Compounds:** hyphenate when a part is an acronym, a number or a code name: „S-Box-Tabelle“,
+  „AES-128-Schlüssel“, „16-Byte-Rundenschlüssel“, „MixColumns-Matrix“, „Cache-Timing-Angriff“.
+- **Anglicisms:** prefer the German term from the table; keep identifiers, FIPS names, code,
+  hex values and `{{params}}` untouched.
+- **Section references:** „FIPS 197, §5.1.1“, „FIPS 197, Anhang B“ (Appendix → Anhang, Section →
+  Abschnitt, Table → Tabelle, Figure → Abbildung, Equation → Gleichung).
+- **Plurals in UI strings:** when a number is interpolated before a countable noun, use plural
+  keys (`<key>_one` / `<key>_other`, see `docs/AUTHORING.md`) or a unit form that does not
+  inflect („{{bytes}} Byte“).
+
+## Automated checks
+
+`pnpm i18n:check` runs `packages/tools/src/i18n/de-style.ts` over every DE catalog and DE page
+(code, inline code, imports, links and identifier attributes are masked first).
+
+| Check | Severity |
+|---|---|
+| straight double quote in prose | error |
+| formal address („Sie“, „Ihnen“, „Ihr…“) in mid-sentence; allowlist `FORMAL_ADDRESS_ALLOWLIST` | error |
+| rejected glossary variants (Chiffretext, Chiffrat, Ciphertext/Plaintext, S-box/Sbox, Konstantzeit, Schlüsselablaufplan) | error |
+| „z.B.“, „d.h.“ … without a space | error |
+| double space | error |
+| „1“ followed by a plural noun („1 Positionen“), plural noun in a `_one` form | error |
+| `{{count}}` + plural noun in a non-plural key | warning |
+| em dash, „...“, „Labor“ | warning |
+
+When you add a term decision, update the table above and, if it is mechanically checkable,
+`GLOSSARY_RULES` in `de-style.ts`.

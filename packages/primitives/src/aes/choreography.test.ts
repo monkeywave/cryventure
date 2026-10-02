@@ -1,4 +1,4 @@
-import { applyEase, extractParams, isNeutral, sampleChoreography, sampleTrack, type ChoreographyContext, type Messages, type StepChoreography, type TrackProp } from '@cryventure/core';
+import { applyEase, extractParams, isNeutral, resolveMessageKey, sampleChoreography, sampleTrack, type ChoreographyContext, type Messages, type StepChoreography, type TrackProp } from '@cryventure/core';
 import { describe, expect, it } from 'vitest';
 import { decryptionContexts, encryptionContexts } from './choreoTestHelpers.ts';
 import { choreograph } from './choreography.ts';
@@ -80,7 +80,8 @@ describe('choreography invariants (every choreographed step)', () => {
     for (const messages of [en, de] as Messages[]) {
       for (const { choreography } of choreographed) {
         for (const beat of choreography.beats) {
-          const template = messages[beat.narration?.key ?? ''];
+          const key = resolveMessageKey(messages, beat.narration?.key ?? '', beat.narration?.params, messages === de ? 'de' : 'en');
+          const template = key === undefined ? undefined : messages[key];
           expect(template, beat.narration?.key).toBeDefined();
           expect(Object.keys(beat.narration?.params ?? {}).sort()).toEqual(extractParams(template ?? '').sort());
         }
@@ -176,7 +177,7 @@ describe('shiftRows', () => {
   });
 
   it('beats once per row (plus the intro)', () => {
-    expect(choreography.beats.map((beat) => beat.narration?.params)).toEqual([{ round: 1 }, { row: 1, shift: 1 }, { row: 2, shift: 2 }, { row: 3, shift: 3 }]);
+    expect(choreography.beats.map((beat) => beat.narration?.params)).toEqual([{ round: 1 }, { row: 1, count: 1 }, { row: 2, count: 2 }, { row: 3, count: 3 }]);
   });
 
   it('mirrors direction for InvShiftRows', () => {

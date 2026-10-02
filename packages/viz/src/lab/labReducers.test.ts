@@ -11,6 +11,7 @@ import {
   lastStep,
   pausePlaying,
   seekTo,
+  setRegionExpanded,
   startPlaying,
   stepBy,
   stepForward,
@@ -109,6 +110,19 @@ describe('lab reducers', () => {
     expect(tick(data({ step: 0, playing: true, mode: 'debugger', breakpoints: ['sub'] }))).toEqual({ step: 1, transition: 'advance', playing: false });
     expect(tick(data({ step: 0, playing: true, mode: 'story', breakpoints: ['sub'] }))).toEqual({ step: 1, transition: 'advance', playing: true });
     expect(tick(data({ step: -1, playing: true, mode: 'debugger', breakpoints: ['sub'] }))).toMatchObject({ step: 0, playing: true });
+  });
+});
+
+describe('region disclosure', () => {
+  it('starts without explicit choices and is kept across bundles', () => {
+    expect(initialLabData().regionsExpanded).toEqual({});
+    expect(withBundle(null)).not.toHaveProperty('regionsExpanded');
+  });
+
+  it('remembers one choice per region without touching the others', () => {
+    const once = setRegionExpanded(data(), 'w', true);
+    expect(once.regionsExpanded).toEqual({ w: true });
+    expect(setRegionExpanded(data({ regionsExpanded: { w: true } }), 'x', false).regionsExpanded).toEqual({ w: true, x: false });
   });
 });
 

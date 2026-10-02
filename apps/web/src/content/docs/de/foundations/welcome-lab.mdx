@@ -1,5 +1,5 @@
 ---
-title: AES — ein erster Blick
+title: AES – ein erster Blick
 description: Ein erster Blick ins Innere von AES – verfolge den Beispielblock aus FIPS 197 Schritt für Schritt durch alle Runden.
 lessonId: foundations/welcome-lab
 track: foundations
@@ -7,17 +7,22 @@ phase: 0
 tableOfContents: false
 refs:
   - FIPS 197, Anhang C.1
+sourceHash: sha256:9d961f99a51d03366b1c2f029c59abb1296af4b414aa895dc1a3e752d93fcdc0
+translation:
+  status: ai-reviewed
+  reviewedAt: '2026-10-02'
+  reviewer: AI editorial review (Claude)
 ---
 
 import Lab from '../../../../components/Lab.astro';
 
 AES verschlüsselt einen 16-Byte-Block, indem es ihn durch mehrere Runden schickt. In jeder Runde
 wird der **Zustand** mit einem **Rundenschlüssel** verknüpft und weiter durchmischt. Am Anfang stehen
-`AddRoundKey` (Zustand und Schlüssel per XOR verknüpfen) und `SubBytes` (jedes Byte über die S-Box
+`AddRoundKey` (Zustand und Schlüssel XOR-verknüpfen) und `SubBytes` (jedes Byte über die S-Box
 ersetzen).
 
 Geh das offizielle Beispiel aus FIPS 197 unten Schritt für Schritt durch: mit den Schaltflächen,
-über die Zeitleiste oder per Klick ins Lab und dann mit <kbd>←</kbd> / <kbd>→</kbd>. Ändere Schlüssel
+über die Zeitleiste oder mit einem Klick ins Lab und dann mit <kbd>←</kbd> / <kbd>→</kbd>. Ändere Schlüssel
 oder Klartext, und das Lab rechnet alles neu – der Link in der Adresszeile merkt sich, wo du gerade bist.
 
 <Lab labId="aes-intro" producerId="aes" presetId="fips197-c1" layout="state:65|narration:35" />

@@ -123,7 +123,7 @@ function moveTracks(op: 'shiftRows' | 'invShiftRows', move: CellMove): Track[] {
 }
 
 function rowBeats(op: 'shiftRows' | 'invShiftRows', rows: number[]): StepChoreography['beats'] {
-  return rows.map((row) => beat(rowWindow(row).start, op, 'row', { row, shift: row }, focusState(rowIndices(row))));
+  return rows.map((row) => beat(rowWindow(row).start, op, 'row', { row, count: row }, focusState(rowIndices(row))));
 }
 
 export function shiftChoreography(op: 'shiftRows' | 'invShiftRows', context: ChoreographyContext): StepChoreography {

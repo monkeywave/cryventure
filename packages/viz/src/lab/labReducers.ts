@@ -39,6 +39,8 @@ export interface LabData {
   selection: Selection;
   /** Extension point: facets produced lazily by derivers, keyed `kind@variant`. */
   derivedFacets: Partial<Record<FacetKey, unknown>>;
+  /** The learner's explicit expand/collapse choice per collapsible region id; absent = the layout's default. */
+  regionsExpanded: Readonly<Record<string, boolean>>;
 }
 
 export function lastStep(state: Pick<LabData, 'stepCount'>): number {
@@ -68,13 +70,19 @@ export function initialLabData(bundle: TraceBundle | null = null): LabData {
     breakpoints: [],
     selection: { valueRefId: null, node: null },
     derivedFacets: {},
+    regionsExpanded: {},
   };
 }
 
-/** A new bundle resets the playhead, selection, breakpoints and derived facets but keeps speed and mode. */
+/** A new bundle resets the playhead, selection, breakpoints and derived facets but keeps speed, mode and expanded regions. */
 export function withBundle(bundle: TraceBundle | null): Partial<LabData> {
-  const { speed: _speed, mode: _mode, ...reset } = initialLabData(bundle);
+  const { speed: _speed, mode: _mode, regionsExpanded: _regionsExpanded, ...reset } = initialLabData(bundle);
   return reset;
+}
+
+/** Remembers the learner's expand/collapse choice for one region (per lab, for this page visit). */
+export function setRegionExpanded(state: Pick<LabData, 'regionsExpanded'>, regionId: string, expanded: boolean): Partial<LabData> {
+  return { regionsExpanded: { ...state.regionsExpanded, [regionId]: expanded } };
 }
 
 /** Exact jump: the target step is shown at its end state. */

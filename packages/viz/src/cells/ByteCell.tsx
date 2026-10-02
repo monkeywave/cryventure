@@ -18,8 +18,10 @@ export interface ByteCellProps {
   onFocus?: () => void;
   /** Choreography of the current step (moves, pulses, value switch); static without it. */
   motion?: CellMotion;
-  /** Outside the current beat's focus. */
+  /** Outside the current beat's focus: recedes, but stays legible. */
   dimmed?: boolean;
+  /** Inside the current beat's focus: stands out (weight, ring, lift). */
+  focused?: boolean;
   /** The selected (watched) cell. */
   selected?: boolean;
   /** Click / Enter selects the cell. */
@@ -58,7 +60,7 @@ function cellClassName(highlight: HighlightKind | undefined): string {
  * unless reduced motion is requested (then CSS only cross-fades). The label always states the end value.
  */
 export function ByteCell(props: ByteCellProps) {
-  const { value, row, col, index, elem = 'u8', highlight, tabbable = false, onFocus, motion, dimmed = false, selected, onSelect } = props;
+  const { value, row, col, index, elem = 'u8', highlight, tabbable = false, onFocus, motion, dimmed = false, focused = false, selected, onSelect } = props;
   const label = useCellLabel(props);
   const cellRef = useRef<HTMLDivElement>(null);
   const reduceMotion = useReducedMotion() ?? false;
@@ -84,6 +86,7 @@ export function ByteCell(props: ByteCellProps) {
       data-index={index}
       data-highlight={highlight}
       data-dimmed={dimmed ? '' : undefined}
+      data-focused={focused ? '' : undefined}
       onFocus={onFocus}
       onClick={onSelect}
       onKeyDown={onKeyDown}

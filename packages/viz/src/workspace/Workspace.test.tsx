@@ -7,6 +7,7 @@ import { installResizeObserverMock } from './resizeObserverMock.ts';
 import { fakeView } from './testViews.tsx';
 import { initialPanelSizes, Workspace, type WorkspaceProps } from './Workspace.tsx';
 import { planPanels } from './planPanels.ts';
+import { LabLayoutProvider } from '../lab/LabLayout.tsx';
 
 afterEach(() => vi.restoreAllMocks());
 
@@ -79,6 +80,37 @@ describe('Workspace', () => {
     expect(group.dataset['layout']).toBe('columns');
     expect(screen.getByRole('separator', { name: 'Resize panels' })).toBeTruthy();
     mock.restore();
+  });
+});
+
+describe('Workspace inside a lab layout', () => {
+  const mainState = { ...fakeView('state'), defaultSlot: 'main' as const };
+  const renderInLab = (narrow: boolean, props: Partial<WorkspaceProps> = {}) =>
+    render(
+      <I18nProvider messages={messages}>
+        <LabLayoutProvider narrow={narrow}>
+          <Workspace labId="aes" lens="engineer" views={[fakeView('narration'), mainState, fakeView('memory')]} layout="narration|state|memory" {...props} />
+        </LabLayoutProvider>
+      </I18nProvider>,
+    );
+  const stackedIds = () => [...document.querySelectorAll('[data-panel-id]')].map((el) => el.getAttribute('data-panel-id'));
+
+  it('follows the lab layout instead of measuring itself', () => {
+    renderInLab(true);
+    expect(screen.getByRole('group', { name: 'Lab workspace' }).dataset['layout']).toBe('stacked');
+  });
+
+  it('stacks main-slot views first and leaves out views hidden when narrow', () => {
+    renderInLab(true, { hiddenWhenNarrow: ['narration'] });
+    expect(stackedIds()).toEqual(['state', 'memory']);
+    expect(screen.queryByText('view narration (aes/engineer)')).toBeNull();
+  });
+
+  it('shows every view in preset order when wide', async () => {
+    renderInLab(false, { hiddenWhenNarrow: ['narration'] });
+    expect(screen.getByRole('group', { name: 'Lab workspace' }).dataset['layout']).toBe('columns');
+    expect(await screen.findByText('view narration (aes/engineer)')).toBeTruthy();
+    expect(panelOrder()).toEqual(['narration', 'state', 'memory']);
   });
 });
 

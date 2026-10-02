@@ -6,8 +6,9 @@
   "view.key-schedule.roundKeyCurrent": "Round key {{round}} – most recently used",
   "view.key-schedule.roundKeyUpcoming": "Round key {{round}} – not used yet",
   "view.key-schedule.word": "{{name}}: {{hex}}",
-  "view.key-schedule.hint": "Select or hover a word to see how it is derived.",
+  "view.key-schedule.hint": "Select a word to see how it is derived. Hovering a word marks the words it is computed from.",
   "view.key-schedule.chainTitle": "How {{name}} is derived",
   "view.key-schedule.fromKey": "{{name}} is copied straight from the cipher key.",
-  "view.key-schedule.xorWith": "XOR with {{name}} ({{hex}})"
+  "view.key-schedule.xorWith": "XOR with {{name}} ({{hex}})",
+  "view.key-schedule.announceOpen": "{{name}} selected – its derivation is shown below round key {{round}}."
 }

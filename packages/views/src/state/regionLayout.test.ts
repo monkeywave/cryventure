@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { RegionSpec } from '@cryventure/core';
-import { isMatrixRegion, isWordRegion, regionHighlights, regionLayout } from './regionLayout.ts';
+import { COLLAPSIBLE_ABOVE_ELEMENTS, isCollapsibleRegion, isMatrixRegion, isWordRegion, regionByteSize, regionHighlights, regionLayout } from './regionLayout.ts';
 
 const region = (shape: number[], order?: RegionSpec<string>['order']): RegionSpec<string> => ({ id: 'r', labelKey: 'k', elem: 'u8', shape, order });
 
@@ -36,5 +36,23 @@ describe('regionHighlights', () => {
     const step = { highlights: [{ region: 'state', indices: [0], kind: 'xor' as const }, { region: 'w', indices: [1], kind: 'read' as const }] };
     expect(regionHighlights(step, 'w')).toEqual([{ region: 'w', indices: [1], kind: 'read' }]);
     expect(regionHighlights(undefined, 'w')).toEqual([]);
+  });
+});
+
+describe('isCollapsibleRegion', () => {
+  it('collapses only regions with more than 64 elements', () => {
+    expect(isCollapsibleRegion(region([44, 4]))).toBe(true);
+    expect(isCollapsibleRegion(region([16, 4]))).toBe(false);
+    expect(COLLAPSIBLE_ABOVE_ELEMENTS).toBe(64);
+    expect(isCollapsibleRegion(region([65]))).toBe(true);
+    expect(isCollapsibleRegion(region([4, 4]))).toBe(false);
+  });
+});
+
+describe('regionByteSize', () => {
+  it('multiplies the element count by the element width', () => {
+    expect(regionByteSize(region([44, 4]))).toBe(176);
+    expect(regionByteSize({ shape: [60], elem: 'u32' })).toBe(240);
+    expect(regionByteSize({ shape: [3], elem: 'u64' })).toBe(24);
   });
 });

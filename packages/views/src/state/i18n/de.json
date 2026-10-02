@@ -8,5 +8,6 @@
   "view.state.watch.entry": "Schritt {{step}}: {{value}}",
   "view.state.watch.initial": "Start",
   "view.state.watch.clear": "Nicht mehr beobachten",
-  "view.state.watch.hint": "Wähle eine Zelle aus, um ihren Wert über alle Schritte zu beobachten."
+  "view.state.watch.hint": "Wähle eine Zelle aus, um ihren Wert über alle Schritte zu beobachten.",
+  "view.state.region.summary": "{{region}} · {{bytes}} Byte"
 }

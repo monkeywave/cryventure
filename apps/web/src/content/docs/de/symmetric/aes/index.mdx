@@ -1,6 +1,6 @@
 ---
 title: AES im Überblick
-description: Was AES ist, woher es kommt und wie zehn bis vierzehn Runden einen 16-Byte-Block in Chiffretext verwandeln.
+description: Was AES ist, woher es kommt und wie zehn bis vierzehn Runden einen 16-Byte-Block in Geheimtext verwandeln.
 lessonId: block-ciphers/aes/overview
 track: block-ciphers
 phase: 1
@@ -14,7 +14,11 @@ refs:
   - FIPS 197, Abschnitt 5 (Algorithm Specification, Tabelle 3)
   - FIPS 197, Abschnitt 5.1 (Cipher, Abbildung 5)
   - FIPS 197, Anhang B (Cipher Example)
-sourceHash: sha256:1d8cf20ebc5eb948dcc1fe8ae1ebec74d0f51ed4dc085f47863a64bea01e5201
+sourceHash: sha256:7c9d5fd381b44ce7adae0372700370c91a3e31393c92ef3f21bd9c52363ea23a
+translation:
+  status: ai-reviewed
+  reviewedAt: '2026-10-02'
+  reviewer: AI editorial review (Claude)
 ---
 
 import Lab from '../../../../../components/Lab.astro';
@@ -44,7 +48,7 @@ Schlüssellängen. Die Schlüssellänge bestimmt die Rundenzahl `Nr` (FIPS 197, 
   <KeyFact label="AES-256" value="Nk = 8 · Nr = 14" kind="key" />
 </KeyFacts>
 
-AES arbeitet auf einer 4×4-Bytematrix, der **Zustandsmatrix** (State). Die Eingabebytes füllen sie
+AES arbeitet auf einer 4×4-Bytematrix, der **Zustandsmatrix** (engl. *state*). Die Eingabebytes füllen sie
 **spaltenweise**: `s[r, c] = in[r + 4c]` (FIPS 197, §3.4). Unten steht der Klartext aus FIPS 197,
 Anhang B.
 
@@ -62,9 +66,9 @@ Anhang B.
 
 Das Lab startet im **Erzählmodus** mit dem Schlüssel `2b7e1516 28aed2a6 abf71588 09cf4f3c` und dem
 Klartext von oben. Drück auf **Abspielen** – oder wechsle in den Debugger und geh Schritt für Schritt –
-und prüfe nach allen zehn Runden, dass du beim Chiffretext
-`39 25 84 1d 02 dc 09 fb dc 11 85 97 19 6a 0b 32` ankommst – genau den Bytes aus FIPS 197, Anhang B.
-Ändere dann ein einziges Klartextbit und beobachte, wie viel sich im Chiffretext ändert.
+und prüfe nach allen zehn Runden, ob du beim Geheimtext
+`39 25 84 1d 02 dc 09 fb dc 11 85 97 19 6a 0b 32` ankommst – genau bei den Bytes aus FIPS 197, Anhang B.
+Ändere dann ein einziges Bit des Klartexts und beobachte, wie viel sich im Geheimtext ändert.
 
 <Lab labId="aes-overview" producerId="aes" presetId="fips197-b" mode="story" layout="state:65|narration:35" />
 
@@ -77,16 +81,16 @@ und prüfe nach allen zehn Runden, dass du beim Chiffretext
 Jede Runde wendet vier Transformationen auf die Zustandsmatrix an (FIPS 197, §5.1):
 
 - **SubBytes** ersetzt jedes Byte über die S-Box – der einzige nichtlineare Schritt (§5.1.1).
-- **ShiftRows** rotiert Zeile `r` um `r` Bytes nach links (§5.1.2).
+- **ShiftRows** rotiert Zeile `r` um `r` Byte nach links (§5.1.2).
 - **MixColumns** mischt die vier Bytes jeder Spalte (§5.1.3).
 - **AddRoundKey** verknüpft die Zustandsmatrix per XOR mit einem 16-Byte-Rundenschlüssel (§5.1.4).
 
 Vorab steht ein zusätzliches AddRoundKey, und in der letzten Runde entfällt MixColumns. So bleiben
-Ver- und Entschlüsselung strukturell gleich aufgebaut.
+Ver- und Entschlüsselung strukturell ähnlich aufgebaut.
 
 <RoundFlow
-  input="Klartext (16 Bytes)"
-  output="Chiffretext (16 Bytes)"
+  input="Klartext (16 Byte)"
+  output="Geheimtext (16 Byte)"
   caption="Rundenstruktur von AES-128: eine anfängliche Schlüsseladdition, neun volle Runden, eine Schlussrunde ohne MixColumns."
   stages={[
     { title: 'Anfängliche Schlüsseladdition', ops: [{ label: 'AddRoundKey(K0)', kind: 'key' }] },
@@ -118,7 +122,7 @@ Ver- und Entschlüsselung strukturell gleich aufgebaut.
 
 Ein laufendes AES braucht mehr als den 16, 24 oder 32 Byte langen Schlüssel: Die
 **Schlüsselexpansion** erzeugt daraus `Nr + 1` Rundenschlüssel – 176 Byte bei AES-128, 240 Byte bei
-AES-256. Genau diese expandierten Rundenschlüssel findet die Speicherforensik meist. Die Seite
+AES-256. Genau auf diese expandierten Rundenschlüssel stößt die Speicherforensik in der Regel. Die Seite
 [Speicher & Hardware](../memory-and-hardware/) zeigt, wie CPUs und Bibliotheken sie ablegen.
 
 </LessonSection>
@@ -127,11 +131,11 @@ AES-256. Genau diese expandierten Rundenschlüssel findet die Speicherforensik m
 
 ## Warum nicht weniger Runden?
 
-Die Runden sind die Sicherheitsreserve. Der *Square*-Angriff (Integralangriff), zusammen mit der
-Chiffre veröffentlicht, bricht 4 Runden mit einigen hundert gewählten Klartexten und lässt sich auf 6
-ausdehnen. Die besten veröffentlichten Angriffe auf AES-128 reichen bis 7 Runden; gegen alle 10
-Runden kostet die beste bekannte Schlüsselsuche (Biclique, 2011) etwa 2¹²⁶ Operationen – kaum
-weniger als vollständiges Durchprobieren.
+Die Runden sind die Sicherheitsreserve. Der zusammen mit der Chiffre
+veröffentlichte *Square*-Angriff (Integralangriff) bricht 4 Runden mit einigen hundert gewählten
+Klartexten und lässt sich auf 6 Runden ausdehnen. Die besten veröffentlichten Angriffe auf AES-128
+reichen bis 7 Runden; gegen alle 10 Runden kostet die beste bekannte Schlüsselrekonstruktion
+(Biclique, 2011) etwa 2¹²⁶ Operationen – kaum weniger als eine vollständige Schlüsselsuche (Brute Force).
 
 </LessonSection>
 
@@ -149,7 +153,7 @@ weniger als vollständiges Durchprobieren.
   options={['s[1, 1]', 's[1, 0]', 's[0, 1]', 's[2, 1]']}
   answer={0}
 >
-  `in[r + 4c]` wird zu `s[r, c]`; 5 = 1 + 4·1, also Zeile 1, Spalte 1 (FIPS 197, §3.4).
+  `in[r + 4c]` landet in `s[r, c]`; 5 = 1 + 4·1, also Zeile 1, Spalte 1 (FIPS 197, §3.4).
 </CheckQuestion>
 
 <CheckQuestion

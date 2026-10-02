@@ -4,12 +4,20 @@ import { dirname, join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { REPO_ROOT } from '../fs/repoRoot.ts';
 import { discoverCatalogs, reportLines, runParityCheck } from './check-parity.ts';
+import { sourceHashOf } from './translation-freshness.ts';
 
 let root = '';
 
 function write(path: string, content: unknown = {}): void {
   mkdirSync(dirname(join(root, path)), { recursive: true });
   writeFileSync(join(root, path), typeof content === 'string' ? content : JSON.stringify(content));
+}
+
+const EN_INDEX = '# Hi';
+
+/** A DE page stamped with the hash of the fixture's EN index page. */
+function germanPage(body: string): string {
+  return `---\nsourceHash: ${sourceHashOf(EN_INDEX)}\n---\n${body}`;
 }
 
 function writeHealthyRepo(): void {
@@ -19,8 +27,8 @@ function writeHealthyRepo(): void {
   write('apps/web/src/i18n/de/ui.json', { 'ui.hello': 'Hallo' });
   write('apps/web/src/content/i18n/en.json', { 'site.title': 'CryVenture' });
   write('apps/web/src/content/i18n/de.json', { 'site.title': 'CryVenture' });
-  write('apps/web/src/content/docs/en/index.mdx', '# Hi');
-  write('apps/web/src/content/docs/de/index.mdx', '# Hallo');
+  write('apps/web/src/content/docs/en/index.mdx', EN_INDEX);
+  write('apps/web/src/content/docs/de/index.mdx', germanPage('# Hallo'));
   write('packages/primitives/node_modules/x/i18n/en.json', { ignored: 'yes' });
 }
 
@@ -66,6 +74,42 @@ describe('runParityCheck', () => {
     const report = runParityCheck(root);
     expect(report.exitCode).toBe(0);
     expect(reportLines(report).at(-1)).toBe('i18n parity: 6 catalogs, 0 error(s), 1 warning(s)');
+  });
+});
+
+describe('runParityCheck German style lint', () => {
+  it('fails on style errors in DE catalogs and DE pages', () => {
+    write('apps/web/src/i18n/de/ui.json', { 'ui.hello': 'Hallo, z.B. wie geht es Ihnen' });
+    write('apps/web/src/content/docs/de/index.mdx', germanPage('# Hallo\n\nDer Chiffretext.'));
+    const report = runParityCheck(root);
+    expect(report.exitCode).toBe(1);
+    expect(reportLines(report)).toEqual([
+      'error   apps/web/src/i18n/de/ui.json  ui.hello: style: "z.B." needs a space: "z. B."',
+      'error   apps/web/src/i18n/de/ui.json  ui.hello: style: formal address "Ihnen" mid-sentence; use the du-form',
+      'error   apps/web/src/content/docs/de/index.mdx  line 6: style: "Chiffretext": use "Geheimtext" (glossary: ciphertext)',
+      'i18n parity: 6 catalogs, 3 error(s), 0 warning(s)',
+    ]);
+  });
+});
+
+describe('runParityCheck translation freshness', () => {
+  it('fails when a DE page has no sourceHash', () => {
+    write('apps/web/src/content/docs/de/index.mdx', '# Hallo');
+    const report = runParityCheck(root);
+    expect(report.exitCode).toBe(1);
+    expect(reportLines(report)[0]).toBe('error   apps/web/src/content/docs/de/index.mdx  add sourceHash (run `pnpm i18n:stamp <de-page>` after checking the translation)');
+  });
+
+  it('fails when the EN page changed after the DE page was stamped', () => {
+    write('apps/web/src/content/docs/en/index.mdx', '# Hi there');
+    const report = runParityCheck(root);
+    expect(report.exitCode).toBe(1);
+    expect(reportLines(report)[0]).toContain('German translation is stale: apps/web/src/content/docs/de/index.mdx');
+  });
+
+  it('skips DE pages without an EN counterpart (reported by the tree check instead)', () => {
+    write('apps/web/src/content/docs/de/only-de.mdx', '# Nur DE');
+    expect(reportLines(runParityCheck(root)).slice(0, -1)).toEqual(['error   apps/web/src/content/docs/de/only-de.mdx  no en counterpart']);
   });
 });
 

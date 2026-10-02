@@ -113,7 +113,7 @@ decryption structurally alike.
 
 ## What sits in memory
 
-A running AES needs more than the 16-, 24- or 32-byte key: the **key schedule** expands it into
+A running AES needs more than the 16-, 24- or 32-byte key: **KeyExpansion** expands it into the key schedule:
 `Nr + 1` round keys — 176 bytes for AES-128, 240 bytes for AES-256. Those expanded round keys are
 what memory forensics usually finds. The [Memory & hardware](../memory-and-hardware/) page shows
 how CPUs and libraries lay them out.

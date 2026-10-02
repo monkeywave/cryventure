@@ -175,3 +175,49 @@
 .cv-lab-error p {
   margin: 0;
 }
+
+/* ---------- Narrow labs: sticky mini-player ----------
+ * The lab container reports `data-narrow` (same 720px breakpoint as the stacked workspace). The
+ * player sticks below Starlight's fixed header (and its mobile "On this page" bar, 0 when absent)
+ * while the lab is in view; as a sticky child of `.cv-lab` it leaves with the lab. In normal flow
+ * it sits above the workspace, so it never covers the state matrix when the lab top is visible.
+ */
+.cv-lab[data-narrow='true'] > .cv-lab__player {
+  position: sticky;
+  inset-block-start: calc(var(--sl-nav-height, 3.5rem) + var(--sl-mobile-toc-height, 0rem));
+  /* Above the lab content, below Starlight's navbar and menus. */
+  z-index: 3;
+  gap: 0.35rem 0.5rem;
+  /* Span the lab's full width (cancel its 0.75rem padding) so scrolled content never peeks out. */
+  margin-inline: -0.75rem;
+  padding: 0.5rem 0.75rem;
+  background: var(--cv-surface);
+  border-block: 1px solid var(--cv-border);
+  box-shadow: 0 0.25rem 0.5rem -0.35rem rgb(0 0 0 / 0.35);
+}
+
+.cv-lab[data-narrow='true'] > .cv-lab__player .cv-controls {
+  flex: 1 1 auto;
+  flex-wrap: nowrap;
+  gap: 0.25rem;
+}
+
+.cv-lab[data-narrow='true'] > .cv-lab__player .cv-controls__button {
+  min-width: 2.25rem;
+  min-height: 2.25rem;
+  padding: 0.2rem 0.35rem;
+}
+
+/* Compact speed picker: the visible label goes, the select stays labelled for assistive tech. */
+.cv-lab[data-narrow='true'] > .cv-lab__player .cv-controls__speed label {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+.cv-lab[data-narrow='true'] > .cv-lab__player .cv-timeline {
+  flex-basis: 100%;
+}

@@ -1,4 +1,10 @@
-import { derivationInputs, derivationNode, isResultNode, type DerivationFacet, type DerivationNode } from '@cryventure/core';
+import {
+  derivationInputs,
+  derivationNode,
+  isResultNode,
+  type DerivationFacet,
+  type DerivationNode,
+} from '@cryventure/core';
 import { toHex } from '@cryventure/viz';
 
 /**
@@ -39,14 +45,21 @@ export function roundKeyRows(facet: DerivationFacet): RoundKeyRow[] {
     if (node.group === undefined) continue;
     groups.set(node.group, [...(groups.get(node.group) ?? []), node]);
   }
-  return [...groups.entries()].sort(([a], [b]) => a - b).map(([group, words]) => ({ group, step: earliestStep(words), words }));
+  return [...groups.entries()]
+    .sort(([a], [b]) => a - b)
+    .map(([group, words]) => ({ group, step: earliestStep(words), words }));
 }
 
 /** The round key most recently put to use at `step`: the row with the greatest `step ≤ step`. */
 export function currentGroup(rows: readonly RoundKeyRow[], step: number): number | undefined {
   let current: RoundKeyRow | undefined;
   for (const row of rows) {
-    if (row.step !== undefined && row.step <= step && (current?.step === undefined || row.step >= current.step)) current = row;
+    if (
+      row.step !== undefined &&
+      row.step <= step &&
+      (current?.step === undefined || row.step >= current.step)
+    )
+      current = row;
   }
   return current?.group;
 }
@@ -77,4 +90,19 @@ export function derivationChain(facet: DerivationFacet, id: string): ChainLink[]
 /** Bytes as one lowercase hex string, e.g. `a0fafe17`. */
 export function wordHex(bytes: readonly number[]): string {
   return bytes.map((byte) => toHex(byte)).join('');
+}
+
+/**
+ * The schedule words a word is computed from directly (the results reached by its chain), e.g.
+ * AES-128 w[4] ← w[3], w[0]; AES-256 w[12] (i mod Nk = 4) ← w[11], w[4]. Intermediates and
+ * constants (RotWord, Rcon …) are skipped; the word itself is never its own source.
+ */
+export function sourceWordIds(facet: DerivationFacet, id: string): string[] {
+  const nodes = derivationChain(facet, id).flatMap((link) => [link.node, ...link.operands]);
+  return nodes.filter((node) => node.id !== id && isPrimary(node)).map((node) => node.id);
+}
+
+/** The round key (`group`) whose row lists the word `id`, i.e. the row that hosts its chain. */
+export function hostGroup(rows: readonly RoundKeyRow[], id: string): number | undefined {
+  return rows.find((row) => row.words.some((word) => word.id === id))?.group;
 }

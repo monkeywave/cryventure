@@ -1,15 +1,20 @@
 ---
+import { nextElementId } from './elementId.ts';
+
 /** A displayed formula in monospace (plain-text math; no TeX dependency), with an optional caption. */
 interface Props {
   caption?: string;
 }
 
 const { caption } = Astro.props;
+// Long lines scroll horizontally (alignment matters), so the body is focusable for keyboard users
+// (axe scrollable-region-focusable) and, with a caption, a region named by it.
+const captionId = caption ? nextElementId('cv-formula-caption') : undefined;
 ---
 
 <figure class="cv-formula not-content">
-  <div class="cv-formula__body"><slot /></div>
-  {caption && <figcaption>{caption}</figcaption>}
+  <div class="cv-formula__body" tabindex="0" role={captionId ? 'region' : undefined} aria-labelledby={captionId}><slot /></div>
+  {caption && <figcaption id={captionId}>{caption}</figcaption>}
 </figure>
 
 <style>
@@ -27,6 +32,11 @@ const { caption } = Astro.props;
     font-family: var(--sl-font-mono);
     font-size: var(--sl-text-sm);
     white-space: pre;
+  }
+
+  .cv-formula__body:focus-visible {
+    outline: 2px solid var(--sl-color-accent);
+    outline-offset: 2px;
   }
 
   .cv-formula figcaption {

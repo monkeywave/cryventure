@@ -1,4 +1,9 @@
-import { RecordingTracer, type DerivationFacet, type Messages, type TraceBundle } from '@cryventure/core';
+import {
+  RecordingTracer,
+  type DerivationFacet,
+  type Messages,
+  type TraceBundle,
+} from '@cryventure/core';
 import fixture from './fixtures/aes128-derivation.json';
 
 /**
@@ -11,8 +16,12 @@ export const aesStepCount = fixture.stepCount;
 
 /** A bundle with the fixture derivation plus an empty-write state facet so the playhead can move. */
 export function keyScheduleBundle(): TraceBundle {
-  const tracer = new RecordingTracer<'s', { op: 'tick' }>([{ id: 's', labelKey: 'fixture.region.s', elem: 'u8', shape: [1] }], { s: [0] });
-  for (let i = 0; i < aesStepCount; i++) tracer.step({ op: 'tick', writes: [], highlights: [], narration: { key: 'fixture.tick' } });
+  const tracer = new RecordingTracer<'s', { op: 'tick' }>(
+    [{ id: 's', labelKey: 'fixture.region.s', elem: 'u8', shape: [1] }],
+    { s: [0] },
+  );
+  for (let i = 0; i < aesStepCount; i++)
+    tracer.step({ op: 'tick', writes: [], highlights: [], narration: { key: 'fixture.tick' } });
   return {
     schemaVersion: 1,
     producer: { kind: 'primitive', id: 'aes', apiVersion: 1 },

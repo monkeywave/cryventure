@@ -7,6 +7,7 @@ import {
   initialLabData,
   pausePlaying,
   seekTo,
+  setRegionExpanded,
   startPlaying,
   stepBy,
   stepForward,
@@ -49,6 +50,8 @@ export interface LabActions {
   /** Selects (watches) one state node; `null` clears it. */
   selectNode(node: NodeRef | null): void;
   setDerivedFacet(key: FacetKey, data: unknown): void;
+  /** Remembers whether the learner expanded or collapsed a collapsible region. */
+  setRegionExpanded(regionId: string, expanded: boolean): void;
 }
 
 export interface LabPlayhead {
@@ -99,6 +102,7 @@ export function createLabStore(bundle: TraceBundle | null = null): LabStore {
     select: (valueRefId) => set((state) => ({ selection: { ...state.selection, valueRefId } })),
     selectNode: (node) => set((state) => ({ selection: { ...state.selection, node } })),
     setDerivedFacet: (key, data) => set((state) => ({ derivedFacets: { ...state.derivedFacets, [key]: data } })),
+    setRegionExpanded: (regionId, expanded) => set((state) => setRegionExpanded(state, regionId, expanded)),
   }));
   syncProgress(store);
   return store;

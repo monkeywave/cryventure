@@ -34,7 +34,7 @@ test('German home shows the localized hero', async ({ page }) => {
   await page.goto('de/');
   await expect(page.locator('html')).toHaveAttribute('lang', 'de');
   await expect(page.getByRole('heading', { level: 1 })).toHaveText(
-    'CryVenture — Kryptografie entdecken. Verständnis aufbauen.',
+    'CryVenture – Kryptografie entdecken. Verständnis aufbauen.',
   );
 });
 
@@ -42,7 +42,7 @@ test('language switcher keeps the URL hash', async ({ page }) => {
   await page.goto('en/foundations/welcome-lab/#foo');
   await page.locator('starlight-lang-select select').first().selectOption({ label: 'Deutsch' });
   await expect(page).toHaveURL(/\/de\/foundations\/welcome-lab\/#foo$/);
-  await expect(page.getByRole('heading', { level: 1 })).toHaveText('AES — ein erster Blick');
+  await expect(page.getByRole('heading', { level: 1 })).toHaveText('AES – ein erster Blick');
 });
 
 test('unknown URL shows the bilingual 404 page', async ({ page }) => {

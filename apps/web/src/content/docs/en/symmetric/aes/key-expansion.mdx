@@ -29,8 +29,9 @@ import WhyBox from '../../../../../components/lesson/WhyBox.astro';
 
 AddRoundKey needs a fresh 16-byte round key for each of the `Nr + 1` key additions. **KeyExpansion**
 (FIPS 197, §5.2) derives them all from the cipher key, as a list of 32-bit words `w[0] … w[4·Nr + 3]`.
-The first `Nk` words are the key itself; every further word is the word `Nk` positions earlier XOR a
-transformed copy of the previous word.
+The first `Nk` words are the key itself; every further word is the word `Nk` positions earlier XOR the
+previous word. For every `Nk`-th word that previous word is first transformed (RotWord, SubWord, ⊕ Rcon);
+AES-256 additionally applies SubWord alone when `i mod 8 = 4`.
 
 <KeyFacts>
   <KeyFact label="AES-128" value="44 words · 176 B" kind="key" />

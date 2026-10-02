@@ -2,6 +2,7 @@ import {
   applyWrites,
   extractParams,
   getFacet,
+  resolveMessageKey,
   stateAt,
   type FacetKind,
   type I18nRef,
@@ -35,7 +36,8 @@ function sameNames(a: readonly string[], b: readonly string[]): boolean {
 export function refProblems(refs: readonly I18nRef[], catalogs: LocaleCatalogs): string[] {
   return CONTRACT_LOCALES.flatMap((locale) =>
     refs.flatMap((ref) => {
-      const template = catalogs[locale][ref.key];
+      const key = resolveMessageKey(catalogs[locale], ref.key, ref.params, locale);
+      const template = key === undefined ? undefined : catalogs[locale][key];
       if (template === undefined) return [`${locale}:${ref.key} missing`];
       const given = Object.keys(ref.params ?? {});
       return sameNames(given, extractParams(template)) ? [] : [`${locale}:${ref.key} params [${given.join()}] vs template [${extractParams(template).join()}]`];

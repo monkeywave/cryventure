@@ -143,9 +143,17 @@ describe('ByteGrid choreography and selection', () => {
     expect(cellAtIndex(5).hasAttribute('data-dimmed')).toBe(false);
   });
 
+  it('marks exactly the cells inside the focus set as focused', () => {
+    renderInLab({ focus: new Set([0, 5]) });
+    const focused = screen.getAllByRole('gridcell').filter((cell) => cell.hasAttribute('data-focused'));
+    expect(focused).toEqual([cellAtIndex(0), cellAtIndex(5)]);
+    expect(focused.some((cell) => cell.hasAttribute('data-dimmed'))).toBe(false);
+  });
+
   it('dims nothing without a focus', () => {
     renderInLab({});
     expect(document.querySelectorAll('[data-dimmed]')).toHaveLength(0);
+    expect(document.querySelectorAll('[data-focused]')).toHaveLength(0);
   });
 
   it('has no aria-selected without onSelectCell', () => {

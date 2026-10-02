@@ -193,9 +193,16 @@ describe('ByteCell motion', () => {
     expect(cell().getAttribute('aria-selected')).toBe('true');
   });
 
-  it('has no dimmed/selected markers by default', () => {
+  it('marks focused cells', () => {
+    const { cell } = renderMotionCell({ focused: true });
+    expect(cell().hasAttribute('data-focused')).toBe(true);
+    expect(cell().hasAttribute('data-dimmed')).toBe(false);
+  });
+
+  it('has no dimmed/focused/selected markers by default', () => {
     const { cell } = renderMotionCell();
     expect(cell().hasAttribute('data-dimmed')).toBe(false);
+    expect(cell().hasAttribute('data-focused')).toBe(false);
     expect(cell().hasAttribute('aria-selected')).toBe(false);
   });
 

@@ -1,6 +1,6 @@
 import { act, render } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { COMPACT_BREAKPOINT_PX, isCompactWidth, useContainerWidth } from './useContainerWidth.ts';
+import { COMPACT_BREAKPOINT_PX, isCompactWidth, useCompactContainer, useContainerWidth } from './useContainerWidth.ts';
 import { installResizeObserverMock, type ResizeObserverMock } from './resizeObserverMock.ts';
 
 describe('isCompactWidth', () => {
@@ -35,5 +35,35 @@ describe('useContainerWidth', () => {
     expect(getByTestId('probe').textContent).toBe('500');
     unmount();
     expect(mock.observed()).toBe(0);
+  });
+});
+
+function CompactProbe({ onRender }: { onRender: () => void }) {
+  const [ref, compact] = useCompactContainer<HTMLDivElement>();
+  onRender();
+  return <div ref={ref} data-testid="compact">{String(compact)}</div>;
+}
+
+describe('useCompactContainer', () => {
+  let mock: ResizeObserverMock;
+  afterEach(() => {
+    mock.restore();
+    vi.restoreAllMocks();
+  });
+
+  it('starts wide, flips at the breakpoint and ignores resizes on the same side', () => {
+    mock = installResizeObserverMock();
+    vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockReturnValue({ width: 0 } as DOMRect);
+    const onRender = vi.fn();
+    const { getByTestId } = render(<CompactProbe onRender={onRender} />);
+    const probe = getByTestId('compact');
+    expect(probe.textContent).toBe('false');
+    act(() => mock.resize(probe, 390));
+    expect(probe.textContent).toBe('true');
+    const renders = onRender.mock.calls.length;
+    act(() => mock.resize(probe, 400));
+    expect(onRender.mock.calls.length).toBe(renders);
+    act(() => mock.resize(probe, COMPACT_BREAKPOINT_PX));
+    expect(probe.textContent).toBe('false');
   });
 });

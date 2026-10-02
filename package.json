@@ -17,6 +17,7 @@
     "lint": "eslint .",
     "format": "prettier --write .",
     "i18n:check": "tsx packages/tools/src/i18n/check-parity.ts",
+    "i18n:stamp": "tsx packages/tools/src/i18n/stamp-source-hash.ts",
     "cv": "tsx packages/tools/src/scaffold/cli.ts",
     "e2e": "pnpm --filter @cryventure/web e2e"
   },

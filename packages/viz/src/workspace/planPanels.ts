@@ -72,3 +72,12 @@ export function defaultPanelSizes(plans: readonly PanelPlan[]): Record<string, n
   const total = plans.reduce((sum, plan) => sum + (plan.defaultSize ?? 0), 0);
   return Object.fromEntries(plans.map((plan) => [plan.id, ((plan.defaultSize ?? 0) / total) * FULL_SIZE]));
 }
+
+/**
+ * Reading order for stacked (narrow) panels: panels whose lead view belongs in the main slot come
+ * first, everything else keeps its preset order (a stable partition).
+ */
+export function stackedOrder(plans: readonly PanelPlan[], isMainView: (viewId: string) => boolean): PanelPlan[] {
+  const leadsMain = (plan: PanelPlan) => plan.viewIds[0] !== undefined && isMainView(plan.viewIds[0]);
+  return [...plans.filter(leadsMain), ...plans.filter((plan) => !leadsMain(plan))];
+}

@@ -92,3 +92,38 @@ describe('hasErrors / formatIssues', () => {
     expect(formatIssues(issues)).toEqual(['error   g  e', 'warning f  k: w']);
   });
 });
+
+describe('compareCatalogs with plural forms', () => {
+  const en = { 'x.rot_one': 'rotates {{count}} position', 'x.rot_other': 'rotates {{count}} positions' };
+
+  it('treats x_one / x_other as one logical key and allows different category sets', () => {
+    expect(compareCatalogs(en, { 'x.rot_other': 'um {{count}} Positionen' }, 'f')).toEqual([]);
+    expect(compareCatalogs({ 'x.rot_other': '{{count}} rounds' }, { 'x.rot_one': 'eine Runde', 'x.rot_other': '{{count}} Runden' }, 'f')).toEqual([]);
+  });
+
+  it('accepts a bare EN key translated with DE plural forms', () => {
+    expect(compareCatalogs({ 'x.n': '{{count}} bytes' }, { 'x.n_one': '{{count}} Byte', 'x.n_other': '{{count}} Byte' }, 'f')).toEqual([]);
+  });
+
+  it('requires _other in every locale', () => {
+    expect(messagesOf(compareCatalogs(en, { 'x.rot_one': 'um {{count}} Position' }, 'f'))).toEqual(['error:x.rot:plural forms need "x.rot_other" in de']);
+  });
+
+  it('reports missing plural groups under their base key', () => {
+    expect(messagesOf(compareCatalogs(en, {}, 'f'))).toEqual(['error:x.rot:missing in de']);
+  });
+
+  it('checks params of every variant against EN _other', () => {
+    const issues = compareCatalogs({ 'k_other': '{{count}} of {{total}}' }, { 'k_one': 'eins von {{all}}', 'k_other': '{{count}} von {{total}}' }, 'f');
+    expect(messagesOf(issues)).toEqual(['error:k_one:{{params}} differ: en [count, total] vs de [all]']);
+  });
+
+  it('lets non-other forms spell out count', () => {
+    expect(compareCatalogs({ 'k_other': '{{count}} of {{total}}' }, { 'k_one': 'eins von {{total}}', 'k_other': '{{count}} von {{total}}' }, 'f')).toEqual([]);
+  });
+
+  it('warns about categories the locale never selects and identical variants', () => {
+    const issues = compareCatalogs({ k_other: 'Rounds' }, { k_few: 'Runden', k_other: 'Rounds' }, 'f');
+    expect(messagesOf(issues)).toEqual(['warning:k_few:plural category "few" is never selected in de', 'warning:k_other:de value is identical to en']);
+  });
+});

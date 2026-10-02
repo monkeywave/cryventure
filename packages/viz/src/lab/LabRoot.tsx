@@ -3,9 +3,11 @@ import { LazyMotion, MotionConfig, domAnimation } from 'motion/react';
 import type { ChoreographyModule } from '@cryventure/core';
 import { ChoreographyProvider } from '../choreography/ChoreographyContext.tsx';
 import { useT } from '../i18n/I18nProvider.tsx';
+import { useCompactContainer } from '../workspace/useContainerWidth.ts';
 import type { LabStore } from './createLabStore.ts';
 import type { FrameScheduler } from './frameScheduler.ts';
 import { LabProvider } from './LabContext.tsx';
+import { LabLayoutProvider } from './LabLayout.tsx';
 import { usePlayback } from './usePlayback.ts';
 import { useLabKeyboard } from './useLabKeyboard.ts';
 
@@ -22,16 +24,17 @@ function LabContainer({ scheduler, children }: { scheduler?: FrameScheduler; chi
   const t = useT();
   const onKeyDown = useLabKeyboard();
   usePlayback({ scheduler });
+  const [containerRef, narrow] = useCompactContainer<HTMLElement>();
   return (
-    <section className="cv-lab" onKeyDown={onKeyDown} aria-label={t('ui.lab.region')} data-pagefind-ignore>
-      {children}
+    <section ref={containerRef} className="cv-lab" data-narrow={narrow} onKeyDown={onKeyDown} aria-label={t('ui.lab.region')} data-pagefind-ignore>
+      <LabLayoutProvider narrow={narrow}>{children}</LabLayoutProvider>
     </section>
   );
 }
 
 /**
- * One lab instance: store context, choreography, keyboard scope, playback clock and the motion
- * runtime (`domAnimation` only; animations follow the user's reduced-motion preference).
+ * One lab instance: store context, choreography, keyboard scope, playback clock, the lab's layout
+ * (`useLabLayout`, measured on the lab container) and the motion runtime (`domAnimation` only; animations follow the user's reduced-motion preference).
  */
 export function LabRoot({ store, choreography, scheduler, children }: LabRootProps) {
   return (

@@ -1,6 +1,6 @@
 ---
 title: Schlüsselexpansion
-description: Wie AES einen Schlüssel mit RotWord, SubWord und den Rundenkonstanten Rcon zu Nr + 1 Rundenschlüsseln streckt.
+description: Wie AES einen Schlüssel mit RotWord, SubWord und den Rundenkonstanten Rcon zu Nr + 1 Rundenschlüsseln erweitert.
 lessonId: block-ciphers/aes/key-expansion
 track: block-ciphers
 phase: 1
@@ -13,7 +13,11 @@ refs:
   - FIPS 197, Abschnitt 5.2 (Key Expansion, Abbildung 11)
   - FIPS 197, Anhang A.1 (Expansion eines 128-Bit-Schlüssels)
   - FIPS 197, Anhang A.3 (Expansion eines 256-Bit-Schlüssels)
-sourceHash: sha256:8511e535eb83155b65fe3044b793bd9ea2968d54a5204cd0c931aeb00f07355d
+sourceHash: sha256:cfa9793a5806d8d3beb0d8c9e6cd8fd4ae06bb22eb86d8efe5367c396ad48ca6
+translation:
+  status: ai-reviewed
+  reviewedAt: '2026-10-02'
+  reviewer: AI editorial review (Claude)
 ---
 
 import Lab from '../../../../../components/Lab.astro';
@@ -31,8 +35,9 @@ import WhyBox from '../../../../../components/lesson/WhyBox.astro';
 AddRoundKey braucht für jede der `Nr + 1` Schlüsseladditionen einen frischen 16-Byte-Rundenschlüssel.
 Die **Schlüsselexpansion** (KeyExpansion, FIPS 197, §5.2) leitet sie alle aus dem Chiffrierschlüssel
 ab – als Liste von 32-Bit-Wörtern `w[0] … w[4·Nr + 3]`. Die ersten `Nk` Wörter sind der Schlüssel
-selbst; jedes weitere Wort ist das Wort `Nk` Positionen davor, per XOR verknüpft mit einer
-umgeformten Kopie des vorigen Worts.
+selbst; jedes weitere Wort entsteht, indem das Wort `Nk` Positionen davor mit dem vorigen
+Wort XOR-verknüpft wird. Bei jedem `Nk`-ten Wort wird das vorige Wort zuvor umgeformt (RotWord, SubWord,
+⊕ Rcon); AES-256 wendet zusätzlich bei `i mod 8 = 4` nur SubWord an.
 
 <KeyFacts>
   <KeyFact label="AES-128" value="44 Wörter · 176 B" kind="key" />
@@ -56,8 +61,8 @@ jedes Byte an.
 
 ## Den Schlüssel aus Anhang A.1 expandieren
 
-Das Lab verwendet den Schlüssel `2b7e1516 28aed2a6 abf71588 09cf4f3c` und öffnet bei **Runde 1,
-AddRoundKey**, wo Rundenschlüssel 1 zum ersten Mal gebraucht wird. Wähle im Schlüsselplan `a0fafe17`
+Das Lab verwendet den Schlüssel `2b7e1516 28aed2a6 abf71588 09cf4f3c` und startet bei **Runde 1,
+AddRoundKey**, wo Rundenschlüssel 1 zum ersten Mal verwendet wird. Wähle im Schlüsselplan `a0fafe17`
 (w[4]), um seine Herleitung zu sehen, und vergleiche dann jeden Rundenschlüssel mit der Tabelle in
 FIPS 197, Anhang A.1.
 
@@ -85,7 +90,7 @@ SubWord                 8a84eb01
 </WhyBox>
 
 AES-256 hat eine zweite Besonderheit: Bei `i mod 8 = 4` durchläuft das Wort noch einmal SubWord. So
-bekommt der lange Schlüssel auch mitten in jedem 8-Wort-Block eine nichtlineare Durchmischung.
+wird der lange Schlüssel auch in der Mitte jedes 8-Wort-Blocks nichtlinear durchmischt.
 
 </LessonSection>
 
@@ -94,9 +99,9 @@ bekommt der lange Schlüssel auch mitten in jedem 8-Wort-Block eine nichtlineare
 ## Expandierte Schlüssel leben länger
 
 Die meisten Bibliotheken expandieren den Schlüssel einmal und halten alle Rundenschlüssel so lange im
-Speicher wie den Kontext – 176 bis 240 Byte hochstrukturierter Daten. Weil jedes Wort über die obige
-Regel mit seinen Nachbarn verknüpft ist, erkennt ein Scanner eine Schlüsselexpansion in einem
-Speicherabbild und kann sogar Bitfehler reparieren. So finden Cold-Boot-Angriffe AES-Schlüssel.
+Speicher, wie der Kontext besteht – 176 bis 240 Byte hochstrukturierter Daten. Weil jedes Wort über die obige
+Regel mit seinen Nachbarn verknüpft ist, erkennt ein Scanner einen Schlüsselplan in einem
+Speicherabbild und kann sogar Bitfehler korrigieren. So finden Cold-Boot-Angriffe AES-Schlüssel.
 
 </LessonSection>
 
@@ -105,7 +110,7 @@ Speicherabbild und kann sogar Bitfehler reparieren. So finden Cold-Boot-Angriffe
 ## Die Rundenkonstanten auf null setzen
 
 Setze jedes `Rcon` auf `00`, und alle übrigen Schritte – RotWord, SubWord, XOR – behandeln die vier
-Bytes eines Worts gleich. Rotiert man jedes Schlüsselwort um ein Byte, kommt auch jedes Wort der
+Bytes eines Worts gleich. Rotierst du jedes Schlüsselwort um ein Byte, kommt auch jedes Wort der
 Rundenschlüssel um ein Byte rotiert heraus: Verwandte Schlüssel liefern vorhersagbar verwandte
 Rundenschlüssel. Genau von dieser Struktur leben Related-Key- und Slide-Angriffe. Ein Lab-Schalter
 für dieses Experiment folgt in einem späteren Meilenstein.
@@ -130,7 +135,7 @@ für dieses Experiment folgt in einem späteren Meilenstein.
   options={['Ein zusätzliches RotWord', 'Ein zusätzliches SubWord bei i mod 8 = 4', 'Ein zweites Rcon', 'Ein zusätzliches MixColumns']}
   answer={1}
 >
-  Für `Nk > 6` (nur AES-256) wendet FIPS 197 §5.2 `SubWord` an, wenn `i mod Nk = 4` gilt.
+  Für `Nk > 6` (nur AES-256) wendet FIPS 197, §5.2, `SubWord` an, wenn `i mod Nk = 4` gilt.
 </CheckQuestion>
 
 </LessonSection>

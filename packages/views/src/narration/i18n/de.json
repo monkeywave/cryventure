@@ -1,6 +1,3 @@
 {
-  "view.narration.title": "Erläuterung",
-  "view.narration.initial": "Das ist der Ausgangszustand. Drücke „Abspielen“ oder gehe einen Schritt vor, um zu beginnen.",
-  "view.narration.none": "Zu diesem Schritt gibt es nichts zu erläutern.",
-  "view.narration.missing": "Dieses Lab enthält keine Erläuterungen."
+  "view.narration.title": "Erläuterung"
 }

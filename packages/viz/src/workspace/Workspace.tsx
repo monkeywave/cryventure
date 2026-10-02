@@ -1,8 +1,9 @@
-import { Fragment, useMemo } from 'react';
+import { Fragment, useMemo, type RefCallback } from 'react';
 import { Group, Panel, Separator, type Layout, type LayoutChangedMeta } from 'react-resizable-panels';
 import { useT } from '../i18n/I18nProvider.tsx';
 import { loadPanelSizes, savePanelSizes, type PanelSizes } from './layoutStorage.ts';
-import { defaultPanelSizes, MAX_PANELS, planPanels, type PanelPlan } from './planPanels.ts';
+import { useOptionalLabLayout } from '../lab/LabLayout.tsx';
+import { defaultPanelSizes, MAX_PANELS, planPanels, stackedOrder, type PanelPlan } from './planPanels.ts';
 import { TabbedViews } from './TabbedViews.tsx';
 import { isCompactWidth, useContainerWidth } from './useContainerWidth.ts';
 import { ViewHost } from './ViewHost.tsx';
@@ -14,7 +15,14 @@ export interface WorkspaceProps extends ViewProps {
   /** Panel preset such as `"state|narration"` or `"state:60|narration:40"`; unknown ids are ignored. */
   layout?: string;
   maxPanels?: number;
+  /**
+   * Views left out while the panels are stacked, because the lab chrome already shows their content
+   * there (e.g. `['narration']` next to a caption). Wide layouts always show every view.
+   */
+  hiddenWhenNarrow?: readonly string[];
 }
+
+const NOTHING_HIDDEN: readonly string[] = [];
 
 const MIN_PANEL_SIZE = '15%';
 
@@ -75,13 +83,28 @@ function ResizablePanels({ plans, byId, labId, lens }: PanelsProps) {
   );
 }
 
-/** Side-by-side resizable panels (tabs for overflow) that stack vertically in narrow containers. */
-export function Workspace({ views, layout, maxPanels = MAX_PANELS, labId, lens }: WorkspaceProps) {
-  const t = useT();
+/** Inside a lab the lab container decides (one measurement for chrome and workspace); standalone, the workspace measures itself. */
+function useCompactWorkspace(): [RefCallback<HTMLDivElement>, boolean] {
+  const labLayout = useOptionalLabLayout();
   const [containerRef, width] = useContainerWidth<HTMLDivElement>();
+  return [containerRef, labLayout === null ? isCompactWidth(width) : labLayout.narrow];
+}
+
+/** Panel plans for the current layout: stacked plans skip `hidden` views and put main-slot views first. */
+function usePanelPlans(byId: ReadonlyMap<string, ReactViewManifest>, layout: string | undefined, maxPanels: number, compact: boolean, hidden: readonly string[]) {
+  return useMemo(() => {
+    if (!compact) return planPanels([...byId.keys()], layout, maxPanels);
+    const shown = [...byId.keys()].filter((id) => !hidden.includes(id));
+    return stackedOrder(planPanels(shown, layout, maxPanels), (id) => byId.get(id)?.defaultSlot === 'main');
+  }, [byId, layout, maxPanels, compact, hidden]);
+}
+
+/** Side-by-side resizable panels (tabs for overflow) that stack vertically in narrow containers. */
+export function Workspace({ views, layout, maxPanels = MAX_PANELS, hiddenWhenNarrow = NOTHING_HIDDEN, labId, lens }: WorkspaceProps) {
+  const t = useT();
+  const [containerRef, compact] = useCompactWorkspace();
   const byId = useMemo(() => new Map(views.map((view) => [view.id, view])), [views]);
-  const plans = useMemo(() => planPanels([...byId.keys()], layout, maxPanels), [byId, layout, maxPanels]);
-  const compact = isCompactWidth(width);
+  const plans = usePanelPlans(byId, layout, maxPanels, compact, hiddenWhenNarrow);
 
   if (plans.length === 0) {
     return (

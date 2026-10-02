@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { defaultPanelSizes, parseLayoutEntries, parseLayoutPreset, planPanels } from './planPanels.ts';
+import { defaultPanelSizes, parseLayoutEntries, parseLayoutPreset, planPanels, stackedOrder } from './planPanels.ts';
 
 describe('parseLayoutPreset', () => {
   it('splits, trims and dedupes', () => {
@@ -72,5 +72,24 @@ describe('defaultPanelSizes', () => {
   it('is undefined when any panel lacks a size or there are no panels', () => {
     expect(defaultPanelSizes(planPanels(['state', 'narration'], 'state:60|narration'))).toBeUndefined();
     expect(defaultPanelSizes([])).toBeUndefined();
+  });
+});
+
+describe('stackedOrder', () => {
+  const isMain = (id: string) => id === 'state';
+
+  it('moves main-slot panels first and keeps the rest in preset order', () => {
+    const plans = planPanels(['narration', 'memory', 'state'], 'narration|memory|state');
+    expect(stackedOrder(plans, isMain).map((plan) => plan.id)).toEqual(['state', 'narration', 'memory']);
+  });
+
+  it('leaves an already main-first order untouched', () => {
+    const plans = planPanels(['state', 'narration'], 'state|narration');
+    expect(stackedOrder(plans, isMain)).toEqual(plans);
+  });
+
+  it('only looks at the lead view of a tabbed panel', () => {
+    const plans = planPanels(['narration', 'state'], 'narration', 1);
+    expect(stackedOrder(plans, isMain).map((plan) => plan.viewIds)).toEqual([['narration', 'state']]);
   });
 });

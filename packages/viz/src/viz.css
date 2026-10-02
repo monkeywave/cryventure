@@ -299,6 +299,9 @@
   background: var(--cv-surface-elevated, Canvas);
   border: 1px solid var(--cv-border-subtle, GrayText);
   border-radius: 0.25rem;
+  /* Lift (focused cells); composed with the choreography emphasis ring below. */
+  --cv-cell-elevation: 0 0 transparent;
+  box-shadow: var(--cv-cell-elevation);
 }
 
 .cv-cell__value {
@@ -311,12 +314,19 @@
   translate: calc(var(--cv-dx, 0) * var(--cv-cell-pitch)) calc(var(--cv-dy, 0) * var(--cv-cell-pitch));
   scale: var(--cv-scale, 1);
   opacity: var(--cv-opacity, 1);
-  box-shadow: 0 0 0 calc(var(--cv-emphasis, 0) * 4px) var(--sl-color-accent, Highlight);
+  box-shadow:
+    0 0 0 calc(var(--cv-emphasis, 0) * 4px) var(--sl-color-accent, Highlight),
+    var(--cv-cell-elevation);
 }
 
-/* Camera-lite: cells outside the current beat's focus recede (opacity + no glyph colour). */
-.cv-cell[data-dimmed] {
-  opacity: 0.35;
+/* Camera-lite, focused: the current beat's cells stand out by weight, a ring and a lift (not colour
+   alone). Highlight rules below keep their own accent border and tint. */
+.cv-cell[data-focused] {
+  --cv-cell-elevation: var(--cv-cell-focus-shadow, 0 0 transparent);
+  font-weight: 700;
+  background-color: var(--cv-cell-focus-bg, Canvas);
+  border-color: var(--cv-cell-focus-border, CanvasText);
+  border-width: 2px;
 }
 
 .cv-cell[aria-selected='true'] {
@@ -380,6 +390,17 @@
   border-style: solid;
 }
 
+/* Camera-lite, dimmed: cells outside the beat recede through colour tokens, never opacity, so their
+   text keeps ≥ 4.5:1. Highlight kinds keep their border style, glyph and pattern, in a neutral tone. */
+.cv-cell[data-dimmed] {
+  color: var(--cv-cell-dim-fg, GrayText);
+  background-color: var(--cv-cell-dim-bg, Canvas);
+}
+
+.cv-cell[data-dimmed][data-highlight] {
+  --cv-cell-accent: var(--cv-cell-dim-border, GrayText);
+}
+
 /* ---------- Workspace ---------- */
 .cv-workspace {
   min-height: 16rem;
@@ -407,6 +428,85 @@
 .cv-workspace__panel--stacked + .cv-workspace__panel--stacked {
   border-block-start: 1px solid var(--cv-border-subtle, GrayText);
   padding-block-start: 0.75rem;
+}
+
+/* ---------- Caption (narrow labs: the narration next to the animation) ---------- */
+.cv-caption {
+  display: flex;
+  flex: 1 1 100%;
+  flex-direction: column;
+  align-items: flex-start;
+  min-width: 0;
+}
+
+.cv-caption__text {
+  display: -webkit-box;
+  margin: 0;
+  overflow: hidden;
+  font-size: var(--sl-text-sm, 0.875rem);
+  line-height: 1.45;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+  line-clamp: 3;
+}
+
+/* Expanded: the full text, scrolling inside the bar if it would cover too much of the screen. */
+.cv-caption__text[data-expanded='true'] {
+  display: block;
+  max-height: 40vh;
+  overflow-y: auto;
+  -webkit-line-clamp: unset;
+  line-clamp: none;
+}
+
+.cv-caption__toggle {
+  min-height: 1.5rem;
+  padding: 0.1rem 0;
+  font: inherit;
+  font-size: var(--sl-text-xs, 0.8125rem);
+  color: var(--sl-color-text-accent, LinkText);
+  text-decoration: underline;
+  background: none;
+  border: 0;
+  cursor: pointer;
+}
+
+/* ---------- Collapsible large regions (e.g. a key schedule) ---------- */
+.cv-region-disclosure__toggle {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  width: 100%;
+  min-height: 2.25rem;
+  padding: 0.35rem 0.6rem;
+  font: inherit;
+  font-weight: 600;
+  color: inherit;
+  text-align: start;
+  background: var(--cv-surface-elevated, ButtonFace);
+  border: 1px solid var(--cv-border, ButtonBorder);
+  border-radius: 0.375rem;
+  cursor: pointer;
+}
+
+.cv-region-disclosure__toggle:hover {
+  border-color: var(--sl-color-accent, Highlight);
+}
+
+/* Shape, not only state colour: a triangle that points right (collapsed) or down (expanded). */
+.cv-region-disclosure__marker {
+  width: 0;
+  height: 0;
+  border-block: 0.3rem solid transparent;
+  border-inline-start: 0.45rem solid currentColor;
+}
+
+.cv-region-disclosure__toggle[aria-expanded='true'] .cv-region-disclosure__marker {
+  rotate: 90deg;
+}
+
+.cv-region-disclosure > [id]:not([hidden]) {
+  margin-block-start: 0.5rem;
 }
 
 .cv-separator {
@@ -559,6 +659,12 @@
   padding: 0;
 }
 
+.cv-keyschedule__hint {
+  margin: 0;
+  font-size: 0.8em;
+  color: var(--cv-text-muted, GrayText);
+}
+
 .cv-keyschedule__rows {
   display: grid;
   gap: 0.4rem;
@@ -587,10 +693,6 @@
   color: var(--cv-text, CanvasText);
 }
 
-.cv-keyschedule__row[data-status='upcoming'] .cv-keyschedule__word {
-  border-style: dashed;
-}
-
 .cv-keyschedule__words {
   display: flex;
   flex-wrap: wrap;
@@ -609,28 +711,57 @@
   cursor: pointer;
 }
 
+/* Upcoming round keys: dashed in a ≥ 3:1 tone, so the pattern is perceivable (WCAG 1.4.11); :where()
+   keeps hover/selected/source states stronger. */
+:where(.cv-keyschedule__row[data-status='upcoming']) .cv-keyschedule__word {
+  border-style: dashed;
+  border-color: var(--cv-cell-dim-border, GrayText);
+}
+
 .cv-keyschedule__word:hover,
 .cv-keyschedule__row[data-status='current'] .cv-keyschedule__word {
   border-color: var(--cv-subkey, Highlight);
 }
 
-/* Selected: a second (inset) ring keeps the size stable; aria-pressed carries the state. */
-.cv-keyschedule__word[aria-pressed='true'] {
+/* Selected (chain open): a second (inset) ring keeps the size stable; aria-expanded carries the state. */
+.cv-keyschedule__word[aria-expanded='true'] {
   border-color: var(--cv-subkey, Highlight);
   box-shadow: inset 0 0 0 1px var(--cv-subkey, Highlight);
   font-weight: 700;
 }
 
+/* Source word of the hovered/focused/selected word: a dotted outline (shape cue, no layout shift). */
+.cv-keyschedule__word[data-source] {
+  outline: 2px dotted var(--cv-subkey, Highlight);
+  outline-offset: 1px;
+}
+
+.cv-keyschedule__word[data-source]:focus-visible {
+  outline-style: solid;
+}
+
+/* Inline disclosure: a full-width panel inside the row, attached by a left rule in the key colour. */
 .cv-keyschedule__chain {
+  flex: 1 0 100%;
   display: grid;
   gap: 0.35rem;
-  min-height: 3em;
-  margin: 0;
+  min-width: 0;
+  margin: 0.15rem 0 0.35rem 0.4rem;
+  padding: 0.4rem 0.6rem;
   font-size: 0.85em;
+  font-weight: 400;
+  background: var(--cv-surface-elevated, Canvas);
+  border-left: 3px solid var(--cv-subkey, Highlight);
+  border-radius: 0 0.25rem 0.25rem 0;
+  scroll-margin-block: 0.5rem;
 }
 
 .cv-keyschedule__chain p {
   margin: 0;
+}
+
+.cv-keyschedule__chain-title {
+  font-weight: 700;
 }
 
 .cv-keyschedule__links {
@@ -639,7 +770,7 @@
   max-width: 28rem;
 }
 
-/* One chain line: glyph | name | hex (hex right-aligned so the words line up like FIPS 197 App. A). */
+/* One chain line: glyph | name (wraps) | hex (one line, right-aligned like FIPS 197 App. A). */
 .cv-keyschedule__link {
   display: grid;
   grid-template-columns: 1.25em minmax(0, 1fr) auto;
@@ -651,8 +782,11 @@
   color: var(--cv-text-muted, GrayText);
 }
 
-.cv-keyschedule__link:last-child {
+/* The derived word itself: bold and set off by a rule, not colour alone. */
+.cv-keyschedule__link[data-result] {
   font-weight: 700;
+  padding-top: 0.15rem;
+  border-top: 1px solid var(--cv-border, GrayText);
 }
 
 .cv-keyschedule__glyph {
@@ -662,7 +796,32 @@
 
 .cv-keyschedule__hex {
   font-family: var(--sl-font-mono, ui-monospace, monospace);
-  overflow-wrap: anywhere;
+  white-space: nowrap;
+  text-align: end;
+}
+
+.cv-keyschedule__announcer {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .cv-keyschedule__chain {
+    animation: cv-keyschedule-open 120ms ease-out;
+  }
+}
+
+@keyframes cv-keyschedule-open {
+  from {
+    opacity: 0;
+  }
 }
 
 /* Narrow panels (phones, half-width side slot): the round label sits above its words. */
@@ -670,6 +829,10 @@
   .cv-keyschedule__label {
     flex-basis: 100%;
     min-width: 0;
+  }
+
+  .cv-keyschedule__chain {
+    margin-left: 0;
   }
 }
 

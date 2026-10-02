@@ -1,6 +1,3 @@
 {
-  "view.narration.title": "Narration",
-  "view.narration.initial": "This is the initial state. Press Play or step forward to begin.",
-  "view.narration.none": "Nothing to explain for this step.",
-  "view.narration.missing": "This lab has no narration."
+  "view.narration.title": "Narration"
 }
