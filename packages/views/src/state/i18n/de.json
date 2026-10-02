@@ -3,5 +3,10 @@
   "view.state.loading": "Zustand wird vorbereitet …",
   "view.state.missing": "Dieses Lab zeichnet keinen Zustand zur Anzeige auf.",
   "view.state.word": "Wort {{index}}",
-  "view.state.wordCurrent": "Wort {{index}}, in diesem Schritt verwendet"
+  "view.state.wordCurrent": "Wort {{index}}, in diesem Schritt verwendet",
+  "view.state.watch.title": "Beobachtet: {{region}}[{{index}}]",
+  "view.state.watch.entry": "Schritt {{step}}: {{value}}",
+  "view.state.watch.initial": "Start",
+  "view.state.watch.clear": "Nicht mehr beobachten",
+  "view.state.watch.hint": "Wähle eine Zelle aus, um ihren Wert über alle Schritte zu beobachten."
 }

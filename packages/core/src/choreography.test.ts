@@ -5,6 +5,9 @@ import {
   applyEase,
   clamp01,
   fallbackChoreography,
+  isNeutral,
+  NEUTRAL_NODE_PROPS,
+  VALUE_SWITCH,
   nodeId,
   pulseTrack,
   sampleChoreography,
@@ -104,5 +107,24 @@ describe('fallbackChoreography', () => {
     });
     expect(choreography.tracks.map((t) => nodeId(t.target))).toEqual(['state:1', 'state:3']);
     expect(choreography.beats[0]?.narration?.key).toBe('n');
+  });
+});
+
+describe('neutral node props', () => {
+  it('are the identity of every visual prop and the after value', () => {
+    expect(NEUTRAL_NODE_PROPS).toEqual({ dx: 0, dy: 0, scale: 1, opacity: 1, emphasis: 0, value: 1 });
+    expect(VALUE_SWITCH).toBe(0.5);
+  });
+
+  it('isNeutral accepts empty and neutral props and rejects any displaced prop', () => {
+    expect(isNeutral({})).toBe(true);
+    expect(isNeutral({ dx: 0, value: 1, scale: 1 })).toBe(true);
+    expect(isNeutral({ dx: 0.5 })).toBe(false);
+    expect(isNeutral({ value: 0 })).toBe(false);
+  });
+
+  it('pulseTrack ends neutral', () => {
+    const choreography: StepChoreography = { duration: 1, tracks: [pulseTrack({ region: 'state', index: 0 }, 0.2)], beats: [] };
+    for (const props of sampleChoreography(choreography, 1).values()) expect(isNeutral(props)).toBe(true);
   });
 });

@@ -1,0 +1,131 @@
+---
+title: Key expansion
+description: How AES stretches one key into Nr + 1 round keys with RotWord, SubWord and the round constants Rcon.
+lessonId: block-ciphers/aes/key-expansion
+track: block-ciphers
+phase: 1
+tableOfContents: false
+prereqs:
+  - block-ciphers/aes/subbytes-sbox
+labs:
+  - aes-key-schedule
+refs:
+  - FIPS 197, Section 5.2 (Key Expansion, Figure 11)
+  - FIPS 197, Appendix A.1 (Expansion of a 128-bit Key)
+  - FIPS 197, Appendix A.3 (Expansion of a 256-bit Key)
+---
+
+import Lab from '../../../../../components/Lab.astro';
+import CheckQuestion from '../../../../../components/lesson/CheckQuestion.astro';
+import Formula from '../../../../../components/lesson/Formula.astro';
+import KeyFact from '../../../../../components/lesson/KeyFact.astro';
+import KeyFacts from '../../../../../components/lesson/KeyFacts.astro';
+import LessonSection from '../../../../../components/lesson/LessonSection.astro';
+import WhyBox from '../../../../../components/lesson/WhyBox.astro';
+
+<LessonSection part="concept">
+
+## One key, many round keys
+
+AddRoundKey needs a fresh 16-byte round key for each of the `Nr + 1` key additions. **KeyExpansion**
+(FIPS 197, §5.2) derives them all from the cipher key, as a list of 32-bit words `w[0] … w[4·Nr + 3]`.
+The first `Nk` words are the key itself; every further word is the word `Nk` positions earlier XOR a
+transformed copy of the previous word.
+
+<KeyFacts>
+  <KeyFact label="AES-128" value="44 words · 176 B" kind="key" />
+  <KeyFact label="AES-192" value="52 words · 208 B" kind="key" />
+  <KeyFact label="AES-256" value="60 words · 240 B" kind="key" />
+</KeyFacts>
+
+<Formula caption="FIPS 197, §5.2 (Figure 11), for i = Nk … 4·Nr + 3.">
+{`temp ← w[i−1]
+if i mod Nk = 0:             temp ← SubWord(RotWord(temp)) ⊕ Rcon[i/Nk]
+else if Nk = 8 and i mod 8 = 4:  temp ← SubWord(temp)
+w[i] ← w[i−Nk] ⊕ temp`}
+</Formula>
+
+**RotWord** turns `[a₀ a₁ a₂ a₃]` into `[a₁ a₂ a₃ a₀]`; **SubWord** applies the S-box to each byte.
+
+</LessonSection>
+
+<LessonSection part="playground">
+
+## Expand the Appendix A.1 key
+
+The lab uses the key `2b7e1516 28aed2a6 abf71588 09cf4f3c` and opens at **round 1, AddRoundKey**,
+where round key 1 is first used. Select `a0fafe17` (w[4]) in the key schedule to see how it is
+derived, then compare every round key with the table in FIPS 197, Appendix A.1.
+
+<Lab labId="aes-key-schedule" producerId="aes" presetId="fips197-b" startAt="round:1,op:addRoundKey" layout="state:55|key-schedule:45" />
+
+</LessonSection>
+
+<LessonSection part="inside">
+
+## Worked step: w[4]
+
+<Formula caption="FIPS 197, Appendix A.1, i = 4.">
+{`w[3]                    09cf4f3c
+RotWord                 cf4f3c09
+SubWord                 8a84eb01
+⊕ Rcon[1]   01000000 →  8b84eb01
+⊕ w[0]      2b7e1516 →  a0fafe17 = w[4]`}
+</Formula>
+
+<WhyBox constant="Rcon" title="01 02 04 08 10 20 40 80 1b 36">
+  `Rcon[j] = [x^(j−1), 00, 00, 00]`: successive powers of `x` (`02`) in GF(2⁸), so `80` is followed by
+  `xtime(80) = 1b`. Without them every round key would be produced by exactly the same rule, treating
+  all byte positions alike. The constants break this **symmetry** within words and between rounds,
+  which defeats slide attacks — attacks that exploit identical rounds.
+</WhyBox>
+
+AES-256 has a second twist: at `i mod 8 = 4`, the word passes through SubWord once more, so the long
+key keeps getting non-linear mixing halfway through each 8-word block.
+
+</LessonSection>
+
+<LessonSection part="memory">
+
+## Expanded keys live longer
+
+Most libraries expand the key once and keep all round keys in memory for the life of the context —
+176 to 240 bytes of highly structured data. Because each word is linked to its neighbours by the
+rule above, a scanner can recognise a schedule in a memory dump and even repair bit errors. That is
+how cold-boot attacks find AES keys.
+
+</LessonSection>
+
+<LessonSection part="break">
+
+## Zero the round constants
+
+Set every `Rcon` to `00` and every remaining step — RotWord, SubWord, XOR — treats the four bytes of a
+word alike. Rotate each key word by one byte, and every round key word comes out rotated by one byte
+too: related keys give predictably related round keys. That is exactly the structure related-key and
+slide attacks feed on. A lab switch for this experiment follows in a later milestone.
+
+</LessonSection>
+
+<LessonSection part="check">
+
+## Check yourself
+
+<CheckQuestion number={1} question="How many 32-bit words does AES-256 key expansion produce?" options={['44', '52', '60', '64']} answer={2}>
+  `4·(Nr + 1) = 4·15 = 60` words, i.e. 240 bytes.
+</CheckQuestion>
+
+<CheckQuestion number={2} question="What is Rcon[10]?" options={['00', '1b', '36', '6c']} answer={2}>
+  `x⁹ mod 0x11B = 36`: the sequence is `01 02 04 08 10 20 40 80 1b 36`.
+</CheckQuestion>
+
+<CheckQuestion
+  number={3}
+  question="Which step does only AES-256 add to the key expansion?"
+  options={['An extra RotWord', 'An extra SubWord at i mod 8 = 4', 'A second Rcon', 'An extra MixColumns']}
+  answer={1}
+>
+  For `Nk > 6` (only AES-256), FIPS 197 §5.2 applies `SubWord` when `i mod Nk = 4`.
+</CheckQuestion>
+
+</LessonSection>

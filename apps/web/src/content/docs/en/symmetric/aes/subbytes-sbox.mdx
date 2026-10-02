@@ -1,0 +1,122 @@
+---
+title: SubBytes and the S-box
+description: How the AES S-box is built from an inverse in GF(2^8) plus an affine map, and why its constants are 0x11B and 0x63.
+lessonId: block-ciphers/aes/subbytes-sbox
+track: block-ciphers
+phase: 1
+tableOfContents: false
+prereqs:
+  - block-ciphers/aes/overview
+labs:
+  - aes-subbytes
+refs:
+  - FIPS 197, Section 4.2 (Multiplication in GF(2^8))
+  - FIPS 197, Section 5.1.1 (SubBytes, Equation 5.1, Figure 7)
+  - FIPS 197, Appendix C.1 (AES-128 example vectors)
+---
+
+import Lab from '../../../../../components/Lab.astro';
+import CheckQuestion from '../../../../../components/lesson/CheckQuestion.astro';
+import Formula from '../../../../../components/lesson/Formula.astro';
+import LessonSection from '../../../../../components/lesson/LessonSection.astro';
+import WhyBox from '../../../../../components/lesson/WhyBox.astro';
+
+<LessonSection part="concept">
+
+## One table, two steps
+
+SubBytes replaces every state byte independently using one fixed 256-entry table, the **S-box**
+(FIPS 197, §5.1.1). It is the only non-linear step of AES; without it, the whole cipher would be a
+system of linear equations an attacker could simply solve.
+
+Each S-box entry is computed in two steps:
+
+1. Take the **multiplicative inverse** of the byte in GF(2⁸), the field of bytes modulo `0x11B`. The
+   byte `00` has no inverse and is mapped to `00`.
+2. Apply an **affine transformation** over GF(2): multiply the bits by a fixed matrix, then XOR `0x63`.
+
+<Formula caption="Affine map, FIPS 197 Equation 5.1 (bit form) and the equivalent rotate form.">
+{`b'ᵢ = bᵢ ⊕ b₍ᵢ₊₄₎ ⊕ b₍ᵢ₊₅₎ ⊕ b₍ᵢ₊₆₎ ⊕ b₍ᵢ₊₇₎ ⊕ cᵢ     (indices mod 8, c = 0x63)
+b'  = b ⊕ (b ⋘ 1) ⊕ (b ⋘ 2) ⊕ (b ⋘ 3) ⊕ (b ⋘ 4) ⊕ 0x63`}
+</Formula>
+
+Worked example from FIPS 197: the inverse of `53` is `CA`, and the affine map turns `CA` into `ED`,
+so `S(53) = ED`.
+
+</LessonSection>
+
+<LessonSection part="playground">
+
+## Watch every byte change
+
+This lab runs the FIPS 197, Appendix C.1 vector (AES-128) and opens at **round 1, SubBytes**. Step
+back once and forward again to compare the state before and after: each byte has been looked up in
+the S-box on its own — no byte influences another yet.
+
+<Lab labId="aes-subbytes" producerId="aes" presetId="fips197-c1" startAt="round:1,op:subBytes" layout="state:65|narration:35" />
+
+</LessonSection>
+
+<LessonSection part="inside">
+
+## Why these constants?
+
+<WhyBox constant="0x11B" title="x⁸ + x⁴ + x³ + x + 1">
+  Bytes become a field only when we reduce modulo an **irreducible** polynomial of degree 8. The
+  designers took the first one in the standard list (Lidl & Niederreiter). Its few terms make
+  multiplication by `x` (`xtime`) cheap: shift left, and XOR `0x1B` if a bit fell out. It is not
+  primitive: `02` has order 51, while `03` generates all 255 non-zero bytes.
+</WhyBox>
+
+<WhyBox constant="0x63" title="affine constant">
+  Inversion alone keeps `00` and `01` in place. The affine map plus `0x63` was chosen so that the
+  S-box has **no fixed point** (`S(a) ≠ a`) and **no opposite fixed point** (`S(a) ≠ ā`) — we
+  checked all 256 inputs. It also hides the pure field structure of `x⁻¹` behind a GF(2)-linear layer.
+</WhyBox>
+
+</LessonSection>
+
+<LessonSection part="memory">
+
+## A table — or not
+
+Software usually stores the S-box as a 256-byte array and indexes it with secret bytes. That memory
+access pattern can leak through the CPU cache. Hardware instructions such as AES-NI compute SubBytes
+in silicon, without table lookups. More on the [Memory & hardware](../memory-and-hardware/) page.
+
+</LessonSection>
+
+<LessonSection part="break">
+
+## Nothing up the sleeve?
+
+Because the S-box is fully described by `x⁻¹` and a public affine map, nobody can hide a trapdoor in
+it — every entry can be recomputed. The flip side is algebraic simplicity: around 2002 the XSL
+attack claimed to exploit it, but the claims did not hold up. Statistically the S-box is near-optimal:
+no difference propagates with probability above 4/256, and no linear approximation has correlation
+above 2⁻³. Try a later lab: swap in an affine or identity S-box and watch linear attacks succeed.
+
+</LessonSection>
+
+<LessonSection part="check">
+
+## Check yourself
+
+<CheckQuestion number={1} question="What is S(00)?" options={['00', '01', '63', '7C']} answer={2}>
+  `00` has no inverse and is mapped to `00`; the affine map of `00` is just the constant `63`.
+</CheckQuestion>
+
+<CheckQuestion number={2} question="How many fixed points does the AES S-box have?" options={['0', '1', '2', '16']} answer={0}>
+  None. The constant `0x63` was chosen so that `S(a) ≠ a` for every byte `a`.
+</CheckQuestion>
+
+<CheckQuestion
+  number={3}
+  question="Which part of the S-box provides the non-linearity?"
+  options={['The XOR with 0x63', 'The inverse in GF(2⁸)', 'The bit rotations', 'The table lookup itself']}
+  answer={1}
+>
+  The field inverse. The affine map is linear (plus a constant) over GF(2), and a table is only a way to store the result.
+</CheckQuestion>
+
+</LessonSection>

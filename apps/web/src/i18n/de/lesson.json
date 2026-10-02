@@ -1,0 +1,16 @@
+{
+  "lesson.part.concept": "Konzept",
+  "lesson.part.playground": "Spielwiese",
+  "lesson.part.inside": "Im Inneren",
+  "lesson.part.memory": "Speicher & Hardware",
+  "lesson.part.break": "Knack es",
+  "lesson.part.check": "Selbsttest",
+  "lesson.part.label": "Teil {{number}} · {{part}}",
+  "lesson.why.label": "Warum diese Konstante?",
+  "lesson.check.question": "Frage {{number}}",
+  "lesson.check.reveal": "Antwort anzeigen",
+  "lesson.check.answer": "Antwort: {{option}}",
+  "lesson.comingSoon": "Interaktive Ansichten für diesen Abschnitt folgen in Kürze.",
+  "lesson.stateGrid.row": "Zeile {{row}}",
+  "lesson.stateGrid.column": "Spalte {{column}}"
+}

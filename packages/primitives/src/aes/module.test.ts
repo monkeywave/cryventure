@@ -8,7 +8,7 @@ import vectors from './vectors/fips197.json';
 const C1 = AES_PRESETS[0]!.params;
 
 describe('run', () => {
-  it('returns a TraceBundle with state, values and narration facets', () => {
+  it('returns a TraceBundle with state, values, narration and derivation facets', () => {
     const result = run(C1);
     if (!result.ok) throw new Error('expected ok');
     const { trace } = result;
@@ -18,6 +18,7 @@ describe('run', () => {
       'state@default',
       'values@default',
       'narration@default',
+      'derivation@default',
     ]);
     expect(toHex(trace.output['ciphertext'] ?? [])).toBe('69c4e0d86a7b0430d8cdb78070b4c55a');
     const state = getFacet<AesStateFacet>(trace, 'state')!;

@@ -5,6 +5,7 @@ import {
   derivationAncestors,
   derivationInputs,
   derivationNode,
+  isResultNode,
   type DerivationFacet,
   type DerivationNode,
 } from './derivation.ts';
@@ -28,5 +29,13 @@ describe('derivation facet helpers', () => {
   it('rejects forward references and duplicates', () => {
     expect(() => assertTopologicalOrder({ ...facet, nodes: [node('x', ['y']), node('y')] })).toThrow(/before it is defined/);
     expect(() => assertTopologicalOrder({ ...facet, nodes: [node('x'), node('x')] })).toThrow(/duplicate/);
+  });
+});
+
+describe('isResultNode', () => {
+  it('treats grouped nodes as results and ungrouped ones as intermediates', () => {
+    expect(isResultNode({ group: 0 })).toBe(true);
+    expect(isResultNode({ group: 3 })).toBe(true);
+    expect(isResultNode({})).toBe(false);
   });
 });

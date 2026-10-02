@@ -14,7 +14,7 @@ describe('aesManifest', () => {
       id: 'aes',
       family: 'block-cipher',
       implements: ['BlockCipher'],
-      facets: ['state', 'values', 'narration'],
+      facets: ['state', 'values', 'narration', 'derivation'],
       i18nNamespace: 'plugin.aes',
     });
     expect(aesManifest.defaults.detail).toBe('op');
@@ -45,6 +45,11 @@ describe('aesManifest', () => {
   it('lazily loads a module with run()', async () => {
     const module = await aesManifest.load();
     expect(typeof module.run).toBe('function');
+  });
+
+  it('lazily loads a choreography module with choreograph()', async () => {
+    const module = await aesManifest.loadChoreography?.();
+    expect(typeof module?.choreograph).toBe('function');
   });
 });
 

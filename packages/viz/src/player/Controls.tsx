@@ -39,12 +39,16 @@ function SpeedSelect() {
   );
 }
 
-/** First / previous / play-pause / next / last plus a speed picker. */
+/**
+ * First / (previous round) / previous / play-pause / next / (next round) / last plus a speed picker.
+ * The round buttons ("step over" a whole round) appear in debugger mode.
+ */
 export function Controls() {
   const t = useT();
   const step = useLab((state) => state.step);
   const stepCount = useLab((state) => state.stepCount);
   const playing = useLab((state) => state.playing);
+  const debugging = useLab((state) => state.mode === 'debugger');
   const actions = useLabActions();
   const atStart = step === INITIAL_STEP;
   const atEnd = isAtEnd({ step, stepCount });
@@ -52,6 +56,7 @@ export function Controls() {
   return (
     <div className="cv-controls" role="group" aria-label={t('ui.player.controls')}>
       <ControlButton label={t('ui.player.first')} icon="first" shortcut="Home" disabled={atStart} onClick={actions.first} />
+      {debugging && <ControlButton label={t('ui.player.prevRound')} icon="prevRound" shortcut="Shift+ArrowLeft" disabled={atStart} onClick={actions.prevRound} />}
       <ControlButton label={t('ui.player.prev')} icon="prev" shortcut="ArrowLeft" disabled={atStart} onClick={actions.prev} />
       <ControlButton
         label={t(playing ? 'ui.player.pause' : 'ui.player.play')}
@@ -61,6 +66,7 @@ export function Controls() {
         onClick={actions.togglePlay}
       />
       <ControlButton label={t('ui.player.next')} icon="next" shortcut="ArrowRight" disabled={atEnd} onClick={actions.next} />
+      {debugging && <ControlButton label={t('ui.player.nextRound')} icon="nextRound" shortcut="Shift+ArrowRight" disabled={atEnd} onClick={actions.nextRound} />}
       <ControlButton label={t('ui.player.last')} icon="last" shortcut="End" disabled={atEnd} onClick={actions.last} />
       <SpeedSelect />
     </div>

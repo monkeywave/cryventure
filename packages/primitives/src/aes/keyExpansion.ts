@@ -38,7 +38,7 @@ export function rcon(i: number): Word {
   return [power, 0, 0, 0];
 }
 
-function xorWords(a: readonly number[], b: readonly number[]): Word {
+export function xorWords(a: readonly number[], b: readonly number[]): Word {
   return a.map((byte, index) => byte ^ (b[index] ?? 0));
 }
 

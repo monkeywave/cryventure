@@ -1,8 +1,11 @@
 import { RecordingTracer, regionSize } from '@cryventure/core';
 import { describe, expect, it } from 'vitest';
 import {
+  AES_OP_NAMES,
+  AES_SCOPE_LEVELS,
   AesTraceEmitter,
   aesRegions,
+  opLabelKey,
   emptySnapshot,
   type AesOp,
   type AesRegion,
@@ -70,5 +73,16 @@ describe('AesTraceEmitter', () => {
       throw new Error('should not be called');
     });
     emitter.endRound(0, { key: 'x' });
+  });
+});
+
+describe('AES_OP_NAMES / opLabelKey / AES_SCOPE_LEVELS', () => {
+  it('lists distinct op names and maps them to plugin.aes.op.* keys', () => {
+    expect(new Set(AES_OP_NAMES).size).toBe(AES_OP_NAMES.length);
+    expect(opLabelKey('mixColumns')).toBe('plugin.aes.op.mixColumns');
+  });
+
+  it('labels the two scope levels round and op', () => {
+    expect(AES_SCOPE_LEVELS.map((level) => level.labelKey)).toEqual(['plugin.aes.scope.round', 'plugin.aes.scope.op']);
   });
 });

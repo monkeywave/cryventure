@@ -1,9 +1,11 @@
 import { useMemo } from 'react';
-import type { ElemType, HighlightKind } from '@cryventure/core';
+import type { MotionValue } from 'motion/react';
+import type { ElemType, HighlightKind, Track } from '@cryventure/core';
 import { useT } from '../i18n/I18nProvider.tsx';
 import { ByteCell } from './ByteCell.tsx';
 import { formatOffset } from './hex.ts';
 import { cellIndex, highlightMap, type GridHighlight, type GridOrder, type GridShape } from './gridLayout.ts';
+import type { CellMotion } from './useCellMotion.ts';
 import { useGridNavigation } from './useGridNavigation.ts';
 
 export interface ByteGridProps {
@@ -22,6 +24,32 @@ export interface ByteGridProps {
   rowHeaders?: readonly GridRowHeader[];
   /** `wrap`: rows flow side by side and wrap to the available width (e.g. key-schedule words). */
   layout?: GridLayoutMode;
+  /** The current step's choreography for this grid (cells animate between `before` and `values`). */
+  motion?: GridMotion;
+  /** Flat indices in the current beat's focus; every other cell is dimmed. */
+  focus?: ReadonlySet<number>;
+  /** Flat index of the selected (watched) cell. */
+  selectedIndex?: number;
+  /** Makes cells selectable (click / Enter). */
+  onSelectCell?: (index: number) => void;
+}
+
+/** Per-grid choreography: the shared progress playhead, the values before the step and tracks per flat index. */
+export interface GridMotion {
+  progress: MotionValue<number>;
+  before: readonly number[];
+  tracks: ReadonlyMap<number, readonly Track[]>;
+}
+
+const NO_TRACKS: readonly Track[] = [];
+
+/** A cell animates when it has tracks or its value changes in this step. */
+export function cellMotion(motion: GridMotion | undefined, index: number, value: number): CellMotion | undefined {
+  if (motion === undefined) return undefined;
+  const tracks = motion.tracks.get(index) ?? NO_TRACKS;
+  const before = motion.before[index] ?? value;
+  if (tracks.length === 0 && before === value) return undefined;
+  return { progress: motion.progress, tracks, before };
 }
 
 export type GridLayoutMode = 'stack' | 'wrap';
@@ -35,14 +63,24 @@ export interface GridRowHeader {
 
 const NO_HIGHLIGHTS: readonly GridHighlight[] = [];
 
+interface CellModel {
+  index: number;
+  value: number;
+  highlight: HighlightKind | undefined;
+  motion: CellMotion | undefined;
+  dimmed: boolean;
+  selected: boolean | undefined;
+}
+
 interface RowProps {
   row: number;
   cols: number;
   header: GridRowHeader | undefined;
-  cellAt: (row: number, col: number) => { index: number; value: number; highlight: HighlightKind | undefined };
+  cellAt: (row: number, col: number) => CellModel;
   elem: ElemType;
   isActive: (row: number, col: number) => boolean;
   activate: (row: number, col: number) => void;
+  onSelectCell: ((index: number) => void) | undefined;
 }
 
 function RowHeader({ header }: { header: GridRowHeader }) {
@@ -63,7 +101,7 @@ function useRowHeaders(rowOffsets: readonly number[] | undefined, rowHeaders: re
   });
 }
 
-function GridRow({ row, cols, header, cellAt, elem, isActive, activate }: RowProps) {
+function GridRow({ row, cols, header, cellAt, elem, isActive, activate, onSelectCell }: RowProps) {
   return (
     <div role="row" className="cv-grid__row" data-current={header?.current ? '' : undefined}>
       {header !== undefined && <RowHeader header={header} />}
@@ -80,6 +118,10 @@ function GridRow({ row, cols, header, cellAt, elem, isActive, activate }: RowPro
             highlight={cell.highlight}
             tabbable={isActive(row, col)}
             onFocus={() => activate(row, col)}
+            motion={cell.motion}
+            dimmed={cell.dimmed}
+            selected={cell.selected}
+            onSelect={onSelectCell === undefined ? undefined : () => onSelectCell(cell.index)}
           />
         );
       })}
@@ -87,15 +129,28 @@ function GridRow({ row, cols, header, cellAt, elem, isActive, activate }: RowPro
   );
 }
 
-/** Generic labelled byte grid (`role="grid"`) with highlight classes, glyph fallbacks and roving focus. */
-export function ByteGrid({ values, shape, order = 'row-major', elem = 'u8', highlights = NO_HIGHLIGHTS, label, rowOffsets, rowHeaders, layout = 'stack' }: ByteGridProps) {
+/**
+ * Generic labelled byte grid (`role="grid"`) with highlight classes, glyph fallbacks, roving focus,
+ * optional choreography (`motion`), beat focus dimming and cell selection.
+ */
+export function ByteGrid(props: ByteGridProps) {
+  const { values, shape, order = 'row-major', elem = 'u8', highlights = NO_HIGHLIGHTS, label, rowOffsets, rowHeaders, layout = 'stack' } = props;
+  const { motion, focus, selectedIndex, onSelectCell } = props;
   const [rows, cols] = shape;
   const headers = useRowHeaders(rowOffsets, rowHeaders);
   const byIndex = useMemo(() => highlightMap(highlights), [highlights]);
   const { gridRef, onKeyDown, isActive, setActive } = useGridNavigation(shape);
-  const cellAt = (row: number, col: number) => {
+  const cellAt = (row: number, col: number): CellModel => {
     const index = cellIndex(row, col, shape, order);
-    return { index, value: values[index] ?? 0, highlight: byIndex.get(index) };
+    const value = values[index] ?? 0;
+    return {
+      index,
+      value,
+      highlight: byIndex.get(index),
+      motion: cellMotion(motion, index, value),
+      dimmed: focus !== undefined && !focus.has(index),
+      selected: onSelectCell === undefined ? undefined : index === selectedIndex,
+    };
   };
 
   return (
@@ -110,6 +165,7 @@ export function ByteGrid({ values, shape, order = 'row-major', elem = 'u8', high
           elem={elem}
           isActive={isActive}
           activate={(r, c) => setActive({ row: r, col: c })}
+          onSelectCell={onSelectCell}
         />
       ))}
     </div>

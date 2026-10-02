@@ -1,0 +1,138 @@
+---
+title: ShiftRows und MixColumns
+description: Die Diffusionsschicht von AES – Zeilenrotationen, die Matrix {02 03 01 01}, Verzweigungszahl 5 und xtime.
+lessonId: block-ciphers/aes/shiftrows-mixcolumns
+track: block-ciphers
+phase: 1
+tableOfContents: false
+prereqs:
+  - block-ciphers/aes/subbytes-sbox
+labs:
+  - aes-diffusion
+refs:
+  - FIPS 197, Abschnitt 4.2.1 (Multiplikation mit x, xtime)
+  - FIPS 197, Abschnitt 5.1.2 (ShiftRows, Abbildung 8)
+  - FIPS 197, Abschnitt 5.1.3 (MixColumns, Gleichung 5.6)
+  - FIPS 197, Anhang B (Cipher Example, Runde 1)
+sourceHash: sha256:d3bff9b56d956fa39ee0307013529d4ab3a8af43ecdb57f7b77d64fc738de43a
+---
+
+import Lab from '../../../../../components/Lab.astro';
+import CheckQuestion from '../../../../../components/lesson/CheckQuestion.astro';
+import Formula from '../../../../../components/lesson/Formula.astro';
+import LessonSection from '../../../../../components/lesson/LessonSection.astro';
+import StateGrid from '../../../../../components/lesson/StateGrid.astro';
+import WhyBox from '../../../../../components/lesson/WhyBox.astro';
+
+<LessonSection part="concept">
+
+## Jedes Byte überallhin verteilen
+
+SubBytes verwirbelt Bytes, verschiebt sie aber nie. Die **Diffusionsschicht** holt das in zwei
+Schritten nach:
+
+- **ShiftRows** rotiert Zeile `r` der Zustandsmatrix um `r` Positionen nach links: Versätze 0, 1, 2, 3
+  (FIPS 197, §5.1.2).
+- **MixColumns** ersetzt jede Spalte durch eine feste Linearkombination ihrer vier Bytes (§5.1.3).
+
+ShiftRows verteilt die vier Bytes einer Spalte auf vier *verschiedene* Spalten; MixColumns lässt dann
+jedes Byte auf seine ganze Spalte wirken. Nach zwei Runden hängt jedes Ausgabebyte von jedem
+Eingabebyte ab.
+
+<StateGrid
+  caption="FIPS 197, Anhang B, Runde 1 nach SubBytes (vor ShiftRows)."
+  cells={['d4', '27', '11', 'ae', 'e0', 'bf', '98', 'f1', 'b8', 'b4', '5d', 'e5', '1e', '41', '52', '30']}
+/>
+
+<StateGrid
+  caption="Dieselbe Zustandsmatrix nach ShiftRows: Zeile 1 um eins verschoben, Zeile 2 um zwei, Zeile 3 um drei."
+  cells={['d4', 'bf', '5d', '30', 'e0', 'b4', '52', 'ae', 'b8', '41', '11', 'f1', '1e', '27', '98', 'e5']}
+/>
+
+</LessonSection>
+
+<LessonSection part="playground">
+
+## Einer Spalte folgen
+
+Das Lab öffnet bei **Runde 1, ShiftRows**: Sieh zu, wie die Zeilen 1–3 rotieren. Einen Schritt weiter
+macht MixColumns aus Spalte 0 `d4 bf 5d 30` die Bytes `04 66 81 e5` – genau wie in FIPS 197, Anhang B
+abgedruckt.
+
+<Lab labId="aes-diffusion" producerId="aes" presetId="fips197-b" startAt="round:1,op:shiftRows" layout="state:65|narration:35" />
+
+</LessonSection>
+
+<LessonSection part="inside">
+
+## Die MixColumns-Matrix
+
+Jede Spalte wird mit einer zirkulanten Matrix über GF(2⁸) multipliziert:
+
+<Formula caption="FIPS 197, Gleichung 5.6. Multipliziert wird in GF(2⁸), addiert per XOR.">
+{`┌ s'₀ ┐   ┌ 02 03 01 01 ┐ ┌ s₀ ┐
+│ s'₁ │ = │ 01 02 03 01 │ │ s₁ │
+│ s'₂ │   │ 01 01 02 03 │ │ s₂ │
+└ s'₃ ┘   └ 03 01 01 02 ┘ └ s₃ ┘`}
+</Formula>
+
+`02·a` ist **xtime**: links schieben, bei Überlauf `1B` per XOR addieren. `03·a = xtime(a) ⊕ a`.
+Das erste Byte, ausgerechnet:
+
+<Formula>
+{`02·d4 ⊕ 03·bf ⊕ 01·5d ⊕ 01·30
+=  b3  ⊕  da   ⊕  5d   ⊕  30   = 04`}
+</Formula>
+
+<WhyBox constant="{02 03 01 01}" title="MDS-Matrix, Verzweigungszahl 5">
+  Die Matrix ist **MDS**: Für jede Eingabespalte ungleich null ergeben die Nicht-Null-Bytes von
+  Eingabe und Ausgabe zusammen mindestens **5** – das Maximum bei 4 Bytes. Zusammen mit ShiftRows
+  erzwingt diese „Wide-Trail“-Strategie mindestens 25 aktive S-Boxen in jedem Pfad über 4 Runden.
+  Die kleinen Einträge 01, 02, 03 halten die Berechnung billig.
+</WhyBox>
+
+</LessonSection>
+
+<LessonSection part="memory">
+
+## Schnell in Software
+
+Implementierungen multiplizieren Matrizen selten Byte für Byte. Tabellenbasierter Code fasst
+SubBytes, ShiftRows und MixColumns in vier **T-Tabellen** zu je 1 KiB zusammen; Hardware erledigt
+die ganze Runde mit einem Befehl. Siehe [Speicher & Hardware](../memory-and-hardware/).
+
+</LessonSection>
+
+<LessonSection part="break">
+
+## ShiftRows weglassen
+
+Ohne ShiftRows verlassen die Bytes einer Spalte diese Spalte nie. AES zerfällt in **vier unabhängige
+32-Bit-Chiffren**: Ändert man ein Klartextbyte, ändert sich nur eine Spalte des Chiffretexts. Ein
+Angreifer kann jede Spalte einzeln tabellieren oder angreifen – ein 2³²-Problem statt 2¹²⁸. Ein
+Lab-Schalter für dieses Experiment folgt in einem späteren Meilenstein.
+
+</LessonSection>
+
+<LessonSection part="check">
+
+## Teste dich selbst
+
+<CheckQuestion number={1} question="Um wie viele Positionen rotiert ShiftRows die Zeile 3?" options={['0', '1', '2', '3']} answer={3}>
+  Zeile `r` wird um `r` Positionen nach links rotiert (beim 128-Bit-Block von AES).
+</CheckQuestion>
+
+<CheckQuestion number={2} question="Was ist xtime(57)?" options={['AE', 'AF', 'B5', '57']} answer={0}>
+  Bei `57` ist das oberste Bit nicht gesetzt, also ist xtime ein reiner Linksshift: `0101 0111 → 1010 1110 = AE` (FIPS 197, §4.2.1).
+</CheckQuestion>
+
+<CheckQuestion
+  number={3}
+  question="Eine Spalte mit genau einem Byte ungleich null geht in MixColumns. Wie viele Ausgabebytes sind ungleich null?"
+  options={['1', '2', '3', '4']}
+  answer={3}
+>
+  Verzweigungszahl 5: Ein Nicht-Null-Eingabebyte erzwingt mindestens 4 Nicht-Null-Ausgabebytes – also alle vier.
+</CheckQuestion>
+
+</LessonSection>

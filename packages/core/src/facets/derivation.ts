@@ -3,6 +3,12 @@ import type { I18nRef } from '../i18n.ts';
 /**
  * Derivation facet: a DAG of values derived from other values
  * (AES key schedule words, HKDF/TLS key schedules, ratchet chains …).
+ *
+ * Convention: *result* nodes (e.g. AES key words w[i], TLS traffic secrets) carry `group`, `step`
+ * and `valueRef`; *intermediates* (RotWord, SubWord, ⊕Rcon, HKDF-Extract output …) carry none of
+ * them and only appear inside a result's derivation chain. A node's FIRST input continues the
+ * chain; further inputs are operands combined into it (e.g. XORed). Views rely on this to list
+ * results and to unfold one result's chain (see `isResultNode`).
  */
 
 export interface DerivationNode {
@@ -26,6 +32,11 @@ export interface DerivationFacet {
   kind: 'derivation';
   schemaVersion: 1;
   nodes: DerivationNode[];
+}
+
+/** Whether `node` is a result (listed by views) rather than an intermediate: results carry a `group`. */
+export function isResultNode(node: Pick<DerivationNode, 'group'>): boolean {
+  return node.group !== undefined;
 }
 
 /** The node with `id`, or `undefined`. */

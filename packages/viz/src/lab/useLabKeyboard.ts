@@ -2,7 +2,10 @@ import { useCallback, type KeyboardEvent as ReactKeyboardEvent } from 'react';
 import type { LabActions } from './createLabStore.ts';
 import { useLabStore } from './LabContext.tsx';
 
-export type LabKeyAction = keyof Pick<LabActions, 'prev' | 'next' | 'togglePlay' | 'first' | 'last'>;
+export type LabKeyAction = keyof Pick<
+  LabActions,
+  'prev' | 'next' | 'togglePlay' | 'first' | 'last' | 'prevRound' | 'nextRound' | 'toggleCurrentBreakpoint'
+>;
 
 const KEY_ACTIONS: Readonly<Record<string, LabKeyAction>> = {
   ArrowLeft: 'prev',
@@ -10,6 +13,15 @@ const KEY_ACTIONS: Readonly<Record<string, LabKeyAction>> = {
   ' ': 'togglePlay',
   Home: 'first',
   End: 'last',
+  b: 'toggleCurrentBreakpoint',
+  B: 'toggleCurrentBreakpoint',
+};
+
+/** Shift + key: coarser navigation (by round). */
+const SHIFT_KEY_ACTIONS: Readonly<Record<string, LabKeyAction>> = {
+  ArrowLeft: 'prevRound',
+  ArrowRight: 'nextRound',
+  B: 'toggleCurrentBreakpoint',
 };
 
 const TEXT_ENTRY = 'input, select, textarea, [contenteditable=""], [contenteditable="true"]';
@@ -22,18 +34,20 @@ function ownsKey(key: string, target: Element | null): boolean {
   return key === ' ' && target.closest(ACTIVATABLE) !== null;
 }
 
+type KeyInfo = Pick<KeyboardEvent, 'key' | 'altKey' | 'ctrlKey' | 'metaKey' | 'shiftKey'>;
+
 /** Maps a keydown to a lab action, or `null` when the key is not ours or the target owns it. */
-export function keyToAction(event: Pick<KeyboardEvent, 'key' | 'altKey' | 'ctrlKey' | 'metaKey' | 'shiftKey'>, target: Element | null): LabKeyAction | null {
-  if (event.altKey || event.ctrlKey || event.metaKey || event.shiftKey) return null;
-  const action = KEY_ACTIONS[event.key];
+export function keyToAction(event: KeyInfo, target: Element | null): LabKeyAction | null {
+  if (event.altKey || event.ctrlKey || event.metaKey) return null;
+  const action = (event.shiftKey ? SHIFT_KEY_ACTIONS : KEY_ACTIONS)[event.key];
   if (action === undefined || ownsKey(event.key, target)) return null;
   return action;
 }
 
 /**
- * ←/→/Space/Home/End drive the player. Returns a React `onKeyDown` handler for the lab
- * container, so it only sees keys while focus is inside, and runs after nested handlers
- * (grids, tablists) that claim a key with `preventDefault()`.
+ * ←/→ (Shift: by round), Space, Home/End and B (breakpoint) drive the player. Returns a React
+ * `onKeyDown` handler for the lab container, so it only sees keys while focus is inside, and runs
+ * after nested handlers (grids, tablists) that claim a key with `preventDefault()`.
  */
 export function useLabKeyboard(): (event: ReactKeyboardEvent<HTMLElement>) => void {
   const store = useLabStore();

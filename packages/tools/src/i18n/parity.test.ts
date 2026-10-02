@@ -21,7 +21,7 @@ describe('flattenCatalog', () => {
 });
 
 describe('isTranslationExempt', () => {
-  it.each(['CryVenture', 'AES', '0x1f', '{{count}} / {{total}}', '—', 'AES-GCM', 'FIPS 197'])('exempts %j', (value) => {
+  it.each(['CryVenture', 'AES', '0x1f', '{{count}} / {{total}}', '—', 'AES-GCM', 'FIPS 197', 'SubBytes', 'InvMixColumns', 'Debugger'])('exempts %j', (value) => {
     expect(isTranslationExempt(value)).toBe(true);
   });
 

@@ -1,0 +1,43 @@
+---
+/**
+ * One of the six lesson parts (docs/PLAN.md §4). Renders a localized "Part n · Name" eyebrow;
+ * the author writes the section's `##` heading and body inside the slot.
+ */
+import { lessonTranslator } from './lessonTranslator';
+
+const LESSON_PARTS = ['concept', 'playground', 'inside', 'memory', 'break', 'check'] as const;
+type LessonPart = (typeof LESSON_PARTS)[number];
+
+interface Props {
+  part: LessonPart;
+}
+
+const { part } = Astro.props;
+const t = lessonTranslator(Astro.currentLocale);
+const number = LESSON_PARTS.indexOf(part) + 1;
+---
+
+<section class="cv-lesson-section" data-part={part}>
+  <p class="cv-lesson-section__eyebrow">{t('lesson.part.label', { number, part: t(`lesson.part.${part}`) })}</p>
+  <slot />
+</section>
+
+<style>
+  .cv-lesson-section {
+    margin-block-start: 2.5rem;
+  }
+
+  .cv-lesson-section__eyebrow {
+    margin: 0;
+    color: var(--cv-text-muted);
+    font-size: var(--sl-text-xs);
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+
+  /* Beat Starlight's `.sl-markdown-content h2` spacing so the eyebrow sits on its heading. */
+  :global(.sl-markdown-content) .cv-lesson-section__eyebrow + :global(h2) {
+    margin-block-start: 0.25rem;
+  }
+</style>

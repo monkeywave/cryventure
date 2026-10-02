@@ -36,6 +36,7 @@ describe('primitiveTemplate', () => {
     expect(manifest).toContain("family: 'block-cipher'");
     expect(manifest).toContain('export const demoXorManifest = definePrimitive<DemoXorParams>');
     expect(manifest).toContain('paramFields: DEMO_XOR_PARAM_FIELDS');
+    expect(manifest).toContain("// loadChoreography: () => import('./choreography.ts'),");
     expect([...manifest.matchAll(/from '([^']+)'/g)].map((match) => match[1])).toEqual(['@cryventure/core']);
   });
 

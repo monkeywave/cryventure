@@ -1,0 +1,111 @@
+---
+title: AES in memory and hardware
+description: A preview of how CPUs execute AES rounds (AES-NI, ARMv8) and how libraries such as OpenSSL store round keys.
+lessonId: block-ciphers/aes/memory-and-hardware
+track: block-ciphers
+phase: 1
+prereqs:
+  - block-ciphers/aes/key-expansion
+refs:
+  - FIPS 197, Section 5.1 (Cipher)
+  - FIPS 197, Section 5.2 (Key Expansion)
+  - Intel, Advanced Encryption Standard (AES) New Instructions Set, White Paper (Gueron)
+  - Arm Architecture Reference Manual, AESE / AESMC
+  - OpenSSL, include/openssl/aes.h (struct aes_key_st)
+---
+
+import CheckQuestion from '../../../../../components/lesson/CheckQuestion.astro';
+import ComingSoon from '../../../../../components/lesson/ComingSoon.astro';
+import Formula from '../../../../../components/lesson/Formula.astro';
+import LessonSection from '../../../../../components/lesson/LessonSection.astro';
+
+<ComingSoon />
+
+<LessonSection part="concept">
+
+## Same math, different cuts
+
+Every fast implementation computes exactly the FIPS 197 rounds, but each one slices them
+differently. CPUs bundle several steps into one instruction, and libraries pick a memory layout for
+the expanded key. When you look at a debugger or a memory dump, you see these slices — not the
+textbook picture.
+
+</LessonSection>
+
+<LessonSection part="playground">
+
+## Two instruction sets
+
+<Formula caption="AES-128 encryption with round keys k0 … k10.">
+{`x86 AES-NI                      ARMv8 Crypto Extensions
+PXOR       k0                   AESE  k0 ; AESMC      (rounds 1 … 9)
+AESENC     k1 … k9              AESE  k9               (final round)
+AESENCLAST k10                  EOR   k10`}
+</Formula>
+
+`AESENC` performs ShiftRows, SubBytes, MixColumns and *then* XORs the round key. `AESE` XORs the
+round key *first*, then ShiftRows and SubBytes; `AESMC` is a separate MixColumns. Hence ARM needs a
+plain `EOR` for the last key.
+
+</LessonSection>
+
+<LessonSection part="inside">
+
+## OpenSSL's AES_KEY
+
+<Formula caption="include/openssl/aes.h (AES_MAXNR = 14).">
+{`struct aes_key_st {
+    unsigned int rd_key[4 * (AES_MAXNR + 1)];  /* 60 × u32 = 240 bytes */
+    int rounds;                                /* 10, 12 or 14 */
+};`}
+</Formula>
+
+The portable C code loads key bytes big-endian (`GETU32`) and stores each word as a **host-endian**
+integer: on x86 the bytes of every word appear reversed in memory. The AES-NI path keeps the bytes in
+their natural order.
+
+</LessonSection>
+
+<LessonSection part="memory">
+
+## T-tables and the cache
+
+Classic software AES merges SubBytes, ShiftRows and MixColumns into four 1 KiB lookup tables
+(`Te0 … Te3`) indexed by secret bytes. Which cache lines get loaded depends on the key — Bernstein
+(2005) and Osvik, Shamir and Tromer (2006) recovered keys from timing alone. **Constant-time**
+code avoids secret-dependent lookups: hardware instructions, bitslicing, or vector-permute AES.
+
+</LessonSection>
+
+<LessonSection part="break">
+
+## Coming next
+
+Later labs will let you scan a memory dump for an expanded key schedule and run a toy cache-timing
+attack against a T-table implementation.
+
+</LessonSection>
+
+<LessonSection part="check">
+
+## Check yourself
+
+<CheckQuestion
+  number={1}
+  question="When does ARMv8 AESE add the round key?"
+  options={['Before ShiftRows and SubBytes', 'After MixColumns', 'After SubBytes only', 'Never; AESMC does it']}
+  answer={0}
+>
+  `AESE` = AddRoundKey, then ShiftRows and SubBytes. x86 `AESENC` adds the key at the end.
+</CheckQuestion>
+
+<CheckQuestion
+  number={2}
+  question="How large is the rd_key array in OpenSSL's AES_KEY?"
+  options={['176 bytes', '208 bytes', '240 bytes', '256 bytes']}
+  answer={2}
+>
+  60 32-bit words = 240 bytes, enough for AES-256; shorter keys leave the tail unused.
+</CheckQuestion>
+
+</LessonSection>

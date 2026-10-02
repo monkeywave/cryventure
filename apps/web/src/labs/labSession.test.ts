@@ -2,13 +2,14 @@ import { describe, expect, it } from 'vitest';
 import type { PrimitiveManifest } from '@cryventure/core';
 import { encodeJsonBase64Url } from './base64url.ts';
 import { readLabLink } from './deepLink.ts';
-import { rerunLab, runProducer, startLab, type ReadySession } from './labSession.ts';
+import { rerunLab, runProducer, startLab, type ReadySession, type StartLabOptions } from './labSession.ts';
+import { parseStartAt } from './startAt.ts';
 
 const C1 = { keyHex: '000102030405060708090a0b0c0d0e0f', plaintextHex: '00112233445566778899aabbccddeeff', detail: 'op' };
 const C1_CIPHERTEXT = [0x69, 0xc4, 0xe0, 0xd8, 0x6a, 0x7b, 0x04, 0x30, 0xd8, 0xcd, 0xb7, 0x80, 0x70, 0xb4, 0xc5, 0x5a];
 
-async function readyAes(link = readLabLink('', 'x')): Promise<ReadySession> {
-  const session = await startLab({ producerId: 'aes', presetId: 'fips197-c1', link });
+async function readyAes(link = readLabLink('', 'x'), extra: Partial<StartLabOptions> = {}): Promise<ReadySession> {
+  const session = await startLab({ producerId: 'aes', presetId: 'fips197-c1', link, ...extra });
   if (session.status !== 'ready') throw new Error(`expected ready, got ${JSON.stringify(session)}`);
   return session;
 }
@@ -45,6 +46,21 @@ describe('startLab', () => {
     const session = await readyAes(readLabLink('lab=x&p=@@&v=1', 'x'));
     expect(session.notice).toBe(true);
     expect(session.params).toEqual(C1);
+  });
+
+  it('opens at startAt (first step of round 1 SubBytes) in the preselected mode without playing', async () => {
+    const session = await readyAes(undefined, { startAt: parseStartAt('round:1,op:subBytes'), mode: 'story' });
+    const state = session.store.getState();
+    const step = state.bundle?.facets['state@default'] as { steps: { op: string; round: number }[] };
+    expect(step.steps[state.step]).toMatchObject({ op: 'subBytes', round: 1 });
+    expect(state.step).toBe(step.steps.findIndex((candidate) => candidate.op === 'subBytes'));
+    expect(state.mode).toBe('story');
+    expect(state.playing).toBe(false);
+  });
+
+  it("lets the deep link's step win over startAt", async () => {
+    const session = await readyAes(readLabLink('lab=x&s=5&v=1', 'x'), { startAt: parseStartAt('round:1,op:subBytes') });
+    expect(session.store.getState().step).toBe(5);
   });
 
   it('reports an unknown producer', async () => {

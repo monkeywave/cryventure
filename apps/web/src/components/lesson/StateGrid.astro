@@ -1,0 +1,91 @@
+---
+/**
+ * The AES state as a 4×4 table. `cells` is given in column-major order (cells[r + 4c] = s[r,c]),
+ * exactly like FIPS 197 §3.4 maps in[r + 4c] onto the state.
+ */
+import { lessonTranslator } from './lessonTranslator';
+
+interface Props {
+  cells: string[];
+  caption: string;
+  kind?: 'state' | 'plaintext' | 'ciphertext' | 'key';
+}
+
+const { cells, caption, kind = 'state' } = Astro.props;
+if (cells.length !== 16) throw new Error(`<StateGrid>: expected 16 cells, got ${cells.length}`);
+const t = lessonTranslator(Astro.currentLocale);
+const indices = [0, 1, 2, 3];
+---
+
+<figure class="cv-state-grid not-content" data-kind={kind}>
+  <table>
+    <caption>{caption}</caption>
+    <thead>
+      <tr>
+        <td></td>
+        {indices.map((column) => <th scope="col" aria-label={t('lesson.stateGrid.column', { column })}>c={column}</th>)}
+      </tr>
+    </thead>
+    <tbody>
+      {
+        indices.map((row) => (
+          <tr>
+            <th scope="row" aria-label={t('lesson.stateGrid.row', { row })}>r={row}</th>
+            {indices.map((column) => <td>{cells[row + 4 * column]}</td>)}
+          </tr>
+        ))
+      }
+    </tbody>
+  </table>
+</figure>
+
+<style>
+  .cv-state-grid {
+    --cv-grid-accent: var(--cv-state);
+    margin-block: 1.25rem;
+    overflow-x: auto;
+  }
+
+  .cv-state-grid[data-kind='plaintext'] {
+    --cv-grid-accent: var(--cv-plaintext);
+  }
+
+  .cv-state-grid[data-kind='ciphertext'] {
+    --cv-grid-accent: var(--cv-ciphertext);
+  }
+
+  .cv-state-grid[data-kind='key'] {
+    --cv-grid-accent: var(--cv-key);
+  }
+
+  .cv-state-grid table {
+    border-collapse: separate;
+    border-spacing: 0.25rem;
+    font-family: var(--sl-font-mono);
+    font-size: var(--sl-text-sm);
+  }
+
+  .cv-state-grid caption {
+    caption-side: bottom;
+    padding-block-start: 0.375rem;
+    color: var(--cv-text-muted);
+    font-family: var(--sl-font-system);
+    font-size: var(--sl-text-xs);
+    text-align: start;
+  }
+
+  .cv-state-grid th {
+    color: var(--cv-text-muted);
+    font-weight: 400;
+  }
+
+  .cv-state-grid td:not(:empty) {
+    min-width: 3.25rem;
+    padding: 0.375rem 0.5rem;
+    border: 1px solid var(--cv-grid-accent);
+    border-radius: 0.375rem;
+    background: var(--cv-surface);
+    color: var(--cv-text);
+    text-align: center;
+  }
+</style>

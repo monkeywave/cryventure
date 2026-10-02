@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { PrimitiveManifest } from '@cryventure/core';
-import { matchingPresetId, presetParams, resolveStartParams, START_STEP } from './startParams.ts';
+import { matchingPresetId, presetParams, resolveStartParams } from './startParams.ts';
 
 interface Toy {
   n: number;
@@ -33,11 +33,15 @@ describe('matchingPresetId', () => {
 
 describe('resolveStartParams', () => {
   it('uses the preset when there is no link', () => {
-    expect(resolveStartParams(toy, { status: 'absent' }, 'one')).toEqual({ params: { n: 1 }, step: START_STEP, notice: false });
+    expect(resolveStartParams(toy, { status: 'absent' }, 'one')).toEqual({ params: { n: 1 }, step: undefined, notice: false });
   });
 
   it('prefers valid link params and step', () => {
     expect(resolveStartParams(toy, { status: 'valid', state: { params: { n: 5 }, step: 3 } }, 'one')).toEqual({ params: { n: 5 }, step: 3, notice: false });
+  });
+
+  it('leaves the step undefined when the link has params but no step', () => {
+    expect(resolveStartParams(toy, { status: 'valid', state: { params: { n: 5 } } }, 'one')).toEqual({ params: { n: 5 }, step: undefined, notice: false });
   });
 
   it('keeps the preset when the link only has a step', () => {
@@ -45,7 +49,7 @@ describe('resolveStartParams', () => {
   });
 
   it('falls back with a notice for invalid params or an unreadable link', () => {
-    expect(resolveStartParams(toy, { status: 'valid', state: { params: { n: 'x' }, step: 4 } }, 'one')).toEqual({ params: { n: 1 }, step: START_STEP, notice: true });
-    expect(resolveStartParams(toy, { status: 'invalid' })).toEqual({ params: { n: 0 }, step: START_STEP, notice: true });
+    expect(resolveStartParams(toy, { status: 'valid', state: { params: { n: 'x' }, step: 4 } }, 'one')).toEqual({ params: { n: 1 }, step: undefined, notice: true });
+    expect(resolveStartParams(toy, { status: 'invalid' })).toEqual({ params: { n: 0 }, step: undefined, notice: true });
   });
 });

@@ -11,8 +11,24 @@ import type { Snapshot, StateStep } from './facets/state.ts';
 
 export type Ease = 'linear' | 'easeIn' | 'easeOut' | 'easeInOut';
 
-/** Visual properties a track can drive. Positions are in cell units of the node's own region grid. */
+/**
+ * Visual properties a track can drive. Positions are in cell units of the node's own region grid.
+ *
+ * `value` is not a number shown on screen but a before/after switch: 0 = the node shows its value from
+ * the `before` snapshot, 1 = its value from the `after` snapshot. Renderers flip at `VALUE_SWITCH`
+ * (0.5), so a hard flip at `at` is keyframes `[{at:0,value:0},{at,value:0},{at,value:1}]`.
+ * Nodes without a `value` track flip at progress 0.5.
+ */
 export type TrackProp = 'dx' | 'dy' | 'scale' | 'opacity' | 'emphasis' | 'value';
+
+/** `value` track position (and, without a value track, step progress) at which a node shows its `after` value. */
+export const VALUE_SWITCH = 0.5;
+
+/**
+ * Props every track must return to by progress 1, so the finished step renders exactly the `after`
+ * snapshot (and seeking to step boundaries never shows leftover motion).
+ */
+export const NEUTRAL_NODE_PROPS: Readonly<Record<TrackProp, number>> = { dx: 0, dy: 0, scale: 1, opacity: 1, emphasis: 0, value: 1 };
 
 export interface ChoreoKeyframe {
   /** Position inside the step, 0..1. */
@@ -61,6 +77,11 @@ export interface ChoreographyModule {
 }
 
 export type NodeProps = Partial<Record<TrackProp, number>>;
+
+/** Whether every prop present in `props` has its neutral value (an empty object is neutral). */
+export function isNeutral(props: NodeProps): boolean {
+  return Object.entries(props).every(([prop, value]) => value === NEUTRAL_NODE_PROPS[prop as TrackProp]);
+}
 
 export const DEFAULT_STEP_DURATION = 1.2;
 

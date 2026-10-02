@@ -1,6 +1,7 @@
-import { assertManifestBasics, getFacet, paramFieldKeys, paramFieldsOf, type PrimitiveManifest, type PrimitiveModule, type TraceBundle } from '@cryventure/core';
+import { assertManifestBasics, getFacet, paramFieldKeys, paramFieldsOf, type DerivationFacet, type PrimitiveManifest, type PrimitiveModule, type TraceBundle } from '@cryventure/core';
 import { beforeAll, describe, expect, it } from 'vitest';
 import { loadPluginCatalogs, type LocaleCatalogs } from './catalogs.ts';
+import { derivationProblems, stepChoreographyProblems } from './choreographyChecks.ts';
 import { emittedNarration, jsonRoundTrip, keysOutsideNamespace, missingFacetKinds, missingKeys, refProblems, replayProblems, runtimeLabelKeys, unknownParamFields, type AnyStateFacet } from './checks.ts';
 
 export interface PrimitiveContractOptions<P> {
@@ -72,6 +73,25 @@ function runSuite<P>(manifest: PrimitiveManifest<P>, catalogs: LocaleCatalogs, t
     expect(state === undefined ? [] : replayProblems(state)).toEqual([]);
   });
   it('is JSON-serializable', () => expect(jsonRoundTrip(bundle)).toEqual(bundle));
+  optionalRunChecks(manifest, catalogs, () => bundle);
+}
+
+/** Checks that only apply when the manifest opts in (choreography, derivation facet). */
+function optionalRunChecks<P>(manifest: PrimitiveManifest<P>, catalogs: LocaleCatalogs, bundle: () => TraceBundle): void {
+  const { loadChoreography } = manifest;
+  if (loadChoreography !== undefined) {
+    it('choreographs every step with valid targets, sorted keyframes, neutral end props and EN/DE beats', async () => {
+      const state = getFacet<AnyStateFacet>(bundle(), 'state');
+      const module = await loadChoreography();
+      expect(state === undefined ? ['no state facet to choreograph'] : stepChoreographyProblems(module, state, catalogs)).toEqual([]);
+    });
+  }
+  if (manifest.facets.includes('derivation')) {
+    it('orders its derivation facet topologically', () => {
+      const derivation = getFacet<DerivationFacet>(bundle(), 'derivation');
+      expect(derivation === undefined ? ['no derivation facet'] : derivationProblems(derivation)).toEqual([]);
+    });
+  }
 }
 
 /** Registers the generic contract suite for one primitive plugin (call at test-file top level). */

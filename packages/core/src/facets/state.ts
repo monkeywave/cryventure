@@ -50,7 +50,10 @@ export interface StateFacet<R extends string, Op extends { op: string }> {
   truncated?: boolean;
   /**
    * Optional label per scope level (outermost first), e.g. AES: [round, operation].
-   * Label templates receive `{{n}}` (1-based level index) and `{{value}}`.
+   * Label templates receive `{{value}}` (the raw scope index at that level, e.g. round 0 → 0),
+   * `{{ordinal}}` (value + 1, for 1-based counting such as "Operation 1") and `{{n}}` (1-based level index).
+   * The player shows the current step's op label (`plugin.<producerId>.op.<op>`) instead of the
+   * deepest level's template when the producer defines one, e.g. "Round 1 · SubBytes".
    */
   scopeLevels?: { labelKey: string }[];
 }

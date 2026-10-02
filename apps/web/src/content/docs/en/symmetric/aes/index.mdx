@@ -1,0 +1,160 @@
+---
+title: AES at a glance
+description: What AES is, where it came from, and how ten to fourteen rounds turn a 16-byte block into ciphertext.
+lessonId: block-ciphers/aes/overview
+track: block-ciphers
+phase: 1
+tableOfContents: false
+prereqs:
+  - foundations/welcome-lab
+labs:
+  - aes-overview
+refs:
+  - FIPS 197, Section 3.4 (The State)
+  - FIPS 197, Section 5 (Algorithm Specification, Table 3)
+  - FIPS 197, Section 5.1 (Cipher, Figure 5)
+  - FIPS 197, Appendix B (Cipher Example)
+---
+
+import Lab from '../../../../../components/Lab.astro';
+import CheckQuestion from '../../../../../components/lesson/CheckQuestion.astro';
+import KeyFact from '../../../../../components/lesson/KeyFact.astro';
+import KeyFacts from '../../../../../components/lesson/KeyFacts.astro';
+import LessonSection from '../../../../../components/lesson/LessonSection.astro';
+import RoundFlow from '../../../../../components/lesson/RoundFlow.astro';
+import StateGrid from '../../../../../components/lesson/StateGrid.astro';
+
+<LessonSection part="concept">
+
+## A public competition, a Belgian winner
+
+In 1997 NIST asked the world for a successor to DES. Fifteen designs entered, five reached the
+final round, and in October 2000 **Rijndael** by Joan Daemen and Vincent Rijmen won. NIST published it
+as the **Advanced Encryption Standard** in FIPS 197 (November 2001).
+
+Rijndael allows several block sizes; AES fixes the block at **128 bits** and offers three key sizes.
+The key length decides the number of rounds `Nr` (FIPS 197, Table 3):
+
+<KeyFacts>
+  <KeyFact label="Block" value="128 bit" kind="plaintext" />
+  <KeyFact label="AES-128" value="Nk = 4 · Nr = 10" kind="key" />
+  <KeyFact label="AES-192" value="Nk = 6 · Nr = 12" kind="key" />
+  <KeyFact label="AES-256" value="Nk = 8 · Nr = 14" kind="key" />
+</KeyFacts>
+
+AES works on a 4×4 byte matrix, the **state**. Input bytes fill it **column by column**:
+`s[r, c] = in[r + 4c]` (FIPS 197, §3.4). Below is the plaintext of FIPS 197, Appendix B.
+
+<StateGrid
+  kind="plaintext"
+  caption="Plaintext 32 43 f6 a8 88 5a 30 8d 31 31 98 a2 e0 37 07 34, loaded column-major."
+  cells={['32', '43', 'f6', 'a8', '88', '5a', '30', '8d', '31', '31', '98', 'a2', 'e0', '37', '07', '34']}
+/>
+
+</LessonSection>
+
+<LessonSection part="playground">
+
+## Run the Appendix B example
+
+The lab starts in **Story** mode with the key `2b7e1516 28aed2a6 abf71588 09cf4f3c` and the
+plaintext above. Press **Play** — or switch to the debugger and step — and check after all ten rounds
+that you arrive at the ciphertext
+`39 25 84 1d 02 dc 09 fb dc 11 85 97 19 6a 0b 32` — the same bytes printed in FIPS 197, Appendix B.
+Then change a single plaintext bit and watch how much of the ciphertext changes.
+
+<Lab labId="aes-overview" producerId="aes" presetId="fips197-b" mode="story" layout="state:65|narration:35" />
+
+</LessonSection>
+
+<LessonSection part="inside">
+
+## Four steps per round
+
+Every round applies four transformations to the state (FIPS 197, §5.1):
+
+- **SubBytes** replaces each byte through the S-box — the only non-linear step (§5.1.1).
+- **ShiftRows** rotates row `r` left by `r` bytes (§5.1.2).
+- **MixColumns** mixes the four bytes of each column (§5.1.3).
+- **AddRoundKey** XORs a 16-byte round key into the state (§5.1.4).
+
+An extra AddRoundKey comes first, and the last round skips MixColumns. That keeps encryption and
+decryption structurally alike.
+
+<RoundFlow
+  input="plaintext (16 bytes)"
+  output="ciphertext (16 bytes)"
+  caption="AES-128 round structure: one initial key addition, nine full rounds, one final round without MixColumns."
+  stages={[
+    { title: 'Initial key addition', ops: [{ label: 'AddRoundKey(K0)', kind: 'key' }] },
+    {
+      title: 'Rounds 1 … Nr−1 (9 times for AES-128)',
+      ops: [
+        { label: 'SubBytes', kind: 'constant' },
+        { label: 'ShiftRows', kind: 'state' },
+        { label: 'MixColumns', kind: 'constant' },
+        { label: 'AddRoundKey(Ki)', kind: 'key' },
+      ],
+    },
+    {
+      title: 'Final round Nr',
+      ops: [
+        { label: 'SubBytes', kind: 'constant' },
+        { label: 'ShiftRows', kind: 'state' },
+        { label: 'AddRoundKey(KNr)', kind: 'key' },
+      ],
+    },
+  ]}
+/>
+
+</LessonSection>
+
+<LessonSection part="memory">
+
+## What sits in memory
+
+A running AES needs more than the 16-, 24- or 32-byte key: the **key schedule** expands it into
+`Nr + 1` round keys — 176 bytes for AES-128, 240 bytes for AES-256. Those expanded round keys are
+what memory forensics usually finds. The [Memory & hardware](../memory-and-hardware/) page shows
+how CPUs and libraries lay them out.
+
+</LessonSection>
+
+<LessonSection part="break">
+
+## Why not fewer rounds?
+
+Rounds are the safety margin. The *square* (integral) attack, published together with the cipher,
+breaks 4 rounds with a few hundred chosen plaintexts and can be stretched to 6. The best published
+attacks on AES-128 reach 7 rounds; against the full 10 rounds, the best known key recovery
+(biclique, 2011) costs about 2¹²⁶ operations — barely below brute force.
+
+</LessonSection>
+
+<LessonSection part="check">
+
+## Check yourself
+
+<CheckQuestion number={1} question="How many rounds does AES-192 use?" options={['10', '12', '14', '16']} answer={1}>
+  `Nr = Nk + 6`, and AES-192 has `Nk = 6` key words (FIPS 197, Table 3).
+</CheckQuestion>
+
+<CheckQuestion
+  number={2}
+  question="Where does input byte in[5] land in the state?"
+  options={['s[1, 1]', 's[1, 0]', 's[0, 1]', 's[2, 1]']}
+  answer={0}
+>
+  `in[r + 4c]` goes to `s[r, c]`; 5 = 1 + 4·1, so row 1, column 1 (FIPS 197, §3.4).
+</CheckQuestion>
+
+<CheckQuestion
+  number={3}
+  question="Which step does the final round leave out?"
+  options={['SubBytes', 'ShiftRows', 'MixColumns', 'AddRoundKey']}
+  answer={2}
+>
+  The final round has no MixColumns (FIPS 197, §5.1, Figure 5).
+</CheckQuestion>
+
+</LessonSection>

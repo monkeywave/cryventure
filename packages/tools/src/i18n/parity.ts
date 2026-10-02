@@ -36,6 +36,16 @@ export const SAME_IN_BOTH_LOCALES: ReadonlySet<string> = new Set([
   'Starlight',
   'OK',
   'Pause',
+  'Debugger',
+  // FIPS 197 transformation names
+  'KeyExpansion',
+  'AddRoundKey',
+  'SubBytes',
+  'ShiftRows',
+  'MixColumns',
+  'InvSubBytes',
+  'InvShiftRows',
+  'InvMixColumns',
 ]);
 
 /** Prefix the scaffolder gives DE stubs; flagged until someone translates them. */

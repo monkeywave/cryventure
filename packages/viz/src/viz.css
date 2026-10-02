@@ -77,10 +77,111 @@
   gap: 0.25rem 0.75rem;
 }
 
-.cv-timeline__slider {
+.cv-timeline__track {
   grid-column: 1 / -1;
+  position: relative;
+  /* Approximate thumb inset of a native range input, so markers line up with step positions. */
+  --cv-thumb-inset: 8px;
+}
+
+.cv-timeline__slider {
   width: 100%;
+  margin: 0;
   accent-color: var(--sl-color-accent, Highlight);
+}
+
+.cv-timeline__marks {
+  position: relative;
+  height: 8px;
+  margin-inline: var(--cv-thumb-inset);
+  pointer-events: none;
+}
+
+.cv-timeline__mark {
+  position: absolute;
+  inset-block-start: 0;
+  inset-inline-start: calc(var(--cv-mark-at) * 100%);
+  translate: -50% 0;
+}
+
+/* Round start: a thin tick. */
+.cv-timeline__mark--round {
+  width: 1px;
+  height: 6px;
+  background: var(--cv-text-muted, GrayText);
+}
+
+/* Breakpoint: a filled diamond in the error colour (shape, not only colour). */
+.cv-timeline__mark--breakpoint {
+  inset-block-start: 1px;
+  width: 6px;
+  height: 6px;
+  rotate: 45deg;
+  background: var(--cv-error, red);
+}
+
+/* ---------- Mode toggle + breakpoints ---------- */
+.cv-mode {
+  display: inline-flex;
+  align-self: flex-start;
+  border: 1px solid var(--cv-border, ButtonBorder);
+  border-radius: 0.375rem;
+  overflow: hidden;
+}
+
+.cv-mode__option,
+.cv-chip {
+  font: inherit;
+  color: inherit;
+  background: var(--cv-surface-elevated, ButtonFace);
+  border: 0;
+  padding: 0.2rem 0.7rem;
+  cursor: pointer;
+}
+
+.cv-mode__option + .cv-mode__option {
+  border-inline-start: 1px solid var(--cv-border, ButtonBorder);
+}
+
+.cv-mode__option[aria-pressed='true'] {
+  color: var(--sl-color-black, Canvas);
+  background: var(--sl-color-accent, Highlight);
+  font-weight: 600;
+}
+
+.cv-breakpoints {
+  flex: 1 1 100%;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: 0.85rem;
+}
+
+.cv-breakpoints__title {
+  color: var(--cv-text-muted, GrayText);
+}
+
+.cv-breakpoints__hint {
+  flex-basis: 100%;
+  color: var(--cv-text-muted, GrayText);
+  font-size: 0.8rem;
+}
+
+.cv-chip {
+  border: 1px solid var(--cv-border, ButtonBorder);
+  border-radius: 999px;
+  padding: 0.1rem 0.6rem;
+}
+
+.cv-chip[aria-pressed='true'] {
+  border-color: var(--cv-error, red);
+  font-weight: 600;
+}
+
+.cv-chip[aria-pressed='true']::before {
+  content: '◆ ' / '';
+  color: var(--cv-error, red);
 }
 
 .cv-timeline__step {
@@ -94,6 +195,8 @@
 
 /* ---------- Byte grid ---------- */
 .cv-grid {
+  /* One cell step (width + gap): choreography dx/dy are in cell units. */
+  --cv-cell-pitch: calc(2.25em + 2px);
   display: inline-flex;
   flex-direction: column;
   gap: 2px;
@@ -120,6 +223,7 @@
    first block of each visual line shows its header; the others keep it for assistive technology. */
 .cv-grid--wrap {
   --cv-word-cols: 1;
+  --cv-cell-pitch: calc(1.85em + 1px);
   display: grid;
   grid-template-columns: repeat(var(--cv-word-cols), max-content);
   column-gap: 0.5rem;
@@ -199,6 +303,29 @@
 
 .cv-cell__value {
   display: inline-block;
+}
+
+/* Choreography: track values arrive as custom properties, written per frame by ByteCell. */
+.cv-cell[data-animated] {
+  z-index: 1;
+  translate: calc(var(--cv-dx, 0) * var(--cv-cell-pitch)) calc(var(--cv-dy, 0) * var(--cv-cell-pitch));
+  scale: var(--cv-scale, 1);
+  opacity: var(--cv-opacity, 1);
+  box-shadow: 0 0 0 calc(var(--cv-emphasis, 0) * 4px) var(--sl-color-accent, Highlight);
+}
+
+/* Camera-lite: cells outside the current beat's focus recede (opacity + no glyph colour). */
+.cv-cell[data-dimmed] {
+  opacity: 0.35;
+}
+
+.cv-cell[aria-selected='true'] {
+  outline: 2px dashed var(--cv-subkey, Highlight);
+  outline-offset: 1px;
+}
+
+.cv-cell[aria-selected] {
+  cursor: pointer;
 }
 
 .cv-cell__glyph {
@@ -354,10 +481,196 @@
   line-height: 1.5;
 }
 
+.cv-watch {
+  flex: 1 1 100%;
+  font-size: 0.85rem;
+}
+
+.cv-watch__header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+  margin: 0 0 0.35rem;
+  font-weight: 600;
+  color: var(--cv-text-muted, GrayText);
+}
+
+.cv-watch__list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-family: var(--sl-font-mono, ui-monospace, monospace);
+}
+
+.cv-watch__entry {
+  display: grid;
+  grid-template-rows: 1.5rem auto;
+  justify-items: center;
+  min-width: 3.5em;
+  padding: 0.15rem 0.25rem;
+  border: 1px solid var(--cv-border-subtle, GrayText);
+  border-radius: 0.25rem;
+}
+
+.cv-watch__entry[aria-current='step'] {
+  border-color: var(--sl-color-accent, Highlight);
+  border-width: 2px;
+  font-weight: 700;
+}
+
+/* Sparkline bar: height ∝ byte value. */
+.cv-watch__bar {
+  align-self: end;
+  width: 0.5rem;
+  height: calc(var(--cv-watch-level, 0) * 100%);
+  min-height: 1px;
+  background: var(--cv-state, GrayText);
+}
+
+.cv-watch__hint {
+  margin: 0;
+  color: var(--cv-text-muted, GrayText);
+  font-size: 0.8rem;
+}
+
 .cv-narration__scope {
   margin: 0 0 0.25rem;
   font-size: 0.8rem;
   color: var(--cv-text-muted, GrayText);
+}
+
+/* ---------- Key schedule (@cryventure/views key-schedule) ---------- */
+.cv-keyschedule {
+  display: grid;
+  gap: 0.75rem;
+  min-width: 0;
+  container-type: inline-size;
+}
+
+.cv-keyschedule__rows,
+.cv-keyschedule__words,
+.cv-keyschedule__links {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.cv-keyschedule__rows {
+  display: grid;
+  gap: 0.4rem;
+}
+
+.cv-keyschedule__row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.25rem 0.5rem;
+}
+
+.cv-keyschedule__label {
+  flex: 0 0 auto;
+  min-width: 7.5em;
+  font-size: 0.8em;
+  color: var(--cv-text-muted, GrayText);
+}
+
+/* Current round key: marker glyph (in the label) + weight + accent, never colour alone. */
+.cv-keyschedule__row[data-status='current'] {
+  font-weight: 700;
+}
+
+.cv-keyschedule__row[data-status='current'] .cv-keyschedule__label {
+  color: var(--cv-text, CanvasText);
+}
+
+.cv-keyschedule__row[data-status='upcoming'] .cv-keyschedule__word {
+  border-style: dashed;
+}
+
+.cv-keyschedule__words {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem;
+}
+
+.cv-keyschedule__word {
+  font: inherit;
+  font-family: var(--sl-font-mono, ui-monospace, monospace);
+  font-size: 0.8em;
+  padding: 0.15em 0.4em;
+  color: inherit;
+  background: var(--cv-surface-elevated, Canvas);
+  border: 1px solid var(--cv-border, GrayText);
+  border-radius: 0.25rem;
+  cursor: pointer;
+}
+
+.cv-keyschedule__word:hover,
+.cv-keyschedule__row[data-status='current'] .cv-keyschedule__word {
+  border-color: var(--cv-subkey, Highlight);
+}
+
+/* Selected: a second (inset) ring keeps the size stable; aria-pressed carries the state. */
+.cv-keyschedule__word[aria-pressed='true'] {
+  border-color: var(--cv-subkey, Highlight);
+  box-shadow: inset 0 0 0 1px var(--cv-subkey, Highlight);
+  font-weight: 700;
+}
+
+.cv-keyschedule__chain {
+  display: grid;
+  gap: 0.35rem;
+  min-height: 3em;
+  margin: 0;
+  font-size: 0.85em;
+}
+
+.cv-keyschedule__chain p {
+  margin: 0;
+}
+
+.cv-keyschedule__links {
+  display: grid;
+  gap: 0.15rem;
+  max-width: 28rem;
+}
+
+/* One chain line: glyph | name | hex (hex right-aligned so the words line up like FIPS 197 App. A). */
+.cv-keyschedule__link {
+  display: grid;
+  grid-template-columns: 1.25em minmax(0, 1fr) auto;
+  align-items: baseline;
+  column-gap: 0.5rem;
+}
+
+.cv-keyschedule__link[data-operand] .cv-keyschedule__name {
+  color: var(--cv-text-muted, GrayText);
+}
+
+.cv-keyschedule__link:last-child {
+  font-weight: 700;
+}
+
+.cv-keyschedule__glyph {
+  color: var(--cv-subkey, Highlight);
+  text-align: center;
+}
+
+.cv-keyschedule__hex {
+  font-family: var(--sl-font-mono, ui-monospace, monospace);
+  overflow-wrap: anywhere;
+}
+
+/* Narrow panels (phones, half-width side slot): the round label sits above its words. */
+@container (max-width: 22rem) {
+  .cv-keyschedule__label {
+    flex-basis: 100%;
+    min-width: 0;
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -366,5 +679,21 @@
   .cv-lab *::after {
     transition-duration: 0.01ms !important;
     animation-duration: 0.01ms !important;
+  }
+
+  /* No motion, but a value change still cross-fades briefly. */
+  .cv-lab .cv-cell__value {
+    animation: cv-crossfade 160ms ease-out;
+    animation-duration: 160ms !important;
+  }
+}
+
+@keyframes cv-crossfade {
+  from {
+    opacity: 0.2;
+  }
+
+  to {
+    opacity: 1;
   }
 }

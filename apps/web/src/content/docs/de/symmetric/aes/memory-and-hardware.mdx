@@ -1,0 +1,113 @@
+---
+title: AES in Speicher und Hardware
+description: Eine Vorschau darauf, wie CPUs AES-Runden ausführen (AES-NI, ARMv8) und wie Bibliotheken wie OpenSSL Rundenschlüssel ablegen.
+lessonId: block-ciphers/aes/memory-and-hardware
+track: block-ciphers
+phase: 1
+prereqs:
+  - block-ciphers/aes/key-expansion
+refs:
+  - FIPS 197, Abschnitt 5.1 (Cipher)
+  - FIPS 197, Abschnitt 5.2 (Key Expansion)
+  - Intel, Advanced Encryption Standard (AES) New Instructions Set, White Paper (Gueron)
+  - Arm Architecture Reference Manual, AESE / AESMC
+  - OpenSSL, include/openssl/aes.h (struct aes_key_st)
+sourceHash: sha256:1172d90d9df715a7c84308c48313b3f13f60bdb636615d12e8765f2e883ba1ae
+---
+
+import CheckQuestion from '../../../../../components/lesson/CheckQuestion.astro';
+import ComingSoon from '../../../../../components/lesson/ComingSoon.astro';
+import Formula from '../../../../../components/lesson/Formula.astro';
+import LessonSection from '../../../../../components/lesson/LessonSection.astro';
+
+<ComingSoon />
+
+<LessonSection part="concept">
+
+## Gleiche Mathematik, anderer Zuschnitt
+
+Jede schnelle Implementierung berechnet exakt die Runden aus FIPS 197, schneidet sie aber
+unterschiedlich zu. CPUs bündeln mehrere Schritte in einem Befehl, und Bibliotheken wählen ein
+Speicherlayout für den expandierten Schlüssel. Wer in einen Debugger oder ein Speicherabbild schaut,
+sieht diese Zuschnitte – nicht das Lehrbuchbild.
+
+</LessonSection>
+
+<LessonSection part="playground">
+
+## Zwei Befehlssätze
+
+<Formula caption="AES-128-Verschlüsselung mit den Rundenschlüsseln k0 … k10.">
+{`x86 AES-NI                      ARMv8 Crypto Extensions
+PXOR       k0                   AESE  k0 ; AESMC      (Runden 1 … 9)
+AESENC     k1 … k9              AESE  k9               (Schlussrunde)
+AESENCLAST k10                  EOR   k10`}
+</Formula>
+
+`AESENC` führt ShiftRows, SubBytes und MixColumns aus und verknüpft *danach* per XOR den
+Rundenschlüssel. `AESE` verknüpft den Rundenschlüssel *zuerst*, dann folgen ShiftRows und SubBytes;
+`AESMC` ist ein eigenes MixColumns. Deshalb braucht ARM für den letzten Schlüssel ein schlichtes `EOR`.
+
+</LessonSection>
+
+<LessonSection part="inside">
+
+## OpenSSLs AES_KEY
+
+<Formula caption="include/openssl/aes.h (AES_MAXNR = 14).">
+{`struct aes_key_st {
+    unsigned int rd_key[4 * (AES_MAXNR + 1)];  /* 60 × u32 = 240 Byte */
+    int rounds;                                /* 10, 12 oder 14 */
+};`}
+</Formula>
+
+Der portable C-Code lädt die Schlüsselbytes als Big-Endian (`GETU32`) und speichert jedes Wort als
+Ganzzahl in der **Bytereihenfolge des Hosts**: Auf x86 erscheinen die Bytes jedes Worts im Speicher
+umgedreht. Der AES-NI-Pfad belässt die Bytes in ihrer natürlichen Reihenfolge.
+
+</LessonSection>
+
+<LessonSection part="memory">
+
+## T-Tabellen und der Cache
+
+Klassisches Software-AES fasst SubBytes, ShiftRows und MixColumns in vier Nachschlagetabellen zu je
+1 KiB zusammen (`Te0 … Te3`), indiziert mit geheimen Bytes. Welche Cache-Zeilen geladen werden, hängt
+vom Schlüssel ab – Bernstein (2005) sowie Osvik, Shamir und Tromer (2006) gewannen Schlüssel allein
+aus Zeitmessungen zurück. **Konstantzeit**-Code vermeidet geheimnisabhängige Zugriffe: mit
+Hardwarebefehlen, Bitslicing oder Vector-Permute-AES.
+
+</LessonSection>
+
+<LessonSection part="break">
+
+## Als Nächstes
+
+Spätere Labs lassen dich ein Speicherabbild nach expandierten Rundenschlüsseln durchsuchen und
+einen Spielzeug-Cache-Timing-Angriff auf eine T-Tabellen-Implementierung ausführen.
+
+</LessonSection>
+
+<LessonSection part="check">
+
+## Teste dich selbst
+
+<CheckQuestion
+  number={1}
+  question="Wann addiert ARMv8 AESE den Rundenschlüssel?"
+  options={['Vor ShiftRows und SubBytes', 'Nach MixColumns', 'Nur nach SubBytes', 'Gar nicht; das macht AESMC']}
+  answer={0}
+>
+  `AESE` = AddRoundKey, dann ShiftRows und SubBytes. Bei x86 `AESENC` kommt der Schlüssel am Ende.
+</CheckQuestion>
+
+<CheckQuestion
+  number={2}
+  question="Wie groß ist das Array rd_key in OpenSSLs AES_KEY?"
+  options={['176 Byte', '208 Byte', '240 Byte', '256 Byte']}
+  answer={2}
+>
+  60 Wörter zu 32 Bit = 240 Byte, genug für AES-256; kürzere Schlüssel lassen das Ende ungenutzt.
+</CheckQuestion>
+
+</LessonSection>

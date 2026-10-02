@@ -1,0 +1,143 @@
+---
+/**
+ * Round-structure diagram as semantic HTML (ordered list of stages, each a row of operation chips).
+ * Colours follow the --cv-* semantic tokens; every chip also carries a glyph so colour is never the only cue.
+ */
+type OpKind = 'key' | 'plaintext' | 'ciphertext' | 'state' | 'constant';
+
+interface Op {
+  label: string;
+  kind: OpKind;
+}
+
+interface Stage {
+  title: string;
+  ops: Op[];
+}
+
+interface Props {
+  input: string;
+  output: string;
+  stages: Stage[];
+  caption: string;
+}
+
+const GLYPHS: Record<OpKind, string> = { key: '⚷', plaintext: 'P', ciphertext: 'C', state: '▦', constant: 'π' };
+const { input, output, stages, caption } = Astro.props;
+---
+
+<figure class="cv-flow not-content">
+  <ol class="cv-flow__list">
+    <li class="cv-flow__io" data-kind="plaintext"><span aria-hidden="true">{GLYPHS.plaintext}</span> {input}</li>
+    {
+      stages.map((stage) => (
+        <li class="cv-flow__stage">
+          <p class="cv-flow__title">{stage.title}</p>
+          <ul class="cv-flow__ops">
+            {stage.ops.map((op) => (
+              <li class="cv-flow__op" data-kind={op.kind}>
+                <span aria-hidden="true">{GLYPHS[op.kind]}</span> {op.label}
+              </li>
+            ))}
+          </ul>
+        </li>
+      ))
+    }
+    <li class="cv-flow__io" data-kind="ciphertext"><span aria-hidden="true">{GLYPHS.ciphertext}</span> {output}</li>
+  </ol>
+  <figcaption>{caption}</figcaption>
+</figure>
+
+<style>
+  .cv-flow {
+    margin-block: 1.5rem;
+  }
+
+  .cv-flow__list {
+    display: grid;
+    gap: 1.25rem;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  .cv-flow__list > li {
+    position: relative;
+  }
+
+  .cv-flow__list > li + li::before {
+    content: '↓';
+    position: absolute;
+    inset-block-start: -1.25rem;
+    inset-inline-start: 1rem;
+    color: var(--cv-text-muted);
+    line-height: 1.25rem;
+  }
+
+  .cv-flow__stage {
+    padding: 0.625rem 0.75rem;
+    border: 1px solid var(--cv-border);
+    border-radius: 0.5rem;
+    background: var(--cv-surface);
+  }
+
+  .cv-flow__title {
+    margin: 0 0 0.5rem;
+    color: var(--cv-text);
+    font-size: var(--sl-text-sm);
+    font-weight: 600;
+  }
+
+  .cv-flow__ops {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  .cv-flow__op,
+  .cv-flow__io {
+    --cv-op-accent: var(--cv-state);
+    padding: 0.25rem 0.625rem;
+    border: 1px solid var(--cv-op-accent);
+    border-radius: 999px;
+    background: var(--cv-bg);
+    color: var(--cv-text);
+    font-family: var(--sl-font-mono);
+    font-size: var(--sl-text-sm);
+  }
+
+  .cv-flow__io {
+    justify-self: start;
+    border-width: 2px;
+  }
+
+  .cv-flow__op > span,
+  .cv-flow__io > span {
+    color: var(--cv-op-accent);
+  }
+
+  [data-kind='key'] {
+    --cv-op-accent: var(--cv-key);
+  }
+
+  [data-kind='plaintext'] {
+    --cv-op-accent: var(--cv-plaintext);
+  }
+
+  [data-kind='ciphertext'] {
+    --cv-op-accent: var(--cv-ciphertext);
+  }
+
+  [data-kind='constant'] {
+    --cv-op-accent: var(--cv-constant);
+  }
+
+  .cv-flow figcaption {
+    margin-block-start: 0.5rem;
+    color: var(--cv-text-muted);
+    font-size: var(--sl-text-xs);
+  }
+</style>

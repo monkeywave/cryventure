@@ -1,0 +1,55 @@
+---
+/** A compact label/value fact tile; wrap several in <KeyFacts> to form a row. */
+type FactKind = 'key' | 'plaintext' | 'ciphertext' | 'state' | 'constant';
+
+interface Props {
+  label: string;
+  value: string;
+  kind?: FactKind;
+}
+
+const { label, value, kind = 'state' } = Astro.props;
+---
+
+<div class="cv-fact" data-kind={kind}>
+  <dt>{label}</dt>
+  <dd>{value}</dd>
+</div>
+
+<style>
+  .cv-fact {
+    padding: 0.5rem 0.75rem;
+    border: 1px solid var(--cv-border);
+    border-block-start: 3px solid var(--cv-fact-accent, var(--cv-state));
+    border-radius: 0.5rem;
+    background: var(--cv-surface);
+  }
+
+  .cv-fact[data-kind='key'] {
+    --cv-fact-accent: var(--cv-key);
+  }
+
+  .cv-fact[data-kind='plaintext'] {
+    --cv-fact-accent: var(--cv-plaintext);
+  }
+
+  .cv-fact[data-kind='ciphertext'] {
+    --cv-fact-accent: var(--cv-ciphertext);
+  }
+
+  .cv-fact[data-kind='constant'] {
+    --cv-fact-accent: var(--cv-constant);
+  }
+
+  .cv-fact dt {
+    color: var(--cv-text-muted);
+    font-size: var(--sl-text-xs);
+  }
+
+  .cv-fact dd {
+    margin: 0;
+    color: var(--cv-text);
+    font-family: var(--sl-font-mono);
+    font-weight: 600;
+  }
+</style>

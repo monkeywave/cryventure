@@ -1,0 +1,128 @@
+---
+title: SubBytes und die S-Box
+description: Wie die AES-S-Box aus einem Inversen in GF(2^8) und einer affinen Abbildung entsteht – und warum ihre Konstanten 0x11B und 0x63 lauten.
+lessonId: block-ciphers/aes/subbytes-sbox
+track: block-ciphers
+phase: 1
+tableOfContents: false
+prereqs:
+  - block-ciphers/aes/overview
+labs:
+  - aes-subbytes
+refs:
+  - FIPS 197, Abschnitt 4.2 (Multiplikation in GF(2^8))
+  - FIPS 197, Abschnitt 5.1.1 (SubBytes, Gleichung 5.1, Abbildung 7)
+  - FIPS 197, Anhang C.1 (Testvektoren AES-128)
+sourceHash: sha256:5d912d1788a887b53a9afbf72011d0d60320e5c19320df815169c3bf481cc810
+---
+
+import Lab from '../../../../../components/Lab.astro';
+import CheckQuestion from '../../../../../components/lesson/CheckQuestion.astro';
+import Formula from '../../../../../components/lesson/Formula.astro';
+import LessonSection from '../../../../../components/lesson/LessonSection.astro';
+import WhyBox from '../../../../../components/lesson/WhyBox.astro';
+
+<LessonSection part="concept">
+
+## Eine Tabelle, zwei Schritte
+
+SubBytes ersetzt jedes Byte der Zustandsmatrix unabhängig von den anderen über eine feste Tabelle mit
+256 Einträgen, die **S-Box** (FIPS 197, §5.1.1). Sie ist der einzige nichtlineare Schritt von AES;
+ohne sie wäre die ganze Chiffre ein lineares Gleichungssystem, das ein Angreifer einfach lösen könnte.
+
+Jeder Eintrag der S-Box entsteht in zwei Schritten:
+
+1. Bilde das **multiplikative Inverse** des Bytes in GF(2⁸), dem Körper der Bytes modulo `0x11B`. Das
+   Byte `00` hat kein Inverses und wird auf `00` abgebildet.
+2. Wende eine **affine Abbildung** über GF(2) an: Multipliziere die Bits mit einer festen Matrix und
+   verknüpfe das Ergebnis per XOR mit `0x63`.
+
+<Formula caption="Affine Abbildung, FIPS 197 Gleichung 5.1 (Bitform) und die gleichwertige Rotationsform.">
+{`b'ᵢ = bᵢ ⊕ b₍ᵢ₊₄₎ ⊕ b₍ᵢ₊₅₎ ⊕ b₍ᵢ₊₆₎ ⊕ b₍ᵢ₊₇₎ ⊕ cᵢ     (Indizes mod 8, c = 0x63)
+b'  = b ⊕ (b ⋘ 1) ⊕ (b ⋘ 2) ⊕ (b ⋘ 3) ⊕ (b ⋘ 4) ⊕ 0x63`}
+</Formula>
+
+Rechenbeispiel aus FIPS 197: Das Inverse von `53` ist `CA`, und die affine Abbildung macht aus `CA`
+den Wert `ED`, also `S(53) = ED`.
+
+</LessonSection>
+
+<LessonSection part="playground">
+
+## Jedem Byte beim Wechsel zusehen
+
+Dieses Lab rechnet den Vektor aus FIPS 197, Anhang C.1 (AES-128) und öffnet bei **Runde 1, SubBytes**.
+Geh einen Schritt zurück und wieder vor, um die Zustandsmatrix davor und danach zu vergleichen: Jedes
+Byte wurde für sich in der S-Box nachgeschlagen – noch beeinflusst kein Byte ein anderes.
+
+<Lab labId="aes-subbytes" producerId="aes" presetId="fips197-c1" startAt="round:1,op:subBytes" layout="state:65|narration:35" />
+
+</LessonSection>
+
+<LessonSection part="inside">
+
+## Warum gerade diese Konstanten?
+
+<WhyBox constant="0x11B" title="x⁸ + x⁴ + x³ + x + 1">
+  Bytes bilden nur dann einen Körper, wenn wir modulo eines **irreduziblen** Polynoms vom Grad 8
+  rechnen. Die Entwickler nahmen das erste aus der Standardliste (Lidl & Niederreiter). Dank weniger
+  Terme ist die Multiplikation mit `x` (`xtime`) billig: links schieben und bei Überlauf `0x1B` per XOR
+  addieren. Primitiv ist es nicht: `02` hat die Ordnung 51, erst `03` erzeugt alle 255 Bytes ungleich null.
+</WhyBox>
+
+<WhyBox constant="0x63" title="affine Konstante">
+  Die Inversion allein lässt `00` und `01` unverändert. Die affine Abbildung samt `0x63` wurde so
+  gewählt, dass die S-Box **keinen Fixpunkt** (`S(a) ≠ a`) und **keinen Gegenfixpunkt** (`S(a) ≠ ā`)
+  hat – wir haben alle 256 Eingaben geprüft. Außerdem verbirgt sie die reine Körperstruktur von `x⁻¹`
+  hinter einer GF(2)-linearen Schicht.
+</WhyBox>
+
+</LessonSection>
+
+<LessonSection part="memory">
+
+## Eine Tabelle – oder auch nicht
+
+Software legt die S-Box meist als 256-Byte-Array ab und indiziert sie mit geheimen Bytes. Dieses
+Zugriffsmuster kann über den CPU-Cache nach außen dringen. Hardwarebefehle wie AES-NI berechnen
+SubBytes direkt im Silizium, ganz ohne Tabellenzugriff. Mehr dazu auf der Seite
+[Speicher & Hardware](../memory-and-hardware/).
+
+</LessonSection>
+
+<LessonSection part="break">
+
+## Nichts im Ärmel?
+
+Weil die S-Box vollständig durch `x⁻¹` und eine öffentliche affine Abbildung beschrieben ist, kann
+niemand darin eine Hintertür verstecken – jeder Eintrag lässt sich nachrechnen. Die Kehrseite ist die
+algebraische Einfachheit: Um 2002 behauptete der XSL-Angriff, genau sie auszunutzen; die Behauptungen
+hielten aber nicht stand. Statistisch ist die S-Box nahezu optimal: Keine Differenz pflanzt sich mit
+einer Wahrscheinlichkeit über 4/256 fort, und keine lineare Approximation erreicht eine Korrelation
+über 2⁻³. Probier es in einem späteren Lab aus: Tausche die S-Box gegen eine affine oder die
+Identität und sieh zu, wie lineare Angriffe gelingen.
+
+</LessonSection>
+
+<LessonSection part="check">
+
+## Teste dich selbst
+
+<CheckQuestion number={1} question="Was ist S(00)?" options={['00', '01', '63', '7C']} answer={2}>
+  `00` hat kein Inverses und wird auf `00` abgebildet; die affine Abbildung von `00` ist einfach die Konstante `63`.
+</CheckQuestion>
+
+<CheckQuestion number={2} question="Wie viele Fixpunkte hat die AES-S-Box?" options={['0', '1', '2', '16']} answer={0}>
+  Keinen. Die Konstante `0x63` wurde so gewählt, dass `S(a) ≠ a` für jedes Byte `a` gilt.
+</CheckQuestion>
+
+<CheckQuestion
+  number={3}
+  question="Welcher Teil der S-Box sorgt für die Nichtlinearität?"
+  options={['Das XOR mit 0x63', 'Das Inverse in GF(2⁸)', 'Die Bitrotationen', 'Der Tabellenzugriff selbst']}
+  answer={1}
+>
+  Das Inverse im Körper. Die affine Abbildung ist über GF(2) linear (plus Konstante), und die Tabelle ist nur eine Art, das Ergebnis zu speichern.
+</CheckQuestion>
+
+</LessonSection>

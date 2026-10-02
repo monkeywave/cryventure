@@ -17,15 +17,29 @@ describe('keyToAction', () => {
     expect(keyToAction(key('End'), div)).toBe('last');
   });
 
+  it('maps Shift+arrows to round navigation and B to the current breakpoint', () => {
+    expect(keyToAction(key('ArrowLeft', { shiftKey: true }), div)).toBe('prevRound');
+    expect(keyToAction(key('ArrowRight', { shiftKey: true }), div)).toBe('nextRound');
+    expect(keyToAction(key('b'), div)).toBe('toggleCurrentBreakpoint');
+    expect(keyToAction(key('B', { shiftKey: true }), div)).toBe('toggleCurrentBreakpoint');
+  });
+
   it('ignores other keys and modified keys', () => {
     expect(keyToAction(key('a'), div)).toBeNull();
     expect(keyToAction(key('ArrowRight', { ctrlKey: true }), div)).toBeNull();
+    expect(keyToAction(key('ArrowRight', { altKey: true }), div)).toBeNull();
+    expect(keyToAction(key('ArrowRight', { metaKey: true }), div)).toBeNull();
+    expect(keyToAction(key('ArrowLeft', { shiftKey: true, ctrlKey: true }), div)).toBeNull();
+    expect(keyToAction(key('b', { metaKey: true }), div)).toBeNull();
+    expect(keyToAction(key('Home', { shiftKey: true }), div)).toBeNull();
   });
 
   it('leaves keys to text fields and sliders, and Space to buttons', () => {
     expect(keyToAction(key('ArrowRight'), document.createElement('input'))).toBeNull();
     expect(keyToAction(key(' '), document.createElement('button'))).toBeNull();
     expect(keyToAction(key('ArrowRight'), document.createElement('button'))).toBe('next');
+    expect(keyToAction(key('B', { shiftKey: true }), document.createElement('input'))).toBeNull();
+    expect(keyToAction(key('b'), document.createElement('textarea'))).toBeNull();
   });
 });
 
@@ -48,8 +62,11 @@ describe('useLabKeyboard (via LabRoot)', () => {
     fireEvent.keyDown(inside, { key: ' ' });
     expect(store.getState().playing).toBe(true);
 
+    // Playback starts immediately (the driver ticks to step 0), so compare against the step before the outside press.
+    const stepBeforeOutsidePress = store.getState().step;
     fireEvent.keyDown(outside, { key: 'End' });
-    expect(store.getState().step).toBe(-1);
+    expect(store.getState().step).toBe(stepBeforeOutsidePress);
+    expect(store.getState().step).not.toBe(2);
     outside.remove();
   });
 

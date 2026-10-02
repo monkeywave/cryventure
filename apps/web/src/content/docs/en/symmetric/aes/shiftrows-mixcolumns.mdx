@@ -1,0 +1,131 @@
+---
+title: ShiftRows and MixColumns
+description: The diffusion layer of AES — row rotations, the {02 03 01 01} matrix, branch number 5 and xtime.
+lessonId: block-ciphers/aes/shiftrows-mixcolumns
+track: block-ciphers
+phase: 1
+tableOfContents: false
+prereqs:
+  - block-ciphers/aes/subbytes-sbox
+labs:
+  - aes-diffusion
+refs:
+  - FIPS 197, Section 4.2.1 (Multiplication by x, xtime)
+  - FIPS 197, Section 5.1.2 (ShiftRows, Figure 8)
+  - FIPS 197, Section 5.1.3 (MixColumns, Equation 5.6)
+  - FIPS 197, Appendix B (Cipher Example, round 1)
+---
+
+import Lab from '../../../../../components/Lab.astro';
+import CheckQuestion from '../../../../../components/lesson/CheckQuestion.astro';
+import Formula from '../../../../../components/lesson/Formula.astro';
+import LessonSection from '../../../../../components/lesson/LessonSection.astro';
+import StateGrid from '../../../../../components/lesson/StateGrid.astro';
+import WhyBox from '../../../../../components/lesson/WhyBox.astro';
+
+<LessonSection part="concept">
+
+## Spreading every byte everywhere
+
+SubBytes scrambles bytes but never moves them. The **diffusion layer** fixes that in two moves:
+
+- **ShiftRows** rotates row `r` of the state left by `r` positions: offsets 0, 1, 2, 3 (FIPS 197, §5.1.2).
+- **MixColumns** replaces each column by a fixed linear combination of its four bytes (§5.1.3).
+
+ShiftRows sends the four bytes of one column into four *different* columns; MixColumns then lets
+each byte affect its whole column. After two rounds every output byte depends on every input byte.
+
+<StateGrid
+  caption="FIPS 197, Appendix B, round 1 after SubBytes (before ShiftRows)."
+  cells={['d4', '27', '11', 'ae', 'e0', 'bf', '98', 'f1', 'b8', 'b4', '5d', 'e5', '1e', '41', '52', '30']}
+/>
+
+<StateGrid
+  caption="The same state after ShiftRows: row 1 moved by one, row 2 by two, row 3 by three."
+  cells={['d4', 'bf', '5d', '30', 'e0', 'b4', '52', 'ae', 'b8', '41', '11', 'f1', '1e', '27', '98', 'e5']}
+/>
+
+</LessonSection>
+
+<LessonSection part="playground">
+
+## Follow one column
+
+The lab opens at **round 1, ShiftRows**: watch rows 1–3 rotate. One step further, MixColumns turns
+column 0 from `d4 bf 5d 30` into `04 66 81 e5`, exactly as printed in FIPS 197, Appendix B.
+
+<Lab labId="aes-diffusion" producerId="aes" presetId="fips197-b" startAt="round:1,op:shiftRows" layout="state:65|narration:35" />
+
+</LessonSection>
+
+<LessonSection part="inside">
+
+## The MixColumns matrix
+
+Each column is multiplied by a circulant matrix over GF(2⁸):
+
+<Formula caption="FIPS 197, Equation 5.6. Multiplication is in GF(2⁸), addition is XOR.">
+{`┌ s'₀ ┐   ┌ 02 03 01 01 ┐ ┌ s₀ ┐
+│ s'₁ │ = │ 01 02 03 01 │ │ s₁ │
+│ s'₂ │   │ 01 01 02 03 │ │ s₂ │
+└ s'₃ ┘   └ 03 01 01 02 ┘ └ s₃ ┘`}
+</Formula>
+
+`02·a` is **xtime**: shift left, XOR `1B` on overflow. `03·a = xtime(a) ⊕ a`. Worked first byte:
+
+<Formula>
+{`02·d4 ⊕ 03·bf ⊕ 01·5d ⊕ 01·30
+=  b3  ⊕  da   ⊕  5d   ⊕  30   = 04`}
+</Formula>
+
+<WhyBox constant="{02 03 01 01}" title="MDS matrix, branch number 5">
+  The matrix is **MDS**: for every non-zero input column, the non-zero input bytes plus non-zero output
+  bytes number at least **5** — the maximum for 4 bytes. Together with ShiftRows this "wide trail"
+  forces at least 25 active S-boxes in any 4-round trail. The small entries 01, 02, 03 keep it cheap.
+</WhyBox>
+
+</LessonSection>
+
+<LessonSection part="memory">
+
+## Fast in software
+
+Implementations rarely multiply matrices byte by byte. Table-based code merges SubBytes, ShiftRows
+and MixColumns into four 1 KiB **T-tables**; hardware performs the whole round in one instruction.
+See [Memory & hardware](../memory-and-hardware/).
+
+</LessonSection>
+
+<LessonSection part="break">
+
+## Remove ShiftRows
+
+Without ShiftRows, the bytes of one column never leave that column. AES collapses into **four
+independent 32-bit ciphers**: change one plaintext byte and only one ciphertext column changes. An
+attacker can then tabulate or attack each column separately — a 2³² problem instead of 2¹²⁸. A lab
+toggle for this experiment follows in a later milestone.
+
+</LessonSection>
+
+<LessonSection part="check">
+
+## Check yourself
+
+<CheckQuestion number={1} question="By how many positions does ShiftRows rotate row 3?" options={['0', '1', '2', '3']} answer={3}>
+  Row `r` is rotated left by `r` positions (for the 128-bit AES block).
+</CheckQuestion>
+
+<CheckQuestion number={2} question="What is xtime(57)?" options={['AE', 'AF', 'B5', '57']} answer={0}>
+  `57` has no top bit set, so xtime is a plain left shift: `0101 0111 → 1010 1110 = AE` (FIPS 197, §4.2.1).
+</CheckQuestion>
+
+<CheckQuestion
+  number={3}
+  question="A column with exactly one non-zero byte enters MixColumns. How many output bytes are non-zero?"
+  options={['1', '2', '3', '4']}
+  answer={3}
+>
+  Branch number 5: 1 non-zero input byte forces at least 4 non-zero output bytes — so all four.
+</CheckQuestion>
+
+</LessonSection>

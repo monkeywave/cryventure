@@ -21,6 +21,42 @@ export type AesOp =
   | { op: 'output'; round: number }
   | { op: 'round'; round: number };
 
+export type AesOpName = AesOp['op'];
+
+/** Every op name the trace can emit (cipher and inverse cipher, both detail levels). */
+export const AES_OP_NAMES = [
+  'input',
+  'keyExpansion',
+  'addRoundKey',
+  'subBytes',
+  'shiftRows',
+  'mixColumns',
+  'invSubBytes',
+  'invShiftRows',
+  'invMixColumns',
+  'output',
+  'round',
+] as const satisfies readonly AesOpName[];
+
+/** Label key of an op name (debugger breakpoints, op pickers): `plugin.aes.op.<op>`. */
+export function opLabelKey(op: AesOpName): string {
+  return `plugin.aes.op.${op}`;
+}
+
+/** Compact op name for the player's scope path ("Round 1 · SubBytes"): `plugin.aes.opShort.<op>`. */
+export function opShortLabelKey(op: AesOpName): string {
+  return `plugin.aes.opShort.${op}`;
+}
+
+/**
+ * Labels of the scope levels [round, op]: the round template uses `{{value}}` (round 0 is real),
+ * the op template `{{ordinal}}` (1-based); the player prefers the op's `opShort` label at the op level.
+ */
+export const AES_SCOPE_LEVELS: { labelKey: string }[] = [
+  { labelKey: 'plugin.aes.scope.round' },
+  { labelKey: 'plugin.aes.scope.op' },
+];
+
 export type AesStep = StepInput<AesRegion, AesOp>;
 export type AesTracer = Tracer<AesRegion, AesOp>;
 

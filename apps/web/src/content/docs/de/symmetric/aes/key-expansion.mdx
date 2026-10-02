@@ -1,0 +1,136 @@
+---
+title: Schlüsselexpansion
+description: Wie AES einen Schlüssel mit RotWord, SubWord und den Rundenkonstanten Rcon zu Nr + 1 Rundenschlüsseln streckt.
+lessonId: block-ciphers/aes/key-expansion
+track: block-ciphers
+phase: 1
+tableOfContents: false
+prereqs:
+  - block-ciphers/aes/subbytes-sbox
+labs:
+  - aes-key-schedule
+refs:
+  - FIPS 197, Abschnitt 5.2 (Key Expansion, Abbildung 11)
+  - FIPS 197, Anhang A.1 (Expansion eines 128-Bit-Schlüssels)
+  - FIPS 197, Anhang A.3 (Expansion eines 256-Bit-Schlüssels)
+sourceHash: sha256:8511e535eb83155b65fe3044b793bd9ea2968d54a5204cd0c931aeb00f07355d
+---
+
+import Lab from '../../../../../components/Lab.astro';
+import CheckQuestion from '../../../../../components/lesson/CheckQuestion.astro';
+import Formula from '../../../../../components/lesson/Formula.astro';
+import KeyFact from '../../../../../components/lesson/KeyFact.astro';
+import KeyFacts from '../../../../../components/lesson/KeyFacts.astro';
+import LessonSection from '../../../../../components/lesson/LessonSection.astro';
+import WhyBox from '../../../../../components/lesson/WhyBox.astro';
+
+<LessonSection part="concept">
+
+## Ein Schlüssel, viele Rundenschlüssel
+
+AddRoundKey braucht für jede der `Nr + 1` Schlüsseladditionen einen frischen 16-Byte-Rundenschlüssel.
+Die **Schlüsselexpansion** (KeyExpansion, FIPS 197, §5.2) leitet sie alle aus dem Chiffrierschlüssel
+ab – als Liste von 32-Bit-Wörtern `w[0] … w[4·Nr + 3]`. Die ersten `Nk` Wörter sind der Schlüssel
+selbst; jedes weitere Wort ist das Wort `Nk` Positionen davor, per XOR verknüpft mit einer
+umgeformten Kopie des vorigen Worts.
+
+<KeyFacts>
+  <KeyFact label="AES-128" value="44 Wörter · 176 B" kind="key" />
+  <KeyFact label="AES-192" value="52 Wörter · 208 B" kind="key" />
+  <KeyFact label="AES-256" value="60 Wörter · 240 B" kind="key" />
+</KeyFacts>
+
+<Formula caption="FIPS 197, §5.2 (Abbildung 11), für i = Nk … 4·Nr + 3.">
+{`temp ← w[i−1]
+if i mod Nk = 0:             temp ← SubWord(RotWord(temp)) ⊕ Rcon[i/Nk]
+else if Nk = 8 and i mod 8 = 4:  temp ← SubWord(temp)
+w[i] ← w[i−Nk] ⊕ temp`}
+</Formula>
+
+**RotWord** macht aus `[a₀ a₁ a₂ a₃]` das Wort `[a₁ a₂ a₃ a₀]`; **SubWord** wendet die S-Box auf
+jedes Byte an.
+
+</LessonSection>
+
+<LessonSection part="playground">
+
+## Den Schlüssel aus Anhang A.1 expandieren
+
+Das Lab verwendet den Schlüssel `2b7e1516 28aed2a6 abf71588 09cf4f3c` und öffnet bei **Runde 1,
+AddRoundKey**, wo Rundenschlüssel 1 zum ersten Mal gebraucht wird. Wähle im Schlüsselplan `a0fafe17`
+(w[4]), um seine Herleitung zu sehen, und vergleiche dann jeden Rundenschlüssel mit der Tabelle in
+FIPS 197, Anhang A.1.
+
+<Lab labId="aes-key-schedule" producerId="aes" presetId="fips197-b" startAt="round:1,op:addRoundKey" layout="state:55|key-schedule:45" />
+
+</LessonSection>
+
+<LessonSection part="inside">
+
+## Ein Schritt zum Nachrechnen: w[4]
+
+<Formula caption="FIPS 197, Anhang A.1, i = 4.">
+{`w[3]                    09cf4f3c
+RotWord                 cf4f3c09
+SubWord                 8a84eb01
+⊕ Rcon[1]   01000000 →  8b84eb01
+⊕ w[0]      2b7e1516 →  a0fafe17 = w[4]`}
+</Formula>
+
+<WhyBox constant="Rcon" title="01 02 04 08 10 20 40 80 1b 36">
+  `Rcon[j] = [x^(j−1), 00, 00, 00]`: aufeinanderfolgende Potenzen von `x` (`02`) in GF(2⁸), daher folgt
+  auf `80` der Wert `xtime(80) = 1b`. Ohne sie entstünde jeder Rundenschlüssel nach exakt derselben
+  Regel, die alle Bytepositionen gleich behandelt. Die Konstanten brechen diese **Symmetrie** innerhalb
+  der Wörter und zwischen den Runden – und vereiteln damit Slide-Angriffe, die identische Runden ausnutzen.
+</WhyBox>
+
+AES-256 hat eine zweite Besonderheit: Bei `i mod 8 = 4` durchläuft das Wort noch einmal SubWord. So
+bekommt der lange Schlüssel auch mitten in jedem 8-Wort-Block eine nichtlineare Durchmischung.
+
+</LessonSection>
+
+<LessonSection part="memory">
+
+## Expandierte Schlüssel leben länger
+
+Die meisten Bibliotheken expandieren den Schlüssel einmal und halten alle Rundenschlüssel so lange im
+Speicher wie den Kontext – 176 bis 240 Byte hochstrukturierter Daten. Weil jedes Wort über die obige
+Regel mit seinen Nachbarn verknüpft ist, erkennt ein Scanner eine Schlüsselexpansion in einem
+Speicherabbild und kann sogar Bitfehler reparieren. So finden Cold-Boot-Angriffe AES-Schlüssel.
+
+</LessonSection>
+
+<LessonSection part="break">
+
+## Die Rundenkonstanten auf null setzen
+
+Setze jedes `Rcon` auf `00`, und alle übrigen Schritte – RotWord, SubWord, XOR – behandeln die vier
+Bytes eines Worts gleich. Rotiert man jedes Schlüsselwort um ein Byte, kommt auch jedes Wort der
+Rundenschlüssel um ein Byte rotiert heraus: Verwandte Schlüssel liefern vorhersagbar verwandte
+Rundenschlüssel. Genau von dieser Struktur leben Related-Key- und Slide-Angriffe. Ein Lab-Schalter
+für dieses Experiment folgt in einem späteren Meilenstein.
+
+</LessonSection>
+
+<LessonSection part="check">
+
+## Teste dich selbst
+
+<CheckQuestion number={1} question="Wie viele 32-Bit-Wörter erzeugt die Schlüsselexpansion von AES-256?" options={['44', '52', '60', '64']} answer={2}>
+  `4·(Nr + 1) = 4·15 = 60` Wörter, also 240 Byte.
+</CheckQuestion>
+
+<CheckQuestion number={2} question="Was ist Rcon[10]?" options={['00', '1b', '36', '6c']} answer={2}>
+  `x⁹ mod 0x11B = 36`: Die Folge lautet `01 02 04 08 10 20 40 80 1b 36`.
+</CheckQuestion>
+
+<CheckQuestion
+  number={3}
+  question="Welchen Schritt fügt nur AES-256 der Schlüsselexpansion hinzu?"
+  options={['Ein zusätzliches RotWord', 'Ein zusätzliches SubWord bei i mod 8 = 4', 'Ein zweites Rcon', 'Ein zusätzliches MixColumns']}
+  answer={1}
+>
+  Für `Nk > 6` (nur AES-256) wendet FIPS 197 §5.2 `SubWord` an, wenn `i mod Nk = 4` gilt.
+</CheckQuestion>
+
+</LessonSection>

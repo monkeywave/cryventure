@@ -27,6 +27,23 @@ export default defineConfig({
           translations: { de: 'Grundlagen' },
           items: [{ slug: 'foundations/welcome-lab' }],
         },
+        {
+          label: 'Block ciphers',
+          translations: { de: 'Blockchiffren' },
+          items: [
+            {
+              label: 'AES',
+              translations: { de: 'AES' },
+              items: [
+                { slug: 'symmetric/aes' },
+                { slug: 'symmetric/aes/subbytes-sbox' },
+                { slug: 'symmetric/aes/shiftrows-mixcolumns' },
+                { slug: 'symmetric/aes/key-expansion' },
+                { slug: 'symmetric/aes/memory-and-hardware' },
+              ],
+            },
+          ],
+        },
       ],
       disable404Route: true,
       customCss: ['./src/styles/global.css'],

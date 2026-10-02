@@ -1,0 +1,24 @@
+---
+/** Localized "interactive views coming soon" note for preview sections. */
+import { lessonTranslator } from './lessonTranslator';
+
+const t = lessonTranslator(Astro.currentLocale);
+---
+
+<p class="cv-coming-soon not-content" role="note">
+  <span aria-hidden="true">◷</span>
+  {t('lesson.comingSoon')}
+</p>
+
+<style>
+  .cv-coming-soon {
+    display: flex;
+    gap: 0.5rem;
+    margin-block: 1rem;
+    padding: 0.5rem 0.875rem;
+    border: 1px dashed var(--cv-border);
+    border-radius: 0.5rem;
+    color: var(--cv-text-muted);
+    font-size: var(--sl-text-sm);
+  }
+</style>

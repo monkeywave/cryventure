@@ -12,6 +12,7 @@ import LabIsland from '../islands/Lab.tsx';
 import { labMessages } from '../labs/labMessages';
 import { resolveLab } from '../labs/registry';
 import { presetParams } from '../labs/startParams';
+import { isLabMode, parseStartAt } from '../labs/startAt';
 import Breakout from './Breakout.astro';
 import EducationalOnly from './EducationalOnly.astro';
 
@@ -21,9 +22,13 @@ interface Props {
   presetId?: string;
   layout?: string;
   lens?: Lens;
+  /** Start position when the deep link has none: `"round:1,op:subBytes"` (first matching step) or `"step:12"` (as displayed). */
+  startAt?: string;
+  /** Preselected player mode: `"story"` or `"debugger"` (default). Playback still needs a user action. */
+  mode?: string;
 }
 
-const { labId, producerId, presetId, layout, lens } = Astro.props;
+const { labId, producerId, presetId, layout, lens, startAt, mode } = Astro.props;
 const lang = Astro.currentLocale ?? 'en';
 const messages = labMessages(lang, producerId);
 const t = createTranslator(messages);
@@ -33,6 +38,8 @@ if (!resolved.ok) throw new Error(`<Lab labId="${labId}">: unknown producer "${p
 const { producer } = resolved.lab;
 const preset = producer.presets.find((entry) => entry.id === presetId);
 if (presetId !== undefined && preset === undefined) throw new Error(`<Lab labId="${labId}">: unknown preset "${presetId}"`);
+if (startAt !== undefined && parseStartAt(startAt) === undefined) throw new Error(`<Lab labId="${labId}">: invalid startAt "${startAt}"`);
+if (mode !== undefined && !isLabMode(mode)) throw new Error(`<Lab labId="${labId}">: unknown mode "${mode}"`);
 const startParams = presetParams(producer, presetId) as Record<string, unknown>;
 const posterFields = paramFieldsOf(producer);
 ---
@@ -40,7 +47,7 @@ const posterFields = paramFieldsOf(producer);
 <Breakout>
   <div class="cv-lab-host" data-pagefind-ignore>
     <EducationalOnly lang={lang} />
-    <LabIsland client:visible labId={labId} producerId={producerId} presetId={presetId} layout={layout} lens={lens} messages={messages}>
+    <LabIsland client:visible labId={labId} producerId={producerId} presetId={presetId} layout={layout} lens={lens} startAt={startAt} mode={isLabMode(mode) ? mode : undefined} messages={messages}>
       <div class="cv-lab-poster" aria-busy="true">
         <p class="cv-lab__title">{t(producer.titleKey)}</p>
         {preset && <p>{t('ui.lab.posterPreset', { preset: t(preset.labelKey) })}</p>}

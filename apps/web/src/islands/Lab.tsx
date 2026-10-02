@@ -1,10 +1,11 @@
 import type { ReactNode } from 'react';
 import { i18nRef, type Lens, type Messages } from '@cryventure/core';
-import { Controls, ErrorBoundary, I18nProvider, LabRoot, Timeline, Workspace, useT } from '@cryventure/viz';
+import { BreakpointPicker, Controls, ErrorBoundary, I18nProvider, LabRoot, ModeToggle, Timeline, Workspace, useT, type LabMode } from '@cryventure/viz';
 import type { LabParams, ReadySession } from '../labs/labSession.ts';
 import { InvalidLinkNotice, LabError } from './lab/LabMessages.tsx';
 import { OutputPanel } from './lab/OutputPanel.tsx';
 import { ParamPanel } from './lab/ParamPanel.tsx';
+import { useChoreographyModule } from './lab/useChoreographyModule.ts';
 import { useHashSync } from './lab/useHashSync.ts';
 import { useLabSession } from './lab/useLabSession.ts';
 
@@ -16,6 +17,10 @@ export interface LabProps {
   /** Workspace panel preset, e.g. `"state|narration"`. */
   layout?: string;
   lens?: Lens;
+  /** Start position when the deep link has none: `"round:1,op:subBytes"` or `"step:12"` (see `labs/startAt.ts`). */
+  startAt?: string;
+  /** Preselected player mode (default: debugger). Never starts playback on its own. */
+  mode?: LabMode;
   /** Only the namespaces this lab needs, in the page's locale (assembled by `Lab.astro`). */
   messages: Messages;
   /** Static poster rendered on the server and shown until the lab is ready. */
@@ -33,14 +38,17 @@ interface ReadyLabProps {
 function ReadyLab({ labId, layout, lens, session, onParams }: ReadyLabProps) {
   const t = useT();
   useHashSync(labId, session.store, session.params);
+  const choreography = useChoreographyModule(session.producer);
   return (
-    <LabRoot store={session.store}>
+    <LabRoot store={session.store} choreography={choreography}>
       <p className="cv-lab__title">{t(session.producer.titleKey)}</p>
       {session.notice && <InvalidLinkNotice />}
       <ParamPanel producer={session.producer} params={session.params} onApply={onParams} />
       <div className="cv-lab__player">
+        <ModeToggle />
         <Controls />
         <Timeline />
+        <BreakpointPicker />
       </div>
       <Workspace views={session.views} layout={layout} labId={labId} lens={lens} />
       <OutputPanel producer={session.producer} />
@@ -48,8 +56,8 @@ function ReadyLab({ labId, layout, lens, session, onParams }: ReadyLabProps) {
   );
 }
 
-function LabBody({ labId, producerId, presetId, layout, lens = 'engineer', children }: Omit<LabProps, 'messages'>) {
-  const { session, applyParams, reset } = useLabSession({ labId, producerId, presetId });
+function LabBody({ labId, producerId, presetId, startAt, mode, layout, lens = 'engineer', children }: Omit<LabProps, 'messages'>) {
+  const { session, applyParams, reset } = useLabSession({ labId, producerId, presetId, startAt, mode });
   if (session.status === 'loading') return <>{children}</>;
   if (session.status === 'error') return <LabError error={session.error} onReset={reset} />;
   return (

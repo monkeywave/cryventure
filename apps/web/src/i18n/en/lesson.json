@@ -1,0 +1,16 @@
+{
+  "lesson.part.concept": "Concept",
+  "lesson.part.playground": "Playground",
+  "lesson.part.inside": "Inside",
+  "lesson.part.memory": "Memory & Hardware",
+  "lesson.part.break": "Break it",
+  "lesson.part.check": "Check",
+  "lesson.part.label": "Part {{number}} · {{part}}",
+  "lesson.why.label": "Why this constant?",
+  "lesson.check.question": "Question {{number}}",
+  "lesson.check.reveal": "Show answer",
+  "lesson.check.answer": "Answer: {{option}}",
+  "lesson.comingSoon": "Interactive views for this section are coming soon.",
+  "lesson.stateGrid.row": "Row {{row}}",
+  "lesson.stateGrid.column": "Column {{column}}"
+}

@@ -1,0 +1,60 @@
+---
+/**
+ * Static multiple-choice question for the "Check" part. The answer and its explanation (slot)
+ * stay hidden in a <details> until the learner opens it. The interactive quiz island replaces this in M2.
+ */
+import { lessonTranslator } from './lessonTranslator';
+
+interface Props {
+  number: number;
+  question: string;
+  options: string[];
+  /** Zero-based index of the correct option. */
+  answer: number;
+}
+
+const { number, question, options, answer } = Astro.props;
+const t = lessonTranslator(Astro.currentLocale);
+const letter = (index: number) => String.fromCharCode(65 + index);
+---
+
+<div class="cv-check not-content">
+  <p class="cv-check__question"><strong>{t('lesson.check.question', { number })}:</strong> {question}</p>
+  <ol class="cv-check__options" type="A">
+    {options.map((option) => <li>{option}</li>)}
+  </ol>
+  <details class="cv-check__answer">
+    <summary>{t('lesson.check.reveal')}</summary>
+    <p><strong>{t('lesson.check.answer', { option: letter(answer) })}</strong></p>
+    <slot />
+  </details>
+</div>
+
+<style>
+  .cv-check {
+    margin-block: 1.25rem;
+    padding: 0.75rem 1rem;
+    border: 1px solid var(--cv-border);
+    border-radius: 0.5rem;
+    background: var(--cv-surface);
+    color: var(--cv-text);
+  }
+
+  .cv-check__question {
+    margin: 0;
+  }
+
+  .cv-check__options {
+    margin-block: 0.5rem;
+    padding-inline-start: 1.75rem;
+  }
+
+  .cv-check__answer summary {
+    color: var(--sl-color-text-accent);
+    cursor: pointer;
+  }
+
+  .cv-check__answer :global(p) {
+    margin-block: 0.5rem 0;
+  }
+</style>

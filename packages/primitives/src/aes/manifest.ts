@@ -113,13 +113,14 @@ export const aesManifest = definePrimitive<AesParams>({
     'FIPS 197-upd1 §5.3 (InvCipher)',
     'FIPS 197-upd1 App. A–C (test vectors)',
   ],
-  facets: ['state', 'values', 'narration'],
+  facets: ['state', 'values', 'narration', 'derivation'],
   presets: AES_PRESETS,
   defaults: { ...AES_PRESETS[0]!.params },
   i18nNamespace: NS,
   paramFields: AES_PARAM_FIELDS,
   validate: validateAesParams,
   load: () => import('./module.ts'),
+  loadChoreography: () => import('./choreography.ts'),
 });
 
 export default aesManifest;

@@ -4,7 +4,8 @@ import { decryptBlock, encryptBlock } from './cipher.ts';
 import de from './i18n/de.json';
 import en from './i18n/en.json';
 import { aesManifest, AES_PARAM_FIELDS, AES_PRESETS, validateAesParams } from './manifest.ts';
-import { aesRegions } from './aesTrace.ts';
+import { AES_OP_NAMES, AES_SCOPE_LEVELS, aesRegions, opLabelKey, opShortLabelKey } from './aesTrace.ts';
+import { keyScheduleDerivation } from './derivation.ts';
 import { hexBytes, recordingTracerFor } from './testHelpers.ts';
 
 const LOCALES: Record<string, Messages> = { en, de };
@@ -26,6 +27,9 @@ function declaredKeys(): string[] {
     ...paramFieldKeys(AES_PARAM_FIELDS),
     ...aesRegions(10).map((region) => region.labelKey),
     ...['key', 'plaintext', 'ciphertext', 'roundKey'].map((name) => `plugin.aes.value.${name}`),
+    ...AES_OP_NAMES.map(opLabelKey),
+    ...AES_OP_NAMES.map(opShortLabelKey),
+    ...AES_SCOPE_LEVELS.map((level) => level.labelKey),
   ];
 }
 
@@ -43,9 +47,11 @@ describe('i18n parity', () => {
     }
   });
 
-  it('every DE message differs from its EN counterpart', () => {
-    for (const [key, template] of Object.entries(en))
-      expect(de[key as keyof typeof de], key).not.toBe(template);
+  it('every DE message differs from its EN counterpart (except FIPS 197 transformation names)', () => {
+    const isTransformationName = (key: string, template: string) => key.startsWith('plugin.aes.opShort.') && /^[A-Z][A-Za-z]+$/.test(template);
+    for (const [key, template] of Object.entries(en)) {
+      if (!isTransformationName(key, template)) expect(de[key as keyof typeof de], key).not.toBe(template);
+    }
   });
 });
 
@@ -67,6 +73,19 @@ describe('i18n coverage', () => {
           extractParams(template ?? '').sort(),
         );
       }
+    }
+  });
+
+  it('scope level templates: round uses {{value}}, op uses {{ordinal}}', () => {
+    for (const messages of Object.values(LOCALES)) {
+      expect(AES_SCOPE_LEVELS.map((level) => extractParams(messages[level.labelKey] ?? ''))).toEqual([['value'], ['ordinal']]);
+    }
+  });
+
+  it('every derivation label ref (AES-128 and AES-256) exists in both locales with matching params', () => {
+    const labels = [16, 32].flatMap((length) => keyScheduleDerivation(new Array<number>(length).fill(0), length / 4 + 6, () => undefined).nodes.map((node) => node.label));
+    for (const [locale, messages] of Object.entries(LOCALES)) {
+      for (const ref of labels) expect(extractParams(messages[ref.key] ?? '').sort(), `${locale}:${ref.key}`).toEqual(Object.keys(ref.params ?? {}).sort());
     }
   });
 

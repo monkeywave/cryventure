@@ -1,0 +1,61 @@
+---
+/** "Why this constant?" box (docs/PLAN.md §4): teal = constants, with the π glyph for colour-blind readers. */
+import { lessonTranslator } from './lessonTranslator';
+
+interface Props {
+  /** The constant as written in the spec, e.g. "0x11B". */
+  constant: string;
+  /** Short name, e.g. "AES reduction polynomial". */
+  title: string;
+}
+
+const { constant, title } = Astro.props;
+const t = lessonTranslator(Astro.currentLocale);
+---
+
+<aside class="cv-why not-content" aria-label={`${t('lesson.why.label')} ${constant}`}>
+  <p class="cv-why__head">
+    <span class="cv-why__glyph" aria-hidden="true">π</span>
+    <span class="cv-why__label">{t('lesson.why.label')}</span>
+    <code class="cv-why__constant">{constant}</code>
+    <span class="cv-why__title">{title}</span>
+  </p>
+  <div class="cv-why__body"><slot /></div>
+</aside>
+
+<style>
+  .cv-why {
+    margin-block: 1.25rem;
+    padding: 0.75rem 1rem;
+    border: 1px solid var(--cv-border);
+    border-inline-start: 4px solid var(--cv-constant);
+    border-radius: 0.5rem;
+    background: var(--cv-surface);
+    color: var(--cv-text);
+  }
+
+  .cv-why__head {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    align-items: baseline;
+    margin: 0 0 0.5rem;
+    font-weight: 600;
+  }
+
+  .cv-why__glyph,
+  .cv-why__constant {
+    color: var(--cv-constant);
+  }
+
+  .cv-why__label {
+    color: var(--cv-text-muted);
+    font-size: var(--sl-text-xs);
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+  }
+
+  .cv-why__body :global(p) {
+    margin-block: 0.5rem 0;
+  }
+</style>

@@ -1,0 +1,37 @@
+---
+/** A displayed formula in monospace (plain-text math; no TeX dependency), with an optional caption. */
+interface Props {
+  caption?: string;
+}
+
+const { caption } = Astro.props;
+---
+
+<figure class="cv-formula not-content">
+  <div class="cv-formula__body"><slot /></div>
+  {caption && <figcaption>{caption}</figcaption>}
+</figure>
+
+<style>
+  .cv-formula {
+    margin-block: 1rem;
+  }
+
+  .cv-formula__body {
+    overflow-x: auto;
+    padding: 0.75rem 1rem;
+    border: 1px solid var(--cv-border);
+    border-radius: 0.5rem;
+    background: var(--cv-surface);
+    color: var(--cv-text);
+    font-family: var(--sl-font-mono);
+    font-size: var(--sl-text-sm);
+    white-space: pre;
+  }
+
+  .cv-formula figcaption {
+    margin-block-start: 0.375rem;
+    color: var(--cv-text-muted);
+    font-size: var(--sl-text-xs);
+  }
+</style>

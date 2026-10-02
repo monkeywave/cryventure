@@ -122,6 +122,9 @@ export const ${camel}Manifest = definePrimitive<${pascal}Params>({
   paramFields: ${toConstantCase(id)}_PARAM_FIELDS,
   validate: validate${pascal}Params,
   load: () => import('./module.ts'),
+  // Optional step animations: export \`choreograph(context)\` from ./choreography.ts (see aes/choreography.ts)
+  // and uncomment. Without it, views animate steps with the generic fallback choreography.
+  // loadChoreography: () => import('./choreography.ts'),
 });
 
 export default ${camel}Manifest;

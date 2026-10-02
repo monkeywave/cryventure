@@ -12,13 +12,14 @@ import {
   type ValueRole,
   type ValuesFacet,
 } from '@cryventure/core';
-import { aesRegions, emptySnapshot, type AesOp, type AesRegion } from './aesTrace.ts';
+import { AES_SCOPE_LEVELS, aesRegions, emptySnapshot, type AesOp, type AesRegion } from './aesTrace.ts';
 import { decryptBlock, encryptBlock } from './cipher.ts';
+import { keyScheduleDerivation } from './derivation.ts';
 import { expandKey, roundCount, roundKeyBytes, VALID_KEY_SIZES } from './keyExpansion.ts';
 import { aesManifest, type AesParams } from './manifest.ts';
 import { BLOCK_BYTES } from './state.ts';
 
-/** AES producer: runs the traced cipher and packages state/values/narration facets. */
+/** AES producer: runs the traced cipher and packages state/values/narration/derivation facets. */
 export type AesStateFacet = StateFacet<AesRegion, AesOp>;
 
 /** Decodes hex that validation has already accepted. */
@@ -28,11 +29,19 @@ function validatedBytes(hex: string): number[] {
   return Array.from(parsed.bytes);
 }
 
-/** First step of `round` that loads a round key (encryption uses round key r in round r). */
-function roundKeyStep(facet: AesStateFacet, round: number): number {
+/**
+ * First step of `round` that loads a round key (encryption uses round key r in round r):
+ * the addRoundKey step at 'op' detail, the round step at 'round' detail.
+ */
+export function findRoundKeyStep(facet: AesStateFacet, round: number): number | undefined {
   const loadsRoundKey = (step: AesStateFacet['steps'][number]): boolean =>
     step.round === round && step.writes.some((write) => write.region === 'roundKey');
-  return Math.max(facet.steps.findIndex(loadsRoundKey), 0);
+  const index = facet.steps.findIndex(loadsRoundKey);
+  return index === -1 ? undefined : index;
+}
+
+function roundKeyStep(facet: AesStateFacet, round: number): number {
+  return findRoundKeyStep(facet, round) ?? 0;
 }
 
 function valueRef(
@@ -78,7 +87,7 @@ function recordEncryption(
   const rounds = roundCount(key.length);
   const tracer = new RecordingTracer<AesRegion, AesOp>(aesRegions(rounds), emptySnapshot(rounds));
   const ciphertext = encryptBlock(key, plaintext, tracer, params.detail);
-  return { facet: tracer.toFacet(), ciphertext };
+  return { facet: { ...tracer.toFacet(), scopeLevels: AES_SCOPE_LEVELS }, ciphertext };
 }
 
 /**
@@ -100,6 +109,7 @@ export function run(params: AesParams, _options: RunOptions = {}): RunResult {
       [facetKey('state')]: facet,
       [facetKey('values')]: buildValues(key, plaintext, ciphertext, facet),
       [facetKey('narration')]: narrationFromState(facet),
+      [facetKey('derivation')]: keyScheduleDerivation(key, roundCount(key.length), (round) => findRoundKeyStep(facet, round)),
     },
     output: { ciphertext },
   };

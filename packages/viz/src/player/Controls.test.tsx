@@ -50,4 +50,35 @@ describe('Controls', () => {
     act(() => store.getState().setBundle(createFixtureBundle()));
     expect(button('Play').disabled).toBe(false);
   });
+
+  it('shows round buttons only in debugger mode (the default)', () => {
+    const { store } = renderLab(<Controls />, { bundle: createFixtureBundle() });
+    expect(store.getState().mode).toBe('debugger');
+    expect(button('Previous round').getAttribute('aria-keyshortcuts')).toBe('Shift+ArrowLeft');
+    expect(button('Next round').getAttribute('aria-keyshortcuts')).toBe('Shift+ArrowRight');
+    act(() => store.getState().setMode('story'));
+    expect(screen.queryByRole('button', { name: 'Previous round' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Next round' })).toBeNull();
+    act(() => store.getState().setMode('debugger'));
+    expect(screen.getByRole('button', { name: 'Next round' })).toBeTruthy();
+  });
+
+  it('navigates by round and disables round buttons at the ends', async () => {
+    const user = userEvent.setup();
+    const { store } = renderLab(<Controls />, { bundle: createFixtureBundle() });
+    expect(button('Previous round').disabled).toBe(true);
+    await user.click(button('Next round'));
+    expect(store.getState().step).toBe(0);
+    await user.click(button('Next round'));
+    expect(store.getState().step).toBe(1);
+    await user.click(button('Next round'));
+    expect(store.getState().step).toBe(2);
+    expect(button('Next round').disabled).toBe(true);
+    await user.click(button('Previous round'));
+    expect(store.getState().step).toBe(1);
+    await user.click(button('Previous round'));
+    expect(store.getState().step).toBe(0);
+    await user.click(button('Previous round'));
+    expect(store.getState().step).toBe(-1);
+  });
 });

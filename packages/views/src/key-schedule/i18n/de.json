@@ -1,0 +1,13 @@
+{
+  "view.key-schedule.title": "Schlüsselplan",
+  "view.key-schedule.loading": "Der Schlüsselplan wird vorbereitet…",
+  "view.key-schedule.missing": "Dieses Labor zeichnet keinen Schlüsselplan auf.",
+  "view.key-schedule.roundKey": "Rundenschlüssel {{round}}",
+  "view.key-schedule.roundKeyCurrent": "Rundenschlüssel {{round}} – zuletzt verwendet",
+  "view.key-schedule.roundKeyUpcoming": "Rundenschlüssel {{round}} – noch nicht verwendet",
+  "view.key-schedule.word": "{{name}}: {{hex}}",
+  "view.key-schedule.hint": "Wähle ein Wort aus oder fahre mit der Maus darüber, um zu sehen, wie es entsteht.",
+  "view.key-schedule.chainTitle": "So entsteht {{name}}",
+  "view.key-schedule.fromKey": "{{name}} wird direkt aus dem Schlüssel übernommen.",
+  "view.key-schedule.xorWith": "XOR mit {{name}} ({{hex}})"
+}
