@@ -53,7 +53,13 @@ A `dist/` built for one base only works when served under that base. Rebuild whe
 
 1. Repository **Settings -> Pages -> Build and deployment -> Source: "GitHub Actions"**.
    (No `gh-pages` branch is used, so no `.nojekyll` file is needed.)
+   - **Do not** pick "Deploy from a branch" (e.g. `main` / `(root)`): GitHub would then run Jekyll over the raw
+     source tree (the "pages build and deployment" run fails or shows the README) instead of the built Astro site.
+   - CLI equivalent: `gh api -X PUT repos/<owner>/<repo>/pages -f build_type=workflow`
+     (or `gh api -X POST repos/<owner>/<repo>/pages -f build_type=workflow` if Pages was never enabled).
+   - If `configure-pages` fails with `Get Pages site failed … Not Found`, this step is missing.
 2. Push to `main` (or run the workflow manually from the **Actions** tab).
+3. After deploying, the `smoke` job runs the Playwright suite against the live URL.
 
 ### What `pages.yml` does
 

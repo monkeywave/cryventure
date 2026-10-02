@@ -14,25 +14,46 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: pnpm/action-setup@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v7
         with: { node-version-file: .nvmrc, cache: pnpm }
-      - uses: actions/configure-pages@v5
+      - uses: actions/configure-pages@v6
         id: pages
+        # Fails with "Not Found" until Settings → Pages → Source is set to "GitHub Actions" (see docs/DEPLOY.md).
       - run: pnpm install --frozen-lockfile
       - run: pnpm build
         env:
           CV_SITE: ${{ steps.pages.outputs.origin }}
           CV_BASE: ${{ steps.pages.outputs.base_path }}/
-      - uses: actions/upload-pages-artifact@v3
+      - uses: actions/upload-pages-artifact@v5
         with: { path: apps/web/dist }
   deploy:
     needs: build
     runs-on: ubuntu-latest
+    outputs:
+      page_url: ${{ steps.deployment.outputs.page_url }}
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
       - id: deployment
-        uses: actions/deploy-pages@v4
+        uses: actions/deploy-pages@v5
+  smoke:
+    # Post-deploy check: run the Playwright suite against the live GitHub Pages URL.
+    needs: deploy
+    runs-on: ubuntu-latest
+    container: mcr.microsoft.com/playwright:v1.63.0-noble
+    steps:
+      - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v7
+        with: { node-version-file: .nvmrc, cache: pnpm }
+      - run: pnpm install --frozen-lockfile
+      - name: Wait for the new deployment to be served
+        run: sleep 20
+      - run: pnpm --filter @cryventure/web exec playwright test --grep-invert screenshots
+        env:
+          HOME: /root
+          E2E_BASE_URL: ${{ needs.deploy.outputs.page_url }}
+          CV_BASE: /${{ github.event.repository.name }}/
