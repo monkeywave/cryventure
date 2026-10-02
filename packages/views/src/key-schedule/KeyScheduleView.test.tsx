@@ -2,10 +2,12 @@ import { act, fireEvent, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { Profiler } from 'react';
 import { describe, expect, it, vi } from 'vitest';
+import { createLabStore } from '@cryventure/viz';
 import { renderLab } from '@cryventure/viz/testing';
 import { loadVizMessages } from '@cryventure/viz/messages';
 import { loadViewMessages } from '../messages.ts';
 import KeyScheduleView from './KeyScheduleView.tsx';
+import type { DerivationFacet, DerivationNode, TraceBundle } from '@cryventure/core';
 import { aesDerivation, derivationLabels, keyScheduleBundle } from './testFixture.ts';
 
 const view = <KeyScheduleView labId="fixture" lens="engineer" />;
@@ -26,6 +28,77 @@ const sources = () =>
   [...document.querySelectorAll('[data-source]')]
     .map((node) => node.getAttribute('data-node'))
     .sort();
+
+/** `bundle` with its derivation facet replaced (a re-run of the lab with new params). */
+function withDerivation(derivation: DerivationFacet): TraceBundle {
+  const bundle = keyScheduleBundle();
+  return { ...bundle, facets: { ...bundle.facets, 'derivation@default': derivation } };
+}
+
+/**
+ * Test-only stand-in for an AES-256 schedule: the AES-128 nodes plus result words w[44..59] in round
+ * keys 11..14 (ids are path-derived, so w[50] exists only here). Values are irrelevant to selection.
+ */
+function longerDerivation(): DerivationFacet {
+  const extra: DerivationNode[] = Array.from({ length: 16 }, (_, k) => {
+    const i = 44 + k;
+    const group = Math.floor(i / 4);
+    return {
+      id: `w/${i}`,
+      label: { key: 'plugin.aes.derivation.word', params: { i } },
+      bytes: [i, 0, 0, 0],
+      op: 'xor',
+      inputs: [`w/${i - 1}`, `w/${i - 8}`],
+      group,
+      result: true,
+      valueRef: `${group}/roundKey`,
+    };
+  });
+  const groups = Array.from({ length: 15 }, (_, n) => ({ id: n, label: { key: 'plugin.aes.derivation.roundKey', params: { n } } }));
+  return { ...aesDerivation, nodes: [...aesDerivation.nodes, ...extra], groups };
+}
+
+/** Same key size, different key: every word id survives, the bytes change. */
+function sameShapeDerivation(): DerivationFacet {
+  return { ...aesDerivation, nodes: aesDerivation.nodes.map((node) => ({ ...node, bytes: node.bytes.map((byte) => byte ^ 0xff) })) };
+}
+
+const nodeButton = (id: string) => document.querySelector<HTMLElement>(`[data-node="${id}"]`)!;
+
+describe('KeyScheduleView selection across a new derivation facet', () => {
+  const render = (derivation: DerivationFacet) =>
+    renderLab(view, { bundle: withDerivation(derivation), messages: { ...loadViewMessages('en'), ...derivationLabels.en } });
+
+  it('resets the selection when the selected word no longer exists (AES-256 w[50] → AES-128)', async () => {
+    const { store } = render(longerDerivation());
+    await userEvent.click(nodeButton('w/50'));
+    expect(store.getState().selection.valueRefId).toBe('12/roundKey');
+    act(() => store.getState().setBundle(withDerivation(aesDerivation)));
+    expect(chain()).toBeNull();
+    expect(store.getState().selection.valueRefId).toBeNull();
+    expect(sources()).toEqual([]);
+    act(() => store.getState().setBundle(withDerivation(longerDerivation())));
+    expect(chain()).toBeNull();
+    expect(nodeButton('w/50').getAttribute('aria-expanded')).toBe('false');
+  });
+
+  it('keeps the selection, its linked-brushing valueRef and source marks when the word still exists', async () => {
+    const { store } = render(aesDerivation);
+    await userEvent.click(nodeButton('w/4'));
+    act(() => store.getState().setBundle(withDerivation(sameShapeDerivation())));
+    expect(nodeButton('w/4').getAttribute('aria-expanded')).toBe('true');
+    expect(chain()?.textContent).toContain('Word w[4]');
+    expect(store.getState().selection.valueRefId).toBe('1/roundKey');
+    expect(sources()).toEqual(['w/0', 'w/3']);
+  });
+
+  it('does not touch an existing lab selection on mount', () => {
+    const store = createLabStore(keyScheduleBundle());
+    store.getState().select('3/roundKey');
+    renderLab(view, { store, messages: { ...loadViewMessages('en'), ...derivationLabels.en } });
+    expect(store.getState().selection.valueRefId).toBe('3/roundKey');
+  });
+});
 
 describe('KeyScheduleView', () => {
   it('falls back to generic group headings without producer group labels', () => {

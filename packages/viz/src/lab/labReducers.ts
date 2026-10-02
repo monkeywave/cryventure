@@ -1,5 +1,5 @@
 import type { FacetKey, NodeRef, TraceBundle } from '@cryventure/core';
-import { opAt, stateSteps } from './stateSteps.ts';
+import { distinctOps, opAt, stateFacetOf, stateSteps } from './stateSteps.ts';
 import { timelineLength } from './timeline.ts';
 
 /** Sentinel step before the first event: the initial state. */
@@ -86,6 +86,22 @@ export function initialLabData(bundle: TraceBundle | null = null): LabData {
 export function withBundle(bundle: TraceBundle | null): Partial<LabData> {
   const { speed: _speed, mode: _mode, regionsExpanded: _regionsExpanded, ...reset } = initialLabData(bundle);
   return reset;
+}
+
+/**
+ * A re-run of the same lab (new params): like `withBundle`, but keeps the breakpoints whose op the new
+ * trace still has and the watched node while its region exists and is large enough.
+ */
+export function withRerunBundle(state: Pick<LabData, 'breakpoints' | 'selection'>, bundle: TraceBundle | null): Partial<LabData> {
+  const ops = new Set(distinctOps(stateSteps(bundle)));
+  const node = state.selection.node !== null && nodeExists(bundle, state.selection.node) ? state.selection.node : null;
+  return { ...withBundle(bundle), breakpoints: state.breakpoints.filter((op) => ops.has(op)), selection: { valueRefId: null, node } };
+}
+
+function nodeExists(bundle: TraceBundle | null, node: NodeRef): boolean {
+  const region = stateFacetOf(bundle)?.regions.find((candidate) => candidate.id === node.region);
+  const size = region?.shape.reduce((product, length) => product * length, 1) ?? 0;
+  return node.index >= 0 && node.index < size;
 }
 
 /** Remembers the learner's expand/collapse choice for one region (per lab, for this page visit). */

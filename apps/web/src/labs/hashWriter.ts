@@ -31,9 +31,11 @@ export function createLabHashWriter(labId: string, env: HashEnvironment, delayMs
   const flush = () => {
     cancelTimer();
     if (pending === undefined) return;
-    const next = withLabState(env.readHash(), labId, pending);
+    const current = env.readHash();
+    // Over the 2 KB cap this lab's entry is removed rather than left stale.
+    const next = withLabState(current, labId, pending) ?? withoutLab(current, labId);
     pending = undefined;
-    if (next !== null && next !== env.readHash()) env.replaceHash(next);
+    if (next !== current) env.replaceHash(next);
   };
 
   return {

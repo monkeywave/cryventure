@@ -34,6 +34,10 @@ function renderInLab(ui: ReactNode, { store = createLabStore(createFixtureBundle
   return { ...result, store, scheduler };
 }
 
+/** Targets of the fallback's emphasis pulses (each also has a matching `value` flip track). */
+const pulseTargets = (choreography: StepChoreography | undefined) =>
+  choreography?.tracks.filter((track) => track.prop === 'emphasis').map((track) => track.target);
+
 describe('useChoreography', () => {
   const seen: (StepChoreography | undefined)[] = [];
   function Probe() {
@@ -57,7 +61,8 @@ describe('useChoreography', () => {
     const fallback = latest();
     expect(fallback).not.toBe(custom);
     expect(fallback?.beats).toEqual([{ at: 0, narration: { key: 'fixture.narration.load' } }]);
-    expect(fallback?.tracks).toHaveLength(16);
+    // One emphasis pulse + one value flip per changed cell.
+    expect(fallback?.tracks).toHaveLength(32);
   });
 
   it('uses the generic fallback without a module', () => {
@@ -65,7 +70,7 @@ describe('useChoreography', () => {
     const { store } = renderInLab(<Probe />);
     act(() => store.getState().seek(1));
     expect(latest()?.beats[0]?.narration).toEqual({ key: 'fixture.narration.sub', params: { count: 2 } });
-    expect(latest()?.tracks.map((track) => track.target)).toEqual([
+    expect(pulseTargets(latest())).toEqual([
       { region: 'state', index: 0 },
       { region: 'state', index: 1 },
     ]);
@@ -81,7 +86,7 @@ describe('useChoreography', () => {
     const { store } = renderInLab(<Probe />, { module: throwing });
     act(() => store.getState().seek(2));
     expect(latest()?.duration).toBe(DEFAULT_STEP_DURATION);
-    expect(latest()?.tracks.map((track) => track.target)).toEqual([{ region: 'w', index: 16 }]);
+    expect(pulseTargets(latest())).toEqual([{ region: 'w', index: 16 }]);
   });
 
   it('is memoised per step: re-renders and revisits return the same object, computed once', () => {

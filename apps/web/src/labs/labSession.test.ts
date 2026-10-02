@@ -158,3 +158,33 @@ describe('rerunLab', () => {
     expect(session.store.getState().bundle?.output['ciphertext']).toEqual(C1_CIPHERTEXT);
   });
 });
+
+describe('rerunLab keeps the debugger context', () => {
+  const firstIndex = (session: ReadySession, predicate: (step: { op: string; round: number }) => boolean) =>
+    (stateSteps(session.store.getState().bundle) as unknown as { op: string; round: number }[]).findIndex(predicate);
+
+  it('keeps breakpoints whose op still occurs and the watched cell when it still exists', async () => {
+    const session = await readyAes();
+    session.store.getState().toggleBreakpoint('mixColumns');
+    session.store.getState().selectNode({ region: 'state', index: 5 });
+    await rerunLab(session, { ...C1, plaintextHex: '00'.repeat(16) });
+    expect(session.store.getState().breakpoints).toEqual(['mixColumns']);
+    expect(session.store.getState().selection.node).toEqual({ region: 'state', index: 5 });
+  });
+
+  it('drops breakpoints on ops the new trace lacks and a watched cell outside its region', async () => {
+    const session = await readyAes();
+    session.store.getState().toggleBreakpoint('mixColumns');
+    session.store.getState().selectNode({ region: 'state', index: 99 });
+    await rerunLab(session, { ...C1, detail: 'round' });
+    expect(session.store.getState().breakpoints).toEqual([]);
+    expect(session.store.getState().selection.node).toBeNull();
+  });
+
+  it('maps the playhead by meaning: op-level round 7 → the round-7 step at round detail', async () => {
+    const session = await readyAes();
+    session.store.getState().seek(firstIndex(session, (step) => step.round === 7 && step.op === 'mixColumns'));
+    await rerunLab(session, { ...C1, detail: 'round' });
+    expect(firstIndex(session, (step) => step.round === 7)).toBe(session.store.getState().step);
+  });
+});

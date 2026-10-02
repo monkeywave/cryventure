@@ -239,9 +239,27 @@ function useSelectedWord(facet: DerivationFacet, marks: SourceMarks) {
     },
     [facet, marks, select],
   );
+  useCarrySelectionToNewFacet(facet, selectedRef, choose);
   const toggle = useCallback((id: string) => choose(selectedRef.current === id ? null : id), [choose]);
   const close = useCallback(() => choose(null), [choose]);
   return { selectedId, toggle, close };
+}
+
+/**
+ * A new derivation facet (a re-run with new params) rebuilds the source marks and the lab clears its
+ * `selection.valueRefId`. Node ids are path-derived (`w/50`), so the selection carries over exactly when
+ * the new facet still has that node: it is re-chosen (re-publishing its valueRef and marks), otherwise
+ * reset to none. The first facet (mount) leaves the lab selection untouched.
+ */
+function useCarrySelectionToNewFacet(facet: DerivationFacet, selectedRef: { readonly current: string | null }, choose: (id: string | null) => void) {
+  const facetRef = useRef(facet);
+  useEffect(() => {
+    if (facetRef.current === facet) return;
+    facetRef.current = facet;
+    const id = selectedRef.current;
+    if (id === null) return;
+    choose(derivationNode(facet, id) === undefined ? null : id);
+  }, [facet, selectedRef, choose]);
 }
 
 function KeySchedule({ facet }: { facet: DerivationFacet }) {

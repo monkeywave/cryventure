@@ -16,6 +16,7 @@ import {
   toggleBreakpoint,
   toggleCurrentBreakpoint,
   withBundle,
+  withRerunBundle,
   type LabData,
   type LabMode,
   type StepTransition,
@@ -23,8 +24,13 @@ import {
 import { nextScopeStart, prevScopeStart } from './scopeNavigation.ts';
 import { stateSteps } from './stateSteps.ts';
 
+export interface SetBundleOptions {
+  /** A re-run with new params: keep breakpoints and the watched node the new bundle still has (see `withRerunBundle`). */
+  preserveDebugContext?: boolean;
+}
+
 export interface LabActions {
-  setBundle(bundle: TraceBundle | null): void;
+  setBundle(bundle: TraceBundle | null, options?: SetBundleOptions): void;
   /** Exact jump to the end state of `step`. */
   seek(step: number): void;
   first(): void;
@@ -84,7 +90,7 @@ export function createLabStore(bundle: TraceBundle | null = null): LabStore {
   const store = createStore<LabState>()((set, get) => ({
     ...initialLabData(bundle),
     progress: motionValue(1),
-    setBundle: (next) => set(withBundle(next)),
+    setBundle: (next, options) => set((state) => (options?.preserveDebugContext ? withRerunBundle(state, next) : withBundle(next))),
     seek: (step) => set((state) => seekTo(state, step)),
     first: () => set((state) => seekTo(state, INITIAL_STEP)),
     last: () => set((state) => seekTo(state, lastStep(state))),

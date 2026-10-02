@@ -21,6 +21,7 @@ import {
   toggleBreakpoint,
   toggleCurrentBreakpoint,
   withBundle,
+  withRerunBundle,
   type LabData,
 } from './labReducers.ts';
 
@@ -152,5 +153,25 @@ describe('breakpoints', () => {
     expect(toggleCurrentBreakpoint(data({ step: 2 }))).toEqual({ breakpoints: ['mix'] });
     expect(toggleCurrentBreakpoint(data({ step: 2, breakpoints: ['mix'] }))).toEqual({ breakpoints: [] });
     expect(toggleCurrentBreakpoint(data({ step: -1 }))).toEqual({});
+  });
+});
+
+describe('withRerunBundle', () => {
+  const watched = (node: LabData['selection']['node'], breakpoints: string[]) => data({ breakpoints, selection: { valueRefId: 'v1', node } });
+
+  it('keeps breakpoints on ops the new trace still has and a watched node inside its region', () => {
+    const next = withRerunBundle(watched({ region: 'w', index: 47 }, ['sub', 'gone']), createFixtureBundle());
+    expect(next.breakpoints).toEqual(['sub']);
+    expect(next.selection).toEqual({ valueRefId: null, node: { region: 'w', index: 47 } });
+    expect(next.step).toBe(INITIAL_STEP);
+  });
+
+  it('drops a watched node past its region or in a missing region', () => {
+    expect(withRerunBundle(watched({ region: 'w', index: 48 }, []), createFixtureBundle()).selection?.node).toBeNull();
+    expect(withRerunBundle(watched({ region: 'gone', index: 0 }, []), createFixtureBundle()).selection?.node).toBeNull();
+  });
+
+  it('clears everything without a new bundle', () => {
+    expect(withRerunBundle(watched({ region: 'state', index: 0 }, ['sub']), null)).toMatchObject({ breakpoints: [], selection: { valueRefId: null, node: null } });
   });
 });

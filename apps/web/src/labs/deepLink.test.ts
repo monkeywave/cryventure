@@ -5,6 +5,7 @@ import {
   MAX_HASH_LENGTH,
   decodeLabFields,
   encodeLabStates,
+  headingAnchor,
   parseLabGroups,
   readLabLink,
   withLabState,
@@ -67,17 +68,39 @@ describe('withLabState / withoutLab', () => {
     expect(next).toBe('lab=a&s=1&v=1&lab=b&s=4&v=1');
   });
 
-  it('replaces an existing lab in place and drops a foreign anchor', () => {
-    expect(withLabState('intro&lab=a&s=1&v=1&lab=b&s=2&v=1', 'a', { step: 9 })).toBe('lab=a&s=9&v=1&lab=b&s=2&v=1');
+  it('replaces an existing lab in place and keeps a leading heading anchor', () => {
+    expect(withLabState('intro&lab=a&s=1&v=1&lab=b&s=2&v=1', 'a', { step: 9 })).toBe('intro&lab=a&s=9&v=1&lab=b&s=2&v=1');
   });
 
-  it('drops params when the 2 KB cap would be exceeded', () => {
+  it('keeps a plain heading anchor first when the first lab state is written', () => {
+    expect(withLabState('how-it-works', 'a', { step: 2 })).toBe('how-it-works&lab=a&s=2&v=1');
+  });
+
+  it('never stores a step without its params when they do not fit (null: the caller drops the entry)', () => {
     const huge = { blob: 'x'.repeat(MAX_HASH_LENGTH) };
-    expect(withLabState('', 'a', { params: huge, step: 3 })).toBe('lab=a&s=3&v=1');
+    expect(withLabState('', 'a', { params: huge, step: 3 })).toBeNull();
   });
 
   it('removes one lab', () => {
     expect(withoutLab('lab=a&s=1&v=1&lab=b&s=2&v=1', 'a')).toBe('lab=b&s=2&v=1');
+  });
+
+  it('keeps a leading heading anchor when removing a lab', () => {
+    expect(withoutLab('intro&lab=a&s=1&v=1', 'a')).toBe('intro');
+  });
+});
+
+describe('headingAnchor', () => {
+  it('is the leading non-lab token of a combined hash', () => {
+    expect(headingAnchor('#how-it-works&lab=a&s=1&v=1')).toBe('how-it-works');
+  });
+
+  it('decodes percent-escaped heading ids', () => {
+    expect(headingAnchor('#gr%C3%BC%C3%9Fe&lab=a&v=1')).toBe('grüße');
+  });
+
+  it.each([['#lab=a&s=1&v=1'], [''], ['#how-it-works'], ['#%E0%A4%A&lab=a&v=1']])('is undefined for %j (no lab state or no anchor)', (hash) => {
+    expect(headingAnchor(hash)).toBeUndefined();
   });
 });
 

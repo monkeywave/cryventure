@@ -57,6 +57,14 @@ describe('createLabHashWriter', () => {
     expect(fake.hash()).toBe('');
   });
 
+  it('removes its stale entry when the new state does not fit the 2 KB cap', () => {
+    const fake = fakeEnvironment('intro&lab=b&s=5&v=1&lab=a&s=2&v=1');
+    const writer = createLabHashWriter('a', fake.env);
+    writer.schedule({ params: { blob: 'x'.repeat(4096) }, step: 9 });
+    writer.flush();
+    expect(fake.hash()).toBe('intro&lab=b&s=5&v=1');
+  });
+
   it('dispose flushes pending state', () => {
     const fake = fakeEnvironment();
     const writer = createLabHashWriter('a', fake.env);

@@ -96,22 +96,49 @@ function validStatesOf(hash: string): Map<string, LabLinkState> {
 }
 
 /**
- * Returns the new hash (no `#`) with `labId` set to `state`, keeping other labs. Over the 2 KB cap
- * the params are dropped (step only); `null` means even that does not fit.
+ * Tokens before the first lab group, kept verbatim — e.g. a Starlight heading id, so that
+ * `#how-it-works&lab=…` still names the heading (see `headingAnchor`).
+ */
+function foreignPrefix(hash: string): string {
+  const tokens = hash.replace(/^#/, '').split('&');
+  const firstLab = tokens.findIndex((token) => splitToken(token)[0] === 'lab');
+  return (firstLab < 0 ? tokens : tokens.slice(0, firstLab)).filter((token) => token !== '').join('&');
+}
+
+function joinHash(prefix: string, labs: string): string {
+  return [prefix, labs].filter((part) => part !== '').join('&');
+}
+
+/**
+ * The heading id a combined hash (`#<id>&lab=…`) points to. The browser cannot scroll to it on its
+ * own (no element has the whole fragment as id), so the page does; `undefined` without lab state.
+ */
+export function headingAnchor(hash: string): string | undefined {
+  if (parseLabGroups(hash).size === 0) return undefined;
+  const [first = ''] = foreignPrefix(hash).split('&');
+  if (first === '' || first.includes('=')) return undefined;
+  try {
+    return decodeURIComponent(first);
+  } catch {
+    return undefined;
+  }
+}
+
+/**
+ * Returns the new hash (no `#`) with `labId` set to `state`, keeping other labs and a leading heading
+ * anchor. `null` when it would exceed the 2 KB cap: a step is never stored without its params, which
+ * on reload would be applied to the preset's (different) trace — the caller drops the entry instead.
  */
 export function withLabState(hash: string, labId: string, state: LabLinkState): string | null {
   const states = validStatesOf(hash);
   states.set(labId, state);
-  const full = encodeLabStates(states);
-  if (full.length + 1 <= MAX_HASH_LENGTH) return full;
-  states.set(labId, { step: state.step });
-  const stepOnly = encodeLabStates(states);
-  return stepOnly.length + 1 <= MAX_HASH_LENGTH ? stepOnly : null;
+  const next = joinHash(foreignPrefix(hash), encodeLabStates(states));
+  return next.length + 1 <= MAX_HASH_LENGTH ? next : null;
 }
 
-/** Returns the new hash (no `#`) without `labId`. */
+/** Returns the new hash (no `#`) without `labId`, keeping other labs and a leading heading anchor. */
 export function withoutLab(hash: string, labId: string): string {
   const states = validStatesOf(hash);
   states.delete(labId);
-  return encodeLabStates(states);
+  return joinHash(foreignPrefix(hash), encodeLabStates(states));
 }

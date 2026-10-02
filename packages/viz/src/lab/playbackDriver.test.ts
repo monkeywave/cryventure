@@ -9,12 +9,12 @@ import { stateFacetOf, type AnyStateFacet } from './stateSteps.ts';
 
 const STEP_MS = 160;
 
-function setup({ mode = 'story', reducedMotion = false }: { mode?: LabMode; reducedMotion?: boolean } = {}) {
+function setup({ mode = 'story', reducedMotion = false, scaleBySpeed = false }: { mode?: LabMode; reducedMotion?: boolean; scaleBySpeed?: boolean } = {}) {
   const bundle = createFixtureBundle();
   const store = createLabStore(bundle);
   store.getState().setMode(mode);
   const scheduler = createManualScheduler();
-  const dispose = createPlaybackDriver({ store, scheduler, stepDurationMs: () => STEP_MS, reducedMotion: () => reducedMotion });
+  const dispose = createPlaybackDriver({ store, scheduler, stepDurationMs: (state) => (scaleBySpeed ? STEP_MS / state.speed : STEP_MS), reducedMotion: () => reducedMotion });
   const facet = stateFacetOf(bundle) as AnyStateFacet;
   const progress = () => store.getState().progress.get();
   return { store, scheduler, dispose, facet, progress };
@@ -67,6 +67,48 @@ describe('createPlaybackDriver', () => {
     expect(progress()).toBe(1);
     scheduler.advance(STEP_MS * 5);
     expect(store.getState()).toMatchObject({ step: 2, playing: false });
+  });
+
+  describe('reduced-motion dwell survives driver restarts', () => {
+    function dwellingOnStep0() {
+      const lab = setup({ reducedMotion: true, scaleBySpeed: true });
+      lab.store.getState().first();
+      lab.store.getState().play();
+      lab.scheduler.advance(STEP_MS / 2);
+      expect(lab.store.getState()).toMatchObject({ step: 0, playing: true });
+      return lab;
+    }
+
+    it('a speed change mid-dwell does not skip the step and rescales the remaining dwell', () => {
+      const { store, scheduler } = dwellingOnStep0();
+      store.getState().setSpeed(2);
+      expect(store.getState().step).toBe(0);
+      // Half of the dwell remains: STEP_MS / 2 at 1× is STEP_MS / 4 at 2×.
+      scheduler.advance(STEP_MS / 4 - 16);
+      expect(store.getState().step).toBe(0);
+      scheduler.advance(16);
+      expect(store.getState().step).toBe(1);
+    });
+
+    it('a mode change mid-dwell resumes the remaining dwell', () => {
+      const { store, scheduler } = dwellingOnStep0();
+      store.getState().setMode('debugger');
+      expect(store.getState().step).toBe(0);
+      scheduler.advance(STEP_MS / 2 - 16);
+      expect(store.getState().step).toBe(0);
+      scheduler.advance(16);
+      expect(store.getState().step).toBe(1);
+    });
+
+    it('pause and resume mid-dwell continues the remaining dwell', () => {
+      const { store, scheduler } = dwellingOnStep0();
+      store.getState().pause();
+      scheduler.advance(STEP_MS * 5);
+      store.getState().play();
+      expect(store.getState().step).toBe(0);
+      scheduler.advance(STEP_MS / 2);
+      expect(store.getState().step).toBe(1);
+    });
   });
 
   it('stops debugger playback on a breakpoint, with that step fully shown', () => {

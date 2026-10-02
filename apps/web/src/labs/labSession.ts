@@ -1,9 +1,10 @@
-import { i18nRef, type ChoreographyModule, type I18nRef, type PrimitiveManifest, type RunResult } from '@cryventure/core';
-import { createLabStore, stateSteps, type LabMode, type LabStore, type ReactViewManifest } from '@cryventure/viz';
+import { getFacet, i18nRef, type ChoreographyModule, type I18nRef, type PrimitiveManifest, type RunResult, type TraceBundle } from '@cryventure/core';
+import { createLabStore, stateSteps, type AnyStateFacet, type LabMode, type LabStore, type ReactViewManifest } from '@cryventure/viz';
 import type { LabLinkRead } from './deepLink.ts';
 import { resolveLab, type LabRegistries } from './registry.ts';
 import { initialStep, type StartAt } from './startAt.ts';
 import { resolveStartParams } from './startParams.ts';
+import { mapStepAcrossTraces } from './stepMapping.ts';
 
 export type LabParams = Record<string, unknown>;
 
@@ -76,13 +77,21 @@ export async function startLab({ producerId, presetId, link, startAt, mode, regi
   return { status: 'ready', producer, views, store, params: start.params, notice: start.notice, choreography };
 }
 
-/** Re-runs with new params, keeping the playhead where it was (clamped to the new timeline); a failed run becomes an error session. */
+/**
+ * Re-runs with new params, keeping the learner's place: the playhead is mapped to the same meaning in
+ * the new trace (`mapStepAcrossTraces`), and breakpoints and the watched cell survive where they still
+ * apply. A failed run becomes an error session and leaves the store untouched.
+ */
 export async function rerunLab(session: ReadySession, params: LabParams): Promise<SettledLabSession> {
   const result = await runProducer(session.producer, params);
   if (!result.ok) return { status: 'error', error: result.error };
-  const { store } = session;
-  const step = store.getState().step;
-  store.getState().setBundle(result.trace);
-  store.getState().seek(step);
+  const { bundle, step, setBundle, seek } = session.store.getState();
+  const nextStep = mapStepAcrossTraces(stateFacet(bundle), step, stateFacet(result.trace));
+  setBundle(result.trace, { preserveDebugContext: true });
+  seek(nextStep);
   return { ...session, params };
+}
+
+function stateFacet(bundle: TraceBundle | null): AnyStateFacet | undefined {
+  return bundle === null ? undefined : getFacet<AnyStateFacet>(bundle, 'state');
 }

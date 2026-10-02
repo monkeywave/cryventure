@@ -173,32 +173,66 @@ function changedIndices(indices: ReadonlySet<number>, before: readonly number[],
   return [...indices].sort((a, b) => a - b).filter((index) => before[index] !== after[index]);
 }
 
+/** Default length (in step progress) of one cell's emphasis pulse. */
+const PULSE_LENGTH = 0.5;
+
+/** Start of the `order`-th of `count` pulses in a left-to-right wave spread over the first half of the step. */
+function waveStart(order: number, count: number): number {
+  return count > 1 ? (order / count) * 0.5 : 0;
+}
+
 /**
  * Generic choreography for producers without their own: cells whose value a write changed pulse in a
- * left-to-right wave per region (one track per cell, even when several writes hit it).
+ * left-to-right wave per region, each switching to its `after` value at its own pulse peak (one pulse
+ * and one value track per cell, even when several writes hit it).
  */
 export function fallbackChoreography(context: ChoreographyContext): StepChoreography {
   const tracks: Track[] = [];
   for (const [region, indices] of writtenIndices(context.step.writes)) {
     const changed = changedIndices(indices, context.before[region] ?? [], context.after[region] ?? []);
     changed.forEach((index, order) => {
-      const start = changed.length > 1 ? (order / changed.length) * 0.5 : 0;
-      tracks.push(pulseTrack({ region, index }, start));
+      tracks.push(...pulseAndFlipTracks({ region, index }, waveStart(order, changed.length)));
     });
   }
   return { duration: DEFAULT_STEP_DURATION, tracks, beats: [{ at: 0, narration: context.step.narration }] };
 }
 
-/** Emphasis pulse 0 → 1 → 0 starting at `start`, plus the value flip at the pulse peak. */
-export function pulseTrack(target: NodeRef, start: number, length = 0.5): Track {
-  const peak = Math.min(1, start + length / 2);
+/** Progress at which a pulse starting at `start` with `length` peaks. */
+function pulsePeak(start: number, length: number): number {
+  return Math.min(1, start + length / 2);
+}
+
+/**
+ * Emphasis pulse 0 → 1 → 0 starting at `start`, peaking at `start + length / 2`. Emphasis only: pair it
+ * with `valueFlipTrack` at the peak (or use `pulseAndFlipTracks`) so the node shows its `after` value
+ * from the peak on; without a value track the node flips at `VALUE_SWITCH`.
+ */
+export function pulseTrack(target: NodeRef, start: number, length = PULSE_LENGTH): Track {
   return {
     target,
     prop: 'emphasis',
     keyframes: [
       { at: start, value: 0 },
-      { at: peak, value: 1, ease: 'easeOut' },
+      { at: pulsePeak(start, length), value: 1, ease: 'easeOut' },
       { at: Math.min(1, start + length), value: 0, ease: 'easeIn' },
     ],
   };
+}
+
+/** `value` track: the node shows its `before` value until `at`, then (hard flip) its `after` value. */
+export function valueFlipTrack(target: NodeRef, at: number): Track {
+  return {
+    target,
+    prop: 'value',
+    keyframes: [
+      { at: 0, value: 0 },
+      { at, value: 0 },
+      { at, value: 1 },
+    ],
+  };
+}
+
+/** `pulseTrack` plus the matching `valueFlipTrack` at the pulse peak. */
+export function pulseAndFlipTracks(target: NodeRef, start: number, length = PULSE_LENGTH): Track[] {
+  return [pulseTrack(target, start, length), valueFlipTrack(target, pulsePeak(start, length))];
 }

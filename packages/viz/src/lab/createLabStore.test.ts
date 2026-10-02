@@ -107,6 +107,14 @@ describe('createLabStore', () => {
     expect(store.getState()).toMatchObject({ mode: 'story', breakpoints: [], selection: { valueRefId: null, node: null } });
   });
 
+  it('setBundle with preserveDebugContext keeps breakpoints and the watched node the new bundle still has', () => {
+    const store = createLabStore(createFixtureBundle());
+    store.getState().toggleBreakpoint('sub');
+    store.getState().selectNode({ region: 'state', index: 3 });
+    store.getState().setBundle(createFixtureBundle(), { preserveDebugContext: true });
+    expect(store.getState()).toMatchObject({ breakpoints: ['sub'], selection: { node: { region: 'state', index: 3 } } });
+  });
+
   it('selectNode and select keep each other', () => {
     const store = createLabStore(createFixtureBundle());
     store.getState().select('0/key');

@@ -9,7 +9,9 @@ import {
   NEUTRAL_NODE_PROPS,
   VALUE_SWITCH,
   nodeId,
+  pulseAndFlipTracks,
   pulseTrack,
+  valueFlipTrack,
   sampleChoreography,
   sampleTrack,
   stepContext,
@@ -100,6 +102,24 @@ describe('pulseTrack', () => {
   });
 });
 
+describe('valueFlipTrack / pulseAndFlipTracks', () => {
+  it('valueFlipTrack shows before until `at` and after from then on', () => {
+    const flip = valueFlipTrack({ region: 's', index: 0 }, 0.3);
+    expect(flip.prop).toBe('value');
+    expect(sampleTrack(flip, 0.3)).toBe(0);
+    expect(sampleTrack(flip, 0.31)).toBe(1);
+  });
+
+  it('pulseAndFlipTracks flips the value at the pulse peak', () => {
+    const [pulse, flip] = pulseAndFlipTracks({ region: 's', index: 0 }, 0.2, 0.4);
+    expect(pulse?.prop).toBe('emphasis');
+    expect(sampleTrack(pulse!, 0.4)).toBe(1);
+    expect(flip?.keyframes.at(-1)).toEqual({ at: 0.4, value: 1 });
+  });
+});
+
+const pulses = (choreography: StepChoreography): Track[] => choreography.tracks.filter((t) => t.prop === 'emphasis');
+
 describe('fallbackChoreography', () => {
   it('pulses exactly the changed cells of written regions', () => {
     const choreography = fallbackChoreography({
@@ -107,7 +127,7 @@ describe('fallbackChoreography', () => {
       after: { state: [0, 9, 0, 9] },
       step: { op: 'x', scope: [0], writes: [{ region: 'state', offset: 0, values: [0, 9, 0, 9] }], highlights: [], narration: i18nRef('n') },
     });
-    expect(choreography.tracks.map((t) => nodeId(t.target))).toEqual(['state:1', 'state:3']);
+    expect(pulses(choreography).map((t) => nodeId(t.target))).toEqual(['state:1', 'state:3']);
     expect(choreography.beats[0]?.narration?.key).toBe('n');
   });
 
@@ -121,8 +141,8 @@ describe('fallbackChoreography', () => {
       after: { state: [7, 0, 5, 6, 0] },
       step: { op: 'x', scope: [0], writes, highlights: [], narration: i18nRef('n') },
     });
-    expect(choreography.tracks.map((t) => nodeId(t.target))).toEqual(['state:0', 'state:2', 'state:3']);
-    expect(choreography.tracks.map((t) => t.keyframes[0]?.at)).toEqual([0, 0.5 / 3, 1 / 3]);
+    expect(pulses(choreography).map((t) => nodeId(t.target))).toEqual(['state:0', 'state:2', 'state:3']);
+    expect(pulses(choreography).map((t) => t.keyframes[0]?.at)).toEqual([0, 0.5 / 3, 1 / 3]);
   });
 
   it('ignores cells outside every write even when the snapshots differ there', () => {
@@ -131,7 +151,38 @@ describe('fallbackChoreography', () => {
       after: { state: [2, 9] },
       step: { op: 'x', scope: [0], writes: [{ region: 'state', offset: 1, values: [9] }], highlights: [], narration: i18nRef('n') },
     });
-    expect(choreography.tracks.map((t) => nodeId(t.target))).toEqual(['state:1']);
+    expect(pulses(choreography).map((t) => nodeId(t.target))).toEqual(['state:1']);
+  });
+});
+
+describe('fallbackChoreography value flip', () => {
+  const choreography = fallbackChoreography({
+    before: { state: [0, 0, 0, 0] },
+    after: { state: [1, 2, 3, 4] },
+    step: { op: 'x', scope: [0], writes: [{ region: 'state', offset: 0, values: [1, 2, 3, 4] }], highlights: [], narration: i18nRef('n') },
+  });
+  const peakOf = (id: string): number => {
+    const pulse = choreography.tracks.find((t) => t.prop === 'emphasis' && nodeId(t.target) === id)!;
+    return pulse.keyframes.reduce((best, frame) => (frame.value > best.value ? frame : best)).at;
+  };
+  const valueAt = (id: string, progress: number): number | undefined => sampleChoreography(choreography, progress).get(id)?.value;
+
+  it('gives every changed cell a value track that flips at its own pulse peak', () => {
+    for (const index of [0, 1, 2, 3]) {
+      const id = `state:${index}`;
+      const peak = peakOf(id);
+      expect(valueAt(id, Math.max(0, peak - 0.01))).toBeLessThan(VALUE_SWITCH);
+      expect(valueAt(id, peak + 0.01)).toBeGreaterThanOrEqual(VALUE_SWITCH);
+    }
+  });
+
+  it('flips staggered cells at different progress values, not all at 0.5', () => {
+    expect(new Set([0, 1, 2, 3].map((index) => peakOf(`state:${index}`))).size).toBe(4);
+    expect(valueAt('state:3', VALUE_SWITCH)).toBeLessThan(VALUE_SWITCH);
+  });
+
+  it('ends neutral at progress 1', () => {
+    for (const props of sampleChoreography(choreography, 1).values()) expect(isNeutral(props)).toBe(true);
   });
 });
 
