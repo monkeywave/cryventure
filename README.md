@@ -37,7 +37,7 @@ Producer plugins ──► Facets (state, values, narration, instructions, memor
 | `apps/web` | Astro + Starlight site (EN/DE) |
 
 Add a plugin: `pnpm cv new primitive <id>` or `pnpm cv new view <id> --requires state`.
-See `docs/PLAN.md` for the full roadmap.
+See `docs/PLAN.md` for the full roadmap and `docs/STATUS.md` for current progress and next steps.
 
 ## Quality gates
 `pnpm lint && pnpm typecheck && pnpm i18n:check && pnpm test && pnpm e2e`
