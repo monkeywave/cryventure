@@ -4,7 +4,7 @@
 > `docs/EXTENDING.md` / `docs/AUTHORING.md` as needed. Continue with **Next up** below.
 > Update this file at the end of every milestone or significant change.
 
-_Last updated: 2026-10-02 (after the /simplify pass)._
+_Last updated: 2026-10-02 (after /simplify and /code-review; commit `cf723b8`)._
 
 ## Where things live
 
