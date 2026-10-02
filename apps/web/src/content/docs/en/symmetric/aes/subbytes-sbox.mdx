@@ -20,6 +20,7 @@ refs:
 import Lab from '../../../../../components/Lab.astro';
 import CheckQuestion from '../../../../../components/lesson/CheckQuestion.astro';
 import Formula from '../../../../../components/lesson/Formula.astro';
+import Lens from '../../../../../components/lesson/Lens.astro';
 import LessonSection from '../../../../../components/lesson/LessonSection.astro';
 import WhyBox from '../../../../../components/lesson/WhyBox.astro';
 
@@ -44,6 +45,16 @@ b'  = b ⊕ (b ⋘ 1) ⊕ (b ⋘ 2) ⊕ (b ⋘ 3) ⊕ (b ⋘ 4) ⊕ 0x63`}
 
 Worked example from FIPS 197: the inverse of `53` is `CA`, and the affine map turns `CA` into `ED`,
 so `S(53) = ED`.
+
+<Lens level="cryptographer">
+
+Algebraically, the S-box is `S(x) = A·x⁻¹ ⊕ {63}`: inversion in GF(2⁸), where `x⁻¹ = x²⁵⁴` (which
+also maps `{00}` to `{00}`), followed by an affine map: the bit matrix `A` over GF(2), then XOR with
+`{63}`. The inversion supplies the strong non-linearity; the affine map hides its simple algebraic
+description, and the constant `{63}` ensures that the S-box has no fixed points and no opposite fixed
+points. Full derivation: [Deriving the S-box](../sbox-derivation/).
+
+</Lens>
 
 </LessonSection>
 

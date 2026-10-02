@@ -1,0 +1,41 @@
+---
+/**
+ * `/<lang>/progress/`: the learner's quiz results per lesson, with export, import and reset
+ * (docs/M2.md §5). Progress lives in localStorage, so the page itself is static per locale.
+ */
+import { getCollection } from 'astro:content';
+import StarlightPage from '@astrojs/starlight/components/StarlightPage.astro';
+import '../../../styles/quiz.css';
+import { loadMessages, supportedLocales, toLocale } from '../../../i18n/loadMessages';
+import ProgressPage from '../../../islands/ProgressPage.tsx';
+import { pickPrefix } from '../../../labs/labMessages';
+import { withBase } from '../../../lib/withBase';
+import { lessonKeyFromPath } from '../../../progress/index.ts';
+import { countCheckQuestions, type QuizLesson } from '../../../quiz/quizModel.ts';
+
+export function getStaticPaths() {
+  return supportedLocales.map((lang) => ({ params: { lang } }));
+}
+
+const locale = toLocale(Astro.params.lang);
+const messages = pickPrefix(loadMessages(locale, ['quiz']), 'quiz.progress.');
+
+/** Reading order: by folder, then by the sidebar order inside it (index pages come first). */
+const readingOrder = (key: string, order: number | undefined): [string, number] => [key.split('/').slice(0, -1).join('/'), order ?? Number.MAX_SAFE_INTEGER];
+
+const docs = await getCollection('docs', (entry) => entry.id.startsWith(`${locale}/`) && countCheckQuestions(entry.body) > 0);
+const lessons: QuizLesson[] = docs
+  .map((entry) => {
+    const key = lessonKeyFromPath(`/${entry.id}/`, '/');
+    return { key, title: entry.data.title, href: withBase(`${locale}/${key}/`), questionCount: countCheckQuestions(entry.body), order: readingOrder(key, entry.data.sidebar.order) };
+  })
+  .sort((a, b) => a.order[0].localeCompare(b.order[0]) || a.order[1] - b.order[1] || a.key.localeCompare(b.key))
+  .map(({ key, title, href, questionCount }) => ({ key, title, href, questionCount }));
+---
+
+<StarlightPage frontmatter={{ title: messages['quiz.progress.title'] ?? '', description: messages['quiz.progress.description'] }}>
+  <p class="cv-progress__privacy">{messages['quiz.progress.privacy']}</p>
+  <div class="not-content">
+    <ProgressPage client:load lessons={lessons} messages={messages} locale={locale} />
+  </div>
+</StarlightPage>

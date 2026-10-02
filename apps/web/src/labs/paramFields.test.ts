@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { PrimitiveManifest } from '@cryventure/core';
 import { producerRegistry } from './registry.ts';
-import { editField, HEX_HINT_KEY, hintKeyOf, outputLabelKey } from './paramFields.ts';
+import { editField, HEX_HINT_KEY, hintKeyOf, mergeParams, outputLabelKey } from './paramFields.ts';
 import type { LabParams } from './labSession.ts';
 
 const aes = producerRegistry.require('aes') as PrimitiveManifest<LabParams>;
@@ -20,6 +20,27 @@ describe('editField', () => {
 
   it('applies select values through the same validation', () => {
     expect(editField(aes, params, 'detail', 'round')).toEqual({ ok: true, value: { ...params, detail: 'round' } });
+  });
+});
+
+describe('mergeParams', () => {
+  it('merges a multi-field patch over the committed params and normalises it', () => {
+    const result = mergeParams(aes, params, { keyHex: '2B7E1516 28AED2A6 ABF71588 09CF4F3C', detail: 'round' });
+    expect(result).toEqual({ ok: true, value: { ...params, keyHex: '2b7e151628aed2a6abf7158809cf4f3c', detail: 'round' } });
+  });
+
+  it('keeps the committed params for an empty patch', () => {
+    expect(mergeParams(aes, params, {})).toEqual({ ok: true, value: params });
+  });
+
+  it('returns the producer validation error for an invalid patch', () => {
+    expect(mergeParams(aes, params, { plaintextHex: '00' })).toEqual({ ok: false, error: { key: 'plugin.aes.error.plaintextLength', params: { length: 1 } } });
+  });
+
+  it('does not mutate the committed params', () => {
+    const committed = { ...params };
+    mergeParams(aes, committed, { detail: 'round' });
+    expect(committed).toEqual(params);
   });
 });
 

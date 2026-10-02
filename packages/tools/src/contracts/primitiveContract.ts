@@ -1,6 +1,21 @@
-import { assertManifestBasics, getFacet, paramFieldKeys, paramFieldsOf, type DerivationFacet, type PrimitiveManifest, type PrimitiveModule, type TraceBundle } from '@cryventure/core';
+import {
+  assertManifestBasics,
+  getFacet,
+  paramFieldKeys,
+  paramFieldsOf,
+  validateMathFacet,
+  validateTableFacet,
+  type DerivationFacet,
+  type I18nRef,
+  type MathFacet,
+  type PrimitiveManifest,
+  type PrimitiveModule,
+  type TableFacet,
+  type TraceBundle,
+} from '@cryventure/core';
 import { beforeAll, describe, expect, it } from 'vitest';
 import { loadPluginCatalogs, type LocaleCatalogs } from './catalogs.ts';
+import { conformanceFormatProblems, conformanceProblems, loadConformanceVectors, type ConformanceVectors } from './conformance.ts';
 import { derivationProblems, stepChoreographyProblems } from './choreographyChecks.ts';
 import {
   derivationGroupRefs,
@@ -8,12 +23,16 @@ import {
   jsonRoundTrip,
   keysOutsideNamespace,
   manifestLabelKeys,
+  mathFacetRefs,
+  mathStepRangeProblems,
   missingFacetKinds,
   missingKeys,
   refProblems,
   regionLayoutProblems,
   replayProblems,
   runtimeLabelKeys,
+  tableFacetRefs,
+  tableSelectParamProblems,
   unknownParamFields,
   type AnyStateFacet,
 } from './checks.ts';
@@ -21,6 +40,8 @@ import {
 export interface PrimitiveContractOptions<P> {
   /** Plugin EN/DE catalogs; defaults to `packages/primitives/src/<id>/i18n/{en,de}.json`. */
   catalogs?: LocaleCatalogs;
+  /** Parsed `vectors/conformance.json`; defaults to `packages/primitives/src/<id>/vectors/conformance.json`. */
+  conformance?: unknown;
   /** Extra conformance check against the plugin's `vectors/`, given the lazily loaded module. */
   vectorsCheck?: (module: PrimitiveModule<P>) => void | Promise<void>;
 }
@@ -95,7 +116,7 @@ function runSuite<P>(manifest: PrimitiveManifest<P>, catalogs: LocaleCatalogs, t
   optionalRunChecks(manifest, catalogs, () => bundle);
 }
 
-/** Checks that only apply when the manifest opts in (choreography, derivation facet). */
+/** Checks that only apply when the manifest opts in (choreography, derivation/math/table facets). */
 function optionalRunChecks<P>(manifest: PrimitiveManifest<P>, catalogs: LocaleCatalogs, bundle: () => TraceBundle): void {
   const { loadChoreography } = manifest;
   if (loadChoreography !== undefined) {
@@ -105,16 +126,62 @@ function optionalRunChecks<P>(manifest: PrimitiveManifest<P>, catalogs: LocaleCa
       expect(state === undefined ? ['no state facet to choreograph'] : stepChoreographyProblems(module, state, catalogs)).toEqual([]);
     });
   }
-  if (manifest.facets.includes('derivation')) {
-    it('orders its derivation facet topologically', () => {
-      const derivation = getFacet<DerivationFacet>(bundle(), 'derivation');
-      expect(derivation === undefined ? ['no derivation facet'] : derivationProblems(derivation)).toEqual([]);
-    });
-    it('labels its derivation groups with keys and {{params}} present in EN and DE', () => {
-      const derivation = getFacet<DerivationFacet>(bundle(), 'derivation');
-      expect(refProblems(derivation === undefined ? [] : derivationGroupRefs(derivation), catalogs)).toEqual([]);
-    });
+  if (manifest.facets.includes('derivation')) derivationChecks(catalogs, bundle);
+  if (manifest.facets.includes('math')) {
+    facetChecks<MathFacet>('math', validateMathFacet, mathFacetRefs, catalogs, bundle);
+    mathCrossChecks(bundle);
   }
+  if (manifest.facets.includes('table')) {
+    facetChecks<TableFacet>('table', validateTableFacet, tableFacetRefs, catalogs, bundle);
+    tableCrossChecks(manifest, bundle);
+  }
+}
+
+function mathCrossChecks(bundle: () => TraceBundle): void {
+  it('aligns every math step with a state step', () => {
+    const math = getFacet<MathFacet>(bundle(), 'math');
+    const stepCount = getFacet<AnyStateFacet>(bundle(), 'state')?.steps.length ?? 0;
+    expect(math === undefined ? [] : mathStepRangeProblems(math, stepCount)).toEqual([]);
+  });
+}
+
+function tableCrossChecks<P>(manifest: PrimitiveManifest<P>, bundle: () => TraceBundle): void {
+  it('selects through a real param whose hex index round-trips through validate', () => {
+    const table = getFacet<TableFacet>(bundle(), 'table');
+    expect(table === undefined ? [] : tableSelectParamProblems(table, manifest, bundle().params as P)).toEqual([]);
+  });
+}
+
+function derivationChecks(catalogs: LocaleCatalogs, bundle: () => TraceBundle): void {
+  it('orders its derivation facet topologically', () => {
+    const derivation = getFacet<DerivationFacet>(bundle(), 'derivation');
+    expect(derivation === undefined ? ['no derivation facet'] : derivationProblems(derivation)).toEqual([]);
+  });
+  it('labels its derivation groups with keys and {{params}} present in EN and DE', () => {
+    const derivation = getFacet<DerivationFacet>(bundle(), 'derivation');
+    expect(refProblems(derivation === undefined ? [] : derivationGroupRefs(derivation), catalogs)).toEqual([]);
+  });
+}
+
+/** Schema validation plus EN/DE key and `{{params}}` checks for one declared facet kind. */
+function facetChecks<F>(kind: string, validate: (facet: F) => string[], refs: (facet: F) => I18nRef[], catalogs: LocaleCatalogs, bundle: () => TraceBundle): void {
+  it(`emits a valid ${kind} facet`, () => {
+    const facet = getFacet<F>(bundle(), kind);
+    expect(facet === undefined ? [`no ${kind} facet`] : validate(facet)).toEqual([]);
+  });
+  it(`labels its ${kind} facet with keys and {{params}} present in EN and DE`, () => {
+    const facet = getFacet<F>(bundle(), kind);
+    expect(refProblems(facet === undefined ? [] : refs(facet), catalogs)).toEqual([]);
+  });
+}
+
+/** Checks the generic conformance file: at least one well-formed case, each reproduced by `run()`. */
+function conformanceSuite<P>(manifest: PrimitiveManifest<P>, vectors: unknown): void {
+  it('ships well-formed conformance vectors (vectors/conformance.json, ≥1 case)', () => expect(conformanceFormatProblems(vectors)).toEqual([]));
+  it('reproduces every conformance vector', async () => {
+    if (conformanceFormatProblems(vectors).length > 0) throw new Error('vectors/conformance.json is missing or malformed (see the previous test)');
+    expect(conformanceProblems(await manifest.load(), vectors as ConformanceVectors)).toEqual([]);
+  });
 }
 
 /** Registers the generic contract suite for one primitive plugin (call at test-file top level). */
@@ -123,6 +190,7 @@ export function primitiveContract<P>(manifest: PrimitiveManifest<P>, options: Pr
   describe(`primitive "${manifest.id}" contract`, () => {
     manifestSuite(manifest, catalogs);
     describe.each(runCases(manifest))('run($name)', (testCase) => runSuite(manifest, catalogs, testCase));
+    conformanceSuite(manifest, 'conformance' in options ? options.conformance : loadConformanceVectors('primitives', manifest.id));
     const { vectorsCheck } = options;
     if (vectorsCheck !== undefined) it('conforms to its vectors', async () => vectorsCheck(await manifest.load()));
   });

@@ -1,0 +1,148 @@
+{
+  "source": "NIST FIPS 197 (Advanced Encryption Standard), updated 2023-05-09 (FIPS 197-upd1), §4.2, §4.2.1 and §4.4 (S-box inputs/inverses from Table 4 derivation)",
+  "cases": [
+    {
+      "name": "§4.2 multiplication",
+      "params": {
+        "op": "gmul",
+        "aHex": "57",
+        "bHex": "83"
+      },
+      "outputs": {
+        "result": "c1"
+      }
+    },
+    {
+      "name": "§4.2.1 xtime chain",
+      "params": {
+        "op": "gmul",
+        "aHex": "57",
+        "bHex": "13"
+      },
+      "outputs": {
+        "result": "fe"
+      }
+    },
+    {
+      "name": "§4.2.1 {57} • {02}",
+      "params": {
+        "op": "xtime",
+        "aHex": "57",
+        "bHex": "00"
+      },
+      "outputs": {
+        "result": "ae"
+      }
+    },
+    {
+      "name": "§4.2.1 {57} • {04}",
+      "params": {
+        "op": "xtime",
+        "aHex": "ae",
+        "bHex": "00"
+      },
+      "outputs": {
+        "result": "47"
+      }
+    },
+    {
+      "name": "§4.2.1 {57} • {08}",
+      "params": {
+        "op": "xtime",
+        "aHex": "47",
+        "bHex": "00"
+      },
+      "outputs": {
+        "result": "8e"
+      }
+    },
+    {
+      "name": "§4.2.1 {57} • {10}",
+      "params": {
+        "op": "xtime",
+        "aHex": "8e",
+        "bHex": "00"
+      },
+      "outputs": {
+        "result": "07"
+      }
+    },
+    {
+      "name": "§4.2.1 {57} • {10} via gmul",
+      "params": {
+        "op": "gmul",
+        "aHex": "57",
+        "bHex": "10"
+      },
+      "outputs": {
+        "result": "07"
+      }
+    },
+    {
+      "name": "§4.2 commutativity",
+      "params": {
+        "op": "gmul",
+        "aHex": "83",
+        "bHex": "57"
+      },
+      "outputs": {
+        "result": "c1"
+      }
+    },
+    {
+      "name": "§4.4 inverse of {53}",
+      "params": {
+        "op": "ginv",
+        "aHex": "53",
+        "bHex": "00"
+      },
+      "outputs": {
+        "result": "ca"
+      }
+    },
+    {
+      "name": "§4.4 inverse of {ca}",
+      "params": {
+        "op": "ginv",
+        "aHex": "ca",
+        "bHex": "00"
+      },
+      "outputs": {
+        "result": "53"
+      }
+    },
+    {
+      "name": "§4.4 inverse of {01}",
+      "params": {
+        "op": "ginv",
+        "aHex": "01",
+        "bHex": "00"
+      },
+      "outputs": {
+        "result": "01"
+      }
+    },
+    {
+      "name": "§4.4 inverse of {02}",
+      "params": {
+        "op": "ginv",
+        "aHex": "02",
+        "bHex": "00"
+      },
+      "outputs": {
+        "result": "8d"
+      }
+    },
+    {
+      "name": "§5.1.1 convention: {00} maps to {00}",
+      "params": {
+        "op": "ginv",
+        "aHex": "00",
+        "bHex": "00"
+      },
+      "outputs": {
+        "result": "00"
+      }
+    }
+  ]
+}

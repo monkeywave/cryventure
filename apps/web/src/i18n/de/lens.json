@@ -1,0 +1,9 @@
+{
+  "lens.select.label": "Perspektive",
+  "lens.name.story": "Erzählung",
+  "lens.name.engineer": "Technik",
+  "lens.name.cryptographer": "Kryptografie",
+  "lens.badge.story": "Perspektive Erzählung",
+  "lens.badge.engineer": "Perspektive Technik",
+  "lens.badge.cryptographer": "Perspektive Kryptografie"
+}

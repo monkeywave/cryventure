@@ -4,9 +4,14 @@ import type { LabParams } from './labSession.ts';
 /** Generic hint for hex fields whose producer declares none. */
 export const HEX_HINT_KEY = 'ui.lab.params.hexHint';
 
+/** Validates `params` with `patch` merged over it (a view's re-run request; untouched fields stay committed). */
+export function mergeParams(producer: PrimitiveManifest<LabParams>, params: LabParams, patch: Readonly<Record<string, unknown>>): ValidationResult<LabParams> {
+  return producer.validate({ ...params, ...patch });
+}
+
 /** Validates `params` with one field replaced by the user's input (other fields stay committed). */
 export function editField(producer: PrimitiveManifest<LabParams>, params: LabParams, field: string, text: string): ValidationResult<LabParams> {
-  return producer.validate({ ...params, [field]: text });
+  return mergeParams(producer, params, { [field]: text });
 }
 
 /** The field's own hint, else the generic hex hint for hex fields; `undefined` when there is none. */

@@ -28,6 +28,32 @@ describe('ByteGrid', () => {
     expect(screen.getByRole('gridcell', { name: 'row 1, column 2, value 0x01' })).toBeTruthy();
   });
 
+  it('draws not-yet-written cells as a muted placeholder with a spoken "not yet written"', () => {
+    renderGrid({ unwritten: new Set([0, 5]) });
+    expect(rowTexts()[0]).toEqual(['··', '01', '02', '03']);
+    const blank = screen.getByRole('gridcell', { name: 'row 2, column 2, value not yet written' });
+    expect(blank.hasAttribute('data-blank')).toBe(true);
+    expect(screen.getByRole('gridcell', { name: 'row 1, column 2, value 0x01' }).hasAttribute('data-blank')).toBe(false);
+  });
+
+  it('says "not yet written" in German', () => {
+    render(
+      <I18nProvider messages={vizMessages.de}>
+        <ByteGrid values={values} shape={[4, 4]} label="Zustand" unwritten={new Set([0])} />
+      </I18nProvider>,
+    );
+    expect(screen.getByRole('gridcell', { name: 'Zeile 1, Spalte 1, Wert noch nicht geschrieben' })).toBeTruthy();
+  });
+
+  it('labels each column above the cells when given column headers', () => {
+    const columnHeaders = ['+0', '+1', '+2', '+3'].map((text) => ({ text, label: `offset ${text}` }));
+    renderGrid({ values: values.slice(0, 4), shape: [1, 4], columnHeaders });
+    const headers = screen.getAllByRole('columnheader');
+    expect(headers.map((header) => header.textContent)).toEqual(['+0', '+1', '+2', '+3']);
+    expect(headers[3]?.getAttribute('aria-label')).toBe('offset +3');
+    expect(screen.getAllByRole('gridcell')).toHaveLength(4);
+  });
+
   it('lays out col-major values down the columns', () => {
     renderGrid({ order: 'col-major' });
     expect(rowTexts()[0]).toEqual(['00', '04', '08', '0c']);
@@ -119,6 +145,15 @@ describe('ByteGrid choreography and selection', () => {
     expect(cellAtIndex(0).hasAttribute('data-animated')).toBe(false);
     act(() => progress.set(1));
     expect(cellAtIndex(3).textContent).toBe('03');
+  });
+
+  it('keeps a newly written cell as a placeholder until its value switches, even if it writes 00', () => {
+    const progress = motionValue(0);
+    renderInLab({ motion: { progress, before: values, unwrittenBefore: new Set([0, 1]), tracks: new Map() }, unwritten: new Set([1]) });
+    expect(cellAtIndex(0).textContent).toBe('··');
+    act(() => progress.set(1));
+    expect(cellAtIndex(0).textContent).toBe('00');
+    expect(cellAtIndex(1).textContent).toBe('··');
   });
 
   it('dims every cell outside the focus set', () => {

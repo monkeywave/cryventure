@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { createFixtureBundle } from '../testing/fixtureBundle.ts';
 import { createLabStore } from './createLabStore.ts';
 import { selectStepCount } from './labReducers.ts';
@@ -153,5 +153,33 @@ describe('createLabStore', () => {
       expect(store.getState().transition).toBe('hold');
       expect(store.getState().progress.get()).toBe(0.4);
     });
+  });
+});
+
+describe('createLabStore requestParams', () => {
+  it('forwards the patch to the installed handler', () => {
+    const store = createLabStore(createFixtureBundle());
+    const handler = vi.fn();
+    store.getState().setParamsRequestHandler(handler);
+    store.getState().requestParams({ keyHex: '00' });
+    expect(handler).toHaveBeenCalledWith({ keyHex: '00' });
+  });
+
+  it('is a safe no-op when no host is wired or the handler was removed', () => {
+    const store = createLabStore(createFixtureBundle());
+    expect(() => store.getState().requestParams({ a: 1 })).not.toThrow();
+    const handler = vi.fn();
+    store.getState().setParamsRequestHandler(handler);
+    store.getState().setParamsRequestHandler(undefined);
+    store.getState().requestParams({ a: 1 });
+    expect(handler).not.toHaveBeenCalled();
+  });
+
+  it('swapping the handler does not notify subscribers', () => {
+    const store = createLabStore(createFixtureBundle());
+    const listener = vi.fn();
+    store.subscribe(listener);
+    store.getState().setParamsRequestHandler(vi.fn());
+    expect(listener).not.toHaveBeenCalled();
   });
 });

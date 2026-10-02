@@ -9,6 +9,11 @@
   line-height: 1.5;
 }
 
+.cv-narration sup {
+  font-size: 0.75em;
+  line-height: 0;
+}
+
 .cv-narration__scope {
   margin: 0 0 0.25rem;
   font-size: 0.8rem;

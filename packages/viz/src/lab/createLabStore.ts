@@ -29,6 +29,12 @@ export interface SetBundleOptions {
   preserveDebugContext?: boolean;
 }
 
+/** A partial param change a view asks the host to apply (merged into the current params, then validated). */
+export type ParamsPatch = Record<string, unknown>;
+
+/** The host's re-run entry point for view-initiated param changes (wired by the app, e.g. via `LabRoot`). */
+export type ParamsRequestHandler = (patch: ParamsPatch) => void;
+
 export interface LabActions {
   setBundle(bundle: TraceBundle | null, options?: SetBundleOptions): void;
   /** Exact jump to the end state of `step`. */
@@ -59,6 +65,10 @@ export interface LabActions {
   setDerivedFacet(key: FacetKey, data: unknown): void;
   /** Remembers whether the learner expanded or collapsed a collapsible region. */
   setRegionExpanded(regionId: string, expanded: boolean): void;
+  /** Asks the host to re-run the producer with `patch` merged into the current params; a no-op when no host is wired. */
+  requestParams(patch: ParamsPatch): void;
+  /** Host-side: installs (or, with `undefined`, removes) the handler behind `requestParams`. */
+  setParamsRequestHandler(handler: ParamsRequestHandler | undefined): void;
 }
 
 export interface LabPlayhead {
@@ -87,6 +97,8 @@ function syncProgress(store: LabStore): void {
 
 /** One store per lab instance (never a module singleton), so several labs can share a page. */
 export function createLabStore(bundle: TraceBundle | null = null): LabStore {
+  // Kept outside the state: swapping the host's handler must not re-render subscribers.
+  let paramsRequestHandler: ParamsRequestHandler | undefined;
   const store = createStore<LabState>()((set, get) => ({
     ...initialLabData(bundle),
     progress: motionValue(1),
@@ -110,6 +122,10 @@ export function createLabStore(bundle: TraceBundle | null = null): LabStore {
     selectNode: (node) => set((state) => ({ selection: { ...state.selection, node } })),
     setDerivedFacet: (key, data) => set((state) => ({ derivedFacets: { ...state.derivedFacets, [key]: data } })),
     setRegionExpanded: (regionId, expanded) => set((state) => setRegionExpanded(state, regionId, expanded)),
+    requestParams: (patch) => paramsRequestHandler?.(patch),
+    setParamsRequestHandler: (handler) => {
+      paramsRequestHandler = handler;
+    },
   }));
   syncProgress(store);
   return store;

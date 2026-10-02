@@ -1,4 +1,4 @@
-import { useCurrentNarration, useScopeLabel, useT, type ViewProps } from '@cryventure/viz';
+import { MathText, useCurrentNarration, useScopeLabel, useT, type ViewProps } from '@cryventure/viz';
 import './narration.css';
 
 /**
@@ -15,7 +15,7 @@ export default function NarrationView(_props: ViewProps) {
     <section className="cv-narration-view" aria-label={t('view.narration.title')}>
       {scope !== '' && <p className="cv-narration__scope">{scope}</p>}
       <p className="cv-narration" aria-live="polite" aria-atomic="true">
-        {text}
+        <MathText text={text} />
       </p>
     </section>
   );

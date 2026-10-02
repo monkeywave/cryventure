@@ -1,8 +1,5 @@
 import type { AnyStateFacet, Translate } from '@cryventure/core';
 
-/** Message keys per scope depth; deeper levels reuse the last key. Params: `index`, `ordinal` (index + 1). */
-export const DEFAULT_SCOPE_LEVEL_KEYS: readonly string[] = ['ui.scope.round', 'ui.scope.op', 'ui.scope.sub'];
-
 /**
  * Template params of one scope level: `index`/`value` = the raw scope index, `ordinal` = index + 1,
  * `n` = the 1-based level index (see `StateFacet.scopeLevels` in core).
@@ -12,14 +9,15 @@ export function scopeParams(index: number, depth: number): Record<string, number
 }
 
 /**
- * "Round 3 · op 2" for scope `[3, 1]`; empty string for the root scope.
+ * "Round 3 · op 2" for scope `[3, 1]` (one message key per depth; deeper levels reuse the last key);
+ * empty string for the root scope or without level keys.
  * `deepestLabel` (e.g. the step's op label "SubBytes") replaces the template of the deepest declared
  * level — only when the scope actually reaches it — giving "Round 3 · SubBytes".
  */
 export function formatScopePath(
   scope: readonly number[],
   t: Translate,
-  levelKeys: readonly string[] = DEFAULT_SCOPE_LEVEL_KEYS,
+  levelKeys: readonly string[],
   deepestLabel?: string,
 ): string {
   const lastKey = levelKeys.at(-1);
@@ -30,10 +28,13 @@ export function formatScopePath(
     .join(t('ui.scope.separator'));
 }
 
-/** The producer's `scopeLevels` label keys when declared, else the viz defaults. */
+/**
+ * The producer's `scopeLevels` label keys; none when it declares no levels. A producer without
+ * declared levels (e.g. a flat XOR or byte-order trace) gets no scope label at all — the player
+ * must not invent AES-style "Round n" labels for it; "Step x / n" stays the only position text.
+ */
 export function scopeLevelKeys(facet: Pick<AnyStateFacet, 'scopeLevels'> | undefined): readonly string[] {
-  const keys = facet?.scopeLevels?.map((level) => level.labelKey);
-  return keys !== undefined && keys.length > 0 ? keys : DEFAULT_SCOPE_LEVEL_KEYS;
+  return facet?.scopeLevels?.map((level) => level.labelKey) ?? [];
 }
 
 /** Scope path of `step` in a state facet; the initial step (-1) has the root scope `[]`. */

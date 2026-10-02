@@ -31,7 +31,8 @@ export function createFixtureBundle(): TraceBundle {
   tracer.step({ op: 'mix', writes: [{ region: 'w', offset: 16, values: [0xff] }], highlights: [{ region: 'w', indices: [16], kind: 'xor' }], narration: { key: 'fixture.narration.mix' } });
   tracer.leave();
   tracer.leave();
-  const state = tracer.toFacet();
+  // AES-shaped scope levels (round, op), reusing the viz's generic templates: "Round 1 · op 2".
+  const state = { ...tracer.toFacet(), scopeLevels: [{ labelKey: 'ui.scope.round' }, { labelKey: 'ui.scope.op' }] };
   return {
     schemaVersion: 1,
     producer: { kind: 'primitive', id: 'fixture', apiVersion: 1 },

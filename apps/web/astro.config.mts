@@ -25,7 +25,8 @@ export default defineConfig({
         {
           label: 'Foundations',
           translations: { de: 'Grundlagen' },
-          items: [{ slug: 'foundations/welcome-lab' }],
+          // Page order comes from each page's frontmatter `sidebar.order` (EN and DE).
+          items: [{ autogenerate: { directory: 'foundations' } }],
         },
         {
           label: 'Block ciphers',
@@ -39,11 +40,14 @@ export default defineConfig({
             },
           ],
         },
+        // Starlight prefixes a `link` with the current locale and the base (`/cryventure/de/progress/`).
+        { label: 'Your progress', translations: { de: 'Dein Fortschritt' }, link: '/progress/' },
       ],
       disable404Route: true,
       customCss: ['./src/styles/global.css'],
       components: {
         LanguageSelect: './src/overrides/LanguageSelect.astro',
+        ThemeSelect: './src/overrides/ThemeSelect.astro',
       },
     }),
     react(),

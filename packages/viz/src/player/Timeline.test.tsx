@@ -88,4 +88,21 @@ describe('useScopeLabel', () => {
     act(() => store.getState().seek(1));
     expect(screen.getByTestId('scope').textContent).toBe('Round 1 · op 1');
   });
+
+  it('shows no scope label (no invented "Round 0") when the producer declares no scope levels', () => {
+    const bundle = createFixtureBundle();
+    const { scopeLevels: _omitted, ...state } = bundle.facets['state@default'] as StateFacet<string, { op: string }>;
+    bundle.facets['state@default'] = state;
+    const { store } = renderLab(
+      <>
+        <Probe />
+        <Timeline />
+      </>,
+      { bundle },
+    );
+    act(() => store.getState().seek(0));
+    expect(screen.getByTestId('scope').textContent).toBe('');
+    expect(document.querySelector('.cv-timeline__scope')).toBeNull();
+    expect(screen.getByRole('slider').getAttribute('aria-valuetext')).toBe('Step 1 / 3');
+  });
 });

@@ -24,6 +24,8 @@ export interface ByteGridProps {
   rowOffsets?: readonly number[];
   /** Optional custom row headers (already translated); takes precedence over `rowOffsets`. */
   rowHeaders?: readonly GridRowHeader[];
+  /** Optional column headers (already translated), e.g. per-byte addresses `+0`, `+1`, … above a memory row. */
+  columnHeaders?: readonly GridRowHeader[];
   /** `wrap`: rows flow side by side and wrap to the available width (e.g. key-schedule words). */
   layout?: GridLayoutMode;
   /**
@@ -39,6 +41,8 @@ export interface ByteGridProps {
   selectedIndex?: number;
   /** Makes cells selectable (click / Enter). */
   onSelectCell?: (index: number) => void;
+  /** Flat indices not yet written at the playhead: drawn as placeholders, not as their (meaningless) value. */
+  unwritten?: ReadonlySet<number>;
 }
 
 export type GridLayoutMode = 'stack' | 'wrap';
@@ -67,6 +71,7 @@ interface CellModel {
   dimmed: boolean;
   focused: boolean;
   selected: boolean | undefined;
+  blank: boolean;
 }
 
 interface RowProps {
@@ -80,6 +85,20 @@ interface RowProps {
   isActive: (row: number, col: number) => boolean;
   onFocusCell: (row: number, col: number) => void;
   onSelectCell: ((index: number) => void) | undefined;
+}
+
+/** Header row above the cells; keeps an empty corner when the rows have headers too. */
+function ColumnHeaderRow({ headers, corner }: { headers: readonly GridRowHeader[]; corner: boolean }) {
+  return (
+    <div role="row" className="cv-grid__row cv-grid__head">
+      {corner && <div className="cv-grid__offset" aria-hidden="true" />}
+      {headers.map((header, col) => (
+        <div key={col} role="columnheader" className="cv-grid__colhead" aria-label={header.label}>
+          {header.text}
+        </div>
+      ))}
+    </div>
+  );
 }
 
 function RowHeader({ header }: { header: GridRowHeader }) {
@@ -124,6 +143,7 @@ function GridRow({ row, lineStart, cols, header, cellAt, elem, isActive, onFocus
             focused={cell.focused}
             selected={cell.selected}
             onSelect={onSelectCell}
+            blank={cell.blank}
           />
         );
       })}
@@ -136,8 +156,8 @@ function GridRow({ row, lineStart, cols, header, cellAt, elem, isActive, onFocus
  * optional choreography (`motion`), beat focus dimming and cell selection.
  */
 export function ByteGrid(props: ByteGridProps) {
-  const { values, shape, order = 'row-major', elem = 'u8', highlights = NO_HIGHLIGHTS, label, rowOffsets, rowHeaders, layout = 'stack' } = props;
-  const { motion, focus, selectedIndex, onSelectCell, wrapColumns = 1 } = props;
+  const { values, shape, order = 'row-major', elem = 'u8', highlights = NO_HIGHLIGHTS, label, rowOffsets, rowHeaders, columnHeaders, layout = 'stack' } = props;
+  const { motion, focus, selectedIndex, onSelectCell, wrapColumns = 1, unwritten } = props;
   const wrap = layout === 'wrap';
   const [rows, cols] = shape;
   const headers = useRowHeaders(rowOffsets, rowHeaders);
@@ -148,10 +168,12 @@ export function ByteGrid(props: ByteGridProps) {
   const cellAt = (row: number, col: number): CellModel => {
     const index = cellIndex(row, col, shape, order);
     const value = values[index] ?? 0;
+    const after = showsAfter(index);
     return {
       index,
       value,
-      shown: showsAfter(index) ? value : (motion?.before[index] ?? value),
+      shown: after ? value : (motion?.before[index] ?? value),
+      blank: after ? (unwritten?.has(index) ?? false) : (motion?.unwrittenBefore?.has(index) ?? unwritten?.has(index) ?? false),
       highlight: byIndex.get(index),
       ...beatFocus(focus, index),
       selected: onSelectCell === undefined ? undefined : index === selectedIndex,
@@ -168,6 +190,7 @@ export function ByteGrid(props: ByteGridProps) {
       data-order={order}
       onKeyDown={onKeyDown}
     >
+      {columnHeaders !== undefined && <ColumnHeaderRow headers={columnHeaders} corner={headers !== undefined} />}
       {Array.from({ length: rows }, (_, row) => (
         <GridRow
           key={row}

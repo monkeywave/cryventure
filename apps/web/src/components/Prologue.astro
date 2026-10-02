@@ -1,0 +1,17 @@
+---
+/**
+ * The onboarding prologue (docs/PLAN.md §4) as a React island. Only the `prologue.*` and `lens.*`
+ * messages of the page locale ship to the client.
+ */
+import '../styles/prologue.css';
+import { loadMessages, toLocale } from '../i18n/loadMessages';
+import Prologue from '../islands/prologue/Prologue.tsx';
+
+const locale = toLocale(Astro.currentLocale);
+const messages = loadMessages(locale, ['prologue', 'lens']);
+---
+
+<div class="cv-prologue-host not-content">
+  <Prologue client:load messages={messages} locale={locale} />
+  <noscript><p class="cv-prologue__noscript">{messages['prologue.noscript']}</p></noscript>
+</div>

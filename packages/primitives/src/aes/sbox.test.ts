@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { AFFINE_CONSTANT as CORE_AFFINE_CONSTANT, affine as coreAffine, sboxEntry as coreSboxEntry } from '@cryventure/core';
 import {
   affine,
   AFFINE_CONSTANT,
@@ -60,5 +61,13 @@ describe('lookup', () => {
   it('reads the table and masks the index to a byte', () => {
     expect(lookup(SBOX, 0x153)).toBe(0xed);
     expect(lookup([], 5)).toBe(0);
+  });
+});
+
+describe('core reuse', () => {
+  it('builds SBOX from the core sboxEntry and re-exports the core affine map', () => {
+    expect(SBOX).toEqual(Array.from({ length: 256 }, (_, x) => coreSboxEntry(x)));
+    expect(affine).toBe(coreAffine);
+    expect(AFFINE_CONSTANT).toBe(CORE_AFFINE_CONSTANT);
   });
 });

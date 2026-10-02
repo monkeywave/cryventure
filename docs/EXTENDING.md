@@ -27,6 +27,7 @@ This creates `packages/primitives/src/my-cipher/`:
 | `module.ts` | The implementation (`run(params, { tracer })`). It is code-split and loaded only when a lab starts. |
 | `module.test.ts` | Unit tests for your own functions. |
 | `i18n/en.json`, `i18n/de.json` | The plugin's catalogs. Every key sits under `plugin.<id>.*`. DE starts as `[DE] …` stubs. |
+| `vectors/conformance.json` | Known-answer vectors in the generic format below. The starter case must be replaced by values from an independent source. |
 
 There is no list to edit: `packages/primitives/src/index.ts` discovers `*/manifest.ts` with
 `import.meta.glob`, and the contract kit (below) picks the new plugin up automatically. The
@@ -115,6 +116,33 @@ leave it unset. Producers that only set `group` still work: `isResultNode(node)`
 view lists results under these labels (generic "Group n" otherwise). The contract kit checks the
 label keys and `{{params}}` in EN and DE.
 
+### Conformance vectors (`vectors/conformance.json`)
+
+Every primitive ships at least one known-answer case in one generic format, which the contract
+kit discovers and checks on its own (no test code per plugin):
+
+```json
+{
+  "source": "NIST FIPS 197 (2023), Appendix C.1",
+  "cases": [
+    {
+      "name": "App. C.1 (AES-128)",
+      "params": { "keyHex": "000102030405060708090a0b0c0d0e0f", "plaintextHex": "00112233445566778899aabbccddeeff", "detail": "op" },
+      "outputs": { "ciphertext": "69c4e0d86a7b0430d8cdb78070b4c55a" }
+    }
+  ]
+}
+```
+
+- `source` cites where the expected values come from: a standard, or an independent implementation
+  (never the plugin itself).
+- `params` is passed to `run()` as is; `outputs` maps `TraceBundle.output` keys to the expected
+  bytes as lowercase hex. Only the listed keys are compared.
+- Name output keys after what they hold (`ciphertext`, `result`, `sbox`, `bigEndian`), without a
+  `Hex` suffix: outputs are byte arrays, not strings.
+- Other files in `vectors/` (e.g. intermediate values of FIPS 197 App. B) stay plugin-specific and
+  are used by the plugin's own tests.
+
 ## Add a view
 
 ```sh
@@ -171,13 +199,22 @@ over the preset. When the lab container is narrower than 720px, panels stack ver
 - with `loadChoreography`: every step's choreography targets existing cells, ends neutral and
   narrates with existing keys; with a `derivation` facet: topological order and `groups` labels
   with existing keys and matching `{{params}}`
-- optionally, conformance to the plugin's `vectors/` (pass `vectorsCheck`)
+- `vectors/conformance.json` exists, is well-formed, has at least one case, and `run(params)`
+  reproduces every listed output (see "Conformance vectors"); `vectorsCheck` adds any
+  plugin-specific check on top
 
 **Views** (`viewContract`):
 - manifest basics, and at least one required facet
 - the title key exists in EN and DE
 - catalog keys sit under `view.<id>.*`
 - the component loads lazily
+- it renders against fixture bundles without throwing and without raw message keys
+  (`view.*`, `plugin.*`, `ui.*`, `core.*`) in its text or `aria-label`/`title`/… attributes, in
+  EN and DE, in every lens, at the first, middle and last step. The fixtures are generated from the
+  real primitives (each run with its defaults, `facetFixtures.ts`): the view gets every bundle that
+  carries all its `requires`; if none does, one bundle is assembled per facet kind (`requires` +
+  `optional`). A required kind no primitive emits fails the contract until a primitive emits it or
+  a `fallbacks` facet is passed to `viewContract`. `all.contract.test.ts` runs in jsdom for this.
 
 ## i18n rules
 

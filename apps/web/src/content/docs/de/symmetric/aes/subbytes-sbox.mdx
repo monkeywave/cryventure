@@ -15,7 +15,7 @@ refs:
   - FIPS 197, Abschnitt 4.2 (Multiplikation in GF(2^8))
   - FIPS 197, Abschnitt 5.1.1 (SubBytes, Gleichung 5.1, Abbildung 7)
   - FIPS 197, Anhang C.1 (Testvektoren AES-128)
-sourceHash: sha256:31ca54a23f8762389aa70b064fd4ab192035e4e831ac9e3d21730c2d8026df9b
+sourceHash: sha256:300fcded79c89c29abd1c4ec6bc49defc872acfc84024ac27157bcb2b3b62b67
 translation:
   status: ai-reviewed
   reviewedAt: '2026-10-02'
@@ -25,6 +25,7 @@ translation:
 import Lab from '../../../../../components/Lab.astro';
 import CheckQuestion from '../../../../../components/lesson/CheckQuestion.astro';
 import Formula from '../../../../../components/lesson/Formula.astro';
+import Lens from '../../../../../components/lesson/Lens.astro';
 import LessonSection from '../../../../../components/lesson/LessonSection.astro';
 import WhyBox from '../../../../../components/lesson/WhyBox.astro';
 
@@ -50,6 +51,17 @@ b'  = b ⊕ (b ⋘ 1) ⊕ (b ⋘ 2) ⊕ (b ⋘ 3) ⊕ (b ⋘ 4) ⊕ 0x63`}
 
 Rechenbeispiel aus FIPS 197: Das Inverse von `53` ist `CA`, und die affine Abbildung macht aus `CA`
 den Wert `ED`, also `S(53) = ED`.
+
+<Lens level="cryptographer">
+
+Algebraisch ist die S-Box `S(x) = A·x⁻¹ ⊕ {63}`: die Inversion in GF(2⁸), wobei `x⁻¹ = x²⁵⁴` (das
+bildet auch `{00}` auf `{00}` ab), gefolgt von einer affinen Abbildung: der Bitmatrix `A` über GF(2),
+dann XOR mit `{63}`. Die Inversion liefert die starke Nichtlinearität; die affine Abbildung
+verschleiert ihre einfache algebraische Beschreibung, und die Konstante `{63}` sorgt dafür, dass die
+S-Box keine Fixpunkte und keine entgegengesetzten Fixpunkte hat. Die ganze Herleitung:
+[Die S-Box herleiten](../sbox-derivation/).
+
+</Lens>
 
 </LessonSection>
 

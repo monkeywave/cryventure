@@ -1,4 +1,4 @@
-import { useId, useState, type ChangeEvent, type ReactNode } from 'react';
+import { useEffect, useId, useRef, useState, type ChangeEvent, type ReactNode } from 'react';
 import { paramFieldsOf, type I18nRef, type ParamField, type PrimitiveManifest } from '@cryventure/core';
 import { useT } from '@cryventure/viz';
 import type { LabParams } from '../../labs/labSession.ts';
@@ -10,6 +10,8 @@ export interface ParamPanelProps {
   params: LabParams;
   /** Called with validated, normalised params. */
   onApply: (params: LabParams) => void;
+  /** Why a view's re-run request was rejected (`useLabActions().requestParams`); shown like a field error. */
+  requestError?: I18nRef | null;
 }
 
 const CUSTOM = '';
@@ -119,9 +121,42 @@ function SelectField(props: FieldProps) {
 
 const FIELD_INPUTS = { hex: HexField, select: SelectField } satisfies Record<ParamField['kind'], (props: FieldProps) => ReactNode>;
 
+/**
+ * Counts param changes the fields did not make themselves (a view's `requestParams`, a preset), so the
+ * text fields can be re-keyed to show them; the fields' own edits keep their draft text and focus.
+ */
+function useExternalParamsRevision(params: LabParams, onApply: (params: LabParams) => void) {
+  const [revision, setRevision] = useState(0);
+  // Every set the fields applied (not just the last): re-runs resolve after further typing.
+  const ownParams = useRef(new WeakSet<LabParams>());
+  const seenParams = useRef(params);
+  useEffect(() => {
+    if (params === seenParams.current) return;
+    seenParams.current = params;
+    if (!ownParams.current.has(params)) setRevision((current) => current + 1);
+  }, [params]);
+  const applyOwn = (next: LabParams) => {
+    ownParams.current.add(next);
+    onApply(next);
+  };
+  return { revision, applyOwn };
+}
+
+/** The panel-level error for a rejected view request (fields show their own errors). */
+function RequestError({ error }: { error: I18nRef | null | undefined }) {
+  const t = useT();
+  return (
+    <p className="cv-params__error" aria-live="polite">
+      {error == null ? '' : t(error)}
+    </p>
+  );
+}
+
 /** Preset picker plus one input per declared param field; invalid input shows a localized error and is not applied. */
 export function ParamPanel(props: ParamPanelProps) {
   const t = useT();
+  // Params changed from outside the fields (a view request) bump the revision so the text fields re-read them.
+  const { revision: externalRevision, applyOwn } = useExternalParamsRevision(props.params, props.onApply);
   // Choosing a preset bumps the revision so the text fields re-read the new params.
   const [revision, setRevision] = useState(0);
   const applyPreset = (params: LabParams) => {
@@ -134,8 +169,9 @@ export function ParamPanel(props: ParamPanelProps) {
       <PresetSelect {...props} onApply={applyPreset} />
       {paramFieldsOf(props.producer).map((field) => {
         const Input = FIELD_INPUTS[field.kind];
-        return <Input key={`${field.name}:${revision}`} field={field} {...props} />;
+        return <Input key={`${field.name}:${revision}:${externalRevision}`} field={field} {...props} onApply={applyOwn} />;
       })}
+      <RequestError error={props.requestError} />
     </fieldset>
   );
 }

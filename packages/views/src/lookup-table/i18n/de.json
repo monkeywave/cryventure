@@ -1,0 +1,16 @@
+{
+  "view.lookup-table.title": "Nachschlagetabelle",
+  "view.lookup-table.loading": "Die Tabelle wird vorbereitet …",
+  "view.lookup-table.missing": "Dieses Lab zeichnet keine Nachschlagetabelle auf.",
+  "view.lookup-table.cell": "Eingabe {{input}} → Ausgabe {{output}}",
+  "view.lookup-table.cellMarked": "{{cell}} ({{marks}})",
+  "view.lookup-table.mark.input": "aktuelle Eingabe",
+  "view.lookup-table.mark.output": "aktuelle Ausgabe",
+  "view.lookup-table.mark.fixed-point": "Fixpunkt",
+  "view.lookup-table.mark.opposite-fixed-point": "entgegengesetzter Fixpunkt",
+  "view.lookup-table.caption": "{{input}} → {{output}}",
+  "view.lookup-table.hint": "Zeig auf eine Zelle, um Eingabe und Ausgabe abzulesen.",
+  "view.lookup-table.corner": "Zeile: erste Hexziffer, Spalte: zweite Hexziffer",
+  "view.lookup-table.row": "Zeile {{label}}",
+  "view.lookup-table.column": "Spalte {{label}}"
+}

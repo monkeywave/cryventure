@@ -37,6 +37,13 @@ export interface RegionSpec<R extends string> {
   order?: 'row-major' | 'col-major';
   /** Optional presentation hint (additive, schemaVersion stays 1); see `RegionLayout`. */
   layout?: RegionLayout;
+  /**
+   * `'blank'`: the initial snapshot only holds placeholders (e.g. zeros) for this region, not real
+   * values, so views show its elements as "not yet written" until a step writes them (see
+   * `unwrittenAt`). Without it (the default, e.g. AES state) the initial values are meaningful.
+   * Additive, schemaVersion stays 1.
+   */
+  initial?: 'blank';
 }
 
 /**

@@ -50,4 +50,40 @@ describe('ParamPanel', () => {
     expect(key.getAttribute('aria-invalid')).toBe('true');
     expect(screen.getByText(/is not a hex digit/)).toBeTruthy();
   });
+
+  it('shows params changed from outside (a view request) in the text fields', () => {
+    const onApply = vi.fn();
+    const panel = (params: LabParams) => (
+      <I18nProvider messages={labMessages('en', aes)}>
+        <ParamPanel producer={aes} params={params} onApply={onApply} />
+      </I18nProvider>
+    );
+    const { rerender } = render(panel(aes.defaults as LabParams));
+    const keyHex = 'ff'.repeat(16);
+    rerender(panel({ ...(aes.defaults as LabParams), keyHex }));
+    expect(screen.getByLabelText('Key (hex)')).toHaveProperty('value', keyHex);
+  });
+
+  it("keeps the learner's draft text when its own edit comes back as new params", () => {
+    const onApply = vi.fn();
+    const panel = (params: LabParams) => (
+      <I18nProvider messages={labMessages('en', aes)}>
+        <ParamPanel producer={aes} params={params} onApply={onApply} />
+      </I18nProvider>
+    );
+    const { rerender } = render(panel(aes.defaults as LabParams));
+    const draft = 'FF'.repeat(16);
+    fireEvent.change(screen.getByLabelText('Key (hex)'), { target: { value: draft } });
+    rerender(panel(onApply.mock.calls[0]?.[0] as LabParams));
+    expect(screen.getByLabelText('Key (hex)')).toHaveProperty('value', draft);
+  });
+
+  it("shows a rejected view request's error, localized", () => {
+    render(
+      <I18nProvider messages={labMessages('en', aes)}>
+        <ParamPanel producer={aes} params={aes.defaults as LabParams} onApply={vi.fn()} requestError={{ key: 'core.error.hexInvalidChar', params: { char: 'z', index: 0 } }} />
+      </I18nProvider>,
+    );
+    expect(screen.getByText(/is not a hex digit/)).toBeTruthy();
+  });
 });

@@ -6,6 +6,10 @@ import { NODE_STYLE_VARS, showsAfter } from '../choreography/nodeTracks.ts';
 export interface GridMotion {
   progress: MotionValue<number>;
   before: readonly number[];
+  /** Flat indices not yet written before the step (shown as placeholders until their value switches). */
+  unwrittenBefore?: ReadonlySet<number>;
+  /** Flat indices still unwritten after the step (they stay placeholders, so they never switch). */
+  unwrittenAfter?: ReadonlySet<number>;
   tracks: ReadonlyMap<number, readonly Track[]>;
 }
 
@@ -23,7 +27,7 @@ export interface AnimatedNode {
   channels: readonly StyleChannel[];
   /** The node's `value` track (switch point = it reaching core's `VALUE_SWITCH`); `undefined` = the step's middle. */
   valueTrack: Track | undefined;
-  /** Its value differs before and after the step, so its text switches. */
+  /** Its value differs before and after the step (or it was not yet written before), so its text switches. */
   switches: boolean;
 }
 
@@ -38,6 +42,11 @@ function styleChannels(tracks: readonly Track[]): StyleChannel[] {
   return [...byProp].map(([prop, list]) => ({ variable: NODE_STYLE_VARS[prop], tracks: list }));
 }
 
+/** The cell was a placeholder before the step and holds a value after it. */
+function becomesWritten(motion: GridMotion, index: number): boolean {
+  return (motion.unwrittenBefore?.has(index) ?? false) && !(motion.unwrittenAfter?.has(index) ?? false);
+}
+
 /** The grid's animated nodes, precomputed once per step: tracked cells and cells whose value changes. */
 export function planGridMotion(motion: GridMotion | undefined, values: readonly number[]): AnimatedNode[] {
   if (motion === undefined) return [];
@@ -45,7 +54,8 @@ export function planGridMotion(motion: GridMotion | undefined, values: readonly 
   for (let index = 0; index < values.length; index++) {
     const tracks = motion.tracks.get(index) ?? [];
     const value = values[index]!;
-    const switches = (motion.before[index] ?? value) !== value;
+    // A placeholder that becomes a value switches too, even when the written value equals the placeholder's.
+    const switches = (motion.before[index] ?? value) !== value || becomesWritten(motion, index);
     if (tracks.length === 0 && !switches) continue;
     nodes.push({ index, channels: styleChannels(tracks), valueTrack: tracks.find((track) => track.prop === 'value'), switches });
   }

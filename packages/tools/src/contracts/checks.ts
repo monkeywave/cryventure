@@ -1,5 +1,6 @@
 import {
   applyWrites,
+  byteToHex,
   elemBytes,
   extractParams,
   getFacet,
@@ -10,11 +11,13 @@ import {
   type DerivationFacet,
   type FacetKind,
   type I18nRef,
+  type MathFacet,
   type NarrationFacet,
   type ParamField,
   type PrimitiveManifest,
   type RegionSpec,
   type Snapshot,
+  type TableFacet,
   type TraceBundle,
   type ValuesFacet,
 } from '@cryventure/core';
@@ -98,6 +101,17 @@ export function derivationGroupRefs(facet: DerivationFacet): I18nRef[] {
   return (facet.groups ?? []).map((group) => group.label);
 }
 
+/** Every ref a math facet emits: each step's formula and term labels (deduplicated). */
+export function mathFacetRefs(facet: MathFacet): I18nRef[] {
+  return uniqueRefs(facet.steps.flatMap((step) => [step.formula, ...step.terms.map((term) => term.label)]));
+}
+
+/** Every ref a table facet emits: its title and its mark labels. */
+export function tableFacetRefs(facet: TableFacet): I18nRef[] {
+  const marks = (facet.marks ?? []).flatMap((mark) => (mark.label === undefined ? [] : [mark.label]));
+  return uniqueRefs([facet.title, ...marks]);
+}
+
 /** Param field names that are not keys of the manifest's `defaults`. */
 export function unknownParamFields(fields: readonly ParamField[], defaults: unknown): string[] {
   const known = typeof defaults === 'object' && defaults !== null ? Object.keys(defaults) : [];
@@ -141,4 +155,24 @@ export function replayProblems(facet: AnyStateFacet): string[] {
 /** The value after a JSON round trip; deep-equal to the input iff it is JSON-serializable. */
 export function jsonRoundTrip<T>(value: T): unknown {
   return JSON.parse(JSON.stringify(value)) as unknown;
+}
+
+/** Math steps that point past the state facet (`stepCount` state steps): views could never show them. */
+export function mathStepRangeProblems(facet: MathFacet, stepCount: number): string[] {
+  return facet.steps.filter(({ step }) => step >= stepCount).map(({ step }) => `math step ${step} has no state step (0..${stepCount - 1})`);
+}
+
+/**
+ * A table's `selectParam` must name a param of `manifest.defaults`, and its selected index, written
+ * as hex into that param of `params`, must pass `validate` unchanged (clicking the cell re-runs it).
+ */
+export function tableSelectParamProblems<P>(facet: TableFacet, manifest: Pick<PrimitiveManifest<P>, 'defaults' | 'validate'>, params: P): string[] {
+  const { selectParam, selected } = facet;
+  if (selectParam === undefined) return [];
+  if (!Object.keys(manifest.defaults as object).includes(selectParam)) return [`table: selectParam "${selectParam}" is not a key of manifest.defaults`];
+  if (selected === undefined) return [];
+  const hex = byteToHex(selected);
+  const validated = manifest.validate({ ...params, [selectParam]: hex });
+  const roundTrips = validated.ok && (validated.value as Record<string, unknown>)[selectParam] === hex;
+  return roundTrips ? [] : [`table: selected ${selected} as ${selectParam} "${hex}" does not round-trip through validate`];
 }

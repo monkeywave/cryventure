@@ -47,6 +47,16 @@ describe('planGridMotion', () => {
     expect(planGridMotion(motionOf(progress, {}), VALUES)).toEqual([]);
   });
 
+  it('switches a cell that was not yet written even when its value stays the same', () => {
+    const motion = { ...motionOf(progress, {}), unwrittenBefore: new Set([3]) };
+    expect(planGridMotion(motion, VALUES)).toEqual([{ index: 3, channels: [], valueTrack: undefined, switches: true }]);
+  });
+
+  it('does not switch a cell that stays unwritten after the step', () => {
+    const motion = { ...motionOf(progress, {}), unwrittenBefore: new Set([2, 3]), unwrittenAfter: new Set([2]) };
+    expect(planGridMotion(motion, VALUES)).toEqual([{ index: 3, channels: [], valueTrack: undefined, switches: true }]);
+  });
+
   it('keeps only the props a node animates, plus its value switch', () => {
     const emphasis = linear(1, 'emphasis', 0, 1);
     const nodes = planGridMotion(motionOf(progress, { 1: [emphasis, valueTrack] }, [0xaa, 1, 9, 3]), VALUES);

@@ -1,0 +1,207 @@
+/*
+ * Lookup-table view styles. Imported by the view component, so it ships in the view's lazy chunk.
+ * Colours come only from the semantic tokens (--cv-*, --sl-color-*); fallbacks keep it usable standalone.
+ * Every state pairs colour with a non-colour cue (weight, border style, outline, glyph).
+ */
+
+.cv-lookup-table {
+  display: grid;
+  gap: 0.5rem;
+  min-width: 0;
+}
+
+.cv-lookup-table__title {
+  margin: 0;
+  font-size: 0.95em;
+}
+
+/*
+ * Only the view scrolls sideways, and only when cells would drop below their minimum (very narrow
+ * phones); edge shadows then show that more columns hide there (local covers hide them at either end).
+ */
+.cv-lookup-table__scroll {
+  min-width: 0;
+  max-width: 100%;
+  overflow-x: auto;
+  container-type: inline-size;
+  --cv-lookup-scroll-bg: var(--cv-surface, Canvas);
+  --cv-lookup-scroll-shadow: color-mix(in srgb, var(--cv-text, CanvasText) 35%, transparent);
+  background:
+    linear-gradient(to right, var(--cv-lookup-scroll-bg) 40%, transparent) left / 1.5rem 100%
+      no-repeat local,
+    linear-gradient(to left, var(--cv-lookup-scroll-bg) 40%, transparent) right / 1.5rem 100%
+      no-repeat local,
+    radial-gradient(farthest-side at 0 50%, var(--cv-lookup-scroll-shadow), transparent) left /
+      0.75rem 100% no-repeat scroll,
+    radial-gradient(farthest-side at 100% 50%, var(--cv-lookup-scroll-shadow), transparent) right /
+      0.75rem 100% no-repeat scroll;
+}
+
+/*
+ * Cells share the panel width (one header column + 16 cells ≈ 100cqi / 17), capped at 2.25rem; the font
+ * shrinks with them rather than clipping columns. Below --cv-lookup-min-cell the grid scrolls instead.
+ */
+.cv-lookup-table__grid {
+  --cv-lookup-min-cell: 0.95rem;
+  --cv-lookup-cell: clamp(
+    var(--cv-lookup-min-cell),
+    calc(100cqi / (var(--cv-lookup-cols, 16) + 1)),
+    2.25rem
+  );
+  display: grid;
+  grid-template-columns: auto repeat(
+      var(--cv-lookup-cols, 16),
+      minmax(var(--cv-lookup-min-cell), 2.25rem)
+    );
+  gap: 1px;
+  width: 100%;
+  max-width: max-content;
+  font-family: var(--sl-font-mono, ui-monospace, monospace);
+  font-size: clamp(0.6rem, calc(var(--cv-lookup-cell) * 0.4), 0.85rem);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Touch: 24px-tall targets and a slightly larger minimum width (a 390px phone still fits all columns). */
+@media (pointer: coarse) {
+  .cv-lookup-table__grid {
+    --cv-lookup-min-cell: 1.05rem;
+  }
+}
+
+.cv-lookup-table__row {
+  display: grid;
+  grid-column: 1 / -1;
+  grid-template-columns: subgrid;
+}
+
+.cv-lookup-table__corner,
+.cv-lookup-table__colheader,
+.cv-lookup-table__rowheader,
+.cv-lookup-table__cell {
+  display: grid;
+  place-items: center;
+  min-height: clamp(1.4rem, var(--cv-lookup-cell), 2rem);
+  padding: 0;
+  line-height: 1;
+}
+
+@media (pointer: coarse) {
+  .cv-lookup-table__corner,
+  .cv-lookup-table__colheader,
+  .cv-lookup-table__rowheader,
+  .cv-lookup-table__cell {
+    min-height: max(1.5rem, min(var(--cv-lookup-cell), 2rem));
+  }
+}
+
+.cv-lookup-table__rowheader {
+  padding-inline: 0.15rem;
+}
+
+.cv-lookup-table__colheader,
+.cv-lookup-table__rowheader {
+  color: var(--cv-text-muted, GrayText);
+  border-block-end: 2px solid transparent;
+  border-inline-end: 2px solid transparent;
+}
+
+/* Crosshair: the selected input's row and column headers are bold, underlined / ruled and accented. */
+.cv-lookup-table__colheader[data-active] {
+  color: var(--cv-text, CanvasText);
+  font-weight: 700;
+  border-block-end-color: var(--sl-color-accent, Highlight);
+}
+
+.cv-lookup-table__rowheader[data-active] {
+  color: var(--cv-text, CanvasText);
+  font-weight: 700;
+  border-inline-end-color: var(--sl-color-accent, Highlight);
+}
+
+.cv-lookup-table__cell {
+  position: relative;
+  color: var(--cv-text, CanvasText);
+  background: var(--cv-surface-elevated, Canvas);
+  border: 1px solid var(--cv-border-subtle, GrayText);
+  border-radius: 0.2rem;
+}
+
+.cv-lookup-table__grid[data-selectable] .cv-lookup-table__cell {
+  cursor: pointer;
+}
+
+.cv-lookup-table__cell:hover {
+  border-color: var(--sl-color-accent, Highlight);
+}
+
+.cv-lookup-table__cell:focus-visible {
+  outline: 2px solid var(--sl-color-accent, Highlight);
+  outline-offset: 1px;
+  z-index: 1;
+}
+
+/* Selected input: inverted fill, bold, thick border (strong without relying on hue). */
+.cv-lookup-table__cell[aria-selected='true'] {
+  z-index: 1;
+  font-weight: 700;
+  color: var(--sl-color-text-invert, HighlightText);
+  background: var(--sl-color-accent, Highlight);
+  border: 2px solid var(--cv-text, CanvasText);
+}
+
+/* Marked cells: role accent + border style + corner glyph. */
+.cv-lookup-table__cell[data-marks] {
+  border-width: 2px;
+  border-color: var(--cv-constant, GrayText);
+}
+
+.cv-lookup-table__cell[data-marks~='input'] {
+  border-color: var(--cv-plaintext, CanvasText);
+}
+
+.cv-lookup-table__cell[data-marks~='output'] {
+  border-color: var(--cv-ciphertext, CanvasText);
+}
+
+.cv-lookup-table__cell[data-marks~='fixed-point'],
+.cv-lookup-table__cell[data-marks~='opposite-fixed-point'] {
+  border-style: dashed;
+}
+
+.cv-lookup-table__glyph {
+  position: absolute;
+  inset-block-start: 0;
+  inset-inline-end: 1px;
+  font-size: 0.6em;
+  line-height: 1;
+}
+
+.cv-lookup-table__caption {
+  margin: 0;
+  min-height: 1.5em;
+  font-family: var(--sl-font-mono, ui-monospace, monospace);
+  font-weight: 700;
+}
+
+.cv-lookup-table__caption[data-empty] {
+  font-family: inherit;
+  font-weight: 400;
+  font-size: 0.85em;
+  color: var(--cv-text-muted, GrayText);
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .cv-lookup-table__cell {
+    transition:
+      background-color 120ms ease,
+      border-color 120ms ease;
+  }
+}
+
+@media (forced-colors: active) {
+  .cv-lookup-table__cell[aria-selected='true'] {
+    forced-color-adjust: none;
+    color: HighlightText;
+    background: Highlight;
+  }
+}

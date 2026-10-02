@@ -1,5 +1,4 @@
-import { xorBytes } from '@cryventure/core';
-import { gmul } from './gf256.ts';
+import { gmul, xorBytes } from '@cryventure/core';
 import { INV_SBOX, lookup, SBOX } from './sbox.ts';
 import {
   cellIndex,

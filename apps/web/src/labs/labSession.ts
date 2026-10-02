@@ -1,6 +1,7 @@
 import { getFacet, i18nRef, type ChoreographyModule, type I18nRef, type PrimitiveManifest, type RunResult, type TraceBundle } from '@cryventure/core';
 import { createLabStore, stateSteps, type AnyStateFacet, type LabMode, type LabStore, type ReactViewManifest } from '@cryventure/viz';
 import type { LabLinkRead } from './deepLink.ts';
+import { mergeParams } from './paramFields.ts';
 import { resolveLab, type LabRegistries } from './registry.ts';
 import { initialStep, type StartAt } from './startAt.ts';
 import { resolveStartParams } from './startParams.ts';
@@ -90,6 +91,16 @@ export async function rerunLab(session: ReadySession, params: LabParams): Promis
   setBundle(result.trace, { preserveDebugContext: true });
   seek(nextStep);
   return { ...session, params };
+}
+
+/** A view's re-run request: invalid patches never reach the producer; valid ones re-run like the ParamPanel. */
+export type ParamsRequestOutcome = { ok: true; session: SettledLabSession } | { ok: false; error: I18nRef };
+
+/** Merges `patch` into the session's params, validates with the producer, then re-runs (`rerunLab`). */
+export async function requestLabParams(session: ReadySession, patch: Readonly<Record<string, unknown>>): Promise<ParamsRequestOutcome> {
+  const merged = mergeParams(session.producer, session.params, patch);
+  if (!merged.ok) return merged;
+  return { ok: true, session: await rerunLab(session, merged.value) };
 }
 
 function stateFacet(bundle: TraceBundle | null): AnyStateFacet | undefined {

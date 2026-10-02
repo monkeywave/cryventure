@@ -64,4 +64,11 @@ describe('Caption', () => {
     expect(screen.getByRole('button', { name: 'Show less' }).getAttribute('aria-expanded')).toBe('true');
     expect(live()?.getAttribute('data-expanded')).toBe('true');
   });
+
+  it('raises caret exponents in the narration', () => {
+    const { store } = renderCaption(true, { ...fixtureMessages, 'fixture.narration.sub': 'a^{{count}} and b^{k}' });
+    act(() => store.getState().seek(1));
+    expect(live()?.textContent).toBe('a² and bk');
+    expect(live()?.querySelector('sup')?.textContent).toBe('k');
+  });
 });

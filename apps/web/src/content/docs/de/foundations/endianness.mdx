@@ -1,0 +1,171 @@
+---
+title: Bytereihenfolge (Endianness)
+description: Wie eine mehrbytige Ganzzahl im Speicher liegt, warum Netzwerke Big-Endian und x86 und ARM Little-Endian verwenden und wie du AES-Wörter in einem Hexdump liest.
+lessonId: foundations/endianness
+track: foundations
+phase: 1
+sidebar:
+  order: 3
+tableOfContents: false
+prereqs:
+  - foundations/xor
+labs:
+  - endian-byte-order
+refs:
+  - Cohen (1980), On Holy Wars and a Plea for Peace, IEN 137
+  - RFC 791, Anhang B (Data Transmission Order)
+  - RFC 1700, Data Notations (Netzwerk-Bytereihenfolge) (historisch; abgelöst durch RFC 3232)
+  - Intel 64 and IA-32 Architectures Software Developer's Manual, Bd. 1, Abschnitt 1.3.1 (Bit and Byte Order)
+  - Arm Architecture Reference Manual for A-profile architecture, Endianness
+  - FIPS 197, Abschnitt 3.5 (The State as an Array of Columns)
+  - FIPS 180-4, Abschnitt 3.1 (Big-Endian-Konvention)
+  - RFC 8439, Abschnitt 2.3 (ChaCha20-Zustand, Little-Endian-Wörter)
+  - Rijmen, Bosselaers, Barreto, rijndael-alg-fst.c v3.0 (GETU32 / PUTU32)
+sourceHash: sha256:21e5639d24306936a7ae36a480c36d8c2d623e6136b64dde7ee1d144c159870a
+translation:
+  status: ai-reviewed
+  reviewedAt: '2026-10-02'
+  reviewer: AI editorial review (Claude)
+---
+
+import Lab from '../../../../components/Lab.astro';
+import CheckQuestion from '../../../../components/lesson/CheckQuestion.astro';
+import Formula from '../../../../components/lesson/Formula.astro';
+import Lens from '../../../../components/lesson/Lens.astro';
+import LessonSection from '../../../../components/lesson/LessonSection.astro';
+import WhyBox from '../../../../components/lesson/WhyBox.astro';
+
+<LessonSection part="concept">
+
+## Eine Zahl, zwei Anordnungen
+
+Der Speicher legt **Bytes** an nummerierten Adressen ab. Eine **Ganzzahl**, die breiter als 8 Bit
+ist, braucht mehrere davon. Wir schreiben `0x0A0B0C0D` mit dem **höchstwertigen Byte** (MSB, `0A`)
+zuerst und dem **niedrigstwertigen Byte** (LSB, `0D`) zuletzt. Im Speicher gibt es kein „links“,
+nur Adressen – also muss eine CPU festlegen, welches Byte an die niedrigste kommt:
+
+- **Big-Endian:** das MSB zuerst; der Speicher liest sich wie die geschriebene Zahl.
+- **Little-Endian:** das LSB zuerst; die Bytes erscheinen umgedreht.
+
+Keins von beiden ist falsch: Die Bits sind dieselben, nur die Reihenfolge der Bytes unterscheidet
+sich. Danny Cohen lieh sich die Namen aus *Gullivers Reisen* (Cohen 1980, IEN 137).
+
+<Lens only="story">
+
+In Swifts Roman zieht Liliput in den Krieg um die Frage, an welchem Ende man ein gekochtes Ei
+aufschlägt. Cohens Pointe: Die Wahl ist willkürlich, aber zwei Maschinen müssen sich darauf einigen,
+bevor sie miteinander reden können.
+
+</Lens>
+
+</LessonSection>
+
+<LessonSection part="playground">
+
+## Speichere sie auf beide Arten
+
+Das Lab zerlegt `0x0A0B0C0D` in Bytes, schreibt sie erst als Big-Endian, dann als Little-Endian in
+den Speicher und vergleicht beide Anordnungen. Probier die Voreinstellungen `u16` und `u64` aus oder
+gib einen eigenen Wert und eine eigene Breite ein.
+
+<Lab labId="endian-byte-order" producerId="endian" presetId="classic" layout="state:65|narration:35" />
+
+</LessonSection>
+
+<LessonSection part="inside">
+
+## Byteadressen und Stellenwerte
+
+<Formula caption="Das u32 0x0A0B0C0D an Adresse a und wie jede Anordnung das Byte b[i] an Adresse a + i gewichtet.">
+{`Adresse        a+0  a+1  a+2  a+3
+Big-Endian     0A   0B   0C   0D
+Little-Endian  0D   0C   0B   0A
+
+Big-Endian:    Wert = b[0]·256³ + b[1]·256² + b[2]·256 + b[3]
+Little-Endian: Wert = b[0] + b[1]·256 + b[2]·256² + b[3]·256³`}
+</Formula>
+
+<WhyBox constant="0x0A0B0C0D" title="warum dieser Testwert">
+  Jedes Byte ist anders, und sie zählen aufwärts – so fällt jede Umordnung sofort auf.
+</WhyBox>
+
+Internetprotokolle senden mehrbytige Felder mit dem **höchstwertigen Oktett zuerst** (RFC 791,
+Anhang B; RFC 1700, „Data Notations“). Diese Big-Endian-Reihenfolge heißt
+**Netzwerk-Bytereihenfolge**; C-Programme wandeln mit `htonl()` und `ntohl()` um.
+
+<Lens level="cryptographer">
+
+Kryptografische Spezifikationen legen ihre Reihenfolge selbst fest: SHA-256 liest Nachrichtenwörter
+als Big-Endian (FIPS 180-4, §3.1), ChaCha20 lädt Schlüssel und Nonce als Little-Endian-Wörter
+(RFC 8439, §2.3). AES definiert Bytes, keine Ganzzahlen; ein Wort ist einfach ein Array aus 4 Byte
+(FIPS 197, §3.5).
+
+</Lens>
+
+</LessonSection>
+
+<LessonSection part="memory">
+
+## AES-Wörter in einem Hexdump
+
+x86-CPUs sind Little-Endian (Intel SDM, Bd. 1, §1.3.1). Arm-Kerne können beides, die gängigen
+Betriebssysteme nutzen aber Little-Endian.
+
+Die klassische AES-Referenz in C, `rijndael-alg-fst.c`, lädt je 4 Schlüsselbytes als ein
+Big-Endian-`u32` (`GETU32`) und speichert die Rundenschlüssel als native Ganzzahlen. Auf einem
+Little-Endian-Host liegt deshalb jedes Wort des Schlüsselplans **byteweise umgedreht** im RAM. Lade
+die Voreinstellung `aes-word`:
+
+<Formula caption="Schlüsselwort w0 des FIPS-197-Beispielschlüssels, wie die Spezifikation es schreibt und wie es in einem x86-Speicherabbild steht.">
+{`FIPS-197-Schlüsselbytes  2b 7e 15 16 | 28 ae d2 a6 | …
+rk[0..1] im x86-RAM      16 15 7e 2b | a6 d2 ae 28 | …`}
+</Formula>
+
+Zum Lesen eines Hexdumps gruppierst du je 4 Byte und drehst jede Gruppe um. Mehr dazu in der
+Lektion [Speicher & Hardware](../../symmetric/aes/memory-and-hardware/). Weiter mit
+[Byte-Arithmetik in GF(2⁸)](../gf256/).
+
+</LessonSection>
+
+<LessonSection part="break">
+
+## Mallorys Mission: der vertauschte Schlüssel
+
+Lädst du die Schlüsselbytes auf x86 ohne Umdrehen als natives `u32`, wird aus `2b7e1516` der Wert
+`0x16157E2B`. Die Chiffre läuft trotzdem, aber mit einem anderen Schlüssel – jeder Geheimtext ist
+falsch. Ein Test gegen die offiziellen Testvektoren (FIPS 197, Anhang C) deckt das sofort auf; der
+Code selbst sieht fehlerfrei aus.
+
+Dieselbe Falle trifft die Forensik: Suchst du in einem Speicherabbild nur nach den rohen
+Schlüsselbytes `2b 7e 15 16 …`, übersiehst du einen Schlüsselplan, der als Wörter in
+Host-Bytereihenfolge abgelegt ist. Such nach beiden Bytereihenfolgen.
+
+</LessonSection>
+
+<LessonSection part="check">
+
+## Teste dich selbst
+
+<CheckQuestion number={1} question="Das u32 0x12345678 liegt als Little-Endian an Adresse a. Welches Byte steht an a + 0?" options={['12', '34', '56', '78']} answer={3}>
+  Little-Endian legt das niedrigstwertige Byte zuerst ab, und das ist `78`.
+</CheckQuestion>
+
+<CheckQuestion
+  number={2}
+  question="Was ist die Netzwerk-Bytereihenfolge?"
+  options={['Little-Endian', 'Big-Endian', 'Die des sendenden Hosts', 'Bitweise umgedreht']}
+  answer={1}
+>
+  Internetprotokolle senden das höchstwertige Oktett zuerst (RFC 791, Anhang B), also Big-Endian.
+</CheckQuestion>
+
+<CheckQuestion
+  number={3}
+  question="Ein x86-Speicherabbild der Rundenschlüssel aus rijndael-alg-fst beginnt mit 16 15 7e 2b. Welche Schlüsselbytes enthält dieses Wort?"
+  options={['16 15 7e 2b', '2b 7e 15 16', '7e 2b 16 15', '61 51 e7 b2']}
+  answer={1}
+>
+  Das Wort ist das `u32` `0x2B7E1516` in Host-Bytereihenfolge. Dreh die 4 Byte um, und du erhältst die Schlüsselbytes `2b 7e 15 16`, das erste Wort des FIPS-197-Schlüssels.
+</CheckQuestion>
+
+</LessonSection>

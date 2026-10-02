@@ -1,4 +1,5 @@
 /* eslint-disable max-lines-per-function -- these functions return whole source files as template literals; their length is content, not logic. */
+import type { ConformanceVectors } from '../contracts/conformance.ts';
 import { toCamelCase, toConstantCase, toPascalCase } from './naming.ts';
 
 /** Pure file templates for `pnpm cv new …`; paths are relative to the repo root. */
@@ -283,7 +284,16 @@ export function primitiveTemplate(id: string, family: string): ScaffoldFile[] {
     { path: `${folder}/module.test.ts`, content: primitiveTestSource(id) },
     { path: `${folder}/i18n/en.json`, content: toJson(en) },
     { path: `${folder}/i18n/de.json`, content: toJson(deStubs(en)) },
+    { path: `${folder}/vectors/conformance.json`, content: toJson(primitiveConformance()) },
   ];
+}
+
+/** Starter `vectors/conformance.json` for the scaffolded XOR toy (replace with vectors from an independent source). */
+export function primitiveConformance(): ConformanceVectors {
+  return {
+    source: 'TODO: cite the standard or independent implementation these values come from',
+    cases: [{ name: 'example', params: { keyHex: '000102030405060708090a0b0c0d0e0f', inputHex: '00112233445566778899aabbccddeeff' }, outputs: { output: '00102030405060708090a0b0c0d0e0f0' } }],
+  };
 }
 
 // ---------------------------------------------------------------------------------------------

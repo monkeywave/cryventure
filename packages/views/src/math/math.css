@@ -1,0 +1,359 @@
+/*
+ * Math view styles (class names only, no inline styles). Imported by the view component, so it ships in the view's lazy chunk.
+ * Colours come only from the semantic tokens (--cv-*, --sl-color-*); fallbacks keep it usable standalone.
+ * Role colours: operand = plaintext blue, intermediate = state slate, constant = teal, carry = nonce magenta,
+ * result = success green; emphasised bits = key amber plus outline and underline (never colour alone).
+ *
+ * Reflow (container queries on .cv-math, never clipping): wide = one table row per term; medium with the
+ * polynomial column = the polynomial moves under bits + hex; narrow = bits (and polynomial) on their own
+ * lines under label, operator and hex. Rows use a subgrid so labels and bit strips stay aligned. The
+ * table keeps explicit ARIA roles, so re-displaying it as a grid keeps its semantics. Horizontal scrolling
+ * remains only as a last resort, with edge shadows as a visible affordance.
+ */
+
+.cv-math {
+  display: grid;
+  gap: 0.5rem;
+  min-width: 0;
+  container-type: inline-size;
+}
+
+.cv-math__formula,
+.cv-math__modulus,
+.cv-math__hint,
+.cv-math__empty {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.cv-math__formula {
+  font-weight: 600;
+  color: var(--cv-text, CanvasText);
+}
+
+.cv-math__modulus,
+.cv-math__hint,
+.cv-math__empty {
+  color: var(--cv-text-muted, GrayText);
+}
+
+/* Exponents without a Unicode superscript form. */
+.cv-math sup {
+  font-size: 0.75em;
+  line-height: 0;
+}
+
+/* Before the first math step: the first equation, muted and dashed-framed, under a start hint. */
+.cv-math__upcoming {
+  display: grid;
+  gap: 0.5rem;
+  padding: 0.5rem;
+  border: 1px dashed var(--cv-border, GrayText);
+  border-radius: 0.375rem;
+}
+
+.cv-math__upcoming .cv-math__formula,
+.cv-math__upcoming .cv-math__table {
+  opacity: 0.6;
+}
+
+.cv-math__hint {
+  font-style: italic;
+}
+
+/*
+ * Last resort when even the stacked table is too wide: it scrolls inside this focusable region, whose
+ * edges show a shadow while more content hides there (local covers hide the shadows at either end).
+ */
+.cv-math__scroll {
+  max-width: 100%;
+  overflow-x: auto;
+  --cv-math-scroll-bg: var(--cv-surface, Canvas);
+  --cv-math-scroll-shadow: color-mix(in srgb, var(--cv-text, CanvasText) 35%, transparent);
+  background:
+    linear-gradient(to right, var(--cv-math-scroll-bg) 40%, transparent) left / 1.5rem 100%
+      no-repeat local,
+    linear-gradient(to left, var(--cv-math-scroll-bg) 40%, transparent) right / 1.5rem 100%
+      no-repeat local,
+    radial-gradient(farthest-side at 0 50%, var(--cv-math-scroll-shadow), transparent) left /
+      0.75rem 100% no-repeat scroll,
+    radial-gradient(farthest-side at 100% 50%, var(--cv-math-scroll-shadow), transparent) right /
+      0.75rem 100% no-repeat scroll;
+}
+
+.cv-math__scroll:focus-visible {
+  outline: 2px solid var(--cv-cell-focus-border, Highlight);
+  outline-offset: 2px;
+}
+
+.cv-math__table {
+  border-collapse: collapse;
+  font-variant-numeric: tabular-nums;
+}
+
+.cv-math__table th,
+.cv-math__table td {
+  padding: 0.25rem 0.5rem;
+  text-align: start;
+  vertical-align: middle;
+  white-space: nowrap;
+}
+
+.cv-math__table thead th {
+  font-size: 0.8em;
+  font-weight: 500;
+  color: var(--cv-text-muted, GrayText);
+  border-bottom: 1px solid var(--cv-border, GrayText);
+}
+
+.cv-math__row {
+  --cv-math-role: var(--cv-state, CanvasText);
+}
+
+.cv-math__row[data-role='operand'] {
+  --cv-math-role: var(--cv-plaintext, CanvasText);
+}
+
+.cv-math__row[data-role='constant'] {
+  --cv-math-role: var(--cv-constant, CanvasText);
+}
+
+.cv-math__row[data-role='carry'] {
+  --cv-math-role: var(--cv-nonce, CanvasText);
+}
+
+.cv-math__row[data-role='result'] {
+  --cv-math-role: var(--cv-success, CanvasText);
+}
+
+/* The result row is set off by a rule above it, not by colour alone. */
+.cv-math__row[data-role='result'] > * {
+  border-top: 2px solid var(--cv-border, GrayText);
+  font-weight: 600;
+}
+
+.cv-math__label {
+  border-left: 3px solid var(--cv-math-role);
+  color: var(--cv-text, CanvasText);
+  font-weight: 500;
+}
+
+.cv-math__op {
+  text-align: center;
+  color: var(--cv-math-role);
+  font-weight: 700;
+}
+
+.cv-math__hex,
+.cv-math__poly {
+  font-family: var(--sl-font-mono, ui-monospace, monospace);
+  color: var(--cv-math-role);
+}
+
+.cv-math__hex code {
+  background: none;
+  color: inherit;
+  padding: 0;
+}
+
+.cv-math__bits {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 2px;
+}
+
+.cv-math__bit {
+  display: inline-grid;
+  place-items: center;
+  /* 1.25rem, shrinking with the panel down to 1rem so a 9-bit strip fits beside its label. */
+  inline-size: clamp(1rem, calc((100cqi - 14rem) / 10), 1.25rem);
+  block-size: 1.5rem;
+  font-family: var(--sl-font-mono, ui-monospace, monospace);
+  font-size: 0.85em;
+  color: var(--cv-cell-dim-fg, GrayText);
+  background: var(--cv-cell-dim-bg, Canvas);
+  border: 1px solid var(--cv-border-subtle, GrayText);
+  border-radius: 2px;
+}
+
+.cv-math__bit[data-set] {
+  color: var(--cv-text, CanvasText);
+  background: var(--cv-surface-elevated, Canvas);
+  border-color: var(--cv-math-role);
+  font-weight: 700;
+}
+
+/* Carry (bit 8 of an unreduced product): separated by a gap and a dashed border. */
+.cv-math__bit[data-carry] {
+  margin-inline-end: 0.375rem;
+  border-style: dashed;
+  border-color: var(--cv-nonce, CanvasText);
+}
+
+/* Emphasised bit: colour + solid outline + underline. */
+.cv-math__bit[data-emphasised] {
+  color: var(--cv-key, Highlight);
+  outline: 2px solid var(--cv-key, Highlight);
+  outline-offset: 1px;
+  text-decoration: underline 2px;
+  text-underline-offset: 2px;
+}
+
+.cv-math__sr {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .cv-math__bit {
+    transition:
+      background-color 120ms ease-out,
+      outline-color 120ms ease-out;
+  }
+}
+
+/* The polynomial wraps between terms instead of widening the table. */
+.cv-math__poly {
+  min-inline-size: 8rem;
+}
+
+.cv-math__table .cv-math__poly {
+  white-space: normal;
+}
+
+/* Medium panels with the polynomial column: polynomial under bits + hex. */
+@container (max-width: 46rem) {
+  .cv-math__table[data-polynomial],
+  .cv-math__table[data-polynomial] tbody {
+    display: grid;
+    grid-template-columns: repeat(4, auto);
+    justify-content: start;
+  }
+
+  .cv-math__table[data-polynomial] tbody {
+    grid-column: 1 / -1;
+  }
+
+  .cv-math__table[data-polynomial] thead {
+    display: contents;
+  }
+
+  .cv-math__table[data-polynomial] tr {
+    display: grid;
+    grid-column: 1 / -1;
+    grid-template-columns: subgrid;
+  }
+
+  .cv-math__table[data-polynomial] .cv-math__poly {
+    grid-column: 3 / -1;
+  }
+
+  /* Its header would sit on a line of its own: screen readers only. */
+  .cv-math__table[data-polynomial] thead th:nth-child(5) {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+  }
+
+  .cv-math__table[data-polynomial] .cv-math__poly {
+    padding-block-start: 0;
+    font-size: 0.9em;
+  }
+
+  .cv-math__table[data-polynomial] .cv-math__row[data-role='result'] > * {
+    border-top: none;
+  }
+
+  .cv-math__table[data-polynomial] .cv-math__row[data-role='result'] {
+    border-top: 2px solid var(--cv-border, GrayText);
+  }
+}
+
+/* Narrow panels (phones, side slots): label, operator, hex on one line; bits and polynomial below. */
+@container (max-width: 26rem) {
+  .cv-math__table[data-bits],
+  .cv-math__table[data-bits] tbody {
+    display: grid;
+    grid-template-columns: auto auto 1fr;
+  }
+
+  .cv-math__table[data-bits] tbody {
+    grid-column: 1 / -1;
+    row-gap: 0.25rem;
+  }
+
+  .cv-math__table[data-bits] thead {
+    display: contents;
+  }
+
+  /* The column headers no longer line up with the stacked cells: kept for screen readers only. */
+  .cv-math__table[data-bits] thead tr {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+  }
+
+  .cv-math__table[data-bits] tr {
+    display: grid;
+    grid-column: 1 / -1;
+    grid-template-columns: subgrid;
+  }
+
+  .cv-math__table[data-bits] .cv-math__label {
+    grid-row: 1;
+    grid-column: 1;
+  }
+
+  .cv-math__table[data-bits] .cv-math__op {
+    grid-row: 1;
+    grid-column: 2;
+  }
+
+  .cv-math__table[data-bits] .cv-math__hex {
+    grid-row: 1;
+    grid-column: 3;
+  }
+
+  .cv-math__table[data-bits] .cv-math__bitcell,
+  .cv-math__table[data-bits] .cv-math__poly {
+    grid-column: 1 / -1;
+    padding-block-start: 0;
+    padding-inline-start: calc(0.25rem + 3px);
+  }
+
+  .cv-math__table[data-bits] .cv-math__label {
+    border-left: none;
+  }
+
+  .cv-math__table[data-bits] .cv-math__row {
+    border-left: 3px solid var(--cv-math-role);
+  }
+
+  .cv-math__table[data-bits] .cv-math__row[data-role='result'] > * {
+    border-top: none;
+  }
+
+  .cv-math__table[data-bits] .cv-math__row[data-role='result'] {
+    border-top: 2px solid var(--cv-border, GrayText);
+  }
+
+  .cv-math__table th,
+  .cv-math__table td {
+    padding-inline: 0.25rem;
+  }
+
+  .cv-math__bit {
+    inline-size: clamp(1rem, calc((100cqi - 2rem) / 10), 1.5rem);
+  }
+}

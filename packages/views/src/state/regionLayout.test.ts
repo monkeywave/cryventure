@@ -45,6 +45,17 @@ describe('regionLayout', () => {
   it('handles short 1-D regions', () => {
     expect(regionLayout(region([12]))).toEqual({ kind: 'rows', shape: [1, 12], order: 'row-major', rowOffsets: [0] });
   });
+
+  it('gives a single-element region no address gutter', () => {
+    expect(regionLayout(region([1]))).toEqual({ kind: 'rows', shape: [1, 1], order: 'row-major' });
+    expect(regionLayout(region([1], undefined, { kind: 'grid' })).rowOffsets).toBeUndefined();
+  });
+
+  it('draws one-byte words that fit on one line as one row with an address over each cell (+0 +1 +2 +3)', () => {
+    const memory = { kind: 'words' as const, wordBytes: 1, labelPrefix: '+', wordsPerGroup: 4 };
+    expect(regionLayout(region([4], undefined, memory))).toEqual({ kind: 'rows', shape: [1, 4], order: 'row-major', columnLabels: ['+0', '+1', '+2', '+3'] });
+    expect(regionLayout(region([8], undefined, { ...memory, wordsPerGroup: 4 })).kind).toBe('words');
+  });
 });
 
 describe('regionHighlights', () => {

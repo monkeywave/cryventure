@@ -1,0 +1,191 @@
+---
+title: Byte-Arithmetik in GF(2⁸)
+description: Wie AES Bytes im endlichen Körper GF(2^8) addiert, multipliziert und invertiert – XOR, xtime, Reduktion modulo 0x11B und das multiplikative Inverse.
+lessonId: foundations/gf256
+track: foundations
+phase: 1
+sidebar:
+  order: 4
+tableOfContents: false
+prereqs:
+  - foundations/xor
+labs:
+  - gf256-calc
+  - gf256-inverse
+refs:
+  - FIPS 197, Abschnitt 4 (Mathematische Grundlagen)
+  - FIPS 197, Abschnitt 4.1 (Addition)
+  - FIPS 197, Abschnitt 4.2 (Multiplikation, irreduzibles Polynom m(x), Inverses)
+  - FIPS 197, Abschnitt 4.2.1 (Multiplikation mit x, xtime)
+  - FIPS 197, Abschnitt 5.1.3 (MixColumns)
+  - Daemen & Rijmen, The Design of Rijndael (2002), Abschnitt 2.1 (endliche Körper)
+  - Lidl & Niederreiter, Finite Fields (1997), Kapitel 1, Satz 1.61 (F[x]/(f) ist genau dann ein Körper, wenn f irreduzibel ist)
+sourceHash: sha256:7f67462e79df65f02f691ef8fc8cd309b51c0d65adbbd6e5d9bda539ff17740d
+translation:
+  status: ai-reviewed
+  reviewedAt: '2026-10-02'
+  reviewer: AI editorial review (Claude)
+---
+
+import Lab from '../../../../components/Lab.astro';
+import CheckQuestion from '../../../../components/lesson/CheckQuestion.astro';
+import Formula from '../../../../components/lesson/Formula.astro';
+import KeyFact from '../../../../components/lesson/KeyFact.astro';
+import KeyFacts from '../../../../components/lesson/KeyFacts.astro';
+import Lens from '../../../../components/lesson/Lens.astro';
+import LessonSection from '../../../../components/lesson/LessonSection.astro';
+import WhyBox from '../../../../components/lesson/WhyBox.astro';
+
+<LessonSection part="concept">
+
+## Ein Byte ist ein Polynom
+
+AES liest die Bits b₇…b₀ eines Bytes als Polynomkoeffizienten über GF(2), dem Körper aus 0 und 1
+(FIPS 197, §4). `{57}` = `0101 0111` steht also für x⁶ + x⁴ + x² + x + 1; FIPS 197 schreibt
+solche Körperelemente in geschweiften Klammern.
+
+- **Addition** addiert die Koeffizienten modulo 2, also **XOR**: `{57} ⊕ {83} = {d4}` (FIPS 197, §4.1).
+- **Multiplikation** (`•`) multipliziert die Polynome und reduziert dann modulo des **irreduziblen
+  Polynoms** m(x) = x⁸ + x⁴ + x³ + x + 1 = `{01}{1b}` (FIPS 197, §4.2).
+
+Die 256 Bytes bilden den **endlichen Körper GF(2⁸)**: Du kannst addieren, multiplizieren und – außer
+durch `{00}` – dividieren.
+
+<KeyFacts>
+  <KeyFact label="Elemente" value="256 Byte" kind="state" />
+  <KeyFact label="Addition" value="XOR" kind="state" />
+  <KeyFact label="Modulus m(x)" value="0x11B" kind="constant" />
+  <KeyFact label="xtime-Reduktion" value="0x1B" kind="constant" />
+</KeyFacts>
+
+<Lens only="story">
+
+Stell dir 256 Kästchen vor: Was du auch addierst oder multiplizierst, der Reduktionsschritt legt das
+Ergebnis wieder in eines davon – und anders als bei einer Uhr kannst du durch jedes Kästchen außer
+der Null teilen.
+
+</Lens>
+
+</LessonSection>
+
+<LessonSection part="playground">
+
+## Multiplizier zwei Bytes
+
+Der Rechner startet mit dem Beispiel `{57} • {83}` aus FIPS 197, §4.2. Geh es Schritt für Schritt
+durch: Für jedes gesetzte Bit i von `{83}` addiert das Lab `{57} • xⁱ` zu einem Akkumulator, und
+jedes `• x` ist ein `xtime`. Die Ansicht **Mathematik** zeigt die Bitstreifen; wechsle zur
+Perspektive Kryptografie, um dieselben Werte als Polynome zu sehen. Stell die Operation auf *xtime*
+oder *Multiplikatives Inverses* um oder gib eigene Bytes ein.
+
+<Lab labId="gf256-calc" producerId="gf256" presetId="fips197-mul" startAt="op:load" layout="math:50|state:20|narration:30" />
+
+</LessonSection>
+
+<LessonSection part="inside">
+
+## xtime, Reduktion und das Inverse
+
+Multiplizieren mit x (dem Byte `{02}`) ist eine Linksverschiebung. War Bit 7 gesetzt, entsteht ein
+x⁸-Term, und x⁸ ≡ x⁴ + x³ + x + 1 (mod m(x)). Also verknüpfst du per XOR mit `{1b}`
+(FIPS 197, §4.2.1):
+
+<Formula caption="xtime, FIPS 197 §4.2.1, und die xtime-Kette von {57}.">
+{`xtime(b) = (b ≪ 1) ⊕ (b₇ ? {1b} : {00})       (nur die unteren 8 Bit behalten)
+{57} → {ae} → {47} → {8e} → {07} → {0e} → {1c} → {38}     ({57}•x⁰ … {57}•x⁷)
+{57} • {83} = {57}•x⁰ ⊕ {57}•x¹ ⊕ {57}•x⁷ = {57} ⊕ {ae} ⊕ {38} = {c1}`}
+</Formula>
+
+Jedes Produkt ist ein XOR solcher verschobenen Kopien, eine pro gesetztem Bit des zweiten Faktors.
+
+<WhyBox constant="0x11B" title="x⁸ + x⁴ + x³ + x + 1">
+  Der Modulus muss **irreduzibel** sein: kein Produkt zweier Polynome kleineren Grades. Sonst
+  könnten zwei von null verschiedene Bytes multipliziert `{00}` ergeben, und diese Bytes hätten kein
+  Inverses. FIPS 197, §4.2 wählt dieses irreduzible Polynom vom Grad 8.
+</WhyBox>
+
+**Inverses.** Die 255 von null verschiedenen Bytes bilden bezüglich `•` eine Gruppe, also gilt
+a²⁵⁵ = `{01}` (Lagrange) und a⁻¹ = a²⁵⁴. Beispiel: `{53}⁻¹ = {ca}`. AES legt `{00}⁻¹ = {00}` fest
+(FIPS 197, §5.1.1). Dieses Inverse ist das Herzstück der AES-S-Box:
+[Die S-Box herleiten](../../symmetric/aes/sbox-derivation/).
+
+<Lab labId="gf256-inverse" producerId="gf256" presetId="inverse" startAt="op:load" layout="math:50|state:20|narration:30" />
+
+<Lens level="cryptographer">
+
+<Formula caption="Dasselbe Produkt in Polynomschreibweise, reduziert modulo m(x) (FIPS 197, §4.2).">
+{`{57} • {83} = (x⁶ + x⁴ + x² + x + 1)(x⁷ + x + 1)
+            = x¹³ + x¹¹ + x⁹ + x⁸ + x⁶ + x⁵ + x⁴ + x³ + 1
+            ≡ x⁷ + x⁶ + 1 = {c1}   (mod m(x))`}
+</Formula>
+
+</Lens>
+
+</LessonSection>
+
+<LessonSection part="memory">
+
+## Verschiebungen, Masken und Tabellen
+
+Im Code ist `xtime` eine Verschiebung plus ein bedingtes XOR. Die verzweigungsfreie Form
+`(b << 1) ^ (0x1B & -(b >> 7))` braucht für jedes Byte gleich lange; eine Version mit `if`
+womöglich nicht. Viele Implementierungen ersetzen die Multiplikation durch 256-Byte-Log- und
+-Antilog-Tabellen oder berechnen S-Box und MixColumns vorab als Tabellen. Diese Zugriffe sind mit
+geheimen Bytes indiziert und können über den Cache Informationen preisgeben. Die Seite
+[AES-Speicher & Hardware](../../symmetric/aes/memory-and-hardware/) zeigt die Folgen und wie
+AES-NI sie vermeidet.
+
+<Formula caption="Verzweigungsfreies xtime in C.">
+{`uint8_t xtime(uint8_t b) { return (uint8_t)((b << 1) ^ (0x1B & -(b >> 7))); }`}
+</Formula>
+
+<Lens level="cryptographer">
+
+Log-Tabellen brauchen einen **Erzeuger**. m(x) ist nicht primitiv: `{02}` hat die Ordnung 51,
+während `{03}` alle 255 von null verschiedenen Bytes erzeugt. FIPS 197, §4.2 berechnet Inverse mit
+dem **erweiterten euklidischen Algorithmus**: Weil m(x) irreduzibel ist, gilt ggT(a(x), m(x)) = 1
+für jedes a ≠ 0, also gibt es immer ein b(x) mit a(x)b(x) ≡ 1.
+
+</Lens>
+
+</LessonSection>
+
+<LessonSection part="break">
+
+## Mallory wählt einen reduziblen Modulus
+
+Mallory ersetzt m(x) durch das einfachere x⁸ + 1. Aber über GF(2) ist x⁸ + 1 = (x + 1)⁸, also
+reduzibel. Dann gilt `{03} • {ff}` = (x + 1)(x⁷ + … + 1) = x⁸ + 1 ≡ `{00}`: Zwei von null
+verschiedene Bytes ergeben multipliziert null, und `{03}` hat kein Inverses (Lidl & Niederreiter,
+Kap. 1, Satz 1.61). Die S-Box braucht ein Inverses für jedes von null verschiedene Byte (FIPS 197,
+§5.1.1), und MixColumns braucht eines, um rückgängig gemacht zu werden (FIPS 197, §5.1.3). Mit einem
+irreduziblen m(x) liefert GF(2⁸) AES beides – auf genau den 256 Werten, die ein Byte annehmen kann.
+
+</LessonSection>
+
+<LessonSection part="check">
+
+## Teste dich selbst
+
+<CheckQuestion number={1} question="Was ist {57} + {83} in GF(2⁸)?" options={['{da}', '{d4}', '{c1}', '{01}{d4}']} answer={1}>
+  Die Addition rechnet koeffizientenweise modulo 2, also XOR: `{57} ⊕ {83} = {d4}` (FIPS 197, §4.1).
+  `{da}` ist die Ganzzahlsumme, `{c1}` das Produkt.
+</CheckQuestion>
+
+<CheckQuestion number={2} question="Was ist xtime({80})?" options={['{00}', '{01}{00}', '{1b}', '{80}']} answer={2}>
+  Die Linksverschiebung von `{80}` schiebt Bit 7 hinaus und lässt `{00}` übrig. Bit 7 war gesetzt,
+  also wird der x⁸-Term per XOR mit `{1b}` reduziert: Das Ergebnis ist `{1b}` (FIPS 197, §4.2.1).
+</CheckQuestion>
+
+<CheckQuestion
+  number={3}
+  question="Warum muss der AES-Modulus irreduzibel sein?"
+  options={['Damit XOR schneller wird', 'Damit jedes von null verschiedene Byte ein multiplikatives Inverses hat', 'Damit {02} alle von null verschiedenen Bytes erzeugt', 'Damit Produkte nie reduziert werden müssen']}
+  answer={1}
+>
+  Bei einem reduziblen Modulus können von null verschiedene Bytes multipliziert `{00}` ergeben und
+  haben dann kein Inverses (FIPS 197, §4.2). Erzeuger zu sein ist eine andere Eigenschaft: `{02}` ist
+  für `0x11B` keiner.
+</CheckQuestion>
+
+</LessonSection>

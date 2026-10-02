@@ -2,23 +2,24 @@ import { describe, expect, it } from 'vitest';
 import { createTranslator, getFacet, type StateFacet } from '@cryventure/core';
 import { vizMessages } from '../i18n/messages.ts';
 import { createFixtureBundle } from '../testing/fixtureBundle.ts';
-import { DEFAULT_SCOPE_LEVEL_KEYS, formatScopePath, scopeAt, scopeLevelKeys, scopeParams } from './scopeLabel.ts';
+import { formatScopePath, scopeAt, scopeLevelKeys, scopeParams } from './scopeLabel.ts';
 
 const t = createTranslator(vizMessages.en);
+const LEVEL_KEYS = ['ui.scope.round', 'ui.scope.op', 'ui.scope.sub'];
 
 describe('formatScopePath', () => {
   it('formats round (index) and op (ordinal) levels', () => {
-    expect(formatScopePath([3, 1], t)).toBe('Round 3 · op 2');
+    expect(formatScopePath([3, 1], t, LEVEL_KEYS)).toBe('Round 3 · op 2');
   });
 
   it('reuses the last level key for deeper scopes and is empty at the root', () => {
-    expect(formatScopePath([0, 0, 4, 5], t)).toBe('Round 0 · op 1 · step 5 · step 6');
-    expect(formatScopePath([], t)).toBe('');
+    expect(formatScopePath([0, 0, 4, 5], t, LEVEL_KEYS)).toBe('Round 0 · op 1 · step 5 · step 6');
+    expect(formatScopePath([], t, LEVEL_KEYS)).toBe('');
     expect(formatScopePath([1], t, [])).toBe('');
   });
 
   it('is translated', () => {
-    expect(formatScopePath([3, 1], createTranslator(vizMessages.de))).toBe('Runde 3 · Teilschritt 2');
+    expect(formatScopePath([3, 1], createTranslator(vizMessages.de), LEVEL_KEYS)).toBe('Runde 3 · Teilschritt 2');
   });
 });
 
@@ -58,10 +59,11 @@ describe('scopeLevelKeys', () => {
     expect(scopeLevelKeys({ scopeLevels: [{ labelKey: 'p.round' }, { labelKey: 'p.op' }] })).toEqual(['p.round', 'p.op']);
   });
 
-  it('falls back to the viz defaults without (or with empty) scopeLevels', () => {
-    expect(scopeLevelKeys(undefined)).toBe(DEFAULT_SCOPE_LEVEL_KEYS);
-    expect(scopeLevelKeys({})).toBe(DEFAULT_SCOPE_LEVEL_KEYS);
-    expect(scopeLevelKeys({ scopeLevels: [] })).toBe(DEFAULT_SCOPE_LEVEL_KEYS);
+  it('declares no levels without (or with empty) scopeLevels, so no "Round n" is invented', () => {
+    expect(scopeLevelKeys(undefined)).toEqual([]);
+    expect(scopeLevelKeys({})).toEqual([]);
+    expect(scopeLevelKeys({ scopeLevels: [] })).toEqual([]);
+    expect(formatScopePath([0], createTranslator(vizMessages.en), scopeLevelKeys({}))).toBe('');
   });
 
   it('formats producer templates with {{value}} (scope index) and {{n}} (1-based level)', () => {

@@ -87,9 +87,9 @@ export async function useStoryMode(lab: Locator, lang: Lang = 'en'): Promise<voi
   await expect(story).toHaveAttribute('aria-pressed', 'true');
 }
 
-/** The state matrix as one hex string, in byte-index order. */
-export async function stateHex(lab: Locator): Promise<string> {
-  const pairs = await lab.locator('[data-region="state"] .cv-cell').evaluateAll((nodes) =>
+/** A state region (default: the AES state matrix) as one hex string, in byte-index order; unwritten bytes read `··`. */
+export async function stateHex(lab: Locator, region = 'state'): Promise<string> {
+  const pairs = await lab.locator(`[data-region="${region}"] .cv-cell`).evaluateAll((nodes) =>
     nodes.map((node) => [Number(node.getAttribute('data-index')), node.querySelector('.cv-cell__value')?.textContent?.trim() ?? ''] as const),
   );
   return pairs

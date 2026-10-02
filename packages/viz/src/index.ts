@@ -5,7 +5,7 @@
 export { I18nProvider, useT, type I18nProviderProps } from './i18n/I18nProvider.tsx';
 // lab runtime
 export { INITIAL_STEP, LAB_MODES, selectStepCount, type LabMode } from './lab/labReducers.ts';
-export { createLabStore, type LabActions, type LabState, type LabStore, type SetBundleOptions } from './lab/createLabStore.ts';
+export { createLabStore, type LabActions, type LabState, type LabStore, type ParamsPatch, type ParamsRequestHandler, type SetBundleOptions } from './lab/createLabStore.ts';
 export { stateSteps, type AnyStateFacet, type AnyStateStep } from './lab/stateSteps.ts';
 export { useLab, useLabActions, useLabStore } from './lab/LabContext.tsx';
 export { LabRoot, type LabRootProps } from './lab/LabRoot.tsx';
@@ -16,6 +16,9 @@ export { useActiveBeat, useChoreography, useFocusBeat, useStepProgress } from '.
 export { focusIn, tracksForRegion } from './choreography/nodeTracks.ts';
 // narration
 export { useCurrentNarration } from './narration/useCurrentNarration.ts';
+// text
+export { MathText } from './text/MathText.tsx';
+export { mathTextSegments, toSuperscript, type MathTextSegment } from './text/mathText.ts';
 // player
 export { Caption } from './player/Caption.tsx';
 export { Timeline } from './player/Timeline.tsx';
@@ -28,6 +31,7 @@ export { useScopeLabel } from './player/useScopeLabel.ts';
 export { ByteGrid, type ByteGridProps, type GridLayoutMode, type GridMotion, type GridRowHeader } from './cells/ByteGrid.tsx';
 export { cellIndex, type GridHighlight, type GridOrder, type GridShape } from './cells/gridLayout.ts';
 export { formatHex, toHex } from './cells/hex.ts';
+export { useGridNavigation } from './cells/useGridNavigation.ts';
 // workspace
 export type { ReactViewManifest, ViewComponent, ViewProps } from './workspace/viewTypes.ts';
 export { Workspace, type WorkspaceProps } from './workspace/Workspace.tsx';

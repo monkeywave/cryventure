@@ -15,7 +15,7 @@ Every lesson has six parts, in this order, each wrapped in `<LessonSection part=
 | 3 | `inside` | The mechanism step by step: worked examples, formulas |
 | 4 | `memory` | How it looks in memory and in hardware (link to the track's memory page) |
 | 5 | `break` | What breaks if a step or constant is removed (Mallory's quest) |
-| 6 | `check` | Three `<CheckQuestion>`s (static until the M2 quiz island) |
+| 6 | `check` | Three `<CheckQuestion>`s (interactive quiz, see [Check questions](#check-questions)) |
 
 `LessonSection` prints the localized "Part n · Name" eyebrow; you write the `##` heading inside it.
 
@@ -136,15 +136,16 @@ Import them with relative paths from `apps/web/src/components/`.
 
 | Component | Props | Use |
 |---|---|---|
-| `Lab.astro` | `labId`, `producerId`, `presetId?`, `layout?` (e.g. `state:65\|narration:35`), `lens?`, `startAt?`, `mode?` | Interactive lab. `startAt="round:1,op:subBytes"` opens at the first step whose fields all match; `startAt="step:12"` opens at the player's "Step 12" (`step:0` = initial state). A deep link's step always wins. `mode="story"` preselects Story mode (default `debugger`); playback never starts without the reader pressing Play. Invalid values fail the build. |
+| `Lab.astro` | `labId`, `producerId`, `presetId?`, `layout?` (e.g. `state:65\|narration:35`), `lens?`, `startAt?`, `mode?` | Interactive lab. Without `lens` it follows the page lens live; `lens` pins it. `startAt="round:1,op:subBytes"` opens at the first step whose fields all match; `startAt="step:12"` opens at the player's "Step 12" (`step:0` = initial state). A deep link's step always wins. `mode="story"` preselects Story mode (default `debugger`); playback never starts without the reader pressing Play. Invalid values fail the build. |
 | `lesson/LessonSection.astro` | `part` | One of the six lesson parts |
 | `lesson/WhyBox.astro` | `constant`, `title`; slot = explanation | "Why this constant?" (teal, π glyph) |
 | `lesson/Formula.astro` | `caption?`; slot = a template string `` {`…`} `` | Monospace formula or pseudo-code block |
 | `lesson/KeyFacts.astro` + `lesson/KeyFact.astro` | `label`, `value`, `kind?` | A row of fact tiles |
 | `lesson/StateGrid.astro` | `cells` (16, column-major), `caption`, `kind?` | A 4×4 state table, `cells[r + 4c] = s[r,c]` |
 | `lesson/RoundFlow.astro` | `input`, `output`, `stages[{title, ops[{label, kind}]}]`, `caption` | Round-structure diagram |
-| `lesson/CheckQuestion.astro` | `number`, `question`, `options[]`, `answer` (0-based); slot = explanation | Multiple-choice question with a hidden answer |
+| `lesson/CheckQuestion.astro` | `number`, `question`, `options[]`, `answer` (0-based); slot = explanation | Interactive multiple-choice question, see below |
 | `lesson/ComingSoon.astro` | none | "Interactive views coming soon" note |
+| `lesson/Lens.astro` | `level` or `only` (`story`, `engineer`, `cryptographer`); slot = content | Lens-dependent content, see below |
 
 `kind` is one of `key`, `plaintext`, `ciphertext`, `state`, `constant` and maps to the `--cv-*`
 tokens (amber, blue, violet, slate, teal). Every coloured element also has a glyph or label, so
@@ -153,3 +154,64 @@ colour is never the only cue.
 The components' own UI strings live in `apps/web/src/i18n/{en,de}/lesson.json` (the `lesson.*`
 keys). Text you pass as props or children belongs to the page and is translated with the page.
 Never hard-code UI words inside a component.
+
+### Check questions
+
+`<CheckQuestion>` renders the interactive quiz island (`islands/QuizQuestion.tsx`, docs/M2.md §5).
+Readers pick an option and press Check; they get "Correct!" or "Not quite", may retry, and see the
+answer and your explanation (the slot) once they get it right.
+
+- **Progress is per lesson key.** The key is the page slug without base and locale
+  (`symmetric/aes/subbytes-sbox`), and each answer is stored under the question's `number` in
+  localStorage under `cv.progress.v1`. EN and DE pages therefore share progress: keep the same
+  `number`s and the same `answer` index in both languages, and do not renumber questions on a live
+  page (stored answers would attach to the wrong question).
+- **Without JavaScript** the server output is still a readable question with the answer and
+  explanation in a `<details>` element.
+- **Progress page.** `/<lang>/progress/` (sidebar entry "Your progress" / "Dein Fortschritt") lists
+  every lesson with check questions in reading order, with its score, plus export, import and
+  reset. A page shows up there automatically once it contains a `<CheckQuestion>`.
+- UI strings live in `apps/web/src/i18n/{en,de}/quiz.json` (`quiz.*` keys).
+
+### Foundations labs
+
+The Foundations track uses small producers and two views beyond `state` and `narration`.
+Producers: `xor`, `endian`, `gf256`, `aes-sbox`. Views: `math` (an equation with bit strips,
+caret exponents such as `a^3` shown as superscripts) and `lookup-table` (the 16×16 S-box with the
+current row and column). Layouts as used in the lessons:
+
+| Lesson | Lab |
+|---|---|
+| `foundations/xor` | `producerId="xor" presetId="hello" layout="state:65\|narration:35"` |
+| `foundations/endianness` | `producerId="endian" presetId="classic" layout="state:65\|narration:35"` |
+| `foundations/gf256` | `producerId="gf256" presetId="fips197-mul" startAt="op:load" layout="math:50\|state:20\|narration:30"` (also `presetId="inverse"`) |
+| `symmetric/aes/sbox-derivation` | `producerId="aes-sbox" presetId="fips-53" startAt="op:result" layout="lookup-table:45\|math:35\|narration:20"` |
+
+### Lens blocks
+
+Readers pick a page-wide lens in the header (Story / Engineer / Cryptographer, default Engineer;
+stored with their progress). Wrap lens-specific prose in `<Lens>`:
+
+```mdx
+import Lens from '../../../../../components/lesson/Lens.astro';
+
+<Lens level="engineer">
+
+Shown for the engineer and cryptographer lenses.
+
+</Lens>
+
+<Lens only="story">
+
+Shown for the story lens only.
+
+</Lens>
+```
+
+- `level` shows the block for that lens and deeper ones; `only` for exactly that lens. Pass one.
+- Each block carries a small translated badge ("Cryptographer lens"). Keep the blank lines inside
+  so the content is parsed as Markdown.
+- Hiding is pure CSS (`display: none`, so screen readers skip it too). Without JavaScript the page
+  behaves as the engineer lens, so core content must never sit in a `level="cryptographer"` or
+  `only` block alone.
+- Wrap the same blocks in the EN and DE page.

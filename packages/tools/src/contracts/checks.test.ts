@@ -1,4 +1,4 @@
-import { narrationFromState, RecordingTracer, type RegionSpec, type TraceBundle } from '@cryventure/core';
+import { narrationFromState, parseHexOfLength, RecordingTracer, type MathFacet, type PrimitiveManifest, type RegionSpec, type TableFacet, type TraceBundle } from '@cryventure/core';
 import { describe, expect, it } from 'vitest';
 import {
   derivationGroupRefs,
@@ -6,6 +6,8 @@ import {
   jsonRoundTrip,
   keysOutsideNamespace,
   manifestLabelKeys,
+  mathFacetRefs,
+  mathStepRangeProblems,
   missingFacetKinds,
   missingKeys,
   refProblems,
@@ -14,6 +16,8 @@ import {
   runtimeLabelKeys,
   scopeLevelKeys,
   sequentialReplay,
+  tableFacetRefs,
+  tableSelectParamProblems,
   unknownParamFields,
 } from './checks.ts';
 
@@ -145,5 +149,73 @@ describe('derivationGroupRefs', () => {
     const label = { key: 'plugin.x.step', params: { n: 1 } };
     expect(derivationGroupRefs({ kind: 'derivation', schemaVersion: 1, nodes: [], groups: [{ id: 0, label }] })).toEqual([label]);
     expect(derivationGroupRefs({ kind: 'derivation', schemaVersion: 1, nodes: [] })).toEqual([]);
+  });
+});
+
+describe('mathFacetRefs', () => {
+  it('collects formulas and term labels once each', () => {
+    const formula = { key: 'plugin.x.f', params: { a: '57' } };
+    const label = { key: 'plugin.x.term.a' };
+    const term = { id: 'a', label, value: 1, width: 8, role: 'operand' as const };
+    const steps = [0, 1].map((step) => ({ step, formula, terms: [term] }));
+    expect(mathFacetRefs({ kind: 'math', schemaVersion: 1, notation: { field: 'gf2^8', modulus: 0x11b }, steps })).toEqual([formula, label]);
+  });
+});
+
+describe('tableFacetRefs', () => {
+  it('collects the title and mark labels', () => {
+    const title = { key: 'plugin.x.table' };
+    const label = { key: 'plugin.x.mark' };
+    const marks = [{ index: 0, role: 'input' as const, label }, { index: 1, role: 'output' as const }];
+    expect(tableFacetRefs({ kind: 'table', schemaVersion: 1, title, rows: 1, cols: 2, entries: [0, 1], marks })).toEqual([title, label]);
+    expect(tableFacetRefs({ kind: 'table', schemaVersion: 1, title, rows: 1, cols: 1, entries: [0] })).toEqual([title]);
+  });
+});
+
+describe('mathStepRangeProblems', () => {
+  const math = (steps: number[]): MathFacet => ({
+    kind: 'math',
+    schemaVersion: 1,
+    notation: { field: 'gf2^8', modulus: 0x11b },
+    steps: steps.map((step) => ({ step, formula: { key: 'plugin.x.f' }, terms: [] })),
+  });
+
+  it('accepts math steps that point at state steps', () => expect(mathStepRangeProblems(math([0, 2]), 3)).toEqual([]));
+
+  it('reports math steps beyond the last state step', () => {
+    expect(mathStepRangeProblems(math([0, 3, 4]), 3)).toEqual(['math step 3 has no state step (0..2)', 'math step 4 has no state step (0..2)']);
+  });
+});
+
+describe('tableSelectParamProblems', () => {
+  type Params = { byteHex: string; other: string };
+  const validate: PrimitiveManifest<Params>['validate'] = (params) => {
+    const { byteHex, other } = params as Params;
+    const parsed = parseHexOfLength(byteHex, [1], { invalidType: 'x.invalid', wrongLength: 'x.length' });
+    return parsed.ok ? { ok: true, value: { byteHex: parsed.hex, other } } : { ok: false, error: parsed.error };
+  };
+  const manifest = { defaults: { byteHex: '00', other: 'o' }, validate };
+  const table = (selectParam: string | undefined, selected = 0x53): TableFacet => ({
+    kind: 'table',
+    schemaVersion: 1,
+    title: { key: 'plugin.x.table' },
+    rows: 16,
+    cols: 16,
+    entries: new Array<number>(256).fill(0),
+    selected,
+    ...(selectParam === undefined ? {} : { selectParam }),
+  });
+
+  it('accepts a selectParam of the defaults whose selected index validates as hex', () => {
+    expect(tableSelectParamProblems(table('byteHex'), manifest, manifest.defaults)).toEqual([]);
+    expect(tableSelectParamProblems(table(undefined), manifest, manifest.defaults)).toEqual([]);
+  });
+
+  it('reports a selectParam that is not a param', () => {
+    expect(tableSelectParamProblems(table('byte'), manifest, manifest.defaults)).toEqual(['table: selectParam "byte" is not a key of manifest.defaults']);
+  });
+
+  it('reports a selected index that does not round-trip through validate as hex', () => {
+    expect(tableSelectParamProblems(table('byteHex', 0x153), manifest, manifest.defaults)).toEqual(['table: selected 339 as byteHex "153" does not round-trip through validate']);
   });
 });

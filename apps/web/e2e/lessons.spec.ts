@@ -78,9 +78,24 @@ test('German sidebar shows the translated block-cipher group', async ({ page }) 
 test('check answers stay hidden until revealed', async ({ page }) => {
   await page.goto('en/symmetric/aes/');
   const first = page.locator('.cv-check').first();
+  await first.scrollIntoViewIfNeeded();
+  await expect(first).toHaveAttribute('data-hydrated', 'true');
   await expect(first.getByText('Answer: B')).toBeHidden();
-  await first.getByText('Show answer').click();
+  await first.getByRole('button', { name: 'Show answer' }).click();
   await expect(first.getByText('Answer: B')).toBeVisible();
+});
+
+test.describe('without JavaScript', () => {
+  test.use({ javaScriptEnabled: false });
+
+  test('check questions keep a <details> answer', async ({ page }) => {
+    await page.goto('en/symmetric/aes/');
+    const first = page.locator('.cv-check').first();
+    await expect(first.getByRole('radio')).toHaveCount(4);
+    await expect(first.getByText('Answer: B')).toBeHidden();
+    await first.getByText('Show answer').click();
+    await expect(first.getByText('Answer: B')).toBeVisible();
+  });
 });
 
 test('AES overview (EN) has no serious or critical axe violations', async ({ page }) => {

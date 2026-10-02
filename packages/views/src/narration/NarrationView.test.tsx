@@ -17,6 +17,15 @@ describe('NarrationView', () => {
     expect(live()?.textContent).toBe('Substitute 2 bytes');
   });
 
+  it('raises caret exponents to superscripts', () => {
+    const messages = { ...loadViewMessages('en'), ...fixtureMessages, 'fixture.narration.sub': 'a^{{count}} = (a^127)², b^{k}' };
+    const { store } = renderLab(<NarrationView labId="fixture" lens="story" />, { bundle: createFixtureBundle(), messages });
+    act(() => store.getState().seek(1));
+    expect(live()?.textContent).toBe('a² = (a¹²⁷)², bk');
+    expect(live()?.querySelector('sup')?.textContent).toBe('k');
+    expect(live()?.textContent).not.toContain('^');
+  });
+
   it('shows the scope path of the current step', () => {
     const { store } = renderLab(<NarrationView labId="fixture" lens="story" />, { bundle: createFixtureBundle(), messages: { ...loadViewMessages('en'), ...fixtureMessages } });
     act(() => store.getState().seek(2));

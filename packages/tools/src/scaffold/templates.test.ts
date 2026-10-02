@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { deStubs, tsStringArray, primitiveFolder, primitiveMessages, primitiveTemplate, toJson, viewFolder, viewMessages, viewTemplate } from './templates.ts';
+import { deStubs, tsStringArray, primitiveConformance, primitiveFolder, primitiveMessages, primitiveTemplate, toJson, viewFolder, viewMessages, viewTemplate } from './templates.ts';
 
 const contentOf = (files: { path: string; content: string }[], suffix: string) => files.find((file) => file.path.endsWith(suffix))?.content ?? '';
 
@@ -27,7 +27,12 @@ describe('primitiveTemplate', () => {
   const files = primitiveTemplate('demo-xor', 'block-cipher');
 
   it('creates manifest, module, test and EN/DE catalogs', () => {
-    expect(files.map((file) => file.path)).toEqual(['manifest.ts', 'module.ts', 'module.test.ts', 'i18n/en.json', 'i18n/de.json'].map((name) => `packages/primitives/src/demo-xor/${name}`));
+    expect(files.map((file) => file.path)).toEqual(['manifest.ts', 'module.ts', 'module.test.ts', 'i18n/en.json', 'i18n/de.json', 'vectors/conformance.json'].map((name) => `packages/primitives/src/demo-xor/${name}`));
+  });
+
+  it('ships a starter conformance file with one case', () => {
+    expect(JSON.parse(contentOf(files, 'vectors/conformance.json'))).toEqual(primitiveConformance());
+    expect(primitiveConformance().cases).toHaveLength(1);
   });
 
   it('wires id, family and names into the manifest; manifest imports core only', () => {

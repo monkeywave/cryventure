@@ -2,7 +2,11 @@ import { act, render, screen } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { installResizeObserverMock } from '../workspace/resizeObserverMock.ts';
 import { renderLab } from '../testing/renderLab.tsx';
+import { I18nProvider } from '../i18n/I18nProvider.tsx';
+import { vizMessages } from '../i18n/messages.ts';
+import { createLabStore, type ParamsRequestHandler } from './createLabStore.ts';
 import { useLab, useLabActions, useLabStore } from './LabContext.tsx';
+import { LabRoot } from './LabRoot.tsx';
 import { useLabLayout } from './LabLayout.tsx';
 import { selectStepCount } from './labReducers.ts';
 
@@ -45,5 +49,47 @@ describe('LabRoot layout', () => {
   it('is wide outside a lab', () => {
     render(<LayoutProbe />);
     expect(screen.getByTestId('layout').textContent).toBe('false');
+  });
+});
+
+function RequestButton() {
+  const { requestParams } = useLabActions();
+  return (
+    <button type="button" onClick={() => requestParams({ detail: 'round' })}>
+      request
+    </button>
+  );
+}
+
+function renderWithHandler(store: ReturnType<typeof createLabStore>, handler: ParamsRequestHandler | undefined) {
+  return (
+    <I18nProvider messages={vizMessages.en}>
+      <LabRoot store={store} onRequestParams={handler}>
+        <RequestButton />
+      </LabRoot>
+    </I18nProvider>
+  );
+}
+
+describe('LabRoot onRequestParams', () => {
+  it("routes a view's requestParams to the latest host handler and unwires on unmount", () => {
+    const store = createLabStore(null);
+    const first = vi.fn();
+    const second = vi.fn();
+    const { rerender, unmount } = render(renderWithHandler(store, first));
+    act(() => screen.getByRole('button', { name: 'request' }).click());
+    expect(first).toHaveBeenCalledWith({ detail: 'round' });
+    rerender(renderWithHandler(store, second));
+    act(() => screen.getByRole('button', { name: 'request' }).click());
+    expect(second).toHaveBeenCalledTimes(1);
+    expect(first).toHaveBeenCalledTimes(1);
+    unmount();
+    store.getState().requestParams({ detail: 'op' });
+    expect(second).toHaveBeenCalledTimes(1);
+  });
+
+  it('is a no-op for views when the host wires nothing', () => {
+    renderLab(<RequestButton />);
+    expect(() => act(() => screen.getByRole('button', { name: 'request' }).click())).not.toThrow();
   });
 });

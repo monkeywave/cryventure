@@ -1,6 +1,7 @@
 /** Dev-only tooling: contract-test kit, i18n parity rules, scaffolder templates. */
 export * from './contracts/catalogs.ts';
 export * from './contracts/checks.ts';
+export * from './contracts/conformance.ts';
 export * from './contracts/choreographyChecks.ts';
 export * from './contracts/primitiveContract.ts';
 export * from './contracts/viewContract.ts';

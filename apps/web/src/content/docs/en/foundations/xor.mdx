@@ -1,0 +1,166 @@
+---
+title: XOR and the one-time pad
+description: How XOR combines bits, why applying the same key twice undoes it, when the one-time pad is perfectly secret, and why reusing its key breaks it.
+lessonId: foundations/xor
+track: foundations
+phase: 1
+sidebar:
+  order: 2
+tableOfContents: false
+prereqs: []
+labs:
+  - xor-otp
+refs:
+  - Vernam (1926), Cipher printing telegraph systems for secret wire and radio telegraphic communications, J. AIEE 45
+  - Shannon (1949), Communication theory of secrecy systems, Bell System Technical Journal 28(4), Section 10 (Perfect Secrecy)
+  - Benson (2001), The Venona Story, NSA Center for Cryptologic History
+  - FIPS 197, Section 5.1.4 (AddRoundKey)
+  - FIPS 197, Appendix C.1 (AES-128 example vectors)
+---
+
+import Lab from '../../../../components/Lab.astro';
+import CheckQuestion from '../../../../components/lesson/CheckQuestion.astro';
+import Formula from '../../../../components/lesson/Formula.astro';
+import KeyFact from '../../../../components/lesson/KeyFact.astro';
+import KeyFacts from '../../../../components/lesson/KeyFacts.astro';
+import Lens from '../../../../components/lesson/Lens.astro';
+import LessonSection from '../../../../components/lesson/LessonSection.astro';
+import WhyBox from '../../../../components/lesson/WhyBox.astro';
+
+<LessonSection part="concept">
+
+## Flip where the key says 1
+
+**XOR** (exclusive or, written ⊕) compares two bits: the result is 1 when they differ and 0 when
+they are equal. Read it as a switch: a key bit of 1 **flips** the message bit, a key bit of 0 leaves
+it alone. On bytes, XOR works on all 8 bit positions independently.
+
+<Formula caption="Truth table of XOR, and one byte from the lab's hello preset.">
+{`a  b │ a ⊕ b          'h' = 0x68 = 0110 1000
+0  0 │   0            key = 0x2B = 0010 1011
+0  1 │   1            ─────────────────────── ⊕
+1  0 │   1                  0x43 = 0100 0011
+1  1 │   0`}
+</Formula>
+
+<KeyFacts>
+  <KeyFact label="a ⊕ 0" value="a" kind="plaintext" />
+  <KeyFact label="a ⊕ a" value="0" kind="state" />
+  <KeyFact label="(m ⊕ k) ⊕ k" value="m" kind="key" />
+</KeyFacts>
+
+The last row is the whole trick: XOR is **its own inverse**. Encrypting and decrypting with the same
+key are the same operation.
+
+<Lens only="story">
+
+Picture a row of light switches. The key says which switches to flip. Flip the same ones again and
+the room looks exactly as before — that is decryption.
+
+</Lens>
+
+</LessonSection>
+
+<LessonSection part="playground">
+
+## XOR "hello" byte by byte
+
+The lab XORs the ASCII bytes of `hello` with a 5-byte key, one byte per step, then XORs the result
+with the same key again and gets `hello` back. Switch presets to see the edge cases: an all-zero key
+changes nothing, a key equal to the message gives all zeros, and `0x20` in every byte flips ASCII
+case.
+
+<Lab labId="xor-otp" producerId="xor" presetId="hello" layout="state:65|narration:35" />
+
+</LessonSection>
+
+<LessonSection part="inside">
+
+## The one-time pad
+
+Gilbert Vernam XORed teleprinter tape with a key tape, bit by bit (Vernam 1926).
+With a key that is **truly random**, **as long as the message** and **never reused**, this is the
+one-time pad. Shannon proved it **perfectly secret**: the ciphertext tells an attacker nothing about
+the message, whatever their computing power (Shannon 1949, §10). Exactly one key byte maps any
+plaintext byte to any ciphertext byte.
+
+<WhyBox constant="|k| ≥ |m|" title="key at least as long as the message">
+  Perfect secrecy needs at least as many keys as possible messages (Shannon 1949). A shorter key
+  must repeat, and part 5 exploits exactly that.
+</WhyBox>
+
+<Lens level="cryptographer">
+
+Formally, a cipher is perfectly secret when `Pr[M = m | C = c] = Pr[M = m]` for every message `m`
+and ciphertext `c` (Shannon 1949, §10). With a uniform n-bit key, `Pr[C = c | M = m] = 2⁻ⁿ` for
+every pair, so seeing `c` leaves the distribution of `M` unchanged.
+
+</Lens>
+
+</LessonSection>
+
+<LessonSection part="memory">
+
+## XOR in AES and in the CPU
+
+AES uses XOR to mix in the key. **AddRoundKey** XORs each state byte with the matching round-key
+byte (FIPS 197, §5.1.4). Round 0 of the FIPS 197, Appendix C.1 example:
+
+<Formula caption="AddRoundKey, round 0 (FIPS 197, Appendix C.1).">
+{`plaintext  00 11 22 33 44 55 66 77 88 99 aa bb cc dd ee ff
+key        00 01 02 03 04 05 06 07 08 09 0a 0b 0c 0d 0e 0f
+⊕          00 10 20 30 40 50 60 70 80 90 a0 b0 c0 d0 e0 f0`}
+</Formula>
+
+In the CPU, XOR is one cheap instruction on 8, 64 or 128 bits at once, and AES hardware performs
+AddRoundKey as part of every round instruction. Next: [Byte order](../endianness/), or jump to
+[AES](../../symmetric/aes/).
+
+</LessonSection>
+
+<LessonSection part="break">
+
+## Mallory's quest: the two-time pad
+
+Reuse the pad once and the secrecy is gone. With `c₁ = m₁ ⊕ k` and `c₂ = m₂ ⊕ k`, the key cancels:
+
+<Formula caption="Two messages, one key: the key drops out.">
+{`c₁ ⊕ c₂ = (m₁ ⊕ k) ⊕ (m₂ ⊕ k) = m₁ ⊕ m₂
+"hello" ⊕ "world" = 1f 0a 1e 00 0b      (00: both have 'l' there)`}
+</Formula>
+
+Mallory never learns `k`, but she holds `m₁ ⊕ m₂`. Guessing a likely word in one message (a
+**crib**) reveals the other at the same position. Try it in the lab: enter `1f0a1e000b` as the
+message and the guess `68656c6c6f` ("hello") as the key — the result is `776f726c64`, "world".
+Soviet pad pages that were used twice let US analysts read thousands of messages in the Venona
+project (Benson 2001).
+
+</LessonSection>
+
+<LessonSection part="check">
+
+## Check yourself
+
+<CheckQuestion number={1} question="What is 0x5A ⊕ 0xFF?" options={['0x00', '0x5A', '0xA5', '0xFF']} answer={2}>
+  XOR with `FF` flips every bit: `0101 1010` becomes `1010 0101` = `A5`.
+</CheckQuestion>
+
+<CheckQuestion
+  number={2}
+  question="Two messages were encrypted with the same pad. What does c₁ ⊕ c₂ give the attacker?"
+  options={['The key k', 'm₁ ⊕ m₂', 'Nothing useful', 'm₁ directly']}
+  answer={1}
+>
+  The key cancels out: `(m₁ ⊕ k) ⊕ (m₂ ⊕ k) = m₁ ⊕ m₂`. A guessed word in one message then reveals the other.
+</CheckQuestion>
+
+<CheckQuestion
+  number={3}
+  question="A one-time pad with a truly random key produced the ciphertext byte 0x3C. Which plaintext bytes are possible?"
+  options={['Only 0x3C', 'Only printable ASCII characters', 'Half of all bytes', 'All 256 bytes — the ciphertext does not change their odds']}
+  answer={3}
+>
+  For every plaintext byte `m` there is exactly one key byte `k = m ⊕ 3C`, and every key byte is equally likely, so `3C` fits every plaintext equally well. Seeing it changes nothing about which plaintext was sent. That is perfect secrecy.
+</CheckQuestion>
+
+</LessonSection>

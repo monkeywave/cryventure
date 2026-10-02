@@ -1,7 +1,8 @@
 import type { ReactNode } from 'react';
-import { i18nRef, type Lens, type Messages } from '@cryventure/core';
-import { ErrorBoundary, I18nProvider, LabRoot, Workspace, useT, type LabMode } from '@cryventure/viz';
+import { i18nRef, type I18nRef, type Lens, type Messages } from '@cryventure/core';
+import { ErrorBoundary, I18nProvider, LabRoot, Workspace, useT, type LabMode, type ParamsRequestHandler } from '@cryventure/viz';
 import type { LabParams, ReadySession } from '../labs/labSession.ts';
+import { useLabLens } from '../progress/useLabLens.ts';
 import { InvalidLinkNotice, LabError } from './lab/LabMessages.tsx';
 import { OutputPanel } from './lab/OutputPanel.tsx';
 import { ParamPanel } from './lab/ParamPanel.tsx';
@@ -16,6 +17,7 @@ export interface LabProps {
   presetId?: string;
   /** Workspace panel preset, e.g. `"state|narration"`. */
   layout?: string;
+  /** Pins the lab to one lens; without it the lab follows the page lens (header selector) live. */
   lens?: Lens;
   /** Start position when the deep link has none: `"round:1,op:subBytes"` or `"step:12"` (see `labs/startAt.ts`). */
   startAt?: string;
@@ -35,16 +37,20 @@ interface ReadyLabProps {
   lens: Lens;
   session: ReadySession;
   onParams: (params: LabParams) => void;
+  /** A view's re-run request (`useLabActions().requestParams`). */
+  onRequestParams: ParamsRequestHandler;
+  /** Why the last view request was rejected, shown in the ParamPanel. */
+  requestError: I18nRef | null;
 }
 
-function ReadyLab({ labId, layout, lens, session, onParams }: ReadyLabProps) {
+function ReadyLab({ labId, layout, lens, session, onParams, onRequestParams, requestError }: ReadyLabProps) {
   const t = useT();
   useHashSync(labId, session.store, session.params);
   return (
-    <LabRoot store={session.store} choreography={session.choreography} opLabels={session.producer.ops}>
+    <LabRoot store={session.store} choreography={session.choreography} opLabels={session.producer.ops} onRequestParams={onRequestParams}>
       <p className="cv-lab__title">{t(session.producer.titleKey)}</p>
       {session.notice && <InvalidLinkNotice />}
-      <ParamPanel producer={session.producer} params={session.params} onApply={onParams} />
+      <ParamPanel producer={session.producer} params={session.params} onApply={onParams} requestError={requestError} />
       <PlayerBar />
       <Workspace views={session.views} layout={layout} labId={labId} lens={lens} />
       <OutputPanel producer={session.producer} />
@@ -52,13 +58,13 @@ function ReadyLab({ labId, layout, lens, session, onParams }: ReadyLabProps) {
   );
 }
 
-function LabBody({ labId, producerId, presetId, startAt, mode, layout, lens = 'engineer', children }: Omit<LabProps, 'messages'>) {
-  const { session, applyParams, reset } = useLabSession({ labId, producerId, presetId, startAt, mode });
+function LabBody({ labId, producerId, presetId, startAt, mode, layout, lens, children }: Omit<LabProps, 'messages' | 'lens'> & { lens: Lens }) {
+  const { session, applyParams, requestParams, requestError, reset } = useLabSession({ labId, producerId, presetId, startAt, mode });
   if (session.status === 'loading') return <>{children}</>;
   if (session.status === 'error') return <LabError error={session.error} onReset={reset} />;
   return (
     <ErrorBoundary fallback={(resetBoundary) => <LabError error={i18nRef('ui.lab.error.crashed')} onReset={() => { reset(); resetBoundary(); }} />}>
-      <ReadyLab labId={labId} layout={layout} lens={lens} session={session} onParams={applyParams} />
+      <ReadyLab labId={labId} layout={layout} lens={lens} session={session} onParams={applyParams} onRequestParams={requestParams} requestError={requestError} />
     </ErrorBoundary>
   );
 }
@@ -67,11 +73,12 @@ function LabBody({ labId, producerId, presetId, startAt, mode, layout, lens = 'e
  * Generic lab island: producer manifest → params (hash / preset / defaults) → lazy `run()` →
  * lab store → player + workspace of every view the producer's facets can feed.
  */
-export default function Lab({ messages, locale, ...props }: LabProps) {
+export default function Lab({ messages, locale, lens: pinnedLens, ...props }: LabProps) {
+  const lens = useLabLens(pinnedLens);
   return (
     <I18nProvider messages={messages} locale={locale}>
-      <div className="cv-lab-island" data-lab-id={props.labId}>
-        <LabBody {...props} />
+      <div className="cv-lab-island" data-lab-id={props.labId} data-lens={lens}>
+        <LabBody {...props} lens={lens} />
       </div>
     </I18nProvider>
   );

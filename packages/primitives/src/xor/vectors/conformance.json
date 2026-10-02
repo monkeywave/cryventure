@@ -1,0 +1,65 @@
+{
+  "source": "Computed with Python bytes XOR (independent of the TypeScript implementation)",
+  "cases": [
+    {
+      "name": "hello ascii",
+      "params": {
+        "messageHex": "68656c6c6f",
+        "keyHex": "2b7e151628"
+      },
+      "outputs": {
+        "result": "431b797a47"
+      }
+    },
+    {
+      "name": "zero key",
+      "params": {
+        "messageHex": "68656c6c6f",
+        "keyHex": "0000000000"
+      },
+      "outputs": {
+        "result": "68656c6c6f"
+      }
+    },
+    {
+      "name": "key equals message",
+      "params": {
+        "messageHex": "68656c6c6f",
+        "keyHex": "68656c6c6f"
+      },
+      "outputs": {
+        "result": "0000000000"
+      }
+    },
+    {
+      "name": "case flip",
+      "params": {
+        "messageHex": "68656c6c6f",
+        "keyHex": "2020202020"
+      },
+      "outputs": {
+        "result": "48454c4c4f"
+      }
+    },
+    {
+      "name": "single byte",
+      "params": {
+        "messageHex": "ff",
+        "keyHex": "0f"
+      },
+      "outputs": {
+        "result": "f0"
+      }
+    },
+    {
+      "name": "32 bytes",
+      "params": {
+        "messageHex": "00112233445566778899aabbccddeeff00112233445566778899aabbccddeeff",
+        "keyHex": "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f"
+      },
+      "outputs": {
+        "result": "00102030405060708090a0b0c0d0e0f010003020504070609080b0a0d0c0f0e0"
+      }
+    }
+  ]
+}

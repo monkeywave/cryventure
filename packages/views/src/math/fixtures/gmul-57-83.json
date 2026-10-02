@@ -1,0 +1,58 @@
+{
+  "stepCount": 7,
+  "math": {
+    "kind": "math",
+    "schemaVersion": 1,
+    "notation": { "field": "gf2^8", "modulus": 283 },
+    "steps": [
+      {
+        "step": 0,
+        "formula": { "key": "plugin.gf256.formula.addIfBit", "params": { "i": 0 } },
+        "terms": [
+          { "id": "b", "label": { "key": "plugin.gf256.term.b" }, "value": 131, "width": 8, "role": "operand", "bits": [0] },
+          { "id": "a", "label": { "key": "plugin.gf256.term.a" }, "value": 87, "width": 8, "role": "operand", "op": "xor" },
+          { "id": "acc", "label": { "key": "plugin.gf256.term.acc" }, "value": 87, "width": 8, "role": "result", "op": "result" }
+        ]
+      },
+      {
+        "step": 1,
+        "formula": { "key": "plugin.gf256.formula.xtime" },
+        "terms": [
+          { "id": "a", "label": { "key": "plugin.gf256.term.a" }, "value": 87, "width": 8, "role": "operand" },
+          { "id": "shifted", "label": { "key": "plugin.gf256.term.shifted" }, "value": 174, "width": 9, "role": "intermediate", "op": "xtime", "bits": [8] },
+          { "id": "next", "label": { "key": "plugin.gf256.term.a" }, "value": 174, "width": 8, "role": "result", "op": "result" }
+        ]
+      },
+      {
+        "step": 2,
+        "formula": { "key": "plugin.gf256.formula.addIfBit", "params": { "i": 1 } },
+        "terms": [
+          { "id": "b", "label": { "key": "plugin.gf256.term.b" }, "value": 131, "width": 8, "role": "operand", "bits": [1] },
+          { "id": "acc", "label": { "key": "plugin.gf256.term.acc" }, "value": 87, "width": 8, "role": "intermediate" },
+          { "id": "a", "label": { "key": "plugin.gf256.term.a" }, "value": 174, "width": 8, "role": "operand", "op": "xor" },
+          { "id": "sum", "label": { "key": "plugin.gf256.term.acc" }, "value": 249, "width": 8, "role": "result", "op": "result" }
+        ]
+      },
+      {
+        "step": 3,
+        "formula": { "key": "plugin.gf256.formula.xtimeReduce" },
+        "terms": [
+          { "id": "a", "label": { "key": "plugin.gf256.term.a" }, "value": 174, "width": 8, "role": "operand" },
+          { "id": "shifted", "label": { "key": "plugin.gf256.term.shifted" }, "value": 348, "width": 9, "role": "carry", "op": "xtime", "bits": [8] },
+          { "id": "modulus", "label": { "key": "plugin.gf256.term.modulus" }, "value": 283, "width": 9, "role": "constant", "op": "reduce" },
+          { "id": "next", "label": { "key": "plugin.gf256.term.a" }, "value": 71, "width": 8, "role": "result", "op": "result" }
+        ]
+      },
+      {
+        "step": 5,
+        "formula": { "key": "plugin.gf256.formula.addIfBit", "params": { "i": 7 } },
+        "terms": [
+          { "id": "b", "label": { "key": "plugin.gf256.term.b" }, "value": 131, "width": 8, "role": "operand", "bits": [7] },
+          { "id": "acc", "label": { "key": "plugin.gf256.term.acc" }, "value": 249, "width": 8, "role": "intermediate" },
+          { "id": "a", "label": { "key": "plugin.gf256.term.a" }, "value": 56, "width": 8, "role": "operand", "op": "xor" },
+          { "id": "product", "label": { "key": "plugin.gf256.term.product" }, "value": 193, "width": 8, "role": "result", "op": "result" }
+        ]
+      }
+    ]
+  }
+}

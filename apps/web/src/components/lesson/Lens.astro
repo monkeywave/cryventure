@@ -1,0 +1,55 @@
+---
+/**
+ * Lens-dependent lesson content (docs/M2.md §6). `<Lens level="engineer">` shows for that lens and
+ * deeper ones, `<Lens only="story">` for exactly that lens. Visibility is pure CSS on
+ * `<html data-lens>`; without the attribute (no JS) blocks behave as for the engineer lens.
+ * Hidden blocks are `display: none`, so screen readers skip them too.
+ */
+import { lensBlockOf } from './lensBlock';
+import { lensTranslator } from './lensTranslator';
+
+interface Props {
+  level?: 'story' | 'engineer' | 'cryptographer';
+  only?: 'story' | 'engineer' | 'cryptographer';
+}
+
+const { match, lens } = lensBlockOf(Astro.props);
+const t = lensTranslator(Astro.currentLocale);
+---
+
+<div class="cv-lens" data-lens-match={match} data-lens-for={lens}>
+  <p class="cv-lens__badge">{t(`lens.badge.${lens}`)}</p>
+  <div class="cv-lens__body"><slot /></div>
+</div>
+
+<style>
+  .cv-lens {
+    margin-block: 1rem;
+    padding-inline-start: 0.75rem;
+    border-inline-start: 3px solid var(--cv-border);
+  }
+
+  .cv-lens__badge {
+    display: inline-block;
+    margin: 0;
+    padding: 0 0.4rem;
+    border: 1px solid var(--cv-border);
+    border-radius: 999px;
+    color: var(--cv-text-muted);
+    font-size: var(--sl-text-xs);
+    font-weight: 600;
+    letter-spacing: 0.04em;
+  }
+
+  .cv-lens__body > :global(:first-child) {
+    margin-block-start: 0.25rem;
+  }
+
+  /* No data-lens (no JS yet) counts as the engineer lens. */
+  :global(:root[data-lens='story']) .cv-lens[data-lens-for='engineer'],
+  :global(:root:not([data-lens='cryptographer'])) .cv-lens[data-lens-for='cryptographer'],
+  :global(:root:not([data-lens='story'])) .cv-lens[data-lens-match='only'][data-lens-for='story'],
+  :global(:root:is([data-lens='story'], [data-lens='cryptographer'])) .cv-lens[data-lens-match='only'][data-lens-for='engineer'] {
+    display: none;
+  }
+</style>

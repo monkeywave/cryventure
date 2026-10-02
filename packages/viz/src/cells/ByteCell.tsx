@@ -26,7 +26,12 @@ export interface ByteCellProps {
   selected?: boolean;
   /** Click / Enter selects the cell (called with its flat `index`). */
   onSelect?: (index: number) => void;
+  /** The displayed element is not yet written (a placeholder, not a real value): shows `UNWRITTEN_TEXT`. */
+  blank?: boolean;
 }
+
+/** Placeholder text of a not-yet-written cell (a symbol, not prose; the accessible name says it in words). */
+export const UNWRITTEN_TEXT = '··';
 
 const FLASH_FROM = { scale: 1.25, opacity: 0.5 };
 const FLASH_TO = { scale: 1, opacity: 1 };
@@ -43,9 +48,9 @@ function useHasMounted(): boolean {
   return mounted.current;
 }
 
-function useCellLabel({ value, row, col, elem = 'u8', highlight }: ByteCellProps): string {
+function useCellLabel({ value, row, col, elem = 'u8', highlight, blank = false }: ByteCellProps): string {
   const t = useT();
-  const params = { row: row + 1, column: col + 1, value: formatHex(value, elem) };
+  const params = { row: row + 1, column: col + 1, value: blank ? t('ui.grid.unwritten') : formatHex(value, elem) };
   if (highlight === undefined) return t('ui.grid.cell', params);
   return t('ui.grid.cellHighlighted', { ...params, highlight: t(`ui.grid.highlight.${highlight}`) });
 }
@@ -61,7 +66,7 @@ function cellClassName(highlight: HighlightKind | undefined): string {
  * always states the end value.
  */
 export const ByteCell = memo(function ByteCell(props: ByteCellProps) {
-  const { value, shown = value, row, col, index, elem = 'u8', highlight, tabbable = false, onFocusCell, dimmed = false, focused = false, selected, onSelect } = props;
+  const { value, shown = value, row, col, index, elem = 'u8', highlight, tabbable = false, onFocusCell, dimmed = false, focused = false, selected, onSelect, blank = false } = props;
   const label = useCellLabel(props);
   const reduceMotion = useReducedMotion() ?? false;
   const animateChange = useHasMounted() && !reduceMotion;
@@ -84,12 +89,13 @@ export const ByteCell = memo(function ByteCell(props: ByteCellProps) {
       data-highlight={highlight}
       data-dimmed={dimmed ? '' : undefined}
       data-focused={focused ? '' : undefined}
+      data-blank={blank ? '' : undefined}
       onFocus={onFocusCell === undefined ? undefined : () => onFocusCell(row, col)}
       onClick={onSelect === undefined ? undefined : () => onSelect(index)}
       onKeyDown={onKeyDown}
     >
-      <m.span key={shown} className="cv-cell__value" aria-hidden="true" initial={animateChange ? FLASH_FROM : false} animate={FLASH_TO} transition={FLASH_TRANSITION}>
-        {toHex(shown, elem)}
+      <m.span key={blank ? UNWRITTEN_TEXT : shown} className="cv-cell__value" aria-hidden="true" initial={animateChange ? FLASH_FROM : false} animate={FLASH_TO} transition={FLASH_TRANSITION}>
+        {blank ? UNWRITTEN_TEXT : toHex(shown, elem)}
       </m.span>
       {highlight !== undefined && (
         <span className="cv-cell__glyph" aria-hidden="true">

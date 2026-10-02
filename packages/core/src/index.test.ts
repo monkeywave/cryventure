@@ -12,6 +12,7 @@ describe('public API', () => {
       'stateAt', 'nearestKeyframe', 'valueId', 'narrationAt', 'narrationFromState',
       'Registry', 'definePrimitive', 'defineView', 'defineDeriver', 'viewsFor', 'reachableFacetKinds',
       'inferHexFields', 'paramFieldsOf', 'paramFieldKeys', 'optionLabelKey',
+      'allIndices', 'braceHex', 'AES_POLYNOMIAL', 'highlight', 'mathTerm', 'PairedRecorder',
     ];
     for (const name of expected) expect(core).toHaveProperty(name);
   });

@@ -1,0 +1,173 @@
+---
+title: Die S-Box herleiten
+description: Warum die AES-S-Box S(x) = A·x⁻¹ ⊕ {63} lautet – Inversion für Nichtlinearität, eine affine Abbildung gegen algebraische Angriffe und Fixpunkte, und wie du sie umkehrst.
+lessonId: block-ciphers/aes/sbox-derivation
+track: block-ciphers
+phase: 1
+sidebar:
+  order: 2.5
+tableOfContents: false
+prereqs:
+  - foundations/gf256
+  - block-ciphers/aes/subbytes-sbox
+labs:
+  - aes-sbox-explorer
+refs:
+  - FIPS 197, Abschnitt 4.2 (Multiplikation und Inverses in GF(2^8))
+  - FIPS 197, Abschnitt 5.1.1 (SubBytes, Gleichung 5.1, Abbildung 7)
+  - FIPS 197, Abschnitt 5.3.2 (InvSubBytes, Abbildung 14)
+  - Daemen & Rijmen, The Design of Rijndael (2002), Abschnitt 3.4.1 (Entwurfskriterien für SubBytes)
+  - Nyberg, Differentially uniform mappings for cryptography, EUROCRYPT 1993
+  - Jakobsen & Knudsen, The interpolation attack on block ciphers, FSE 1997
+  - Canright, A very compact S-box for AES, CHES 2005
+sourceHash: sha256:b9f3b7bee836c5c73d1f8995ff138bb392a0e704fc8f3672e048b363cad1367e
+translation:
+  status: ai-reviewed
+  reviewedAt: '2026-10-02'
+  reviewer: AI editorial review (Claude)
+---
+
+import Lab from '../../../../../components/Lab.astro';
+import CheckQuestion from '../../../../../components/lesson/CheckQuestion.astro';
+import ComingSoon from '../../../../../components/lesson/ComingSoon.astro';
+import Formula from '../../../../../components/lesson/Formula.astro';
+import KeyFact from '../../../../../components/lesson/KeyFact.astro';
+import KeyFacts from '../../../../../components/lesson/KeyFacts.astro';
+import Lens from '../../../../../components/lesson/Lens.astro';
+import LessonSection from '../../../../../components/lesson/LessonSection.astro';
+import WhyBox from '../../../../../components/lesson/WhyBox.astro';
+
+<LessonSection part="concept">
+
+## Zwei Zutaten, eine Tabelle
+
+Die 256 Einträge der S-Box sind nicht zufällig. Jeder wird nach derselben Regel berechnet
+(FIPS 197, §5.1.1):
+
+<Formula caption="Die S-Box-Regel, FIPS 197 §5.1.1 (Gleichung 5.1). A ist eine 8×8-Bitmatrix.">
+{`S(x) = A · x⁻¹ ⊕ {63}          (x⁻¹ in GF(2⁸), mit {00}⁻¹ = {00})`}
+</Formula>
+
+1. Das **multiplikative Inverse** x⁻¹ im endlichen Körper GF(2⁸) macht die S-Box stark
+   nichtlinear.
+2. Die **affine Abbildung** – die Bitmatrix A, gefolgt von XOR mit `{63}` – verschleiert die einfache
+   algebraische Struktur des Inversen und beseitigt Fixpunkte.
+
+Jede Zutat allein wäre schwach; zusammen ergeben sie eine Tabelle, die den statistischen
+Standardangriffen widersteht (Daemen & Rijmen, §3.4.1). Diese Seite nimmt die Regel auseinander,
+Byte für Byte.
+
+<KeyFacts>
+  <KeyFact label="Max. Differenzanzahl" value="4 / 256" kind="constant" />
+  <KeyFact label="Nichtlinearität" value="112" kind="constant" />
+  <KeyFact label="Fixpunkte" value="0" kind="constant" />
+</KeyFacts>
+
+</LessonSection>
+
+<LessonSection part="playground">
+
+## Erkunde jeden Eintrag
+
+Der Explorer leitet `S({53}) = {ed}` her, das Beispiel aus FIPS 197: zuerst `{53}`²⁵⁴ per
+Square-and-Multiply, dann die affine Abbildung Bit für Bit. **Klick auf eine beliebige Zelle der
+S-Box-Tabelle** – das Lab führt die ganze Herleitung für dieses Byte neu aus, und die Ansicht
+Mathematik zeigt jeden Zwischenwert. Es startet beim Ergebnis; geh zurück, um jede Phase zu sehen.
+Probier `{00}` und `{01}`, die beiden Bytes, die die Inversion unverändert lässt.
+
+<Lab labId="aes-sbox-explorer" producerId="aes-sbox" presetId="fips-53" startAt="op:result" layout="lookup-table:42|math:33|narration:25" />
+
+</LessonSection>
+
+<LessonSection part="inside">
+
+## Warum Inversion, warum affin
+
+**Inversion.** Bei der Inversion in GF(2⁸) führt eine feste, von null verschiedene Eingangsdifferenz für
+höchstens 4 der 256 Eingaben zur selben Ausgangsdifferenz, und die Nichtlinearität beträgt 112:
+Keine lineare Approximation hat eine Korrelation über 2⁻³ (Nyberg 1993). Das sind die besten
+bekannten Werte für 8-Bit-Permutationen.
+
+<WhyBox constant="A" title="die affine Bitmatrix">
+  Die Inversion allein hat eine kurze Formel, x • x⁻¹ = `{01}`, die Interpolationsangriffe ausnutzen
+  (Jakobsen & Knudsen 1997). A ist linear über GF(2), aber nicht über GF(2⁸); so wird S zu einem
+  Polynom vom Grad 254 mit neun Termen (Daemen & Rijmen, §3.4.1), bei unveränderter Statistik.
+</WhyBox>
+
+<WhyBox constant="{63}" title="affine Konstante">
+  x⁻¹ lässt `{00}` und `{01}` fest. Die Konstante sorgt dafür, dass S **keinen Fixpunkt** hat,
+  S(x) ≠ x, und **keinen entgegengesetzten Fixpunkt**, S(x) ≠ x̄ (Daemen & Rijmen, §3.4.1).
+</WhyBox>
+
+**Inverse S-Box.** Mach die Schritte in umgekehrter Reihenfolge rückgängig (FIPS 197, §5.3.2):
+XOR mit `{63}`, A⁻¹ anwenden, dann invertieren. Beispiel: S⁻¹(`{ed}`) = `{53}`.
+
+<Formula caption="Inverse S-Box, FIPS 197 §5.3.2, in Rotationsform (A⁻¹ rotiert um 1, 3 und 6; A⁻¹·{63} = {05}).">
+{`S⁻¹(y) = (A⁻¹ · (y ⊕ {63}))⁻¹
+       = ((y ⋘ 1) ⊕ (y ⋘ 3) ⊕ (y ⋘ 6) ⊕ {05})⁻¹`}
+</Formula>
+
+<Lens level="cryptographer">
+
+<Formula caption="S als Polynom über GF(2⁸), per Lagrange-Interpolation (Daemen & Rijmen, §3.4.1). Jedes boolesche Ausgangsbit hat den algebraischen Grad 7, das Maximum für eine Permutation von GF(2)⁸.">
+{`S(x) = {05}•x²⁵⁴ ⊕ {09}•x²⁵³ ⊕ {f9}•x²⁵¹ ⊕ {25}•x²⁴⁷ ⊕ {f4}•x²³⁹
+     ⊕ {01}•x²²³ ⊕ {b5}•x¹⁹¹ ⊕ {8f}•x¹²⁷ ⊕ {63}`}
+</Formula>
+
+</Lens>
+
+</LessonSection>
+
+<LessonSection part="memory">
+
+## Tabelle oder Schaltung
+
+Software speichert S und S⁻¹ als zwei 256-Byte-Tabellen; ein Zugriff, der mit einem geheimen Byte
+indiziert ist, kann über den Cache Informationen preisgeben. Die Herleitung bietet einen Ausweg:
+Bitslice- und Hardware-Implementierungen berechnen x⁻¹ als kleine Logikschaltung, indem sie GF(2⁸)
+in kleinere Turmkörper zerlegen (Canright 2005), sodass keine Tabelle nötig ist. Siehe
+[Speicher & Hardware](../memory-and-hardware/).
+
+</LessonSection>
+
+<LessonSection part="break">
+
+## Mallory macht die S-Box flach
+
+Mallory streicht das Inverse und behält nur S(x) = A·x ⊕ `{63}`. Jetzt führt jede Eingangsdifferenz
+mit Sicherheit zu **einer** Ausgangsdifferenz (256 von 256 statt 4), und die Nichtlinearität fällt
+auf 0 – beides haben wir nachgerechnet. ShiftRows, MixColumns und AddRoundKey sind ebenfalls affin,
+also wird die ganze Chiffre zu einer einzigen affinen Abbildung über GF(2): Etwa 129 bekannte Paare
+(genug, um affin unabhängig zu sein) und gaußsche Elimination liefern eine äquivalente Chiffre, ohne
+dass du je den Schlüssel findest (SubBytes ist der einzige nichtlineare Schritt, FIPS 197, §5.1.1).
+Ein späterer Playground lässt dich S-Boxen austauschen und den Angriff selbst ausführen.
+
+<ComingSoon />
+
+</LessonSection>
+
+<LessonSection part="check">
+
+## Teste dich selbst
+
+<CheckQuestion number={1} question="Was ist S({01})?" options={['{01}', '{63}', '{7c}', '{8d}']} answer={2}>
+  `{01}` ist sein eigenes Inverses. Die affine Matrix macht aus `{01}` den Wert `{1f}`, und
+  `{1f} ⊕ {63} = {7c}` (FIPS 197, Abbildung 7, Zeile 0, Spalte 1).
+</CheckQuestion>
+
+<CheckQuestion number={2} question="Was liefert die inverse S-Box für {63}?" options={['{00}', '{01}', '{63}', '{9c}']} answer={0}>
+  `{63} ⊕ {63} = {00}`, A⁻¹ lässt `{00}` unverändert, und `{00}⁻¹ = {00}` per Konvention. Also ist
+  S⁻¹(`{63}`) = `{00}`, passend zu S(`{00}`) = `{63}` (FIPS 197, §5.3.2).
+</CheckQuestion>
+
+<CheckQuestion
+  number={3}
+  question="Fixiere eine von null verschiedene Eingangsdifferenz Δ. Für höchstens wie viele der 256 Eingaben x nimmt S(x) ⊕ S(x ⊕ Δ) denselben Wert an?"
+  options={['1', '2', '4', '256']}
+  answer={2}
+>
+  Höchstens 4 – die differenzielle Uniformität der Inversion in GF(2⁸) (Nyberg 1993). Die affine
+  Abbildung ändert sie nicht. Eine rein affine S-Box käme auf 256.
+</CheckQuestion>
+
+</LessonSection>

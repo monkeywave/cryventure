@@ -1,29 +1,7 @@
-import { ginv } from './gf256.ts';
+import { sboxEntry } from '@cryventure/core';
 
-/** The affine constant {63} of FIPS 197 §5.1.1. */
-export const AFFINE_CONSTANT = 0x63;
-
-function rotateLeft8(byte: number, shift: number): number {
-  return ((byte << shift) | (byte >> (8 - shift))) & 0xff;
-}
-
-/** b ⊕ rotl(b,1) ⊕ rotl(b,2) ⊕ rotl(b,3) ⊕ rotl(b,4) ⊕ {63}. */
-export function affine(byte: number): number {
-  const b = byte & 0xff;
-  return (
-    b ^
-    rotateLeft8(b, 1) ^
-    rotateLeft8(b, 2) ^
-    rotateLeft8(b, 3) ^
-    rotateLeft8(b, 4) ^
-    AFFINE_CONSTANT
-  );
-}
-
-/** S(x) = affine(x^-1): the S-box is derived, not memorised. */
-export function sboxEntry(byte: number): number {
-  return affine(ginv(byte));
-}
+/** The affine map and S-box entry now live in core (shared GF(2^8) math); re-exported for AES callers. */
+export { AFFINE_CONSTANT, affine, sboxEntry } from '@cryventure/core';
 
 export function buildSbox(): number[] {
   return Array.from({ length: 256 }, (_, x) => sboxEntry(x));

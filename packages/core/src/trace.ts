@@ -9,7 +9,8 @@ export type KnownFacetKind =
   | 'messages'
   | 'packets'
   | 'filesystem'
-  | 'math';
+  | 'math'
+  | 'table';
 
 /** Open union: known kinds autocomplete, new kinds need no core change. */
 export type FacetKind = KnownFacetKind | (string & {});

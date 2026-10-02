@@ -1,3 +1,5 @@
+// @vitest-environment jsdom
+import '@cryventure/viz/testing/setup';
 import { primitiveManifests } from '@cryventure/primitives';
 import { viewManifests } from '@cryventure/views';
 import { primitiveContract } from './primitiveContract.ts';

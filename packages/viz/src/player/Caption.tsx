@@ -2,6 +2,7 @@ import { useId, useRef, useState } from 'react';
 import { useT } from '../i18n/I18nProvider.tsx';
 import { useLabLayout } from '../lab/LabLayout.tsx';
 import { useCurrentNarration } from '../narration/useCurrentNarration.ts';
+import { MathText } from '../text/MathText.tsx';
 import { useIsClamped } from './useIsClamped.ts';
 
 interface CaptionToggleProps {
@@ -29,7 +30,7 @@ function CaptionBar() {
   return (
     <div className="cv-caption" role="group" aria-label={t('ui.caption.label')}>
       <p ref={textRef} id={textId} className="cv-caption__text" data-expanded={expanded} aria-live="polite" aria-atomic="true">
-        {text}
+        <MathText text={text} />
       </p>
       {(clamped || expanded) && <CaptionToggle expanded={expanded} controls={textId} onToggle={() => setExpanded(!expanded)} />}
     </div>

@@ -3,7 +3,7 @@ import type { ChoreographyModule, PrimitiveManifest } from '@cryventure/core';
 import { stateSteps } from '@cryventure/viz';
 import { encodeJsonBase64Url } from './base64url.ts';
 import { readLabLink } from './deepLink.ts';
-import { loadChoreographyModule, preloadViews, rerunLab, runProducer, startLab, type ReadySession, type StartLabOptions } from './labSession.ts';
+import { loadChoreographyModule, preloadViews, requestLabParams, rerunLab, runProducer, startLab, type ReadySession, type StartLabOptions } from './labSession.ts';
 import { parseStartAt } from './startAt.ts';
 
 const C1 = { keyHex: '000102030405060708090a0b0c0d0e0f', plaintextHex: '00112233445566778899aabbccddeeff', detail: 'op' };
@@ -186,5 +186,24 @@ describe('rerunLab keeps the debugger context', () => {
     session.store.getState().seek(firstIndex(session, (step) => step.round === 7 && step.op === 'mixColumns'));
     await rerunLab(session, { ...C1, detail: 'round' });
     expect(firstIndex(session, (step) => step.round === 7)).toBe(session.store.getState().step);
+  });
+});
+
+describe('requestLabParams', () => {
+  it('merges the patch, validates (normalising) and re-runs keeping the step', async () => {
+    const session = await readyAes();
+    session.store.getState().seek(3);
+    const outcome = await requestLabParams(session, { plaintextHex: '00 '.repeat(16) });
+    const expected = { ...C1, plaintextHex: '00'.repeat(16) };
+    expect(outcome).toMatchObject({ ok: true, session: { status: 'ready', params: expected } });
+    expect(session.store.getState().step).toBe(3);
+    expect(session.store.getState().bundle?.output['ciphertext']).not.toEqual(C1_CIPHERTEXT);
+  });
+
+  it('rejects an invalid patch with the validation error and leaves the store untouched', async () => {
+    const session = await readyAes();
+    const bundle = session.store.getState().bundle;
+    expect(await requestLabParams(session, { keyHex: 'zz' })).toEqual({ ok: false, error: { key: 'core.error.hexInvalidChar', params: { char: 'z', index: 0 } } });
+    expect(session.store.getState().bundle).toBe(bundle);
   });
 });

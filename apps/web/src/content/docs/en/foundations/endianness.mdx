@@ -1,0 +1,160 @@
+---
+title: Byte order (endianness)
+description: How a multi-byte integer is laid out in memory, why networks use big-endian while x86 and ARM use little-endian, and how to read AES words in a hex dump.
+lessonId: foundations/endianness
+track: foundations
+phase: 1
+sidebar:
+  order: 3
+tableOfContents: false
+prereqs:
+  - foundations/xor
+labs:
+  - endian-byte-order
+refs:
+  - Cohen (1980), On Holy Wars and a Plea for Peace, IEN 137
+  - RFC 791, Appendix B (Data Transmission Order)
+  - RFC 1700, Data Notations (network byte order) (historic; obsoleted by RFC 3232)
+  - Intel 64 and IA-32 Architectures Software Developer's Manual, Vol. 1, Section 1.3.1 (Bit and Byte Order)
+  - Arm Architecture Reference Manual for A-profile architecture, Endianness
+  - FIPS 197, Section 3.5 (The State as an Array of Columns)
+  - FIPS 180-4, Section 3.1 (big-endian convention)
+  - RFC 8439, Section 2.3 (ChaCha20 state, little-endian words)
+  - Rijmen, Bosselaers, Barreto, rijndael-alg-fst.c v3.0 (GETU32 / PUTU32)
+---
+
+import Lab from '../../../../components/Lab.astro';
+import CheckQuestion from '../../../../components/lesson/CheckQuestion.astro';
+import Formula from '../../../../components/lesson/Formula.astro';
+import Lens from '../../../../components/lesson/Lens.astro';
+import LessonSection from '../../../../components/lesson/LessonSection.astro';
+import WhyBox from '../../../../components/lesson/WhyBox.astro';
+
+<LessonSection part="concept">
+
+## One number, two layouts
+
+Memory stores **bytes** at numbered addresses. An **integer** wider than 8 bits needs several of
+them. We write `0x0A0B0C0D` with the **most significant byte** (MSB, `0A`) first and the **least
+significant byte** (LSB, `0D`) last. Memory has no "left", only addresses, so a CPU must pick which
+byte goes to the lowest one:
+
+- **Big-endian:** the MSB first, so memory reads like the written number.
+- **Little-endian:** the LSB first, so the bytes appear reversed.
+
+Neither is wrong; the bits are the same, only the order of the bytes differs. Danny Cohen borrowed
+the names from *Gulliver's Travels* (Cohen 1980, IEN 137).
+
+<Lens only="story">
+
+In Swift's novel, Lilliput goes to war over which end of a boiled egg to crack first. Cohen's point:
+the choice is arbitrary, but two machines must agree on it before they can talk.
+
+</Lens>
+
+</LessonSection>
+
+<LessonSection part="playground">
+
+## Store it both ways
+
+The lab splits `0x0A0B0C0D` into bytes, writes them to memory big-endian, then little-endian, and
+compares both layouts. Try the `u16` and `u64` presets, or type your own value and width.
+
+<Lab labId="endian-byte-order" producerId="endian" presetId="classic" layout="state:65|narration:35" />
+
+</LessonSection>
+
+<LessonSection part="inside">
+
+## Byte addresses and weights
+
+<Formula caption="The u32 0x0A0B0C0D at address a, and how each layout weights byte b[i] at address a + i.">
+{`address        a+0  a+1  a+2  a+3
+big-endian     0A   0B   0C   0D
+little-endian  0D   0C   0B   0A
+
+big-endian:    value = b[0]·256³ + b[1]·256² + b[2]·256 + b[3]
+little-endian: value = b[0] + b[1]·256 + b[2]·256² + b[3]·256³`}
+</Formula>
+
+<WhyBox constant="0x0A0B0C0D" title="why this test value">
+  Every byte is different and they count upwards, so any reordering is visible at a glance.
+</WhyBox>
+
+Internet protocols send multi-byte fields **most significant octet first** (RFC 791, Appendix B;
+RFC 1700, "Data Notations"). This big-endian order is called **network byte order**; C programs
+convert with `htonl()` and `ntohl()`.
+
+<Lens level="cryptographer">
+
+Crypto specs pick their own order: SHA-256 reads message words big-endian (FIPS 180-4, §3.1), while
+ChaCha20 loads key and nonce as little-endian words (RFC 8439, §2.3). AES defines bytes, not
+integers; a word is just an array of 4 bytes (FIPS 197, §3.5).
+
+</Lens>
+
+</LessonSection>
+
+<LessonSection part="memory">
+
+## AES words in a hex dump
+
+x86 CPUs are little-endian (Intel SDM, Vol. 1, §1.3.1). Arm cores can run either way, but common
+operating systems use little-endian.
+
+The classic AES C reference `rijndael-alg-fst.c` loads every 4 key bytes as one big-endian `u32`
+(`GETU32`) and stores the round keys as native integers. On a little-endian host, each round-key
+word therefore sits **byte-reversed** in RAM. Load the `aes-word` preset:
+
+<Formula caption="Key word w0 of the FIPS 197 example key, as the spec writes it and in an x86 dump.">
+{`FIPS 197 key bytes   2b 7e 15 16 | 28 ae d2 a6 | …
+rk[0..1] in x86 RAM  16 15 7e 2b | a6 d2 ae 28 | …`}
+</Formula>
+
+To read a dump, group 4 bytes and reverse each group. More in the
+[Memory & hardware](../../symmetric/aes/memory-and-hardware/) lesson. Next:
+[Byte arithmetic in GF(2⁸)](../gf256/).
+
+</LessonSection>
+
+<LessonSection part="break">
+
+## Mallory's quest: the swapped key
+
+Load the key bytes as a native `u32` on x86 without a swap, and `2b7e1516` becomes `0x16157E2B`.
+The cipher still runs, but with a different key, so every ciphertext is wrong. Testing against the
+official vectors (FIPS 197, Appendix C) catches this at once; the code itself looks fine.
+
+The same trap hits forensics: search a memory dump only for the raw key bytes `2b 7e 15 16 …` and you
+miss a key schedule stored as host-endian words. Search for both byte orders.
+
+</LessonSection>
+
+<LessonSection part="check">
+
+## Check yourself
+
+<CheckQuestion number={1} question="The u32 0x12345678 is stored little-endian at address a. Which byte is at a + 0?" options={['12', '34', '56', '78']} answer={3}>
+  Little-endian stores the least significant byte first, and that is `78`.
+</CheckQuestion>
+
+<CheckQuestion
+  number={2}
+  question="What is network byte order?"
+  options={['Little-endian', 'Big-endian', 'Whatever the sending host uses', 'Bit-reversed']}
+  answer={1}
+>
+  Internet protocols send the most significant octet first (RFC 791, Appendix B), that is, big-endian.
+</CheckQuestion>
+
+<CheckQuestion
+  number={3}
+  question="An x86 dump of rijndael-alg-fst round keys starts with 16 15 7e 2b. Which key bytes does this word hold?"
+  options={['16 15 7e 2b', '2b 7e 15 16', '7e 2b 16 15', '61 51 e7 b2']}
+  answer={1}
+>
+  The word is the host-endian `u32` `0x2B7E1516`. Reverse the 4 bytes to get the key bytes `2b 7e 15 16`, the first word of the FIPS 197 key.
+</CheckQuestion>
+
+</LessonSection>

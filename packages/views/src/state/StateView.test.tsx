@@ -1,7 +1,7 @@
 import { act, render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it } from 'vitest';
-import type { ChoreographyModule } from '@cryventure/core';
+import type { AnyStateFacet, ChoreographyModule } from '@cryventure/core';
 import { I18nProvider, LabRoot, createLabStore } from '@cryventure/viz';
 import { vizMessages } from '@cryventure/viz/messages';
 import { createFixtureBundle, createManualScheduler, fixtureMessages, renderLab } from '@cryventure/viz/testing';
@@ -51,6 +51,24 @@ describe('StateView', () => {
     act(() => store.getState().seek(2));
     const schedule = screen.getByRole('grid', { name: 'Key schedule' });
     expect(within(schedule).getByRole('gridcell', { name: 'row 5, column 1, value 0xff, XOR-combined' })).toBeTruthy();
+  });
+
+  it("shows a blank region's cells as not yet written until a step writes them", () => {
+    const bundle = createFixtureBundle();
+    const state = bundle.facets['state@default'] as AnyStateFacet;
+    bundle.facets['state@default'] = { ...state, regions: state.regions.map((region) => (region.id === 'state' ? { ...region, initial: 'blank' as const } : region)) };
+    const { store } = renderState(bundle);
+    const grid = () => screen.getByRole('grid', { name: 'State' });
+    expect(within(grid()).getAllByRole('gridcell', { name: /value not yet written$/ })).toHaveLength(16);
+    expect(within(screen.getByRole('grid', { name: 'Key schedule' })).queryAllByText('··')).toHaveLength(0);
+    act(() => store.getState().seek(0));
+    expect(within(grid()).queryAllByText('··')).toHaveLength(0);
+    expect(within(grid()).getByRole('gridcell', { name: 'row 1, column 1, value 0x10, written' })).toBeTruthy();
+  });
+
+  it('keeps meaningful initial values (no blank regions, e.g. AES) as values', () => {
+    renderState();
+    expect(document.querySelectorAll('[data-blank]')).toHaveLength(0);
   });
 
   it('explains when there is no state facet or no bundle yet', () => {

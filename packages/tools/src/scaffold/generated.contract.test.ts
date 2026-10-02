@@ -4,6 +4,7 @@ import { join } from 'node:path';
 import type { PrimitiveManifest } from '@cryventure/core';
 import { afterAll } from 'vitest';
 import { loadPluginCatalogs } from '../contracts/catalogs.ts';
+import { loadConformanceVectors } from '../contracts/conformance.ts';
 import { primitiveContract } from '../contracts/primitiveContract.ts';
 import { REPO_ROOT } from '../fs/repoRoot.ts';
 import { scaffold } from './cli.ts';
@@ -23,4 +24,4 @@ const manifestModule = (await import(join(root, primitiveFolder(ID), 'manifest.t
 
 afterAll(() => rmSync(root, { recursive: true, force: true }));
 
-primitiveContract(manifestModule.default, { catalogs: loadPluginCatalogs('primitives', ID, root) });
+primitiveContract(manifestModule.default, { catalogs: loadPluginCatalogs('primitives', ID, root), conformance: loadConformanceVectors('primitives', ID, root) });

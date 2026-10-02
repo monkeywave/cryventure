@@ -40,7 +40,8 @@ Status: drafted in an AI editorial review (2026-10). A native-speaker sign-off i
 | story mode / debugger | **Erzählmodus** / **Debugger** | |
 | narration | **Erläuterung** (die) | |
 | lab | **das Lab**, plural **Labs** | Not „Labor“ (lint warning). |
-| lens names (`story`, `engineer`, `cryptographer`) | **Erzählung**, **Technik**, **Kryptografie** (proposed) | Lens ids have no UI labels yet; name the perspective, not a person, to stay gender-neutral („Ingenieur“/„Kryptograf“ would need gendering). |
+| lens (page-wide selector) | **Perspektive** (die) | Header label; badges read „Perspektive Kryptografie“. |
+| lens names (`story`, `engineer`, `cryptographer`) | **Erzählung**, **Technik**, **Kryptografie** (proposed) | Used in `apps/web/src/i18n/de/lens.json`; name the perspective, not a person, to stay gender-neutral („Ingenieur“/„Kryptograf“ would need gendering). |
 | SubBytes, ShiftRows, MixColumns, AddRoundKey, KeyExpansion, RotWord, SubWord, Inv… | **unchanged** (proper names from FIPS 197) plus a German gloss: „SubBytes – Bytes ersetzen“, „ShiftRows – Zeilen rotieren“, „MixColumns – Spalten mischen“, „AddRoundKey – XOR mit dem Rundenschlüssel“ | Students meet these names in FIPS 197, in code and in AES-NI mnemonics. |
 | GF(2⁸) | **GF(2⁸)**, „der endliche Körper GF(2⁸)“ (also: Galois-Körper) | „Körper“, never „Feld“ (false friend of *field*). |
 | irreducible / primitive polynomial | **irreduzibles** / **primitives Polynom** | |
@@ -60,7 +61,12 @@ Status: drafted in an AI editorial review (2026-10). A native-speaker sign-off i
 | memory dump | **Speicherabbild** (das) | |
 | cold-boot attack | **Cold-Boot-Angriff** | |
 | test vector | **Testvektor** (der) | |
-| endianness / host byte order | **Bytereihenfolge**, „Bytereihenfolge des Hosts“, **Big-Endian** | |
+| endianness / host byte order | **Bytereihenfolge**, „Bytereihenfolge des Hosts“, **Big-Endian**, **Little-Endian** | Established names, hyphenated. |
+| most / least significant byte (MSB / LSB) | **höchstwertiges** / **niedrigstwertiges Byte** (MSB / LSB) | |
+| one-time pad | **One-Time-Pad** (das) | Established name. |
+| hex digit / hex text | **Hexziffer** (die), **Hextext** (der) | One word, no hyphen (like „Hexziffern“ in the core parse errors): „zwei Hexziffern“, „als Hextext“. |
+| previous (navigation labels) | **vorheriger / vorherige / vorheriges** | „Vorherige Runde“, „Vorheriger Teilschritt“, „Vorheriges Exponentenbit“; not „vorige(r)“ in UI labels, paired with „Nächste(r/s)“. |
+| field multiplication | **•** (FIPS 197), e.g. „{57} • {83} = {c1}“ | Same glyph in EN and DE catalogs; field elements in lowercase braces „{57}“. |
 
 ## Style guide
 

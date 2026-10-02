@@ -4,6 +4,7 @@ import { describe, expect, it } from 'vitest';
 import { I18nProvider } from '../i18n/I18nProvider.tsx';
 import { TabbedViews } from './TabbedViews.tsx';
 import { fakeView } from './testViews.tsx';
+import '../viz.css';
 
 const messages = { 'ui.workspace.views': 'Views', 'view.a.title': 'Alpha', 'view.b.title': 'Beta', 'view.c.title': 'Gamma' };
 
@@ -40,5 +41,17 @@ describe('TabbedViews', () => {
     expect(tab('Gamma').getAttribute('aria-selected')).toBe('true');
     fireEvent.keyDown(tab('Gamma'), { key: 'Home' });
     expect(tab('Alpha').tabIndex).toBe(0);
+  });
+
+  it('wraps its tab list onto further rows instead of clipping it in a narrow panel', () => {
+    render(
+      <I18nProvider messages={messages}>
+        <TabbedViews manifests={[fakeView('a'), fakeView('b'), fakeView('c')]} labId="lab" lens="story" />
+      </I18nProvider>,
+    );
+    const list = getComputedStyle(screen.getByRole('tablist', { name: 'Views' }));
+    expect(list.flexWrap).toBe('wrap');
+    expect(list.overflowX).not.toBe('hidden');
+    expect(screen.getAllByRole('tab')).toHaveLength(3);
   });
 });

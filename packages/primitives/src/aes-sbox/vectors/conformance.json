@@ -1,0 +1,65 @@
+{
+  "source": "NIST FIPS 197 (Advanced Encryption Standard), updated 2023-05-09 (FIPS 197-upd1), §4.4, §5.1.1 (Table 4) and Appendix C.1",
+  "cases": [
+    {
+      "name": "§5.1.1 example",
+      "params": {
+        "byteHex": "53"
+      },
+      "outputs": {
+        "sbox": "ed",
+        "inverse": "ca"
+      }
+    },
+    {
+      "name": "§5.1.1 (0 has no inverse; maps to 0)",
+      "params": {
+        "byteHex": "00"
+      },
+      "outputs": {
+        "sbox": "63",
+        "inverse": "00"
+      }
+    },
+    {
+      "name": "§5.1.1 Table 4",
+      "params": {
+        "byteHex": "01"
+      },
+      "outputs": {
+        "sbox": "7c",
+        "inverse": "01"
+      }
+    },
+    {
+      "name": "App. C.1 round 1 SubBytes (state byte 4)",
+      "params": {
+        "byteHex": "40"
+      },
+      "outputs": {
+        "sbox": "09",
+        "inverse": "1d"
+      }
+    },
+    {
+      "name": "App. C.1 round 1 SubBytes (state byte 1)",
+      "params": {
+        "byteHex": "10"
+      },
+      "outputs": {
+        "sbox": "ca",
+        "inverse": "74"
+      }
+    },
+    {
+      "name": "§5.1.1 Table 4",
+      "params": {
+        "byteHex": "ff"
+      },
+      "outputs": {
+        "sbox": "16",
+        "inverse": "1c"
+      }
+    }
+  ]
+}

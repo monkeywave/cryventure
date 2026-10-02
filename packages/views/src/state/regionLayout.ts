@@ -24,8 +24,10 @@ export interface RegionLayout {
   kind: RegionLayoutKind;
   shape: GridShape;
   order: 'row-major' | 'col-major';
-  /** Offset gutter for long byte rows; `undefined` otherwise. */
+  /** Offset gutter for byte rows of more than one element; `undefined` otherwise. */
   rowOffsets?: number[];
+  /** Per-cell address labels above a single row (e.g. `+0`, `+1`, … for a few bytes of memory); `undefined` otherwise. */
+  columnLabels?: string[];
   /** Word rows of a `words` layout; `undefined` otherwise. */
   words?: WordRows;
 }
@@ -36,21 +38,33 @@ export function isMatrixRegion(region: Pick<RegionSpec<string>, 'shape'>): boole
   return region.shape.length === 2 && region.shape.every((dim) => dim <= MATRIX_MAX_DIM);
 }
 
+/** A single element has no neighbours to locate it among, so it gets no address gutter. */
 function byteRowsLayout(region: RegionSpec<string>): RegionLayout {
   const size = regionSize(region);
   const width = Math.min(BYTES_PER_ROW, size);
   const rowCount = Math.ceil(size / width);
+  if (size === 1) return { kind: 'rows', shape: [1, 1], order: 'row-major' };
   return { kind: 'rows', shape: [rowCount, width], order: 'row-major', rowOffsets: Array.from({ length: rowCount }, (_, row) => row * width) };
+}
+
+/** One-element words that all fit on one line (e.g. a u32 in memory, byte by byte): one row with an address over each cell. */
+function isLabelledCellRow(size: number, elemsPerWord: number, wordsPerLine: number): boolean {
+  return elemsPerWord === 1 && wordsPerLine >= size && size <= BYTES_PER_ROW;
 }
 
 function wordsLayout(region: RegionSpec<string>, hint: WordsHint): RegionLayout {
   const elemsPerWord = Math.max(1, Math.round(hint.wordBytes / elemBytes(region.elem)));
   const words = { elemsPerWord, wordsPerLine: Math.max(1, hint.wordsPerGroup ?? 1), labelPrefix: hint.labelPrefix ?? '' };
+  const size = regionSize(region);
+  if (isLabelledCellRow(size, elemsPerWord, words.wordsPerLine)) {
+    return { kind: 'rows', shape: [1, size], order: 'row-major', columnLabels: Array.from({ length: size }, (_, index) => `${words.labelPrefix}${index}`) };
+  }
   return { kind: 'words', shape: [Math.ceil(regionSize(region) / elemsPerWord), elemsPerWord], order: 'row-major', words };
 }
 
 /**
- * The producer's layout hint decides: `words` → one labelled row per word, `wordsPerGroup` per line.
+ * The producer's layout hint decides: `words` → one labelled row per word, `wordsPerGroup` per line
+ * (one-element words that fit on one line → a single row with a label over each cell).
  * Without a hint (or `grid`): small 2-D regions → matrix in their own order; anything else → rows
  * of 16 with offsets.
  */

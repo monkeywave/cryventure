@@ -25,6 +25,7 @@
   "ui.scope.sub": "step {{ordinal}}",
   "ui.grid.cell": "row {{row}}, column {{column}}, value {{value}}",
   "ui.grid.cellHighlighted": "row {{row}}, column {{column}}, value {{value}}, {{highlight}}",
+  "ui.grid.unwritten": "not yet written",
   "ui.grid.offset": "offset {{offset}}",
   "ui.grid.highlight.read": "read",
   "ui.grid.highlight.write": "written",

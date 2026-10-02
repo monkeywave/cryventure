@@ -1,0 +1,49 @@
+{
+  "source": "NIST FIPS 197 (Advanced Encryption Standard), updated 2023-05-09 (FIPS 197-upd1), Appendices A, B and C",
+  "cases": [
+    {
+      "name": "App. B",
+      "params": {
+        "keyHex": "2b7e151628aed2a6abf7158809cf4f3c",
+        "plaintextHex": "3243f6a8885a308d313198a2e0370734",
+        "detail": "op"
+      },
+      "outputs": {
+        "ciphertext": "3925841d02dc09fbdc118597196a0b32"
+      }
+    },
+    {
+      "name": "App. C.1 (AES-128)",
+      "params": {
+        "keyHex": "000102030405060708090a0b0c0d0e0f",
+        "plaintextHex": "00112233445566778899aabbccddeeff",
+        "detail": "op"
+      },
+      "outputs": {
+        "ciphertext": "69c4e0d86a7b0430d8cdb78070b4c55a"
+      }
+    },
+    {
+      "name": "App. C.2 (AES-192)",
+      "params": {
+        "keyHex": "000102030405060708090a0b0c0d0e0f1011121314151617",
+        "plaintextHex": "00112233445566778899aabbccddeeff",
+        "detail": "op"
+      },
+      "outputs": {
+        "ciphertext": "dda97ca4864cdfe06eaf70a0ec0d7191"
+      }
+    },
+    {
+      "name": "App. C.3 (AES-256)",
+      "params": {
+        "keyHex": "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f",
+        "plaintextHex": "00112233445566778899aabbccddeeff",
+        "detail": "op"
+      },
+      "outputs": {
+        "ciphertext": "8ea2b7ca516745bfeafc49904b496089"
+      }
+    }
+  ]
+}

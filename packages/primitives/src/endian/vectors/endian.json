@@ -1,0 +1,40 @@
+{
+  "source": "Computed with Python int.to_bytes(width, 'big' / 'little') (independent of the TypeScript implementation)",
+  "cases": [
+    {
+      "name": "classic u32",
+      "valueHex": "0a0b0c0d",
+      "width": "u32",
+      "bigEndianHex": "0a0b0c0d",
+      "littleEndianHex": "0d0c0b0a"
+    },
+    {
+      "name": "u16",
+      "valueHex": "1234",
+      "width": "u16",
+      "bigEndianHex": "1234",
+      "littleEndianHex": "3412"
+    },
+    {
+      "name": "AES key word w0",
+      "valueHex": "2b7e1516",
+      "width": "u32",
+      "bigEndianHex": "2b7e1516",
+      "littleEndianHex": "16157e2b"
+    },
+    {
+      "name": "u64",
+      "valueHex": "0123456789abcdef",
+      "width": "u64",
+      "bigEndianHex": "0123456789abcdef",
+      "littleEndianHex": "efcdab8967452301"
+    },
+    {
+      "name": "padded u32",
+      "valueHex": "1234",
+      "width": "u32",
+      "bigEndianHex": "00001234",
+      "littleEndianHex": "34120000"
+    }
+  ]
+}

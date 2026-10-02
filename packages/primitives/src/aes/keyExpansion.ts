@@ -1,4 +1,4 @@
-import { xtime } from './gf256.ts';
+import { xtime } from '@cryventure/core';
 import { lookup, SBOX } from './sbox.ts';
 
 /** A 32-bit word as 4 bytes, most significant first (FIPS 197 §3.1). */

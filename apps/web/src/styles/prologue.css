@@ -1,0 +1,779 @@
+/*
+ * Prologue island (docs/PLAN.md §4): Alice, Bob and Eve on a wire. Tokens only; data roles keep their
+ * lab colours (plaintext blue, key amber, ciphertext violet, Eve red). Colour is always paired with text.
+ */
+
+.cv-prologue-host {
+  margin-block: 1.5rem;
+}
+
+.cv-prologue {
+  --cv-prologue-mono: var(--sl-font-mono, ui-monospace, monospace);
+  position: relative;
+  padding: clamp(1rem, 3vw, 1.75rem);
+  border: 1px solid var(--cv-border);
+  border-radius: 0.875rem;
+  background:
+    radial-gradient(120% 60% at 0% 0%, var(--cv-glow-plaintext), transparent 60%),
+    radial-gradient(120% 60% at 100% 100%, var(--cv-glow-ciphertext), transparent 60%),
+    var(--cv-surface);
+  color: var(--cv-text);
+  overflow: hidden;
+}
+
+.cv-prologue__placeholder {
+  /* Roughly the first scene's height, so hydration does not shift the page much. */
+  min-block-size: 22rem;
+}
+
+.cv-prologue :where(p, ol, ul, figure) {
+  margin: 0;
+}
+
+.cv-prologue__tour,
+.cv-prologue__scene,
+.cv-prologue__finale {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+/* ---------- Header: progress dots, scene counter, skip ---------- */
+
+.cv-prologue__bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.cv-prologue__progress {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.cv-prologue__dots {
+  display: flex;
+  gap: 0.375rem;
+  padding: 0;
+  list-style: none;
+}
+
+.cv-prologue__dots li {
+  inline-size: 1.5rem;
+  block-size: 0.3rem;
+  margin: 0;
+  border-radius: 999px;
+  background: var(--cv-border);
+  transition: background-color 200ms ease, inline-size 200ms ease;
+}
+
+.cv-prologue__dots li[data-state='done'] {
+  background: var(--cv-text-muted);
+}
+
+.cv-prologue__dots li[data-state='current'] {
+  inline-size: 2.5rem;
+  background: var(--sl-color-accent);
+  box-shadow: 0 0 0.5rem var(--cv-glow-plaintext);
+}
+
+.cv-prologue__step {
+  font-family: var(--cv-prologue-mono);
+  font-size: var(--sl-text-xs, 0.8125rem);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--cv-text-muted);
+}
+
+.cv-prologue__skip,
+.cv-prologue__replay {
+  font: inherit;
+  font-size: var(--sl-text-sm, 0.875rem);
+  padding: 0.25rem 0.125rem;
+  border: 0;
+  background: none;
+  color: var(--cv-text-muted);
+  text-decoration: underline;
+  text-underline-offset: 0.2em;
+  cursor: pointer;
+}
+
+.cv-prologue__skip:hover,
+.cv-prologue__replay:hover {
+  color: var(--cv-text);
+}
+
+/* ---------- Headings and copy ---------- */
+
+.cv-prologue__title {
+  margin: 0;
+  font-size: var(--sl-text-2xl, 1.5rem);
+  line-height: 1.2;
+  color: var(--sl-color-white);
+}
+
+.cv-prologue__title:focus {
+  outline: none;
+}
+
+.cv-prologue__title:focus-visible {
+  outline: 2px solid var(--sl-color-accent);
+  outline-offset: 4px;
+  border-radius: 0.25rem;
+}
+
+.cv-prologue__lead {
+  max-inline-size: 62ch;
+  color: var(--cv-text);
+}
+
+.cv-prologue__explain {
+  max-inline-size: 62ch;
+  padding-inline-start: 0.75rem;
+  border-inline-start: 2px solid var(--cv-border);
+  font-size: var(--sl-text-sm, 0.875rem);
+  color: var(--cv-text-muted);
+}
+
+/* ---------- Stage: Alice —— wire (Eve taps) —— Bob ---------- */
+
+.cv-stage {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: start;
+  gap: 0.75rem;
+  padding: 1rem 0.5rem 0;
+}
+
+.cv-stage__actor {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.25rem;
+  font-size: var(--sl-text-xs, 0.8125rem);
+  color: var(--cv-text-muted);
+}
+
+.cv-stage__key {
+  padding: 0 0.4rem;
+  border: 1px solid var(--cv-key);
+  border-radius: 999px;
+  background: var(--cv-glow-key);
+  color: var(--cv-key);
+  font-family: var(--cv-prologue-mono);
+  font-size: 0.6875rem;
+  line-height: 1.1rem;
+  animation: cv-byte-reveal 380ms ease-out both;
+}
+
+.cv-avatar {
+  display: inline-grid;
+  place-items: center;
+  inline-size: 2.5rem;
+  block-size: 2.5rem;
+  border: 2px solid currentColor;
+  border-radius: 50%;
+  background: var(--cv-surface-elevated);
+  font-weight: 700;
+  line-height: 1;
+}
+
+.cv-avatar[data-actor='alice'],
+.cv-avatar[data-actor='bob'] {
+  color: var(--cv-plaintext);
+  box-shadow: 0 0 0.75rem var(--cv-glow-plaintext);
+}
+
+.cv-avatar[data-actor='eve'] {
+  color: var(--cv-attacker);
+  box-shadow: 0 0 0.75rem var(--cv-glow-attacker);
+}
+
+.cv-stage__wire {
+  position: relative;
+  margin-block-start: 0.625rem;
+  min-block-size: 5.75rem;
+}
+
+/* The wire itself: a dashed line between the two avatars. */
+.cv-stage__wire::before {
+  content: '';
+  position: absolute;
+  inset-inline: 0;
+  inset-block-start: 0.6rem;
+  border-block-start: 2px dashed var(--cv-border);
+}
+
+/* Eve's tap: a short line down from the wire's middle to her avatar. */
+.cv-stage__tap {
+  position: absolute;
+  inset-inline-start: 50%;
+  inset-block-start: 0.7rem;
+  block-size: 1.5rem;
+  border-inline-start: 2px solid var(--cv-attacker);
+  opacity: 0.7;
+}
+
+.cv-stage__eve {
+  position: absolute;
+  inset-inline-start: 50%;
+  inset-block-start: 2rem;
+  translate: -50% 0;
+}
+
+.cv-stage__eve .cv-stage__key {
+  padding: 0 0.4rem;
+  border: 1px solid var(--cv-key);
+  border-radius: 999px;
+  background: var(--cv-glow-key);
+  color: var(--cv-key);
+  font-family: var(--cv-prologue-mono);
+  font-size: 0.6875rem;
+  line-height: 1.1rem;
+  animation: cv-byte-reveal 380ms ease-out both;
+}
+
+.cv-avatar {
+  inline-size: 2rem;
+  block-size: 2rem;
+  font-size: 0.875rem;
+}
+
+.cv-stage__packet {
+  position: absolute;
+  z-index: 1;
+  inset-block-start: 0;
+  inset-inline-start: 50%;
+  translate: -50% 0;
+  padding: 0 0.5rem;
+  border: 1px solid currentColor;
+  border-radius: 0.375rem;
+  background: var(--cv-surface-elevated);
+  font-family: var(--cv-prologue-mono);
+  font-size: 0.75rem;
+  line-height: 1.2rem;
+  white-space: nowrap;
+  color: var(--cv-plaintext);
+  box-shadow: 0 0 0.75rem var(--cv-glow-plaintext);
+  animation: cv-packet-travel 1.6s cubic-bezier(0.45, 0, 0.25, 1) both;
+}
+
+.cv-stage:not([data-scene='note']) .cv-stage__packet {
+  color: var(--cv-ciphertext);
+  box-shadow: 0 0 0.75rem var(--cv-glow-ciphertext);
+}
+
+/* Bob lights up once he can read the note. */
+.cv-stage[data-scene='decrypt'] .cv-stage__actor[data-actor='bob'] {
+  color: var(--cv-text);
+}
+
+.cv-stage[data-scene='decrypt'] .cv-avatar[data-actor='bob'] {
+  color: var(--cv-success);
+  box-shadow: 0 0 1rem var(--cv-success);
+}
+
+@keyframes cv-packet-travel {
+  from {
+    inset-inline-start: 0%;
+    translate: 0 0;
+  }
+  to {
+    inset-inline-start: 50%;
+    translate: -50% 0;
+  }
+}
+
+.cv-stage[data-scene='decrypt'] .cv-stage__packet {
+  inset-inline-start: 100%;
+  translate: -100% 0;
+  animation-name: cv-packet-arrive;
+}
+
+@keyframes cv-packet-arrive {
+  from {
+    inset-inline-start: 50%;
+    translate: -50% 0;
+  }
+  to {
+    inset-inline-start: 100%;
+    translate: -100% 0;
+  }
+}
+
+/* ---------- Note input ---------- */
+
+.cv-prologue__field {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 0.375rem 0.75rem;
+  align-items: center;
+}
+
+.cv-prologue__field label {
+  grid-column: 1 / -1;
+  font-weight: 600;
+}
+
+.cv-prologue__field input {
+  min-inline-size: 0;
+  padding: 0.6rem 0.75rem;
+  border: 1px solid var(--cv-border);
+  border-radius: 0.5rem;
+  background: var(--cv-bg);
+  color: var(--cv-plaintext);
+  font-family: var(--cv-prologue-mono);
+  font-size: 1.0625rem;
+}
+
+.cv-prologue__field input:focus-visible {
+  outline: 2px solid var(--sl-color-accent);
+  outline-offset: 1px;
+  border-color: var(--sl-color-accent);
+}
+
+.cv-prologue__counter {
+  font-family: var(--cv-prologue-mono);
+  font-size: var(--sl-text-xs, 0.8125rem);
+  color: var(--cv-text-muted);
+  white-space: nowrap;
+}
+
+.cv-prologue__hint {
+  grid-column: 1 / -1;
+  font-size: var(--sl-text-sm, 0.875rem);
+  color: var(--cv-text-muted);
+}
+
+.cv-prologue__hint:empty {
+  display: none;
+}
+
+.cv-prologue__field .cv-prologue__hint {
+  color: var(--cv-error);
+}
+
+/* ---------- Byte views ---------- */
+
+.cv-prologue [data-role='plaintext'] {
+  --cv-role: var(--cv-plaintext);
+}
+
+.cv-prologue [data-role='key'] {
+  --cv-role: var(--cv-key);
+}
+
+.cv-prologue [data-role='ciphertext'] {
+  --cv-role: var(--cv-ciphertext);
+}
+
+.cv-hex {
+  font-family: var(--cv-prologue-mono);
+  font-size: var(--sl-text-sm, 0.875rem);
+  color: var(--cv-role, var(--cv-text));
+  background: none;
+  padding: 0;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+.cv-xor {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.cv-xor__legend {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: var(--sl-text-xs, 0.8125rem);
+}
+
+.cv-xor__swatch {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  color: var(--cv-role);
+  font-weight: 600;
+}
+
+.cv-xor__swatch::before {
+  content: '';
+  inline-size: 0.6rem;
+  block-size: 0.6rem;
+  border-radius: 0.15rem;
+  background: currentColor;
+}
+
+.cv-xor__op {
+  font-family: var(--cv-prologue-mono);
+  color: var(--cv-text-muted);
+}
+
+.cv-xor__tiles {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(2.6rem, 1fr));
+  gap: 0.375rem;
+  padding: 0;
+  list-style: none;
+}
+
+.cv-xor__tile {
+  display: grid;
+  justify-items: center;
+  margin: 0;
+  padding: 0.3rem 0.15rem;
+  border: 1px solid var(--cv-border-subtle);
+  border-radius: 0.375rem;
+  background: var(--cv-bg);
+  font-family: var(--cv-prologue-mono);
+  font-size: 0.8125rem;
+  line-height: 1.35;
+}
+
+.cv-xor__tile > span {
+  color: var(--cv-role);
+}
+
+.cv-xor__result {
+  inline-size: 100%;
+  margin-block-start: 0.15rem;
+  padding-block-start: 0.15rem;
+  border-block-start: 1px solid var(--cv-border);
+  text-align: center;
+  font-weight: 700;
+  animation: cv-byte-reveal 380ms ease-out both;
+  animation-delay: calc(var(--i, 0) * 45ms + 150ms);
+}
+
+@keyframes cv-byte-reveal {
+  from {
+    opacity: 0;
+    transform: translateY(-0.35rem);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+/* ---------- Eve's intercept ---------- */
+
+.cv-eve {
+  display: grid;
+  gap: 0.5rem;
+  padding: 0.75rem 1rem;
+  border: 1px solid var(--cv-attacker);
+  border-inline-start-width: 4px;
+  border-radius: 0.5rem;
+  background: linear-gradient(90deg, var(--cv-glow-attacker), transparent 70%), var(--cv-bg);
+}
+
+.cv-eve__caption {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-weight: 700;
+  color: var(--cv-attacker);
+}
+
+.cv-eve__caption .cv-stage__key {
+  padding: 0 0.4rem;
+  border: 1px solid var(--cv-key);
+  border-radius: 999px;
+  background: var(--cv-glow-key);
+  color: var(--cv-key);
+  font-family: var(--cv-prologue-mono);
+  font-size: 0.6875rem;
+  line-height: 1.1rem;
+  animation: cv-byte-reveal 380ms ease-out both;
+}
+
+.cv-avatar {
+  inline-size: 1.75rem;
+  block-size: 1.75rem;
+  font-size: 0.8125rem;
+}
+
+.cv-eve__row {
+  display: grid;
+  grid-template-columns: 7.5rem 1fr;
+  gap: 0.75rem;
+  align-items: baseline;
+}
+
+.cv-eve__label {
+  font-size: var(--sl-text-xs, 0.8125rem);
+  color: var(--cv-text-muted);
+}
+
+.cv-eve__text {
+  font-family: var(--cv-prologue-mono);
+  font-size: 1.0625rem;
+  color: var(--cv-plaintext);
+  overflow-wrap: anywhere;
+}
+
+.cv-eve__text--noise {
+  color: var(--cv-ciphertext);
+  letter-spacing: 0.08em;
+}
+
+/* ---------- Bob's result ---------- */
+
+.cv-prologue__bob {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.75rem;
+  padding: 0.75rem 1rem;
+  border: 1px solid var(--cv-success);
+  border-inline-start-width: 4px;
+  border-radius: 0.5rem;
+  background: var(--cv-bg);
+}
+
+.cv-prologue__bob-label {
+  font-weight: 700;
+  color: var(--cv-success);
+}
+
+.cv-prologue__bob-note {
+  font-family: var(--cv-prologue-mono);
+  font-size: 1.0625rem;
+  color: var(--cv-plaintext);
+  overflow-wrap: anywhere;
+}
+
+/* ---------- Buttons and navigation ---------- */
+
+.cv-prologue__row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.cv-prologue__button,
+.cv-prologue__cta {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-block-size: 2.75rem;
+  padding: 0.5rem 1.1rem;
+  border: 1px solid var(--cv-border);
+  border-radius: 0.5rem;
+  background: var(--cv-surface-elevated);
+  color: var(--cv-text);
+  font: inherit;
+  font-weight: 600;
+  text-decoration: none;
+  white-space: pre;
+  cursor: pointer;
+  transition: border-color 150ms ease, background-color 150ms ease;
+}
+
+.cv-prologue__button:hover,
+.cv-prologue__cta:hover {
+  border-color: var(--sl-color-accent);
+  color: var(--cv-text);
+}
+
+.cv-prologue__button--primary,
+.cv-prologue__cta--primary {
+  border-color: var(--sl-color-accent);
+  background: var(--sl-color-accent);
+  color: var(--sl-color-black);
+}
+
+.cv-prologue__button--primary:hover,
+.cv-prologue__cta--primary:hover {
+  background: var(--sl-color-accent-high);
+  border-color: var(--sl-color-accent-high);
+  color: var(--sl-color-black);
+}
+
+.cv-prologue__button[aria-disabled='true'] {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.cv-prologue :is(button, a):focus-visible {
+  outline: 2px solid var(--sl-color-accent);
+  outline-offset: 2px;
+}
+
+.cv-prologue__nav {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding-block-start: 1rem;
+  border-block-start: 1px solid var(--cv-border-subtle);
+}
+
+.cv-prologue__nav .cv-prologue__button--primary {
+  margin-inline-start: auto;
+}
+
+/* ---------- Lens cards ---------- */
+
+.cv-lens-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(12rem, 1fr));
+  gap: 0.75rem;
+  padding: 0;
+  list-style: none;
+}
+
+.cv-lens-cards li {
+  display: flex;
+  margin: 0;
+}
+
+.cv-lens-card {
+  --cv-card-accent: var(--cv-plaintext);
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.4rem;
+  inline-size: 100%;
+  padding: 1rem 1.1rem 1.1rem;
+  border: 1px solid var(--cv-border);
+  border-block-start: 3px solid var(--cv-card-accent);
+  border-radius: 0.625rem;
+  background: var(--cv-bg);
+  color: var(--cv-text);
+  font: inherit;
+  text-align: start;
+  cursor: pointer;
+  transition: transform 150ms ease, border-color 150ms ease, box-shadow 150ms ease;
+}
+
+.cv-lens-card[data-lens='engineer'] {
+  --cv-card-accent: var(--cv-key);
+}
+
+.cv-lens-card[data-lens='cryptographer'] {
+  --cv-card-accent: var(--cv-ciphertext);
+}
+
+.cv-lens-card:hover {
+  border-color: var(--cv-card-accent);
+  box-shadow: 0 0 1rem color-mix(in srgb, var(--cv-card-accent) 22%, transparent);
+  transform: translateY(-2px);
+}
+
+.cv-lens-card__top {
+  display: flex;
+  justify-content: space-between;
+  align-self: stretch;
+}
+
+.cv-lens-card__arrow {
+  color: var(--cv-text-muted);
+  transition: transform 150ms ease, color 150ms ease;
+}
+
+.cv-lens-card:hover .cv-lens-card__arrow {
+  color: var(--cv-card-accent);
+  transform: translateX(3px);
+}
+
+.cv-lens-card__mark {
+  font-family: var(--cv-prologue-mono);
+  font-size: 1.5rem;
+  font-weight: 700;
+  line-height: 1;
+  color: var(--cv-card-accent);
+}
+
+.cv-lens-card__name {
+  font-size: var(--sl-text-lg, 1.125rem);
+  font-weight: 700;
+  color: var(--sl-color-white);
+}
+
+.cv-lens-card__description {
+  font-size: var(--sl-text-sm, 0.875rem);
+  color: var(--cv-text-muted);
+}
+
+/* ---------- Finale ---------- */
+
+.cv-prologue__finale {
+  align-items: flex-start;
+}
+
+.cv-prologue__seal {
+  display: inline-grid;
+  place-items: center;
+  inline-size: 2.75rem;
+  block-size: 2.75rem;
+  border: 2px solid var(--cv-success);
+  border-radius: 50%;
+  color: var(--cv-success);
+  font-size: 1.25rem;
+  font-weight: 700;
+  box-shadow: 0 0 1rem color-mix(in srgb, var(--cv-success) 30%, transparent);
+}
+
+.cv-prologue__ctas {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.cv-prologue__noscript {
+  padding: 0.75rem 1rem;
+  border: 1px solid var(--cv-border);
+  border-radius: 0.5rem;
+}
+
+/* ---------- Phones ---------- */
+
+@media (max-width: 40rem) {
+  .cv-prologue__bar {
+    align-items: flex-start;
+  }
+
+  .cv-prologue__progress {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.4rem;
+  }
+
+  .cv-prologue__field {
+    grid-template-columns: 1fr;
+  }
+
+  .cv-prologue__counter {
+    justify-self: end;
+  }
+
+  .cv-eve__row {
+    grid-template-columns: 1fr;
+    gap: 0.15rem;
+  }
+
+  .cv-prologue__ctas {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .cv-prologue__ctas .cv-prologue__replay {
+    align-self: flex-start;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cv-prologue *,
+  .cv-prologue *::before {
+    animation: none !important;
+    transition: none !important;
+  }
+}

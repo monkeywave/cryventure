@@ -1,5 +1,5 @@
 import { memo, useCallback, useMemo } from 'react';
-import { stateAt, type AnyStateFacet, type Beat, type NodeRef, type RegionSpec, type StateStep, type StepChoreography } from '@cryventure/core';
+import { stateAt, unwrittenAt, type AnyStateFacet, type Beat, type NodeRef, type RegionSpec, type StateStep, type StepChoreography } from '@cryventure/core';
 import {
   ByteGrid,
   INITIAL_STEP,
@@ -34,12 +34,14 @@ interface RegionPanelProps {
   /** Flat index of the watched node when it lies in this region. */
   selectedIndex: number | undefined;
   onSelect: (node: NodeRef) => void;
+  /** Flat indices not yet written at the playhead (regions declared `initial: 'blank'`). */
+  unwritten: ReadonlySet<number> | undefined;
   /** Hide the caption visually (it stays for screen readers) when a disclosure button already names the region. */
   captionHidden?: boolean;
 }
 
 /** One region as a grid, laid out by the producer's hint; re-renders only when its own inputs change. */
-const RegionPanel = memo(function RegionPanel({ region, values, step, motion, beat, selectedIndex, onSelect, captionHidden }: RegionPanelProps) {
+const RegionPanel = memo(function RegionPanel({ region, values, step, motion, beat, selectedIndex, onSelect, unwritten, captionHidden }: RegionPanelProps) {
   const t = useT();
   const label = t(region.labelKey);
   const layout = useMemo(() => regionLayout(region), [region]);
@@ -49,6 +51,7 @@ const RegionPanel = memo(function RegionPanel({ region, values, step, motion, be
     () => (words === undefined ? undefined : wordHeaders(layout.shape[0], currentWords(highlights, words.elemsPerWord), t, words.labelPrefix)),
     [words, layout.shape, highlights, t],
   );
+  const columnHeaders = useMemo(() => layout.columnLabels?.map((text) => ({ text, label: t('ui.grid.offset', { offset: text }) })), [layout.columnLabels, t]);
   const focus = useMemo(() => focusIn(beat, region.id), [beat, region.id]);
   const onSelectCell = useCallback((index: number) => onSelect({ region: region.id, index }), [onSelect, region.id]);
   return (
@@ -62,6 +65,7 @@ const RegionPanel = memo(function RegionPanel({ region, values, step, motion, be
         highlights={highlights}
         rowOffsets={layout.rowOffsets}
         rowHeaders={rowHeaders}
+        columnHeaders={columnHeaders}
         layout={words === undefined ? 'stack' : 'wrap'}
         wrapColumns={words?.wordsPerLine}
         label={label}
@@ -69,6 +73,7 @@ const RegionPanel = memo(function RegionPanel({ region, values, step, motion, be
         focus={focus}
         selectedIndex={selectedIndex}
         onSelectCell={onSelectCell}
+        unwritten={unwritten}
       />
     </figure>
   );
@@ -84,16 +89,34 @@ function CollapsibleRegionPanel(props: RegionPanelProps) {
   );
 }
 
+/** Values and placeholders just before `step` (memoised per facet and step, not per playback frame). */
+function useStateBefore(facet: AnyStateFacet, step: number) {
+  return useMemo(() => (step === INITIAL_STEP ? undefined : { values: stateAt(facet, step - 1), unwritten: unwrittenAt(facet, step - 1) }), [facet, step]);
+}
+
 /** Per-region choreography input: the values before the step and its tracks (none at the initial state). */
-function useRegionMotions(facet: AnyStateFacet, step: number, choreography: StepChoreography | undefined): ReadonlyMap<string, GridMotion> {
+function useRegionMotions(
+  facet: AnyStateFacet,
+  step: number,
+  choreography: StepChoreography | undefined,
+  unwrittenAfter: ReadonlyMap<string, ReadonlySet<number>>,
+): ReadonlyMap<string, GridMotion> {
   const progress = useStepProgress();
+  const before = useStateBefore(facet, step);
   return useMemo(() => {
     const motions = new Map<string, GridMotion>();
-    if (step === INITIAL_STEP || choreography === undefined) return motions;
-    const before = stateAt(facet, step - 1);
-    for (const region of facet.regions) motions.set(region.id, { progress, before: before[region.id] ?? [], tracks: tracksForRegion(choreography, region.id) });
+    if (before === undefined || choreography === undefined) return motions;
+    for (const { id } of facet.regions) {
+      motions.set(id, {
+        progress,
+        before: before.values[id] ?? [],
+        unwrittenBefore: before.unwritten.get(id),
+        unwrittenAfter: unwrittenAfter.get(id),
+        tracks: tracksForRegion(choreography, id),
+      });
+    }
     return motions;
-  }, [facet, step, choreography, progress]);
+  }, [facet, before, choreography, progress, unwrittenAfter]);
 }
 
 function WatchArea({ facet }: { facet: AnyStateFacet }) {
@@ -109,7 +132,8 @@ function StateRegions({ facet }: { facet: AnyStateFacet }) {
   const { selectNode } = useLabActions();
   const choreography = useChoreography();
   const beat = useFocusBeat(choreography);
-  const motions = useRegionMotions(facet, step, choreography);
+  const unwritten = useMemo(() => unwrittenAt(facet, step), [facet, step]);
+  const motions = useRegionMotions(facet, step, choreography, unwritten);
   const snapshot = stateAt(facet, step);
   const current = facet.steps[step];
   return (
@@ -124,6 +148,7 @@ function StateRegions({ facet }: { facet: AnyStateFacet }) {
           beat={beat}
           selectedIndex={selected?.region === region.id ? selected.index : undefined}
           onSelect={selectNode}
+          unwritten={unwritten.get(region.id)}
         />
       ))}
       <WatchArea facet={facet} />
