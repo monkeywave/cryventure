@@ -1,0 +1,36 @@
+---
+/**
+ * Full-bleed wrapper: lets labs grow wider than Starlight's content column
+ * while staying centred and capped at `maxWidth`.
+ */
+interface Props {
+  maxWidth?: string;
+}
+
+const { maxWidth = '80rem' } = Astro.props;
+---
+
+<div class="cv-breakout not-content" style={`--cv-breakout-max: ${maxWidth}`}>
+  <slot />
+</div>
+
+<style>
+  .cv-breakout {
+    --cv-breakout-width: min(var(--cv-breakout-max), calc(100vw - 2 * var(--sl-content-pad-x, 1rem)));
+    position: relative;
+    width: var(--cv-breakout-width);
+    max-width: none;
+    left: 50%;
+    transform: translateX(-50%);
+  }
+
+  /* With a sidebar open on wide screens the main column is offset; cap to the main area instead. */
+  @media (min-width: 50em) {
+    .cv-breakout {
+      --cv-breakout-width: min(
+        var(--cv-breakout-max),
+        calc(100vw - var(--sl-sidebar-width, 0px) - 2 * var(--sl-content-pad-x, 1rem))
+      );
+    }
+  }
+</style>

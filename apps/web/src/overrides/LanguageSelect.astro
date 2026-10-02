@@ -1,0 +1,39 @@
+---
+/**
+ * Wraps Starlight's LanguageSelect so switching EN↔DE keeps `location.search` and `location.hash`
+ * (lab state lives in the hash — docs/PLAN.md §5).
+ */
+import Default from '@astrojs/starlight/components/LanguageSelect.astro';
+---
+
+<cv-lang-select>
+  <Default />
+</cv-lang-select>
+
+<script>
+  class CvLanguageSelect extends HTMLElement {
+    connectedCallback(): void {
+      // Capture phase on the wrapper runs before Starlight's own listener on the <select>.
+      this.addEventListener('change', this.onChange, { capture: true });
+    }
+
+    disconnectedCallback(): void {
+      this.removeEventListener('change', this.onChange, { capture: true });
+    }
+
+    private onChange = (event: Event): void => {
+      const select = event.target;
+      if (!(select instanceof HTMLSelectElement)) return;
+      event.stopImmediatePropagation();
+      window.location.assign(`${select.value}${window.location.search}${window.location.hash}`);
+    };
+  }
+
+  customElements.define('cv-lang-select', CvLanguageSelect);
+</script>
+
+<style>
+  cv-lang-select {
+    display: contents;
+  }
+</style>

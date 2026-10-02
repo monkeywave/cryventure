@@ -1,0 +1,7 @@
+{
+  "view.state.title": "State",
+  "view.state.loading": "Preparing the state…",
+  "view.state.missing": "This lab does not record a state to show.",
+  "view.state.word": "word {{index}}",
+  "view.state.wordCurrent": "word {{index}}, used in this step"
+}

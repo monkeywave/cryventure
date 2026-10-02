@@ -1,0 +1,61 @@
+---
+/**
+ * Server wrapper for the generic <Lab> island (docs/PLAN.md §2b, §5):
+ * - passes only this lab's messages for the current locale,
+ * - renders a static, translated poster that stays visible until the island is ready,
+ * - hydrates when scrolled into view.
+ */
+import '@cryventure/viz/viz.css';
+import '../styles/lab.css';
+import { createTranslator, optionLabelKey, paramFieldsOf, type Lens } from '@cryventure/core';
+import LabIsland from '../islands/Lab.tsx';
+import { labMessages } from '../labs/labMessages';
+import { resolveLab } from '../labs/registry';
+import { presetParams } from '../labs/startParams';
+import Breakout from './Breakout.astro';
+import EducationalOnly from './EducationalOnly.astro';
+
+interface Props {
+  labId: string;
+  producerId: string;
+  presetId?: string;
+  layout?: string;
+  lens?: Lens;
+}
+
+const { labId, producerId, presetId, layout, lens } = Astro.props;
+const lang = Astro.currentLocale ?? 'en';
+const messages = labMessages(lang, producerId);
+const t = createTranslator(messages);
+
+const resolved = resolveLab(producerId);
+if (!resolved.ok) throw new Error(`<Lab labId="${labId}">: unknown producer "${producerId}"`);
+const { producer } = resolved.lab;
+const preset = producer.presets.find((entry) => entry.id === presetId);
+if (presetId !== undefined && preset === undefined) throw new Error(`<Lab labId="${labId}">: unknown preset "${presetId}"`);
+const startParams = presetParams(producer, presetId) as Record<string, unknown>;
+const posterFields = paramFieldsOf(producer);
+---
+
+<Breakout>
+  <div class="cv-lab-host" data-pagefind-ignore>
+    <EducationalOnly lang={lang} />
+    <LabIsland client:visible labId={labId} producerId={producerId} presetId={presetId} layout={layout} lens={lens} messages={messages}>
+      <div class="cv-lab-poster" aria-busy="true">
+        <p class="cv-lab__title">{t(producer.titleKey)}</p>
+        {preset && <p>{t('ui.lab.posterPreset', { preset: t(preset.labelKey) })}</p>}
+        <dl class="cv-lab-poster__params">
+          {
+            posterFields.map((field) => (
+              <div>
+                <dt>{t(field.labelKey)}</dt>
+                <dd>{field.kind === 'select' ? t(optionLabelKey(field, startParams[field.name]) ?? String(startParams[field.name])) : <code>{String(startParams[field.name])}</code>}</dd>
+              </div>
+            ))
+          }
+        </dl>
+        <p class="cv-lab-poster__loading" role="status">{t('ui.lab.loading')}</p>
+      </div>
+    </LabIsland>
+  </div>
+</Breakout>

@@ -1,0 +1,22 @@
+---
+title: AES — first look
+description: A first look inside AES — watch the FIPS 197 example block travel through every round, step by step.
+lessonId: foundations/welcome-lab
+track: foundations
+phase: 0
+tableOfContents: false
+refs:
+  - FIPS 197, Appendix C.1
+---
+
+import Lab from '../../../../components/Lab.astro';
+
+AES encrypts a 16-byte block by running it through several rounds. Each round mixes the
+**state** with a **round key** and scrambles it further. It all starts with `AddRoundKey` (XOR the
+state with the key) followed by `SubBytes` (swap every byte using the S-box).
+
+Step through the official FIPS 197 example below. Use the buttons, drag the timeline, or click
+into the lab and press <kbd>←</kbd> / <kbd>→</kbd>. Change the key or the plaintext and the lab
+recomputes everything — the link in your address bar remembers where you are.
+
+<Lab labId="aes-intro" producerId="aes" presetId="fips197-c1" layout="state:65|narration:35" />

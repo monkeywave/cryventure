@@ -1,0 +1,4 @@
+{
+  "core.error.hexInvalidChar": "„{{char}}“ ist keine Hexziffer; erlaubt sind 0–9 und a–f.",
+  "core.error.hexOddLength": "Hex braucht eine gerade Anzahl an Ziffern (zwei pro Byte), hier sind es aber {{length}}."
+}

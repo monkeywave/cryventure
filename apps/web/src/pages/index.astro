@@ -1,0 +1,42 @@
+---
+/**
+ * Root entry: sends visitors to their language (de* → de/, otherwise en/).
+ * Works under any base path; falls back to English without JavaScript.
+ */
+import { withBase } from '../lib/withBase';
+import '../styles/tokens.css';
+
+const targets = { en: withBase('en/'), de: withBase('de/') };
+---
+
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="robots" content="noindex" />
+    <title>CryVenture</title>
+    <script is:inline define:vars={{ targets }}>
+      const lang = (navigator.languages?.[0] ?? navigator.language ?? 'en').toLowerCase();
+      location.replace(lang.startsWith('de') ? targets.de : targets.en);
+    </script>
+    <noscript><meta http-equiv="refresh" content={`0; url=${targets.en}`} /></noscript>
+  </head>
+  <body>
+    <noscript>
+      <p lang="en"><a href={targets.en}>CryVenture — English</a></p>
+      <p lang="de"><a href={targets.de}>CryVenture — Deutsch</a></p>
+    </noscript>
+  </body>
+</html>
+
+<style is:global>
+  body {
+    background: var(--cv-bg);
+    color: var(--cv-text);
+    font-family: system-ui, sans-serif;
+  }
+  a {
+    color: var(--cv-plaintext);
+  }
+</style>

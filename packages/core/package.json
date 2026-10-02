@@ -1,0 +1,14 @@
+{
+  "name": "@cryventure/core",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "CryVenture core contracts: trace bundles, facets, tracers, registries, i18n refs. No DOM, no runtime deps.",
+  "exports": {
+    ".": "./src/index.ts",
+    "./messages": "./src/messages.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit -p ."
+  }
+}

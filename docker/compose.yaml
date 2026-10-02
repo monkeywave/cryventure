@@ -1,0 +1,12 @@
+# docker compose -f docker/compose.yaml up --build   →  http://localhost:8080/
+services:
+  web:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+    image: cryventure:local
+    ports: ["8080:8080"]
+    read_only: true
+    tmpfs: [/tmp]
+    restart: unless-stopped
+  # Phase 9: live-quiz service (profile "classroom")

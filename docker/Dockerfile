@@ -1,0 +1,28 @@
+# syntax=docker/dockerfile:1.7
+# CryVenture — static site image. Build once natively, serve with unprivileged nginx (multi-arch).
+
+ARG NODE_VERSION=22
+
+FROM --platform=$BUILDPLATFORM node:${NODE_VERSION}-alpine AS build
+ARG CV_BASE=/
+ARG CV_SITE=http://localhost:8080
+ENV CV_BASE=${CV_BASE} CV_SITE=${CV_SITE} CI=true
+WORKDIR /repo
+RUN corepack enable
+COPY . .
+RUN pnpm install --frozen-lockfile && pnpm build
+# Render nginx config for the chosen base path at build time (read-only rootfs => no envsubst at runtime).
+RUN BASE="${CV_BASE%/}/" \
+ && sed "s#__CV_BASE__#${BASE}#g" docker/nginx.conf.template > /repo/nginx.conf \
+ && mkdir -p "/site${BASE}" \
+ && cp -r apps/web/dist/. "/site${BASE}"
+
+FROM nginxinc/nginx-unprivileged:alpine AS runtime
+LABEL org.opencontainers.image.title="CryVenture" \
+      org.opencontainers.image.description="Explore cryptography. Build understanding." \
+      org.opencontainers.image.licenses="Apache-2.0"
+COPY --from=build /repo/nginx.conf /etc/nginx/conf.d/default.conf
+COPY docker/security-headers.conf /etc/nginx/snippets/security-headers.conf
+COPY --from=build /site /usr/share/nginx/html
+EXPOSE 8080
+HEALTHCHECK --interval=30s --timeout=3s CMD wget -qO- http://127.0.0.1:8080/healthz || exit 1

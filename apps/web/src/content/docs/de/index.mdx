@@ -1,0 +1,26 @@
+---
+title: CryVenture
+description: Kryptografie entdecken. Verständnis aufbauen.
+template: splash
+hero:
+  title: CryVenture — Kryptografie entdecken. Verständnis aufbauen.
+  tagline: Geh echte Algorithmen Byte für Byte durch, beobachte, wie sich der Zustand verändert, und verstehe, warum jeder Schritt zählt.
+  actions:
+    - text: Abenteuer starten
+      link: foundations/welcome-lab/
+      icon: right-arrow
+---
+
+import { Card, CardGrid } from '@astrojs/starlight/components';
+
+<CardGrid stagger>
+  <Card title="Lernen" icon="open-book">
+    Kurze, fokussierte Lektionen – von XOR bis zu modernen Protokollen, ein Konzept nach dem anderen.
+  </Card>
+  <Card title="Labs" icon="rocket">
+    Interaktive Labs: Spule durch jede Runde, ändere die Eingaben und sieh zu, wie sich Schlüssel, Zustand und Chiffretext entwickeln.
+  </Card>
+  <Card title="Nachschlagen" icon="information">
+    Glossar, Konstanten und offizielle Testvektoren – jede Aussage belegt mit dem passenden FIPS- oder RFC-Abschnitt.
+  </Card>
+</CardGrid>

@@ -1,0 +1,18 @@
+{
+  "name": "@cryventure/primitives",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "CryVenture primitive plugins (block ciphers, hashes, ...). Educational, not constant-time.",
+  "exports": {
+    ".": "./src/index.ts",
+    "./messages": "./src/messages.ts",
+    "./*": "./src/*/manifest.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit -p ."
+  },
+  "dependencies": {
+    "@cryventure/core": "workspace:*"
+  }
+}

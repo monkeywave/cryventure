@@ -1,0 +1,167 @@
+{
+  "source": "NIST FIPS 197 (Advanced Encryption Standard), updated 2023-05-09 (FIPS 197-upd1), Appendices A, B and C",
+  "keyExpansion": [
+    {
+      "section": "App. A.1 (AES-128)",
+      "key": "2b7e151628aed2a6abf7158809cf4f3c",
+      "totalWords": 44,
+      "words": {
+        "0": "2b7e1516",
+        "3": "09cf4f3c",
+        "4": "a0fafe17",
+        "5": "88542cb1",
+        "6": "23a33939",
+        "7": "2a6c7605",
+        "40": "d014f9a8",
+        "41": "c9ee2589",
+        "42": "e13f0cc8",
+        "43": "b6630ca6"
+      }
+    },
+    {
+      "section": "App. A.2 (AES-192)",
+      "key": "8e73b0f7da0e6452c810f32b809079e562f8ead2522c6b7b",
+      "totalWords": 52,
+      "words": {
+        "0": "8e73b0f7",
+        "5": "522c6b7b",
+        "6": "fe0c91f7",
+        "7": "2402f5a5",
+        "8": "ec12068e",
+        "9": "6c827f6b",
+        "48": "e98ba06f",
+        "49": "448c773c",
+        "50": "8ecc7204",
+        "51": "01002202"
+      }
+    },
+    {
+      "section": "App. A.3 (AES-256)",
+      "key": "603deb1015ca71be2b73aef0857d77811f352c073b6108d72d9810a30914dff4",
+      "totalWords": 60,
+      "words": {
+        "0": "603deb10",
+        "7": "0914dff4",
+        "8": "9ba35411",
+        "9": "8e6925af",
+        "10": "a51a8b5f",
+        "11": "2067fcde",
+        "12": "a8b09c1a",
+        "56": "fe4890d1",
+        "57": "e6188d0b",
+        "58": "046df344",
+        "59": "706c631e"
+      }
+    }
+  ],
+  "appendixB": {
+    "key": "2b7e151628aed2a6abf7158809cf4f3c",
+    "input": "3243f6a8885a308d313198a2e0370734",
+    "output": "3925841d02dc09fbdc118597196a0b32",
+    "rounds": [
+      {
+        "round": 1,
+        "start": "193de3bea0f4e22b9ac68d2ae9f84808",
+        "s_box": "d42711aee0bf98f1b8b45de51e415230",
+        "s_row": "d4bf5d30e0b452aeb84111f11e2798e5",
+        "m_col": "046681e5e0cb199a48f8d37a2806264c",
+        "k_sch": "a0fafe1788542cb123a339392a6c7605"
+      },
+      {
+        "round": 2,
+        "start": "a49c7ff2689f352b6b5bea43026a5049",
+        "s_box": "49ded28945db96f17f39871a7702533b",
+        "s_row": "49db873b453953897f02d2f177de961a",
+        "m_col": "584dcaf11b4b5aacdbe7caa81b6bb0e5",
+        "k_sch": "f2c295f27a96b9435935807a7359f67f"
+      },
+      {
+        "round": 3,
+        "start": "aa8f5f0361dde3ef82d24ad26832469a",
+        "s_box": "ac73cf7befc111df13b5d6b545235ab8",
+        "s_row": "acc1d6b8efb55a7b1323cfdf457311b5",
+        "m_col": "75ec0993200b633353c0cf7cbb25d0dc",
+        "k_sch": "3d80477d4716fe3e1e237e446d7a883b"
+      },
+      {
+        "round": 4,
+        "start": "486c4eee671d9d0d4de3b138d65f58e7",
+        "s_box": "52502f2885a45ed7e311c807f6cf6a94",
+        "s_row": "52a4c89485116a28e3cf2fd7f6505e07",
+        "m_col": "0fd6daa9603138bf6fc0106b5eb31301",
+        "k_sch": "ef44a541a8525b7fb671253bdb0bad00"
+      },
+      {
+        "round": 5,
+        "start": "e0927fe8c86363c0d9b1355085b8be01",
+        "s_box": "e14fd29be8fbfbba35c89653976cae7c",
+        "s_row": "e1fb967ce8c8ae9b356cd2ba974ffb53",
+        "m_col": "25d1a9adbd11d168b63a338e4c4cc0b0",
+        "k_sch": "d4d1c6f87c839d87caf2b8bc11f915bc"
+      },
+      {
+        "round": 6,
+        "start": "f1006f55c1924cef7cc88b325db5d50c",
+        "s_box": "a163a8fc784f29df10e83d234cd503fe",
+        "s_row": "a14f3dfe78e803fc10d5a8df4c632923",
+        "m_col": "4b868d6d2c4a8980339df4e837d218d8",
+        "k_sch": "6d88a37a110b3efddbf98641ca0093fd"
+      },
+      {
+        "round": 7,
+        "start": "260e2e173d41b77de86472a9fdd28b25",
+        "s_box": "f7ab31f02783a9ff9b4340d354b53d3f",
+        "s_row": "f783403f27433df09bb531ff54aba9d3",
+        "m_col": "1415b5bf461615ec274656d7342ad843",
+        "k_sch": "4e54f70e5f5fc9f384a64fb24ea6dc4f"
+      },
+      {
+        "round": 8,
+        "start": "5a4142b11949dc1fa3e019657a8c040c",
+        "s_box": "be832cc8d43b86c00ae1d44dda64f2fe",
+        "s_row": "be3bd4fed4e1f2c80a642cc0da83864d",
+        "m_col": "00512fd1b1c889ff54766dcdfa1b99ea",
+        "k_sch": "ead27321b58dbad2312bf5607f8d292f"
+      },
+      {
+        "round": 9,
+        "start": "ea835cf00445332d655d98ad8596b0c5",
+        "s_box": "87ec4a8cf26ec3d84d4c46959790e7a6",
+        "s_row": "876e46a6f24ce78c4d904ad897ecc395",
+        "m_col": "473794ed40d4e4a5a3703aa64c9f42bc",
+        "k_sch": "ac7766f319fadc2128d12941575c006e"
+      },
+      {
+        "round": 10,
+        "start": "eb40f21e592e38848ba113e71bc342d2",
+        "s_box": "e9098972cb31075f3d327d94af2e2cb5",
+        "s_row": "e9317db5cb322c723d2e895faf090794",
+        "m_col": null,
+        "k_sch": "d014f9a8c9ee2589e13f0cc8b6630ca6"
+      }
+    ]
+  },
+  "appendixC": [
+    {
+      "section": "App. C.1 (AES-128)",
+      "presetId": "fips197-c1",
+      "key": "000102030405060708090a0b0c0d0e0f",
+      "plaintext": "00112233445566778899aabbccddeeff",
+      "ciphertext": "69c4e0d86a7b0430d8cdb78070b4c55a"
+    },
+    {
+      "section": "App. C.2 (AES-192)",
+      "presetId": "fips197-c2",
+      "key": "000102030405060708090a0b0c0d0e0f1011121314151617",
+      "plaintext": "00112233445566778899aabbccddeeff",
+      "ciphertext": "dda97ca4864cdfe06eaf70a0ec0d7191"
+    },
+    {
+      "section": "App. C.3 (AES-256)",
+      "presetId": "fips197-c3",
+      "key": "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f",
+      "plaintext": "00112233445566778899aabbccddeeff",
+      "ciphertext": "8ea2b7ca516745bfeafc49904b496089"
+    }
+  ]
+}

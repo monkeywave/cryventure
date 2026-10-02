@@ -1,0 +1,37 @@
+{
+  "name": "@cryventure/viz",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "CryVenture React runtime for labs: lab store, player, byte cells, workspace and view hosting.",
+  "exports": {
+    ".": "./src/index.ts",
+    "./messages": "./src/i18n/messages.ts",
+    "./testing": "./src/testing/index.ts",
+    "./testing/setup": "./src/testing/setup.ts",
+    "./viz.css": "./src/viz.css"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit -p ."
+  },
+  "dependencies": {
+    "@cryventure/core": "workspace:*",
+    "motion": "^13.5.0",
+    "react-resizable-panels": "^4.14.1",
+    "zustand": "^5.0.15"
+  },
+  "devDependencies": {
+    "@testing-library/dom": "^10.4.2",
+    "@testing-library/react": "^16.3.3",
+    "@testing-library/user-event": "^14.6.7",
+    "@types/react": "^19.3.0",
+    "@types/react-dom": "^19.3.0",
+    "jsdom": "^30.1.1",
+    "react": "^19.3.0",
+    "react-dom": "^19.3.0"
+  },
+  "peerDependencies": {
+    "react": "^19.3.0",
+    "react-dom": "^19.3.0"
+  }
+}

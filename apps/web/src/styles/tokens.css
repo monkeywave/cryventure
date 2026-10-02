@@ -1,0 +1,96 @@
+/*
+ * CryVenture semantic design tokens (docs/PLAN.md §3).
+ * Palette spirit ported from fritap-web: dark navy base, luminescent "instrument LED" accents, soft glows.
+ * Every --cv-* foreground colour meets WCAG AA (≥ 4.5:1) against --cv-bg and --cv-surface in its theme.
+ * Starlight sets data-theme="dark" | "light" on <html>; dark is the default.
+ */
+
+/* ---------- Dark theme (default) ---------- */
+:root,
+:root[data-theme='dark'] {
+  color-scheme: dark;
+
+  /* Surfaces & text */
+  --cv-bg: #050811;
+  --cv-surface: #0a0f1e;
+  --cv-surface-elevated: #0b1628;
+  --cv-border: #1e3a5f;
+  --cv-border-subtle: #111827;
+  --cv-text: #e2e8f0;
+  --cv-text-muted: #94a3b8;
+
+  /* Semantic data roles */
+  --cv-key: #fbbf24; /* key / secret — amber */
+  --cv-subkey: #fde68a; /* round / sub keys — light amber */
+  --cv-plaintext: #38bdf8; /* plaintext — blue */
+  --cv-ciphertext: #a78bfa; /* ciphertext — violet */
+  --cv-state: #94a3b8; /* cipher state — slate */
+  --cv-constant: #2dd4bf; /* constants — teal */
+  --cv-nonce: #e879f9; /* nonce / IV / randomness — magenta */
+  --cv-attacker: #f87171; /* Eve / Mallory — red */
+  --cv-error: #fb7185; /* errors — red */
+  --cv-success: #34d399;
+
+  /* Glows (ambient radiance behind role-coloured elements) */
+  --cv-glow-key: rgb(251 191 36 / 0.14);
+  --cv-glow-plaintext: rgb(56 189 248 / 0.12);
+  --cv-glow-ciphertext: rgb(167 139 250 / 0.14);
+  --cv-glow-nonce: rgb(232 121 249 / 0.12);
+  --cv-glow-attacker: rgb(248 113 113 / 0.14);
+
+  /* Starlight mapping: navy greys + sky accent */
+  --sl-color-accent-low: #082f49;
+  --sl-color-accent: #38bdf8;
+  --sl-color-accent-high: #bae6fd;
+  --sl-color-white: #ffffff;
+  --sl-color-gray-1: #e2e8f0;
+  --sl-color-gray-2: #cbd5e1;
+  --sl-color-gray-3: #94a3b8;
+  --sl-color-gray-4: #64748b;
+  --sl-color-gray-5: #1e3a5f;
+  --sl-color-gray-6: #0b1628;
+  --sl-color-black: #050811;
+}
+
+/* ---------- Light theme ---------- */
+:root[data-theme='light'] {
+  color-scheme: light;
+
+  --cv-bg: #ffffff;
+  --cv-surface: #f8fafc;
+  --cv-surface-elevated: #f1f5f9;
+  --cv-border: #cbd5e1;
+  --cv-border-subtle: #e2e8f0;
+  --cv-text: #0f172a;
+  --cv-text-muted: #475569;
+
+  --cv-key: #92400e;
+  --cv-subkey: #b45309;
+  --cv-plaintext: #0369a1;
+  --cv-ciphertext: #6d28d9;
+  --cv-state: #475569;
+  --cv-constant: #0f766e;
+  --cv-nonce: #a21caf;
+  --cv-attacker: #b91c1c;
+  --cv-error: #be123c;
+  --cv-success: #047857;
+
+  --cv-glow-key: rgb(180 83 9 / 0.1);
+  --cv-glow-plaintext: rgb(3 105 161 / 0.08);
+  --cv-glow-ciphertext: rgb(109 40 217 / 0.08);
+  --cv-glow-nonce: rgb(162 28 175 / 0.08);
+  --cv-glow-attacker: rgb(185 28 28 / 0.08);
+
+  --sl-color-accent-low: #e0f2fe;
+  --sl-color-accent: #0369a1;
+  --sl-color-accent-high: #0c4a6e;
+  --sl-color-white: #0f172a;
+  --sl-color-gray-1: #1e293b;
+  --sl-color-gray-2: #334155;
+  --sl-color-gray-3: #475569;
+  --sl-color-gray-4: #64748b;
+  --sl-color-gray-5: #cbd5e1;
+  --sl-color-gray-6: #e2e8f0;
+  --sl-color-gray-7: #f1f5f9;
+  --sl-color-black: #ffffff;
+}

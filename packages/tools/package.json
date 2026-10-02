@@ -1,0 +1,19 @@
+{
+  "name": "@cryventure/tools",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "CryVenture dev-only tooling: plugin contract-test kit, noble oracles, i18n parity check, `cv` scaffolder.",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit -p ."
+  },
+  "dependencies": {
+    "@cryventure/core": "workspace:*",
+    "@cryventure/primitives": "workspace:*",
+    "@cryventure/views": "workspace:*",
+    "@cryventure/viz": "workspace:*"
+  }
+}

@@ -1,0 +1,35 @@
+# Rendered at image build time: __CV_BASE__ is replaced with the site base path (e.g. "/" or "/cryventure/").
+server {
+    listen 8080;
+    server_name _;
+    root /usr/share/nginx/html;
+    absolute_redirect off;
+    server_tokens off;
+
+    gzip on;
+    gzip_types text/css application/javascript application/json image/svg+xml text/plain;
+
+    location = /healthz { access_log off; default_type text/plain; return 200 "ok\n"; }
+
+    # Sub-path builds: send the bare origin to the site root. (No-op when base is "/": exact "/" is served below.)
+    location = / {
+        include /etc/nginx/snippets/security-headers.conf;
+        add_header Cache-Control "no-cache";
+        try_files /index.html @base;
+    }
+    location @base { return 302 __CV_BASE__; }
+
+    location ~* /_astro/ {
+        include /etc/nginx/snippets/security-headers.conf;
+        add_header Cache-Control "public, max-age=31536000, immutable";
+        try_files $uri =404;
+    }
+
+    location / {
+        include /etc/nginx/snippets/security-headers.conf;
+        add_header Cache-Control "no-cache";
+        try_files $uri $uri/ =404;
+    }
+
+    error_page 404 __CV_BASE__404.html;
+}

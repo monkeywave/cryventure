@@ -1,0 +1,91 @@
+import { narrationFromState, RecordingTracer, type RegionSpec, type TraceBundle } from '@cryventure/core';
+import { describe, expect, it } from 'vitest';
+import { emittedNarration, jsonRoundTrip, keysOutsideNamespace, missingFacetKinds, missingKeys, refProblems, replayProblems, runtimeLabelKeys, sequentialReplay, unknownParamFields } from './checks.ts';
+
+const catalogs = {
+  en: { 'plugin.x.title': 'X', 'plugin.x.step': 'Step {{n}}', 'other.key': 'O' },
+  de: { 'plugin.x.title': 'X-de', 'plugin.x.step': 'Schritt' },
+};
+
+const regions: RegionSpec<'s'>[] = [{ id: 's', labelKey: 'plugin.x.region.s', elem: 'u8', shape: [2] }];
+
+function bundle(): TraceBundle {
+  const tracer = new RecordingTracer<'s', { op: 'w' }>(regions, { s: [0, 0] }, { keyframeInterval: 1 });
+  tracer.step({ op: 'w', writes: [{ region: 's', offset: 0, values: [1] }], highlights: [], narration: { key: 'plugin.x.step', params: { n: 1 } } });
+  tracer.step({ op: 'w', writes: [{ region: 's', offset: 1, values: [2] }], highlights: [], narration: { key: 'plugin.x.step', params: { n: 2 } } });
+  const state = tracer.toFacet();
+  const values = { kind: 'values', schemaVersion: 1, values: [{ id: 'k', labelKey: 'plugin.x.value.k', role: 'key', bytes: [1], createdAt: 0 }] };
+  return { schemaVersion: 1, producer: { kind: 'primitive', id: 'x', apiVersion: 1 }, provenance: 'modeled', params: {}, facets: { 'state@default': state, 'values@default': values, 'narration@default': narrationFromState(state) }, output: {} };
+}
+
+describe('missingKeys', () => {
+  it('lists locale:key for absent keys', () => {
+    expect(missingKeys(['plugin.x.title', 'other.key'], catalogs)).toEqual(['de:other.key']);
+  });
+});
+
+describe('keysOutsideNamespace', () => {
+  it('flags keys not under the namespace', () => {
+    expect(keysOutsideNamespace(catalogs, 'plugin.x')).toEqual(['en:other.key']);
+  });
+});
+
+describe('refProblems', () => {
+  it('reports missing keys and param mismatches per locale', () => {
+    expect(refProblems([{ key: 'plugin.x.step', params: { n: 1 } }, { key: 'nope' }], catalogs)).toEqual(['en:nope missing', 'de:plugin.x.step params [n] vs template []', 'de:nope missing']);
+  });
+});
+
+describe('emittedNarration / runtimeLabelKeys / missingFacetKinds', () => {
+  it('collects distinct narration refs from narration and state facets', () => {
+    expect(emittedNarration(bundle())).toEqual([
+      { key: 'plugin.x.step', params: { n: 1 } },
+      { key: 'plugin.x.step', params: { n: 2 } },
+    ]);
+  });
+
+  it('collects region and value label keys', () => {
+    expect(runtimeLabelKeys(bundle())).toEqual(['plugin.x.region.s', 'plugin.x.value.k']);
+  });
+
+  it('lists declared kinds without a facet', () => {
+    expect(missingFacetKinds(['state', 'memory'], bundle())).toEqual(['memory']);
+  });
+
+  it('tolerates bundles without facets', () => {
+    const empty = { ...bundle(), facets: {} };
+    expect([emittedNarration(empty), runtimeLabelKeys(empty)]).toEqual([[], []]);
+  });
+});
+
+describe('sequentialReplay / replayProblems', () => {
+  const state = () => bundle().facets['state@default'] as Parameters<typeof replayProblems>[0];
+
+  it('replays every step from the initial snapshot', () => {
+    expect(sequentialReplay(state())).toEqual([{ s: [1, 0] }, { s: [1, 2] }]);
+  });
+
+  it('passes consistent facets and flags a corrupted keyframe', () => {
+    expect(replayProblems(state())).toEqual([]);
+    const corrupted = { ...state(), keyframes: [{ step: 0, snapshot: { s: [9, 9] } }, { step: 5, snapshot: { s: [0, 0] } }] };
+    expect(replayProblems(corrupted)).toEqual(['keyframe at step 0 differs from replay', 'keyframe at step 5 differs from replay', 'stateAt(0) differs from replay', 'stateAt(1) differs from replay']);
+  });
+});
+
+describe('jsonRoundTrip', () => {
+  it('preserves JSON data and exposes non-JSON values', () => {
+    expect(jsonRoundTrip(bundle())).toEqual(bundle());
+    expect(jsonRoundTrip({ bytes: new Uint8Array([1]) })).not.toEqual({ bytes: new Uint8Array([1]) });
+  });
+});
+
+describe('unknownParamFields', () => {
+  it('lists field names missing from defaults', () => {
+    const fields = [
+      { name: 'keyHex', labelKey: 'plugin.x.param.key', kind: 'hex' as const },
+      { name: 'ivHex', labelKey: 'plugin.x.param.iv', kind: 'hex' as const },
+    ];
+    expect(unknownParamFields(fields, { keyHex: '00' })).toEqual(['ivHex']);
+    expect(unknownParamFields(fields, null)).toEqual(['keyHex', 'ivHex']);
+  });
+});

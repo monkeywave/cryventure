@@ -1,0 +1,31 @@
+---
+import { loadMessages } from '../i18n/loadMessages';
+
+interface Props {
+  /** Override the page language; defaults to the current Astro/Starlight locale. */
+  lang?: string;
+}
+
+const lang = Astro.props.lang ?? Astro.currentLocale ?? 'en';
+const messages = loadMessages(lang, ['ui']);
+---
+
+<aside class="cv-educational-only" role="note" data-pagefind-ignore>
+  <span aria-hidden="true">⚠</span>
+  <span>{messages['ui.educationalOnly']}</span>
+</aside>
+
+<style>
+  .cv-educational-only {
+    display: flex;
+    gap: 0.5rem;
+    align-items: baseline;
+    margin-block: 1rem;
+    padding: 0.5rem 0.875rem;
+    border: 1px solid var(--cv-key);
+    border-radius: 0.5rem;
+    background: var(--cv-glow-key);
+    color: var(--cv-text);
+    font-size: var(--sl-text-sm);
+  }
+</style>

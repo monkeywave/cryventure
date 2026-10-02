@@ -1,0 +1,78 @@
+---
+/**
+ * Localized 404 emitted at dist/404.html (Starlight's own route is disabled).
+ * The URL could belong to either locale, so both languages are shown.
+ */
+import { loadMessages, supportedLocales } from '../i18n/loadMessages';
+import { withBase } from '../lib/withBase';
+import '../styles/tokens.css';
+
+const sections = supportedLocales.map((lang) => ({
+  lang,
+  messages: loadMessages(lang, ['ui']),
+  home: withBase(`${lang}/`),
+}));
+---
+
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="robots" content="noindex" />
+    <title>404 · CryVenture</title>
+  </head>
+  <body>
+    <main>
+      <p class="code" aria-hidden="true">404</p>
+      {
+        sections.map(({ lang, messages, home }) => (
+          <section lang={lang} data-testid={`not-found-${lang}`}>
+            <h1>{messages['ui.notFound.title']}</h1>
+            <p>{messages['ui.notFound.body']}</p>
+            <a href={home}>{messages['ui.notFound.back']}</a>
+          </section>
+        ))
+      }
+    </main>
+  </body>
+</html>
+
+<style is:global>
+  body {
+    margin: 0;
+    min-height: 100vh;
+    display: grid;
+    place-items: center;
+    background:
+      radial-gradient(circle at 1px 1px, var(--cv-glow-plaintext) 1px, transparent 0) 0 0 / 24px 24px,
+      var(--cv-bg);
+    color: var(--cv-text);
+    font-family: system-ui, -apple-system, sans-serif;
+  }
+  main {
+    max-width: 36rem;
+    padding: 2rem 1rem;
+    text-align: center;
+  }
+  .code {
+    margin: 0;
+    font: 700 4rem/1 ui-monospace, monospace;
+    color: var(--cv-ciphertext);
+    text-shadow: 0 0 24px var(--cv-glow-ciphertext);
+  }
+  section + section {
+    margin-top: 2rem;
+    padding-top: 2rem;
+    border-top: 1px solid var(--cv-border);
+  }
+  h1 {
+    font-size: 1.5rem;
+  }
+  p {
+    color: var(--cv-text-muted);
+  }
+  a {
+    color: var(--cv-plaintext);
+  }
+</style>
