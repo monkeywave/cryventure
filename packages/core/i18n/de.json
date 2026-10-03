@@ -1,6 +1,7 @@
 {
   "core.error.hexInvalidChar": "„{{char}}“ ist keine Hexziffer; erlaubt sind 0–9 und a–f.",
   "core.error.hexOddLength": "Hex braucht eine gerade Anzahl an Ziffern (zwei pro Byte), hier sind es aber {{length}}.",
-  "core.error.keyLength": "Für diese Chiffre muss der Schlüssel {{sizes}} Bytes lang sein.",
+  "core.error.keyLength": "Für diese Chiffre muss der Schlüssel {{sizes}} Byte lang sein.",
+  "core.error.portLoadFailed": "Der Baustein „{{id}}“ konnte nicht geladen werden. Prüf deine Verbindung und lade die Seite neu.",
   "core.error.portMissing": "Den Baustein „{{id}}“ gibt es hier nicht."
 }

@@ -5,9 +5,16 @@
 
 export const TOAST_SELECTOR = '.cv-pwa-toast';
 
+export interface UpdateToastOptions {
+  /** Replace a toast already shown (its reload action is outdated) instead of keeping it. */
+  replace?: boolean;
+}
+
 /** Shows the toast once; `onReload` runs on "Reload", "Later" just removes it. */
-export function showUpdateToast(template: HTMLTemplateElement, onReload: () => void): void {
-  if (document.querySelector(TOAST_SELECTOR)) return;
+export function showUpdateToast(template: HTMLTemplateElement, onReload: () => void, { replace = false }: UpdateToastOptions = {}): void {
+  const shown = document.querySelector(TOAST_SELECTOR);
+  if (shown && !replace) return;
+  shown?.remove();
   const toast = template.content.firstElementChild?.cloneNode(true);
   if (!(toast instanceof HTMLElement)) return;
   toast.addEventListener('click', (event) => {

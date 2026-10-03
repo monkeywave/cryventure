@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import {
   assertPrecacheBudget,
   buildManifest,
@@ -7,6 +7,7 @@ import {
   MAX_FILE_BYTES,
   normalizeBase,
   PRECACHE_BUDGET_BYTES,
+  selfUnregisteringWorker,
   workboxOptions,
 } from './pwa.mjs';
 
@@ -77,5 +78,45 @@ describe('assertPrecacheBudget', () => {
 
   it('formats sizes in MB', () => {
     expect(formatMegabytes(3.5 * 1024 * 1024)).toBe('3.50 MB');
+  });
+});
+
+describe('selfUnregisteringWorker', () => {
+  type Handler = (event: { waitUntil: (promise: Promise<unknown>) => void }) => void;
+
+  /** Runs the worker source against a fake service-worker global; returns its spies. */
+  function runWorker() {
+    const handlers: Record<string, Handler> = {};
+    const scope = 'https://example.org/cryventure/';
+    const cacheNames = [`workbox-precache-v2-${scope}`, `workbox-runtime-${scope}`, 'workbox-precache-v2-https://example.org/other-app/'];
+    const client = { url: `${scope}en/`, navigate: vi.fn(async () => undefined) };
+    const self = {
+      addEventListener: (type: string, handler: Handler) => (handlers[type] = handler),
+      skipWaiting: vi.fn(async () => undefined),
+      registration: { scope, unregister: vi.fn(async () => true) },
+      clients: { claim: vi.fn(async () => undefined), matchAll: vi.fn(async () => [client]) },
+    };
+    const caches = { keys: vi.fn(async () => cacheNames), delete: vi.fn(async (_name: string) => true) };
+    new Function('self', 'caches', selfUnregisteringWorker())(self, caches);
+    const fire = async (type: string) => {
+      const pending: Promise<unknown>[] = [];
+      handlers[type]?.({ waitUntil: (promise) => pending.push(promise) });
+      await Promise.all(pending);
+    };
+    return { self, caches, client, fire };
+  }
+
+  it('activates at once, clears only its own scope’s caches, unregisters and reloads its pages', async () => {
+    const { self, caches, client, fire } = runWorker();
+    await fire('install');
+    expect(self.skipWaiting).toHaveBeenCalled();
+    await fire('activate');
+    expect(caches.delete.mock.calls.map(([name]) => name)).toEqual(['workbox-precache-v2-https://example.org/cryventure/', 'workbox-runtime-https://example.org/cryventure/']);
+    expect(self.registration.unregister).toHaveBeenCalled();
+    expect(client.navigate).toHaveBeenCalledWith('https://example.org/cryventure/en/');
+  });
+
+  it('has no fetch handler, so nothing is served from it', () => {
+    expect(selfUnregisteringWorker()).not.toMatch(/['"]fetch['"]/);
   });
 });

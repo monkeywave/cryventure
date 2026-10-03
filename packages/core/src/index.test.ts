@@ -16,11 +16,12 @@ describe('public API', () => {
       'hexDigits', 'parseHexToArray', 'readOption', 'valueRef', 'bitOf', 'SBOX', 'INV_SBOX', 'buildSbox', 'buildInvSbox',
       'ginvStepTerms', 'scopeLevels', 'opLabels', 'singleCellRegion', 'zeroSnapshot', 'runPrimitive',
       'chainIssues', 'chainActiveAt', 'chainEdgeKey', 'chainLabelRefs', 'chainLanes',
-      'wireIssues', 'wireActiveOffsetsAt', 'wireTotalLength', 'wireSegmentAt', 'wireLabelRefs',
-      'utf8Bytes', 'utf8Text', 'readText', 'portParamFields', 'PORT_NAMES', 'isPortName',
+      'wireIssues', 'wireActiveOffsetsAt', 'wireTotalLength', 'wireLabelRefs',
+      'utf8Bytes', 'readText', 'portParamFields', 'PORT_NAMES', 'isPortName',
       'portOptions', 'preparePorts', 'portNamespaces', 'requirePort', 'checkKeyLength',
       'ChainBuilder', 'WireBuilder', 'readModeCommon', 'readBlockParamHex', 'prepareBlockCipher', 'blockLengthError', 'alignmentError',
       'blockCount', 'blockIndices', 'padStep', 'unpadStep', 'assertMatchesReference', 'BlockOpRecorder', 'blockModeOutputs', 'MODE_DIRECTIONS', 'MODE_PADDINGS', 'MODE_MAX_INPUT_BYTES',
+      'encryptInputLength', 'unpaddedInputRegion', 'recordPadding', 'cipherName', 'laneNodeId', 'chainLabel', 'cipherZoom', 'addPadNode', 'addUnpadNode', 'blockModeValues',
     ];
     for (const name of expected) expect(core).toHaveProperty(name);
   });

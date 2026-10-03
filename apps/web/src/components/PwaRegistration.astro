@@ -27,20 +27,18 @@ const messages = loadMessages(Astro.currentLocale ?? 'en', ['ui']);
 
 <script>
   import { Workbox } from 'workbox-window';
+  import { registerServiceWorker, supportsServiceWorker } from '../pwa/registerServiceWorker';
   import { showUpdateToast } from '../pwa/updateToast';
 
   const template = document.getElementById('cv-pwa');
-  if (template instanceof HTMLTemplateElement && 'serviceWorker' in navigator) {
+  if (template instanceof HTMLTemplateElement && supportsServiceWorker(navigator)) {
     const { sw = '', scope } = template.dataset;
-    const workbox = new Workbox(sw, { scope });
-    // A new worker installed and waits: ask before swapping, then reload once it controls the page.
-    workbox.addEventListener('waiting', () =>
-      showUpdateToast(template, () => {
-        workbox.addEventListener('controlling', () => window.location.reload());
-        workbox.messageSkipWaiting();
-      }),
-    );
-    void workbox.register();
+    void registerServiceWorker({
+      container: navigator.serviceWorker,
+      workbox: new Workbox(sw, { scope }),
+      showToast: (onReload, options) => showUpdateToast(template, onReload, options),
+      reload: () => window.location.reload(),
+    });
   }
 </script>
 

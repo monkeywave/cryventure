@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState, type RefObject } from 'react';
 import { i18nRef, type I18nRef } from '@cryventure/core';
-import { drawPenguin, drawUpload } from './canvas.ts';
+import { drawPenguin, drawUpload, uploadSizeError } from './canvas.ts';
 import type { Size } from './pixels.ts';
 
 export type ImageSource = { kind: 'penguin' } | { kind: 'upload'; name: string };
@@ -39,7 +39,16 @@ export function useImageSource(canvasRef: RefObject<HTMLCanvasElement | null>, o
   );
 
   const showPenguin = useCallback(() => load({ kind: 'penguin' }, drawPenguin), [load]);
-  const showUpload = useCallback((file: File) => load({ kind: 'upload', name: file.name }, (canvas) => drawUpload(canvas, file)), [load]);
+  const showUpload = useCallback(
+    (file: File) => {
+      const tooLarge = uploadSizeError(file);
+      if (tooLarge === undefined) return load({ kind: 'upload', name: file.name }, (canvas) => drawUpload(canvas, file));
+      ++loadIdRef.current; // a pending load must not clear this message
+      setError(tooLarge);
+      return Promise.resolve();
+    },
+    [load],
+  );
 
   useEffect(() => {
     void showPenguin();

@@ -38,12 +38,6 @@ describe('ProgressPage lesson list', () => {
     expect(screen.getByRole('link', { name: 'AES at a glance' }).getAttribute('href')).toBe('/en/symmetric/aes/');
   });
 
-  it('scores answers migrated from v1 by their question number', () => {
-    act(() => replaceProgress({ version: 2, lessons: { 'symmetric/aes/subbytes-sbox': { quiz: { 'sbox-of-00': answer(true) }, legacyQuiz: { '2': answer(true), '3': answer(false) } } } }));
-    renderPage();
-    expect(lessonItem('SubBytes and the S-box').textContent).toContain('2 of 3 answered correctly');
-  });
-
   it('renders German', () => {
     renderPage(de, 'de');
     expect(lessonItem('AES at a glance').textContent).toContain('2 von 3 richtig beantwortet');

@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { emptyProgress, type Progress } from './schema.ts';
-import { PROGRESS_STORAGE_KEY } from './storage.ts';
+import { LEGACY_PROGRESS_STORAGE_KEY, PROGRESS_STORAGE_KEY } from './storage.ts';
 import { createProgressStore, nextQuizAnswer, resetKeepingLens, withLensOf, withQuizAnswer, type ProgressPersistence } from './store.ts';
 
 function fakePersistence(initial: Progress = emptyProgress()): ProgressPersistence & { saved: Progress[] } {
@@ -27,23 +27,16 @@ describe('nextQuizAnswer / withQuizAnswer', () => {
 
   it('adds the answer under the question id without mutating the input', () => {
     const before = emptyProgress();
-    const after = withQuizAnswer(before, 'a/b', { id: 'rcon-10', number: 3 }, 1, true);
+    const after = withQuizAnswer(before, 'a/b', 'rcon-10', 1, true);
     expect(after.lessons['a/b']?.quiz).toEqual({ 'rcon-10': { solved: true, lastAnswer: 1 } });
     expect(before).toEqual(emptyProgress());
   });
 
-  it('moves a legacy answer to the id, keeping it solved, and drops the emptied legacy record', () => {
-    const before: Progress = { version: 2, lessons: { a: { quiz: {}, legacyQuiz: { '3': { solved: true, lastAnswer: 2 } } } } };
-    const after = withQuizAnswer(before, 'a', { id: 'rcon-10', number: 3 }, 0, false);
-    expect(after.lessons.a).toEqual({ quiz: { 'rcon-10': { solved: true, lastAnswer: 0 } } });
-    expect(before.lessons.a?.legacyQuiz).toEqual({ '3': { solved: true, lastAnswer: 2 } });
-  });
-
-  it('keeps the other legacy answers of the lesson', () => {
-    const legacy = { solved: false, lastAnswer: 1 };
-    const before: Progress = { version: 2, lessons: { a: { quiz: {}, legacyQuiz: { '1': legacy, '3': legacy } } } };
-    const after = withQuizAnswer(before, 'a', { id: 'rcon-10', number: 3 }, 0, true);
-    expect(after.lessons.a).toEqual({ quiz: { 'rcon-10': { solved: true, lastAnswer: 0 } }, legacyQuiz: { '1': legacy } });
+  it('keeps a solved answer solved and the lesson’s other answers', () => {
+    const other = { solved: false, lastAnswer: 1 };
+    const before: Progress = { version: 2, lessons: { a: { quiz: { 'rcon-10': { solved: true, lastAnswer: 2 }, other } } } };
+    const after = withQuizAnswer(before, 'a', 'rcon-10', 0, false);
+    expect(after.lessons.a).toEqual({ quiz: { 'rcon-10': { solved: true, lastAnswer: 0 }, other } });
   });
 });
 
@@ -123,6 +116,15 @@ describe('createProgressStore', () => {
       expect(store.getProgress()).toEqual(emptyProgress());
     });
 
+    it('ignores writes to the v1 slot by an older app version', () => {
+      const store = createProgressStore(fakePersistence({ version: 2, lens: 'story', lessons: {} }));
+      const listener = vi.fn();
+      store.subscribe(listener);
+      window.dispatchEvent(storageEvent(LEGACY_PROGRESS_STORAGE_KEY, JSON.stringify({ version: 1, lessons: {} })));
+      expect(listener).not.toHaveBeenCalled();
+      expect(store.getProgress()).toEqual({ version: 2, lens: 'story', lessons: {} });
+    });
+
     it('ignores other keys and stops listening once nobody subscribes', () => {
       const store = createProgressStore(fakePersistence());
       const listener = vi.fn();
@@ -148,9 +150,8 @@ describe('default store actions', () => {
 
   it('recordQuizAnswer persists under the lesson key', async () => {
     const { recordQuizAnswer, getProgress } = await load();
-    const question = { id: 'sbox-of-00', number: 1 };
-    recordQuizAnswer('symmetric/aes/subbytes-sbox', question, 2, false);
-    recordQuizAnswer('symmetric/aes/subbytes-sbox', question, 0, true);
+    recordQuizAnswer('symmetric/aes/subbytes-sbox', 'sbox-of-00', 2, false);
+    recordQuizAnswer('symmetric/aes/subbytes-sbox', 'sbox-of-00', 0, true);
     const expected = { solved: true, lastAnswer: 0 };
     expect(getProgress().lessons['symmetric/aes/subbytes-sbox']?.quiz['sbox-of-00']).toEqual(expected);
     expect(stored()).toMatchObject({ version: 2, lessons: { 'symmetric/aes/subbytes-sbox': { quiz: { 'sbox-of-00': expected } } } });
@@ -175,7 +176,7 @@ describe('default store actions', () => {
   it('resetProgress clears results but keeps the lens', async () => {
     const { recordQuizAnswer, setLens, resetProgress, getProgress } = await load();
     setLens('cryptographer');
-    recordQuizAnswer('a', { id: 'q', number: 1 }, 0, true);
+    recordQuizAnswer('a', 'q', 0, true);
     resetProgress();
     expect(getProgress()).toEqual({ version: 2, lens: 'cryptographer', lessons: {} });
     expect(stored()).toEqual({ version: 2, lens: 'cryptographer', lessons: {} });

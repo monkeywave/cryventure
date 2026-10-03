@@ -34,7 +34,7 @@ function useEncryptedCanvas(job: PenguinJobState) {
 function StatusLine({ job, stats }: { job: PenguinJobState; stats?: { repeated: number; total: number } }) {
   const t = useT();
   let text = '';
-  if (job.status === 'done' && stats) text = t(`ui.penguin.result.${job.result.mode}`, stats);
+  if (job.status === 'done' && stats) text = t(`ui.penguin.result.${job.result.mode}`, { ...stats, count: stats.repeated });
   else if (job.status === 'busy') text = t('ui.penguin.busy', { mode: job.mode.toUpperCase() });
   else if (job.status === 'error') text = t(job.error);
   return (

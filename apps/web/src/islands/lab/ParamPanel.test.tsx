@@ -42,6 +42,13 @@ describe('ParamPanel', () => {
     expect(onApply).toHaveBeenCalledWith({ ...aes.defaults, detail: 'round' });
   });
 
+  it('builds a second edit on the first while its re-run is pending (params not yet updated)', () => {
+    const onApply = renderPanel();
+    fireEvent.change(screen.getByLabelText('Key (hex)'), { target: { value: '00'.repeat(16) } });
+    fireEvent.change(screen.getByLabelText('Plaintext (hex)'), { target: { value: '11'.repeat(16) } });
+    expect(onApply).toHaveBeenLastCalledWith({ ...aes.defaults, keyHex: '00'.repeat(16), plaintextHex: '11'.repeat(16) });
+  });
+
   it('shows a localized error and does not apply invalid hex', () => {
     const onApply = renderPanel();
     const key = screen.getByLabelText('Key (hex)');
@@ -230,6 +237,6 @@ describe('ParamPanel text fields', () => {
 
   it('is localized', () => {
     renderComposite('de');
-    expect(screen.getByText('2 / 8 Bytes (UTF-8)')).toBeTruthy();
+    expect(screen.getByText('2 / 8 Byte (UTF-8)')).toBeTruthy();
   });
 });

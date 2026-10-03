@@ -167,19 +167,20 @@ answer and your explanation (the slot) once they get it right.
   - It is unique within the lesson, and identical in EN and DE.
   - **It never changes** once published: progress is stored under it. To replace a question with a
     different one, give the new question a new id.
-  - `number` is display-only. Renumbering, reordering, inserting or removing questions is fine.
+  - `number` is display-only and **may change freely**: renumbering, reordering, inserting or removing
+    questions never moves a reader's answers.
   - A missing or non-kebab id, or a duplicate id in one lesson, fails the build (the progress page
     reads every lesson's `{ id, number }` list from the MDX source). A unit test also checks that EN
     and DE use the same ids.
 - **Progress is per lesson key.** The key is the page slug without base and locale
   (`symmetric/aes/subbytes-sbox`), and each answer is stored under the question's id in localStorage
-  under `cv.progress.v1` (the slot name; the record inside is schema version 2 and is migrated on
-  read). EN and DE pages therefore share progress: keep the same ids and the same `answer` index in
-  both languages.
-- **Answers from before ids** (schema v1, keyed by number) live in `legacyQuiz` and are still shown
-  for the question with that `number` until the reader answers it again; then they move to the id.
-  After a renumbering, such an old answer may show on a different question. This is accepted, and
-  it never affects answers stored under ids.
+  under `cv.progress.v2`. EN and DE pages therefore share progress: keep the same ids and the same
+  `answer` index in both languages.
+- **Answers from before ids** (schema v1 in `cv.progress.v1`, keyed by number) are migrated once into
+  `cv.progress.v2` through the frozen map `apps/web/src/progress/legacyQuizIds.json` (v1 number → id,
+  as numbered when v1 shipped). Never edit that file, and new questions need no entry in it; a unit test
+  checks that its ids still exist. The v1 slot is never written, so tabs of an older app version keep
+  their own data.
 - **Without JavaScript** the server output is still a readable question with the answer and
   explanation in a `<details>` element.
 - **Progress page.** `/<lang>/progress/` (sidebar entry "Your progress" / "Dein Fortschritt") lists

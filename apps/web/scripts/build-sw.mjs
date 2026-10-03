@@ -1,7 +1,8 @@
 // @ts-check
 /**
  * Post-build step (docs/M3.md §11): writes `manifest.webmanifest` and a Workbox service worker
- * precaching all of `dist/` (Pagefind included) at the base root. Skipped when `CV_PWA=false`.
+ * precaching all of `dist/` (Pagefind included) at the base root. With `CV_PWA=false` it writes no
+ * manifest and a self-unregistering `sw.js` instead, which removes a worker installed by an earlier build.
  */
 import { writeFile } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
@@ -13,6 +14,8 @@ import {
   isPwaEnabled,
   MANIFEST_FILENAME,
   normalizeBase,
+  selfUnregisteringWorker,
+  SW_FILENAME,
   workboxOptions,
 } from './pwa.mjs';
 
@@ -20,7 +23,8 @@ const distDir = fileURLToPath(new URL('../dist', import.meta.url));
 
 async function main() {
   if (!isPwaEnabled(process.env)) {
-    console.log('[pwa] CV_PWA=false: no service worker or manifest.');
+    await writeFile(`${distDir}/${SW_FILENAME}`, selfUnregisteringWorker());
+    console.log('[pwa] CV_PWA=false: no manifest; sw.js only unregisters an earlier worker.');
     return;
   }
   const base = normalizeBase(process.env.CV_BASE);

@@ -32,7 +32,7 @@ The root `/` page redirects to `en/` or `de/` based on the browser language (Eng
 | --- | --- | --- |
 | `CV_BASE` | `/` | Astro `base`: the URL path the site lives under. All internal links and assets are prefixed with it. Must start **and** end with `/` (e.g. `/cryventure/`). |
 | `CV_SITE` | `https://example.github.io` | Astro `site`: the absolute origin (scheme + host, no path) used for canonical/absolute URLs. |
-| `CV_PWA` | on | `false` skips the service worker and the manifest link (CI preview artifacts, debugging). |
+| `CV_PWA` | on | `false` drops the manifest link and registration, and writes a self-unregistering `sw.js` (CI preview artifacts, debugging). |
 
 The config also sets `trailingSlash: 'always'` and `build.format: 'directory'`, so every page is
 `<route>/index.html` and URLs end in `/` (identical behaviour on Pages and nginx).
@@ -46,9 +46,16 @@ The config also sets `trailingSlash: 'always'` and `build.format: 'directory'`, 
   plus all of `pagefind/` (search works offline). There is no navigation fallback: unknown URLs still go to the network.
 - Files above 3 MB are left out. The build prints the precache size (about 3.3 MB today) and **fails above 25 MB**.
 - Updates use prompt-to-reload: a new worker waits, and a localized toast (`ui.pwa.*`) offers "Reload" / "Later".
-  Nothing is swapped mid-lesson.
-- Registration happens only in production builds (`astro dev` never registers a worker).
-- `e2e/offline.spec.ts` checks lessons, a lab and search with the browser offline (skipped with `CV_PWA=false`).
+  Nothing is swapped mid-lesson. When "Reload" in one tab activates the update, every other open tab shows the
+  toast again, now reloading directly: their HTML belongs to the old build, whose lazy chunks may be gone.
+- Registration happens only in production builds (`astro dev` never registers a worker), and only in browsers
+  that expose `navigator.serviceWorker`; a failed registration is ignored (the site works without it).
+- **`CV_PWA=false`** emits no manifest and no registration, but still writes a tiny `sw.js` that replaces a
+  worker installed by an earlier PWA build on the same origin: it deletes the caches of its scope, unregisters
+  itself and reloads the open pages. Without it, browsers that once installed the PWA would keep serving the
+  stale precache.
+- `e2e/offline.spec.ts` checks lessons, a lab and search with the browser offline (with `CV_PWA=false` it checks
+  the self-unregistering worker instead).
 - If a stale worker gets in the way locally, use DevTools -> Application -> Service workers -> Unregister.
 
 Build and preview a sub-path variant (as served on a GitHub project page):
@@ -295,7 +302,8 @@ pnpm install --frozen-lockfile
 pnpm lint && pnpm typecheck && pnpm i18n:check && pnpm test
 
 # E2E (Playwright, Chromium) incl. axe accessibility checks (apps/web/e2e/a11y.spec.ts).
-# Builds the site and starts `astro preview` on :4321 automatically.
+# Builds the site and starts `astro preview` on :4329 automatically (not 4321, `astro dev`'s port, so a
+# running dev server is never mistaken for the build). E2E_BASE_URL=<url> tests a server you started yourself.
 pnpm e2e                                    # base "/"
 pnpm --filter @cryventure/web e2e:subpath   # base "/cryventure/" (GitHub Pages layout)
 

@@ -19,10 +19,28 @@ function isRunRequest(data: unknown): data is WorkerRunRequest {
   return typeof data === 'object' && data !== null && typeof (data as { producerId?: unknown }).producerId === 'string';
 }
 
-/** Worker side: looks the producer up in the worker's own registry, prepares its ports and runs it. */
+const LOAD_FAILED_RESPONSE: WorkerRunResponse = { resultJson: JSON.stringify(LOAD_FAILED) };
+
+/**
+ * Worker side: looks the producer up in the worker's own registry, prepares its ports and runs it.
+ * Never rejects: anything that goes wrong (including a bundle that cannot be serialized) answers as a failed load.
+ */
 export async function handleRunRequest(data: unknown, producers: ProducerLookup): Promise<WorkerRunResponse> {
-  const result = await resultFor(data, producers);
-  return { resultJson: JSON.stringify(result) };
+  try {
+    return { resultJson: JSON.stringify(await resultFor(data, producers)) };
+  } catch {
+    return LOAD_FAILED_RESPONSE;
+  }
+}
+
+/** Worker side: answers one run request via `post`; if posting the answer throws, posts a failed load instead, so the host never waits forever. */
+export async function answerRunRequest(data: unknown, producers: ProducerLookup, post: (response: WorkerRunResponse) => void): Promise<void> {
+  const response = await handleRunRequest(data, producers);
+  try {
+    post(response);
+  } catch {
+    post(LOAD_FAILED_RESPONSE);
+  }
 }
 
 async function resultFor(data: unknown, producers: ProducerLookup): Promise<RunResult> {

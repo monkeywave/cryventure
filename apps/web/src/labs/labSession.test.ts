@@ -146,15 +146,15 @@ describe('rerunLab', () => {
     const session = await readyAes();
     session.store.getState().seek(3);
     const next = await rerunLab(session, { ...C1, plaintextHex: '00'.repeat(16) });
-    expect(next.status).toBe('ready');
+    expect(next).toMatchObject({ ok: true, session: { status: 'ready', params: { plaintextHex: '00'.repeat(16) } } });
     expect(session.store.getState().step).toBe(3);
     expect(session.store.getState().bundle?.output['ciphertext']).not.toEqual(C1_CIPHERTEXT);
   });
 
-  it('returns an error session for bad params and leaves the store untouched', async () => {
+  it('reports a run error without an error session and leaves the store untouched', async () => {
     const session = await readyAes();
     expect(await rerunLab(session, { ...C1, keyHex: '00' })).toEqual({
-      status: 'error',
+      ok: false,
       error: { key: 'plugin.aes.error.keyLength', params: { length: 1 } },
     });
     expect(session.store.getState().bundle?.output['ciphertext']).toEqual(C1_CIPHERTEXT);
@@ -272,8 +272,16 @@ describe('startLab / rerunLab with ports and a runner', () => {
     const session = await toyStart();
     if (session.status !== 'ready') throw new Error('expected ready');
     const run = vi.spyOn(session.runner, 'run');
-    expect(await rerunLab(session, { cipher: 'nope' })).toEqual({ status: 'error', error: { key: 'core.error.portMissing', params: { id: 'nope' } } });
+    expect(await rerunLab(session, { cipher: 'nope' })).toEqual({ ok: false, error: { key: 'core.error.portMissing', params: { id: 'nope' } } });
     expect(run).toHaveBeenCalledWith(toyComposite, { cipher: 'nope' });
+  });
+
+  it('requestLabParams reports a run error of a valid patch like a validation error', async () => {
+    const session = await toyStart();
+    if (session.status !== 'ready') throw new Error('expected ready');
+    const bundle = session.store.getState().bundle;
+    expect(await requestLabParams(session, { cipher: 'nope' })).toEqual({ ok: false, error: { key: 'core.error.portMissing', params: { id: 'nope' } } });
+    expect(session.store.getState().bundle).toBe(bundle);
   });
 
   it('uses the given runner and wires labHref into the store', async () => {

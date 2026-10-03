@@ -52,11 +52,6 @@ describe('lessonScore', () => {
   it('ignores answers to questions the lesson no longer has', () => {
     expect(lessonScore({ quiz: { 'aes192-rounds': answer(true), removed: answer(true) } }, QUESTIONS.slice(0, 1))).toEqual({ correct: 1, answered: 1, total: 1 });
   });
-
-  it('counts v1 answers recorded under the question number, unless the id has an answer', () => {
-    const lesson = { quiz: { 'final-round-omits': answer(false) }, legacyQuiz: { '1': answer(true), '3': answer(true) } };
-    expect(lessonScore(lesson, QUESTIONS)).toEqual({ correct: 1, answered: 2, total: 3 });
-  });
 });
 
 describe('lessonsWithProgress', () => {
@@ -70,8 +65,8 @@ describe('lessonsWithProgress', () => {
     expect(lessonsWithProgress(known, progress)).toEqual([...known, { key: 'future/lesson', title: 'future/lesson', questions: [{ id: 'new-question', number: 0 }] }]);
   });
 
-  it('lists every recorded answer of an unknown lesson, legacy ones included, so its score counts them all', () => {
-    const progress: Progress = { ...emptyProgress(), lessons: { 'future/lesson': { quiz: { a: answer(true) }, legacyQuiz: { '3': answer(false) } } } };
+  it('lists every recorded answer of an unknown lesson, so its score counts them all', () => {
+    const progress: Progress = { ...emptyProgress(), lessons: { 'future/lesson': { quiz: { a: answer(true), b: answer(false) } } } };
     const [lesson] = lessonsWithProgress([], progress);
     expect(lesson?.questions).toHaveLength(2);
     expect(lessonScore(progress.lessons['future/lesson'], lesson?.questions ?? [])).toEqual({ correct: 1, answered: 2, total: 2 });

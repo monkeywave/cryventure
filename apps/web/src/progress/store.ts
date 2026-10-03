@@ -1,4 +1,4 @@
-import { emptyProgress, resolveQuizAnswer, type Lens, type LessonProgress, type Progress, type QuizAnswer, type QuizQuestionRef } from './schema.ts';
+import { emptyProgress, type Lens, type Progress, type QuizAnswer } from './schema.ts';
 import { loadProgress, parseStoredProgress, PROGRESS_STORAGE_KEY, saveProgress } from './storage.ts';
 
 export type ProgressListener = () => void;
@@ -25,7 +25,8 @@ function eventTarget(): Pick<Window, 'addEventListener' | 'removeEventListener'>
 /**
  * A subscribable progress store. State loads lazily on first read and is written back only when it
  * changes, so an unreadable or newer-version entry survives until the learner records something.
- * Other tabs' writes arrive via the `storage` event (`key === null` means storage was cleared).
+ * Other tabs' writes arrive via the `storage` event (`key === null` means storage was cleared); only
+ * the current slot counts, so an older app version writing the v1 slot is ignored.
  */
 export function createProgressStore(persistence: ProgressPersistence = defaultPersistence): ProgressStore {
   let current: Progress | undefined;
@@ -68,21 +69,11 @@ export function nextQuizAnswer(previous: QuizAnswer | undefined, answerIndex: nu
   return { solved: correct || previous?.solved === true, lastAnswer: answerIndex };
 }
 
-/** `legacyQuiz` without the entry of `questionNumber`; omitted once empty. */
-function withoutLegacyAnswer(lesson: LessonProgress, questionNumber: number): Pick<LessonProgress, 'legacyQuiz'> {
-  const { [String(questionNumber)]: _moved, ...rest } = lesson.legacyQuiz ?? {};
-  return Object.keys(rest).length > 0 ? { legacyQuiz: rest } : {};
-}
-
-/**
- * Records one more attempt under the question id. A v1 answer recorded under its number counts as
- * the previous attempt and is removed, so the answer lives under the id from then on.
- */
-export function withQuizAnswer(progress: Progress, lessonKey: string, question: QuizQuestionRef, answerIndex: number, correct: boolean): Progress {
+/** Records one more attempt under the question id. */
+export function withQuizAnswer(progress: Progress, lessonKey: string, questionId: string, answerIndex: number, correct: boolean): Progress {
   const lesson = progress.lessons[lessonKey] ?? { quiz: {} };
-  const quiz = { ...lesson.quiz, [question.id]: nextQuizAnswer(resolveQuizAnswer(lesson, question), answerIndex, correct) };
-  const next: LessonProgress = { quiz, ...withoutLegacyAnswer(lesson, question.number) };
-  return { ...progress, lessons: { ...progress.lessons, [lessonKey]: next } };
+  const quiz = { ...lesson.quiz, [questionId]: nextQuizAnswer(lesson.quiz[questionId], answerIndex, correct) };
+  return { ...progress, lessons: { ...progress.lessons, [lessonKey]: { ...lesson, quiz } } };
 }
 
 /** `next` with the lens of `current`: the lens is a device preference rather than progress. */
@@ -102,8 +93,8 @@ export const getProgress = store.getProgress;
 export const subscribe = store.subscribe;
 export const updateProgress = store.updateProgress;
 
-export function recordQuizAnswer(lessonKey: string, question: QuizQuestionRef, answerIndex: number, correct: boolean): void {
-  updateProgress((progress) => withQuizAnswer(progress, lessonKey, question, answerIndex, correct));
+export function recordQuizAnswer(lessonKey: string, questionId: string, answerIndex: number, correct: boolean): void {
+  updateProgress((progress) => withQuizAnswer(progress, lessonKey, questionId, answerIndex, correct));
 }
 
 export function setLens(lens: Lens): void {

@@ -2,9 +2,15 @@ import { expect, test } from '@playwright/test';
 import { interpolate } from '@cryventure/core';
 import vizEn from '../../../packages/viz/src/i18n/en.json' with { type: 'json' };
 import aesEnJson from '../../../packages/primitives/src/aes/i18n/en.json' with { type: 'json' };
-import { C1, expectStep, labLocator, openLab, waitForLab } from './labPage.ts';
+import ecbEnJson from '../../../packages/primitives/src/ecb/i18n/en.json' with { type: 'json' };
+import coreEnJson from '../../../packages/core/i18n/en.json' with { type: 'json' };
+import { C1, expectStep, labButton, labLocator, openLab, waitForLab } from './labPage.ts';
 
 const aesEn: Record<string, string> = aesEnJson;
+const ecbEn: Record<string, string> = ecbEnJson;
+const coreEn: Record<string, string> = coreEnJson;
+/** `core.error.keyLength` with its `{{sizes}}` placeholder matching anything. */
+const KEY_LENGTH_ERROR = new RegExp(coreEn['core.error.keyLength']!.split('{{sizes}}').map((part) => part.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('.+'));
 const B_PLAINTEXT = '3243f6a8885a308d313198a2e0370734';
 const SUBBYTES_LAB = { path: 'en/symmetric/aes/subbytes-sbox/', labId: 'aes-subbytes', heading: 'check-yourself' } as const;
 /** At 'op' detail: round 7 MixColumns (round r starts at 3 + 4 (r − 1)). */
@@ -33,6 +39,32 @@ test.describe('re-running a lab with new params', () => {
     await lab.getByLabel(aesEn['plugin.aes.param.detail']!).selectOption({ label: aesEn['plugin.aes.param.detailOption.round']! });
     await expect(lab.locator('.cv-timeline__slider')).not.toHaveAttribute('max', String(C1.stepCount - 1));
     await expect(scope).toContainText(roundLabel(7));
+  });
+});
+
+test.describe('a run error while re-running', () => {
+  test('keeps the lab, shows the error inline, and re-runs once the key is fixed', async ({ page }) => {
+    await page.goto('en/lab/ecb/');
+    const lab = await waitForLab(page, 'ecb');
+    const ciphertext = lab.getByTestId('lab-output-ciphertext');
+    const original = await ciphertext.textContent();
+    await labButton(lab, 'ui.player.next').click();
+    await labButton(lab, 'ui.player.next').click();
+    await expectStep(lab, 1);
+
+    const key = lab.getByLabel(ecbEn['plugin.ecb.param.key']!);
+    await key.fill('0001');
+    await expect(lab.getByText(KEY_LENGTH_ERROR)).toBeVisible();
+    await expect(lab.locator('section.cv-lab')).toBeVisible();
+    await expect(lab.locator('.cv-lab-error')).toHaveCount(0);
+    await expect(key).toHaveValue('0001');
+    await expectStep(lab, 1);
+    await expect(ciphertext).toHaveText(original!);
+
+    await key.fill('000102030405060708090a0b0c0d0e0f');
+    await expect(lab.getByText(KEY_LENGTH_ERROR)).toHaveCount(0);
+    await expect(ciphertext).not.toHaveText(original!);
+    await expectStep(lab, 1);
   });
 });
 

@@ -24,6 +24,9 @@
   --cv-wire-role: var(--cv-state, GrayText);
   --cv-wire-glow: transparent;
   --cv-wire-box: 1.6rem;
+  /* Minimum box width: rows wrap to 16/8/4 boxes (WireView measures the strip) so boxes never shrink
+     below it or overlap. Keep in sync with WIRE_BOX_PITCH_EM (min box + 2px gap) in wireModel.ts. */
+  --cv-wire-box-min: calc(1.5em - 2px);
   display: grid;
   gap: 0.2rem;
   max-width: 100%;
@@ -86,10 +89,10 @@
   gap: 2px;
 }
 
-/* Offsets ruler in the gutter, then at most 16 boxes per row. */
+/* Offsets ruler in the gutter, then 16, 8 or 4 boxes per row. */
 .cv-wire__row {
   display: grid;
-  grid-template-columns: 2.6em repeat(var(--cv-wire-cols, 16), minmax(0, var(--cv-wire-box)));
+  grid-template-columns: 2.6em repeat(var(--cv-wire-cols, 16), minmax(var(--cv-wire-box-min), var(--cv-wire-box)));
   gap: 2px;
   align-items: center;
 }
@@ -105,7 +108,7 @@
   box-sizing: border-box;
   display: grid;
   place-items: center;
-  min-width: 0;
+  min-width: var(--cv-wire-box-min);
   height: 1.6rem;
   font-family: var(--sl-font-mono, ui-monospace, monospace);
   font-size: 0.72em;
@@ -121,6 +124,27 @@
   background-color: var(--cv-cell-focus-bg, Canvas);
   box-shadow: inset 0 0 0 100vmax var(--cv-wire-glow);
   font-weight: 700;
+}
+
+/* Not sent yet: dashed, dimmed through colour tokens (never opacity), value withheld (as in mode-chain). */
+.cv-wire__segment[data-pending] {
+  border-inline-start-style: dashed;
+  border-inline-start-color: var(--cv-cell-dim-border, GrayText);
+}
+
+.cv-wire__segment[data-pending] .cv-wire__glyph {
+  color: var(--cv-cell-dim-fg, GrayText);
+}
+
+.cv-wire__segment[data-pending] .cv-wire__byte {
+  color: var(--cv-cell-dim-fg, GrayText);
+  background: var(--cv-cell-dim-bg, Canvas);
+  border-style: dashed;
+  border-color: var(--cv-cell-dim-border, GrayText);
+}
+
+.cv-wire__legend [data-pending] {
+  border-block-end: 1px dashed var(--cv-cell-dim-border, GrayText);
 }
 
 .cv-wire__byte[data-flipped] {
@@ -146,12 +170,8 @@
   color: var(--cv-text-muted, GrayText);
 }
 
-/* Narrow panels: smaller boxes so a row of 16 still fits. */
+/* Narrow panels: slightly smaller text and lower boxes (rows wrap instead of squeezing the boxes). */
 @container (max-width: 30rem) {
-  .cv-wire__segment {
-    --cv-wire-box: 1.25rem;
-  }
-
   .cv-wire__byte {
     height: 1.35rem;
     font-size: 0.62em;

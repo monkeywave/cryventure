@@ -62,10 +62,10 @@ describe('ecb run: encrypt', () => {
     expect(ciphertext.slice(0, 32)).toBe(ciphertext.slice(32, 64));
   });
 
-  it('records pad once, then encryptBlock → emit per block, scoped block → op', () => {
+  it('records pad once at top level, then encryptBlock → emit per block, scoped block → op', () => {
     const steps = stateOf(bundle(runWith({}))).steps;
     expect(steps.map((step) => step.op)).toEqual(['pad', 'encryptBlock', 'emit', 'encryptBlock', 'emit', 'encryptBlock', 'emit']);
-    expect(steps.map((step) => step.scope)).toEqual([[0, 0], [0, 1], [0, 2], [1, 0], [1, 1], [2, 0], [2, 1]]);
+    expect(steps.map((step) => step.scope)).toEqual([[], [0, 0], [0, 1], [1, 0], [1, 1], [2, 0], [2, 1]]);
     expect(steps.every((step) => (ECB_OP_NAMES as readonly string[]).includes(step.op))).toBe(true);
   });
 
@@ -91,6 +91,18 @@ describe('ecb run: encrypt', () => {
     expect(wireIssues(wire, stateOf(trace).steps.length)).toEqual([]);
     expect(wire.segments.map((segment) => segment.id)).toEqual(['c0', 'c1', 'c2']);
     expect(wire.activeAt?.map((entry) => entry.step)).toEqual([2, 4, 6]);
+    expect(wire.segments.map((segment) => segment.availableAt)).toEqual([2, 4, 6]);
+  });
+
+  it('zooms with the params the cipher provides, and not at all without labParams', () => {
+    const { labParams: _, ...plainCipher } = aes;
+    const custom: BlockCipher = { ...aes, labParams: (_key, block) => ({ block: toHex(block) }) };
+    const zooms = (cipher: BlockCipher) => {
+      const trace = bundle(run(BASE, { resolve: (() => cipher) as unknown as PortResolver }));
+      return getFacet<ChainFacet>(trace, 'chain')!.nodes.filter((node) => node.kind === 'cipher').map((node) => node.zoom);
+    };
+    expect(zooms(plainCipher)).toEqual([undefined, undefined, undefined]);
+    expect(zooms(custom)[0]).toEqual({ producerId: 'aes', params: { block: BLOCK } });
   });
 
   it('declares key, plaintext and ciphertext values', () => {
@@ -109,6 +121,8 @@ describe('ecb run: decrypt', () => {
     const trace = bundle(runWith({ inputHex: input, direction: 'decrypt' }));
     expect(hexOut(trace, 'plaintext')).toBe(BLOCK + '01');
     expect(stateOf(trace).steps.map((step) => step.op)).toEqual(['decryptBlock', 'emit', 'decryptBlock', 'emit', 'unpad']);
+    expect(stateOf(trace).initialNarration).toEqual({ key: `${NS}.step.initialDecrypt`, params: { bytes: 32, count: 2, cipher: 'AES' } });
+    expect(getFacet<WireFacet>(trace, 'wire')!.segments.map((segment) => segment.availableAt)).toEqual([undefined, undefined]);
     const chain = getFacet<ChainFacet>(trace, 'chain')!;
     expect(chain.nodes.some((node) => node.zoom !== undefined)).toBe(false);
     expect(chain.nodes.find((node) => node.id === 'unpad')?.label.key).toBe(`${NS}.chain.unpad`);

@@ -76,7 +76,7 @@ describe('ctr run', () => {
 
   it('narrates the initial state and labels the scope levels', () => {
     const state = stateOf(bundle(runWith({})));
-    expect(state.initialNarration).toEqual({ key: `${NS}.step.initial`, params: { bytes: 20, blocks: 2, blockSize: 16, cipher: 'AES', counter: COUNTER } });
+    expect(state.initialNarration).toEqual({ key: `${NS}.step.initial`, params: { bytes: 20, count: 2, blockSize: 16, cipher: 'AES', counter: COUNTER } });
     expect(state.scopeLevels?.map((level) => level.labelKey)).toEqual([`${NS}.scope.block`, `${NS}.scope.op`]);
   });
 
@@ -96,6 +96,13 @@ describe('ctr run', () => {
     expect(wireIssues(wire, stateOf(trace).steps.length)).toEqual([]);
     expect(wire.segments.map((segment) => [segment.id, segment.role, segment.bytes.length])).toEqual([['nonce', 'nonce', 16], ['c0', 'ciphertext', 16], ['c1', 'ciphertext', 4]]);
     expect(wire.activeAt?.map((entry) => entry.step)).toEqual([-1, 1, 4]);
+    expect(wire.segments.map((segment) => segment.availableAt)).toEqual([undefined, 1, 4]);
+  });
+
+  it('zooms only when the cipher provides lab params', () => {
+    const { labParams: _, ...plainCipher } = aes;
+    const trace = bundle(run(BASE, { resolve: (() => plainCipher) as unknown as PortResolver }));
+    expect(getFacet<ChainFacet>(trace, 'chain')!.nodes.some((node) => node.zoom !== undefined)).toBe(false);
   });
 
   it('declares key, counter, input, keystream and output values', () => {

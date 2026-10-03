@@ -40,6 +40,11 @@ describe('prepareBlockCipher', () => {
     expect(prepared.ok && [...prepared.key]).toEqual([0x10, 0x20, 0x30, 0x40]);
   });
 
+  it('passes a failed module load through as core.error.portLoadFailed', () => {
+    const failed = Object.assign(() => undefined, { failed: () => true }) as unknown as PortResolver;
+    expect(prepareBlockCipher(failed, 'aes', '10203040')).toEqual({ ok: false, error: { key: 'core.error.portLoadFailed', params: { id: 'aes' } } });
+  });
+
   it('reports a missing port and a wrong key length as run errors', () => {
     expect(prepareBlockCipher(resolveToy, 'aes', '10203040')).toEqual({ ok: false, error: { key: 'core.error.portMissing', params: { id: 'aes' } } });
     expect(prepareBlockCipher(undefined, 'toy', '10203040')).toEqual({ ok: false, error: { key: 'core.error.portMissing', params: { id: 'toy' } } });

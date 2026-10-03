@@ -7,7 +7,10 @@ import { compareById, type PrimitiveManifest } from '../registry.ts';
  * Port plumbing for composites (docs/M3.md §2): a producer with a `port` param (e.g. `cipher`)
  * gets the implementation through a synchronous `resolve`, prepared once by `preparePorts`.
  */
-export type PortResolver = <N extends PortName>(port: N, id: string) => PortMap[N] | undefined;
+export type PortResolver = (<N extends PortName>(port: N, id: string) => PortMap[N] | undefined) & {
+  /** Whether the module behind `port`/`id` failed to load (set by `preparePorts`; see `requirePort`). */
+  readonly failed?: (port: PortName, id: string) => boolean;
+};
 
 /** Looks producers up by id (a `Registry<PrimitiveManifest>` fits). */
 export interface ProducerLookup {
@@ -35,21 +38,25 @@ export function portNamespaces(manifest: ParamFieldSource, producers: readonly P
 
 const portKey = (port: PortName, id: string): string => `${port}:${id}`;
 
-/** The port implementation of producer `id`, or `undefined` (unknown id, port not declared or not exposed, failed import). */
-async function loadPort(producers: ProducerLookup, port: PortName, id: string): Promise<PortMap[PortName] | undefined> {
+/** A loaded port, `undefined` (unknown id, port not declared or not exposed) or `LOAD_FAILED` (the import threw). */
+const LOAD_FAILED = Symbol('portLoadFailed');
+type LoadedPort = PortMap[PortName] | undefined | typeof LOAD_FAILED;
+
+async function loadPort(producers: ProducerLookup, port: PortName, id: string): Promise<LoadedPort> {
   const producer = producers.get(id);
   if (producer === undefined || !producer.implements.includes(port)) return undefined;
   try {
     return (await producer.load()).ports?.[port];
   } catch {
-    return undefined;
+    return LOAD_FAILED;
   }
 }
 
 /**
  * Loads the producer modules named by `manifest`'s port params in `params` and returns the
  * synchronous resolver for `run(params, { resolve })`. Never throws: anything that cannot be
- * loaded resolves to `undefined`, which the run reports via `requirePort`.
+ * loaded resolves to `undefined`, which the run reports via `requirePort`; a module whose import
+ * threw is also listed by `resolve.failed`.
  */
 export async function preparePorts(manifest: ParamFieldSource, params: unknown, producers: ProducerLookup): Promise<PortResolver> {
   const record = typeof params === 'object' && params !== null ? (params as Record<string, unknown>) : {};
@@ -59,13 +66,19 @@ export async function preparePorts(manifest: ParamFieldSource, params: unknown, 
   });
   const loaded = await Promise.all(named.map(async ({ port, id }) => [portKey(port, id), await loadPort(producers, port, id)] as const));
   const ports = new Map(loaded.filter(([, implementation]) => implementation !== undefined));
-  return <N extends PortName>(port: N, id: string) => ports.get(portKey(port, id)) as PortMap[N] | undefined;
+  const resolve = <N extends PortName>(port: N, id: string) => {
+    const implementation = ports.get(portKey(port, id));
+    return implementation === LOAD_FAILED ? undefined : (implementation as PortMap[N] | undefined);
+  };
+  return Object.assign(resolve, { failed: (port: PortName, id: string) => ports.get(portKey(port, id)) === LOAD_FAILED });
 }
 
-/** The port `id` resolves to, or a `core.error.portMissing` run error. */
+/** The port `id` resolves to, or a `core.error.portLoadFailed` (its module failed to load) / `core.error.portMissing` run error. */
 export function requirePort<N extends PortName>(resolve: PortResolver | undefined, port: N, id: string): RequirePortResult<N> {
   const implementation = resolve?.(port, id);
-  return implementation === undefined ? { ok: false, error: i18nRef('core.error.portMissing', { id }) } : { ok: true, port: implementation };
+  if (implementation !== undefined) return { ok: true, port: implementation };
+  const key = resolve?.failed?.(port, id) === true ? 'core.error.portLoadFailed' : 'core.error.portMissing';
+  return { ok: false, error: i18nRef(key, { id }) };
 }
 
 /** A `core.error.keyLength` run error listing the cipher's key sizes, or `undefined` when `key` fits. */

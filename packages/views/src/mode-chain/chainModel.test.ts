@@ -1,6 +1,6 @@
 import { chainActiveAt } from '@cryventure/core';
 import { describe, expect, it } from 'vitest';
-import { abbreviatedHex, groupLetter, hexLines, labelSegments, nodeRole, plainLabel, sameGroups, spacedHex } from './chainModel.ts';
+import { abbreviatedHex, groupLetter, groupsChangeStep, hexLines, labelSegments, nodeRole, plainLabel, sameGroups, sourceIds, spacedHex } from './chainModel.ts';
 import { chainCase } from './testFixture.ts';
 
 const block = Array.from({ length: 16 }, (_, i) => i);
@@ -48,8 +48,23 @@ describe('sameGroups', () => {
     expect([...groups.keys()]).toEqual(['b0.input', 'b1.input']);
   });
 
+  it('keys the groups by the last step that gave an input or output block its value', () => {
+    const { facet } = chainCase('ecb/repeated-blocks');
+    // Outputs arrive at steps 2, 4 and 6; the cipher steps in between change no group.
+    expect([-1, 0, 1, 2, 3, 4, 5, 6].map((step) => groupsChangeStep(facet, step))).toEqual([-1, 0, 0, 2, 2, 4, 4, 6]);
+  });
+
   it('letters groups A, B, …', () => {
     expect([0, 1, 25].map(groupLetter)).toEqual(['A', 'B', 'Z']);
+  });
+});
+
+describe('sourceIds', () => {
+  it('lists the nodes feeding a node, in edge order', () => {
+    const { facet } = chainCase('cbc/repeated-blocks');
+    expect(sourceIds(facet, 'b1.xor')).toEqual(['b1.input', 'b0.output']);
+    expect(sourceIds(facet, 'b0.cipher')).toEqual(['b0.xor']);
+    expect(sourceIds(facet, 'iv')).toEqual([]);
   });
 });
 

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { chainRows, edgePathData, layoutChain, neighbour, readingOrder, type LayoutMetrics } from './chainLayout.ts';
+import { centredScrollLeft, chainRows, edgePathData, layoutChain, neighbour, readingOrder, type LayoutMetrics } from './chainLayout.ts';
 import { chainCase } from './testFixture.ts';
 
 const metrics: LayoutMetrics = { nodeWidth: 100, hexLines: () => 0, hasLink: () => false };
@@ -61,5 +61,14 @@ describe('neighbour', () => {
     expect(move('b1.cipher', 'Home')).toBe(readingOrder(layout.boxes)[0]?.node.id);
     expect(move('b0.input', 'End')).toBe('b2.output');
     expect(move('b0.input', 'Enter')).toBeUndefined();
+  });
+});
+
+describe('centredScrollLeft', () => {
+  it('centres a span in the viewport, clamped to the scroll range', () => {
+    expect(centredScrollLeft({ left: 400, right: 500 }, 200, 1000)).toBe(350);
+    expect(centredScrollLeft({ left: 10, right: 60 }, 200, 1000)).toBe(0);
+    expect(centredScrollLeft({ left: 950, right: 1000 }, 200, 1000)).toBe(800);
+    expect(centredScrollLeft({ left: 950, right: 1000 }, 1200, 1000)).toBe(0);
   });
 });

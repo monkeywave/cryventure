@@ -78,9 +78,39 @@ describe('PenguinLab', () => {
     expect(status().textContent).toContain('Encrypting with AES-ECB');
     const ciphertext = new Uint8Array(32); // two equal blocks
     act(() => worker.respond({ id: worker.requests[0]!.id, ok: true, ciphertext }));
-    expect(status().textContent).toContain('AES-ECB: 1 of 2 ciphertext blocks repeat');
-    expect(screen.getByRole('img', { name: /ciphertext of the original image under AES-ECB/ })).toBeTruthy();
+    expect(status().textContent).toContain('AES-ECB: 1 of 2 ciphertext blocks repeats an earlier block.');
+    expect(screen.getByRole('img', { name: /under AES-ECB, drawn as pixels: 1 of 2 16-byte ciphertext blocks repeats an earlier block/ })).toBeTruthy();
     expect(screen.getByText('Encrypted (AES-ECB)')).toBeTruthy();
+  });
+
+  it('picks the plural form from the number of repeated blocks (EN and DE)', async () => {
+    stubCanvas();
+    await renderLab();
+    await userEvent.click(encryptButton());
+    const worker = FakeWorker.last();
+    act(() => worker.respond({ id: worker.requests[0]!.id, ok: true, ciphertext: new Uint8Array(48) })); // three equal blocks
+    expect(status().textContent).toContain('AES-ECB: 2 of 3 ciphertext blocks repeat an earlier block.');
+    cleanup();
+
+    render(<PenguinLab messages={{ ...de, ...coreEn }} locale="de" createWorker={FakeWorker.factory} />);
+    await waitFor(() => expect(screen.getByRole('img', { name: /Comic-Pinguin/ })).toBeTruthy());
+    await userEvent.click(screen.getByRole('button', { name: 'Verschlüsseln' }));
+    const deWorker = FakeWorker.last();
+    act(() => deWorker.respond({ id: deWorker.requests[0]!.id, ok: true, ciphertext: new Uint8Array(32) }));
+    expect(status().textContent).toContain('AES-ECB: 1 von 2 Geheimtextblöcken wiederholt einen früheren Block.');
+  });
+
+  it('refuses a picture over the size cap with a message instead of decoding it', async () => {
+    stubCanvas();
+    const createImageBitmap = vi.fn();
+    vi.stubGlobal('createImageBitmap', createImageBitmap);
+    await renderLab();
+    const file = new File(['x'], 'huge.jpg', { type: 'image/jpeg' });
+    Object.defineProperty(file, 'size', { value: 50 * 1024 * 1024 });
+    await userEvent.upload(screen.getByLabelText('Use your own picture'), file);
+    expect(screen.getByRole('alert').textContent).toBe(en['ui.penguin.upload.tooLarge'].replace('{{max}}', '20'));
+    expect(createImageBitmap).not.toHaveBeenCalled();
+    expect(screen.getByRole('img', { name: /cartoon penguin/ })).toBeTruthy();
   });
 
   it('blocks an invalid key, explains it and moves focus to the field', async () => {

@@ -1,0 +1,186 @@
+---
+title: 'CBC: chaining blocks'
+description: How CBC XORs each plaintext block with the previous ciphertext block, why the IV must be unpredictable, and why CBC is being retired in favour of authenticated encryption.
+lessonId: block-ciphers/modes/cbc
+track: block-ciphers
+phase: 1
+sidebar:
+  order: 2
+tableOfContents: false
+prereqs:
+  - block-ciphers/modes/ecb
+labs:
+  - cbc-chain
+refs:
+  - NIST SP 800-38A, Section 5.3 (Initialization Vectors)
+  - NIST SP 800-38A, Section 6.2 (The Cipher Block Chaining Mode)
+  - NIST SP 800-38A, Appendix C (Generation of Initialization Vectors)
+  - NIST SP 800-38A, Appendix D (Error Properties)
+  - NIST SP 800-38A, Appendix F.2 (CBC Example Vectors)
+  - RFC 5652, Section 6.3 (Content-encryption Process, PKCS#7 padding)
+  - RFC 7457, Sections 2.3 and 2.4 (Summarizing Known Attacks on TLS)
+  - RFC 8446, Section 1.2 (TLS 1.3, Major Differences from TLS 1.2)
+  - Wikipedia, "Block cipher mode of operation" (background reading)
+---
+
+import Lab from '../../../../../components/Lab.astro';
+import CheckQuestion from '../../../../../components/lesson/CheckQuestion.astro';
+import Formula from '../../../../../components/lesson/Formula.astro';
+import Lens from '../../../../../components/lesson/Lens.astro';
+import LessonSection from '../../../../../components/lesson/LessonSection.astro';
+import WhyBox from '../../../../../components/lesson/WhyBox.astro';
+
+<LessonSection part="concept">
+
+## Every block remembers the one before
+
+ECB's flaw is that equal plaintext blocks give equal ciphertext blocks. **Cipher Block Chaining**,
+CBC, fixes that by mixing in the past: before a plaintext block is encrypted, it is XORed with the
+previous ciphertext block (NIST SP 800-38A, §6.2). The first block has no predecessor, so it uses an
+**initialization vector** (IV) instead: `C₀ = IV`.
+
+<Formula caption="CBC encryption, NIST SP 800-38A §6.2.">
+{`C₀ = IV
+Cⱼ = E_K(Pⱼ ⊕ Cⱼ₋₁)        for j = 1 … n`}
+</Formula>
+
+<WhyBox constant="IV" title="an unpredictable IV">
+  The IV need not be secret, but it must be **unpredictable** for every message (SP 800-38A §5.3).
+  Appendix C gives two ways: encrypt a unique nonce with the same key, or draw the IV from an
+  approved random bit generator.
+</WhyBox>
+
+<Lens only="story">
+
+Think of a chain letter: each sentence is scrambled together with the scrambled sentence before it.
+Copy the same sentence twice and the two scrambled versions still look nothing alike.
+
+</Lens>
+
+</LessonSection>
+
+<LessonSection part="playground">
+
+## The same two blocks, now different
+
+The lab encrypts the same plaintext as the ECB lesson: "ATTACK AT DAWN!!" twice (32 bytes), with
+AES-128, the key and the IV `000102030405060708090a0b0c0d0e0f` from SP 800-38A, Appendix F.2. Step
+through the chain: `P₁` and `P₂` are equal, yet `C₁` and `C₂` differ, because `P₂` is XORed with
+`C₁` and not with the IV.
+
+<Lab labId="cbc-chain" producerId="cbc" presetId="repeated-blocks" layout="mode-chain:45|wire:25|narration:30" />
+
+</LessonSection>
+
+<LessonSection part="inside">
+
+## Sequential one way, parallel the other
+
+<Formula caption="CBC decryption, NIST SP 800-38A §6.2.">
+{`Pⱼ = D_K(Cⱼ) ⊕ Cⱼ₋₁        for j = 1 … n,  C₀ = IV`}
+</Formula>
+
+In the lab, `P₁ ⊕ IV = 41555642474e26465c294e4a5b432f2e` encrypts to
+`C₁ = d4d884b41d73a43210dd016d64d82e52`, and `P₂ ⊕ C₁ = 958cd0f55e38847344fd452c33960f73` encrypts
+to `C₂ = b0117a218182ee3bc8e39d9093fb3b27`.
+
+**Encryption is sequential**: block `j` needs `Cⱼ₋₁` first. **Decryption can run in parallel**: all
+ciphertext blocks are already known, so every `D_K(Cⱼ)` can be computed at once (SP 800-38A §6.2).
+
+**Error propagation** (SP 800-38A, Appendix D): a flipped bit in `Cⱼ` garbles all of `Pⱼ`, and flips
+the same bit position in `Pⱼ₊₁`. Every later block decrypts correctly.
+
+<Lens level="cryptographer">
+
+That second effect is a feature for an attacker: flipping a chosen bit in `Cⱼ₋₁` flips exactly that
+bit in `Pⱼ`, without any error being reported. CBC is malleable, so it is not IND-CCA secure.
+
+</Lens>
+
+</LessonSection>
+
+<LessonSection part="memory">
+
+## What CBC ciphertext looks like
+
+The receiver needs the IV, so it is usually sent in clear in front of the ciphertext:
+
+<Formula caption="A common CBC wire layout; the IV is not secret.">
+{`IV ‖ C₁ ‖ C₂ ‖ … ‖ Cₙ        (16 + 16·n bytes for AES)`}
+</Formula>
+
+Like ECB, CBC works on whole blocks, and SP 800-38A leaves padding to the application. With
+**PKCS#7** (RFC 5652, §6.3) our 32-byte message gets a full block of `10` bytes, so the wire carries
+16 + 48 = 64 bytes. The last block `C₃ = bf48eacf1af5d993343034e7539daba0` encrypts that padding.
+
+<WhyBox constant="C₀" title="the IV as block zero">
+  Treating the IV as `C₀` makes the formula uniform: every block, including the first, is XORed
+  with the 16 bytes in front of it on the wire.
+</WhyBox>
+
+</LessonSection>
+
+<LessonSection part="break">
+
+## Why CBC is being retired
+
+CBC provides **confidentiality only**. It has no integrity check, so it must be combined with a
+message authentication code (MAC). Getting that combination right proved error-prone, and TLS shows
+the history (RFC 7457):
+
+- **BEAST** (2011): TLS 1.0 used a predictable IV for CBC records (RFC 7457, §2.3).
+- **Lucky Thirteen** (2013): timing differences in how TLS processes CBC padding and the MAC leaked
+  information (RFC 7457, §2.4).
+- **POODLE** (2014): SSL 3.0 did not check its CBC padding properly (RFC 7457, §2.4).
+
+Each was patched, but the pattern kept returning. TLS 1.3 removed every cipher suite that is not
+authenticated encryption (RFC 8446, §1.2). For background, see the Wikipedia article "Block cipher
+mode of operation".
+
+<Lens level="engineer">
+
+For new designs, prefer authenticated encryption such as **AES-GCM** (next milestone): it encrypts
+and authenticates in one step, so there is no MAC to combine by hand.
+
+</Lens>
+
+</LessonSection>
+
+<LessonSection part="check">
+
+## Check yourself
+
+<CheckQuestion
+  id="cbc-equal-blocks"
+  number={1}
+  question="Under one key and one IV, a message contains the same 16-byte block twice in a row. What does CBC produce?"
+  options={['Two equal ciphertext blocks', 'Two different ciphertext blocks', 'An error; CBC rejects repeated blocks', 'One block; duplicates are dropped']}
+  answer={1}
+>
+  The second block is XORed with `C₁` before encryption, the first with the IV, so the cipher inputs
+  differ (SP 800-38A §6.2). In the lab, `C₁ = d4d884b4…` and `C₂ = b0117a21…`.
+</CheckQuestion>
+
+<CheckQuestion
+  id="cbc-iv-requirement"
+  number={2}
+  question="What does SP 800-38A require of the CBC IV?"
+  options={['It must be secret', 'It must be all zeros', 'It must be unpredictable', 'It must equal the key']}
+  answer={2}
+>
+  The IV may travel in clear, but it must be unpredictable (SP 800-38A §5.3, Appendix C). BEAST
+  exploited predictable IVs in TLS 1.0.
+</CheckQuestion>
+
+<CheckQuestion
+  id="cbc-bit-error"
+  number={3}
+  question="One bit of ciphertext block Cⱼ is flipped in transit. Which plaintext blocks are affected on decryption?"
+  options={['Only Pⱼ', 'Pⱼ and Pⱼ₊₁', 'Pⱼ and every block after it', 'None; CBC detects the error']}
+  answer={1}
+>
+  `Pⱼ` is garbled completely and the same bit flips in `Pⱼ₊₁`; later blocks are fine (SP 800-38A,
+  Appendix D). CBC detects nothing: it has no integrity.
+</CheckQuestion>
+
+</LessonSection>

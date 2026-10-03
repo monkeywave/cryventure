@@ -1,0 +1,46 @@
+{
+  "foundations/endianness": {
+    "1": "le-byte-at-offset-0",
+    "2": "network-byte-order",
+    "3": "round-key-word-bytes"
+  },
+  "foundations/gf256": {
+    "1": "gf-addition",
+    "2": "xtime-80",
+    "3": "irreducible-modulus"
+  },
+  "foundations/xor": {
+    "1": "xor-with-ff",
+    "2": "two-time-pad",
+    "3": "otp-possible-plaintexts"
+  },
+  "symmetric/aes": {
+    "1": "aes192-rounds",
+    "2": "input-byte-5-position",
+    "3": "final-round-omits"
+  },
+  "symmetric/aes/key-expansion": {
+    "1": "aes256-key-words",
+    "2": "rcon-10",
+    "3": "aes256-extra-step"
+  },
+  "symmetric/aes/memory-and-hardware": {
+    "1": "armv8-aese-round-key",
+    "2": "openssl-rd-key-size"
+  },
+  "symmetric/aes/sbox-derivation": {
+    "1": "sbox-of-01",
+    "2": "inverse-sbox-of-63",
+    "3": "differential-uniformity"
+  },
+  "symmetric/aes/shiftrows-mixcolumns": {
+    "1": "shiftrows-row-3",
+    "2": "xtime-57",
+    "3": "mixcolumns-diffusion"
+  },
+  "symmetric/aes/subbytes-sbox": {
+    "1": "sbox-of-00",
+    "2": "sbox-fixed-points",
+    "3": "sbox-nonlinearity"
+  }
+}

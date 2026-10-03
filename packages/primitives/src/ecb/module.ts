@@ -4,18 +4,16 @@ import {
   blockModeOutputs,
   ecbDecrypt,
   ecbEncrypt,
-  INITIAL_STEP_INDEX,
+  blockModeValues,
   narrationFromState,
   parseHexToArray,
   prepareBlockCipher,
   runPrimitive,
   scopeLevels,
-  valueRef,
   type I18nRef,
   type PrimitiveRecording,
   type RunOptions,
   type RunResult,
-  type ValuesFacet,
 } from '@cryventure/core';
 import { ecbChain, ecbWire, type EcbFacetContext } from './ecbFacets.ts';
 import { recordEcb, type EcbRecording, type EcbRun } from './ecbTrace.ts';
@@ -24,18 +22,6 @@ import { ecbManifest, type EcbParams } from './manifest.ts';
 /** ECB producer: Cᵢ = E_K(Pᵢ), every block on its own, over the `BlockCipher` named by `cipher`. */
 const NS = 'plugin.ecb';
 const ECB_SCOPE_LEVELS = scopeLevels(NS, 'block', 'op');
-
-/** Key and input exist from the initial state on; the output from the last step. */
-export function buildEcbValues(run: EcbRun, key: number[], outputs: Record<string, number[]>, lastStep: number): ValuesFacet {
-  const inputName = run.direction === 'encrypt' ? 'plaintext' : 'ciphertext';
-  const [outputName, outputBytes] = Object.entries(outputs)[0] ?? ['ciphertext', []];
-  const values = [
-    valueRef(NS, 'key', 'key', key, INITIAL_STEP_INDEX),
-    valueRef(NS, inputName, inputName, run.data, INITIAL_STEP_INDEX),
-    valueRef(NS, outputName, run.direction === 'encrypt' ? 'ciphertext' : 'plaintext', outputBytes, lastStep),
-  ];
-  return { kind: 'values', schemaVersion: 1, values };
-}
 
 /** The untraced core reference over the bytes the trace processed (padded plaintext or ciphertext). */
 function referenceOutput(run: EcbRun, key: Uint8Array, recording: EcbRecording): Uint8Array {
@@ -49,16 +35,16 @@ function blockErrors({ cipher, data, direction, padding }: EcbRun): I18nRef | un
   return needsAlignment ? alignmentError(cipher, data.length, `${NS}.error.notAligned`) : undefined;
 }
 
-function recordBundle(ecbRun: EcbRun, keyHex: string): PrimitiveRecording {
+function recordBundle(ecbRun: EcbRun): PrimitiveRecording {
   const recording = recordEcb(ecbRun);
   assertMatchesReference(recording.processed, referenceOutput(ecbRun, ecbRun.key, recording), 'ecb');
   const facet = { ...recording.facet, scopeLevels: ECB_SCOPE_LEVELS };
-  const context: EcbFacetContext = { direction: ecbRun.direction, cipherId: ecbRun.cipher.id, keyHex };
+  const context: EcbFacetContext = { direction: ecbRun.direction, cipher: ecbRun.cipher, key: ecbRun.key };
   const output = blockModeOutputs(ecbRun.direction, recording.processed, recording.unpad?.result);
   return {
     facets: {
       state: facet,
-      values: buildEcbValues(ecbRun, Array.from(ecbRun.key), output, facet.steps.length - 1),
+      values: blockModeValues(NS, { direction: ecbRun.direction, key: Array.from(ecbRun.key), data: ecbRun.data, outputs: output, lastStep: facet.steps.length - 1 }),
       narration: narrationFromState(facet),
       chain: ecbChain(recording, context),
       wire: ecbWire(recording, context),
@@ -77,5 +63,5 @@ export function run(params: EcbParams, options: RunOptions = {}): RunResult {
   const ecbRun: EcbRun = { cipher: prepared.cipher, key: prepared.key, data: parseHexToArray(valid.inputHex), direction: valid.direction, padding: valid.padding };
   const error = blockErrors(ecbRun);
   if (error !== undefined) return { ok: false, error };
-  return runPrimitive(ecbManifest, valid, () => recordBundle(ecbRun, valid.keyHex));
+  return runPrimitive(ecbManifest, valid, () => recordBundle(ecbRun));
 }

@@ -31,6 +31,32 @@ describe('modeFacetIssues', () => {
   it('checks step ranges against the state facet', () => {
     expect(modeFacetIssues(bundleWith({ chain, wire }, 0)).length).toBeGreaterThanOrEqual(2);
   });
+
+  it('requires every chain and wire valueRef to exist in the values facet', () => {
+    const values = { kind: 'values', schemaVersion: 1, values: [{ id: 'iv', labelKey: 'plugin.x.value.iv', role: 'nonce', bytes: [1], createdAt: -1 }] };
+    const refChain: ChainFacet = { ...chain, nodes: chain.nodes.map((node, index) => ({ ...node, valueRef: index === 0 ? 'iv' : 'gone' })) };
+    const refWire: WireFacet = { ...wire, segments: wire.segments.map((segment) => ({ ...segment, valueRef: 'missing' })) };
+    expect(modeFacetIssues(bundleWith({ chain: refChain, wire: refWire, values }, 1))).toEqual([
+      'chain: node "b0.out" valueRef "gone" is not in the values facet',
+      'wire: segment "c" valueRef "missing" is not in the values facet',
+    ]);
+    expect(modeFacetIssues(bundleWith({ chain: refChain }, 1))).toHaveLength(2);
+  });
+
+  it('rejects wire highlights on bytes of a segment that is not available yet', () => {
+    const late: WireFacet = { ...wire, segments: [{ ...wire.segments[0]!, availableAt: 1 }], activeAt: [{ step: 0, offsets: [0] }] };
+    const lateChain: ChainFacet = { ...chain, nodes: chain.nodes.map((node) => ({ ...node, block: -1 })) };
+    expect(modeFacetIssues(bundleWith({ chain: lateChain, wire: late }, 2))).toEqual(['wire: activeAt step 0 highlights offset 0 of segment "c", available only from step 1']);
+  });
+
+  it('requires a chain output node to get its value when the wire segment of its block is sent', () => {
+    const sent: WireFacet = { ...wire, segments: [{ ...wire.segments[0]!, block: 0, availableAt: 1 }], activeAt: [{ step: 1, offsets: [0] }] };
+    expect(modeFacetIssues(bundleWith({ chain, wire: sent }, 2))).toEqual(['chain: output node "b0.out" activeAt 0 differs from wire segment "c" availableAt 1']);
+    const matching: WireFacet = { ...sent, segments: [{ ...sent.segments[0]!, availableAt: 0 }], activeAt: [{ step: 0, offsets: [0] }] };
+    expect(modeFacetIssues(bundleWith({ chain, wire: matching }, 2))).toEqual([]);
+    const unpaired: WireFacet = { ...sent, segments: [{ ...sent.segments[0]!, block: 3 }] };
+    expect(modeFacetIssues(bundleWith({ chain, wire: unpaired }, 2))).toEqual([]);
+  });
 });
 
 describe('modeFacetRefs', () => {

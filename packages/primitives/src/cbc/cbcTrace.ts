@@ -1,20 +1,24 @@
 import {
   allIndices,
   blockIndices,
+  cipherName,
+  encryptInputLength,
   highlight,
   i18nRef,
-  padStep,
   BlockOpRecorder,
+  recordPadding,
   toHex,
+  unpaddedInputRegion,
   unpadStep,
   xorBytes,
   zeroSnapshot,
   type BlockCipher,
   type ModeDirection,
   type ModePadding,
-  type Pkcs7UnpadResult,
+  type PadRecord,
   type RegionSpec,
   type StateFacet,
+  type UnpadRecord,
 } from '@cryventure/core';
 import type { CbcOpName } from './manifest.ts';
 
@@ -52,8 +56,6 @@ export interface CbcRun {
 export interface CbcBlockTrace {
   /** The block of the input region (Pᵢ when encrypting, Cᵢ when decrypting). */
   input: number[];
-  /** Cᵢ₋₁ (the IV for the first block). */
-  previous: number[];
   cipherIn: number[];
   cipherOut: number[];
   output: number[];
@@ -65,13 +67,12 @@ export interface CbcRecording {
   blocks: CbcBlockTrace[];
   /** Everything the output region ends with (all blocks; still padded after decryption). */
   processed: number[];
-  pad?: { step: number; bytes: number[] };
-  unpad?: { step: number; result: Pkcs7UnpadResult };
+  pad?: PadRecord;
+  unpad?: UnpadRecord;
 }
 
 type CbcRecorder = BlockOpRecorder<CbcRegion, CbcOp>;
 
-const cipherName = (cipher: BlockCipher): string => cipher.id.toUpperCase();
 const xorRows = (a: readonly number[], b: readonly number[]): number[] => Array.from(xorBytes(a, b));
 
 function xorChainNarration(direction: ModeDirection, index: number, block: number[], previous: number[], result: number[]) {
@@ -108,7 +109,7 @@ function encryptBlockSteps(recorder: CbcRecorder, run: CbcRun, index: number, in
     highlights: [highlight('work', 'read', whole), highlight('output', 'write', indices), highlight('chain', 'write', whole)],
     narration: i18nRef(`${NS}.step.emitEncrypt`, { n: index + 1, block: toHex(cipherOut) }),
   });
-  return { input, previous, cipherIn, cipherOut, output: cipherOut, steps: { xor, cipher, emit } };
+  return { input, cipherIn, cipherOut, output: cipherOut, steps: { xor, cipher, emit } };
 }
 
 /** Decrypts block `index`: decryptBlock (work = D_K(Cᵢ)) → xorChain (work ⊕= Cᵢ₋₁) → emit (output = Pᵢ, chain = Cᵢ). */
@@ -139,26 +140,20 @@ function decryptBlockSteps(recorder: CbcRecorder, run: CbcRun, index: number, in
     highlights: [highlight('work', 'read', whole), highlight('output', 'write', indices), highlight('input', 'read', indices), highlight('chain', 'write', whole)],
     narration: i18nRef(`${NS}.step.emitDecrypt`, { n: index + 1, block: toHex(output) }),
   });
-  return { input, previous, cipherIn: input, cipherOut, output, steps: { xor, cipher, emit } };
+  return { input, cipherIn: input, cipherOut, output, steps: { xor, cipher, emit } };
 }
 
 function recordEncrypt(run: CbcRun): CbcRecording {
   const { cipher, iv, data } = run;
   const blockSize = cipher.blockSize;
-  const length = run.padding === 'pkcs7' ? data.length + blockSize - (data.length % blockSize) : data.length;
+  const length = encryptInputLength(data.length, blockSize, run.padding);
   const regions = cbcRegions(length, blockSize);
-  const initial = { ...zeroSnapshot(regions), input: [...data, ...new Array<number>(length - data.length).fill(0)], iv: [...iv], chain: [...iv] };
+  const initial = { ...zeroSnapshot(regions), input: unpaddedInputRegion(data, length), iv: [...iv], chain: [...iv] };
   const recorder: CbcRecorder = new BlockOpRecorder(regions, initial, i18nRef(`${NS}.step.initialEncrypt`, { bytes: data.length, blockSize, cipher: cipherName(cipher) }));
-  let padded = data;
-  let pad: CbcRecording['pad'];
+  const { padded, pad } = recordPadding(recorder, NS, data, blockSize, run.padding);
   const blocks: CbcBlockTrace[] = [];
   for (const index of allIndices(length / blockSize)) {
     recorder.block(index, () => {
-      if (index === 0 && run.padding === 'pkcs7') {
-        const padding = padStep(NS, data, blockSize);
-        padded = padding.padded;
-        pad = { step: recorder.op(padding.step), bytes: padded.slice(data.length) };
-      }
       const previous = blocks.at(-1)?.output ?? iv;
       blocks.push(encryptBlockSteps(recorder, run, index, padded.slice(index * blockSize, (index + 1) * blockSize), previous));
     });
@@ -172,7 +167,7 @@ function recordDecrypt(run: CbcRun): CbcRecording {
   const regions = cbcRegions(data.length, blockSize);
   const blockTotal = data.length / blockSize;
   const initial = { ...zeroSnapshot(regions), input: [...data], iv: [...iv], chain: [...iv] };
-  const recorder: CbcRecorder = new BlockOpRecorder(regions, initial, i18nRef(`${NS}.step.initialDecrypt`, { bytes: data.length, blocks: blockTotal, cipher: cipherName(cipher) }));
+  const recorder: CbcRecorder = new BlockOpRecorder(regions, initial, i18nRef(`${NS}.step.initialDecrypt`, { bytes: data.length, count: blockTotal, cipher: cipherName(cipher) }));
   const blocks: CbcBlockTrace[] = [];
   let unpad: CbcRecording['unpad'];
   for (const index of allIndices(blockTotal)) {

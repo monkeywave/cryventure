@@ -37,7 +37,7 @@ export function EncryptedFigure({ canvasRef, job, stats }: EncryptedFigureProps)
   const t = useT();
   const done = job.status === 'done' ? job.result : undefined;
   const mode = done?.mode.toUpperCase();
-  const label = done && stats ? t('ui.penguin.encrypted.alt', { mode: mode!, ...stats }) : t('ui.penguin.encrypted.altEmpty');
+  const label = done && stats ? t('ui.penguin.encrypted.alt', { mode: mode!, ...stats, count: stats.repeated }) : t('ui.penguin.encrypted.altEmpty');
   return (
     <figure className="cv-penguin__figure" aria-busy={job.status === 'busy'}>
       <div className="cv-penguin__frame">

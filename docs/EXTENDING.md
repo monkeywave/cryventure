@@ -93,8 +93,8 @@ minimal `import.meta.glob` typing lives once in `types/import-meta.d.ts` and is 
 
 `{ name: 'plaintext', kind: 'text', labelKey, maxLength: 48 }` is a UTF-8 string param rendered as a
 text input. `maxLength` counts UTF-8 bytes, not characters. In `validate()`, use
-`readText(input, maxLength)` (`undefined` = not a string or too long); `utf8Bytes(text)` and
-`utf8Text(bytes)` in core convert between text and bytes. The contract kit checks that `maxLength`
+`readText(input, maxLength)` (`undefined` = not a string or too long); `utf8Bytes(text)` in core
+converts the text to bytes. The contract kit checks that `maxLength`
 is a positive integer and that `defaults` and every preset fit it.
 
 ### Ports and composites

@@ -2,8 +2,8 @@ import { memo, useEffect, useMemo, useRef, useState, type KeyboardEvent } from '
 import { m, useReducedMotion } from 'motion/react';
 import { chainActiveAt, type ChainFacet, type ChainNode, type Lens } from '@cryventure/core';
 import { ViewStatus, useFacet, useLab, useLabActions, useLabLayout, useT, type ViewProps } from '@cryventure/viz';
-import { layoutChain, neighbour, readingOrder, type ChainLayout, type EdgePath, type LayoutMetrics, type NodeBox } from './chainLayout.ts';
-import { abbreviatedHex, groupLetter, hexLines, labelSegments, nodeRole, plainLabel, sameGroups, spacedHex, type SameGroup } from './chainModel.ts';
+import { centredScrollLeft, layoutChain, neighbour, readingOrder, spanOf, type ChainLayout, type EdgePath, type LayoutMetrics, type NodeBox } from './chainLayout.ts';
+import { abbreviatedHex, groupLetter, groupsChangeStep, hexLines, labelSegments, nodeRole, plainLabel, sameGroups, sourceIds, spacedHex, type SameGroup } from './chainModel.ts';
 import './modeChain.css';
 
 /**
@@ -13,7 +13,9 @@ import './modeChain.css';
  * active (Motion; instant under reduced motion). Equal input/output blocks share a ≡ letter and
  * pattern (ECB's leak). Story lens: labels only; engineer: hex; cryptographer: also the formula and
  * subscripted block indices. Cipher nodes link into the block cipher's own lab when the host can
- * build such links. Nodes use a roving tabindex (arrow keys, Home/End).
+ * build such links (Enter on the node follows it). Nodes use a roving tabindex (arrow keys, Home/End);
+ * each node's accessible name says where its inputs come from, since the edges are drawn only. The
+ * scroller keeps the lane computed in this step centred.
  */
 const STATUS_KEYS = { loading: 'view.mode-chain.loading', missing: 'view.mode-chain.missing' } as const;
 
@@ -52,11 +54,13 @@ interface NodeViewProps {
   compact: boolean;
   same: SameGroup | undefined;
   sameNames: string;
+  /** Screen names of the nodes feeding this one, joined ('' for none). */
+  sources: string;
   tabbable: boolean;
   onFocusNode: (id: string) => void;
 }
 
-function useNodeAriaLabel({ box, status, lens, same, sameNames }: Pick<NodeViewProps, 'box' | 'status' | 'lens' | 'same' | 'sameNames'>): string {
+function useNodeAriaLabel({ box, status, lens, same, sameNames, sources }: Pick<NodeViewProps, 'box' | 'status' | 'lens' | 'same' | 'sameNames' | 'sources'>): string {
   const t = useT();
   const { node } = box;
   const label = plainLabel(t(node.label));
@@ -64,6 +68,7 @@ function useNodeAriaLabel({ box, status, lens, same, sameNames }: Pick<NodeViewP
   const parts = [status === 'pending' ? t('view.mode-chain.nodePending', { name }) : lens === 'story' ? name : t('view.mode-chain.nodeValue', { name, hex: spacedHex(node.bytes) })];
   if (status === 'current') parts.push(t('view.mode-chain.nodeCurrent'));
   if (same !== undefined) parts.push(t('view.mode-chain.sameAs', { others: sameNames }));
+  if (sources !== '') parts.push(t('view.mode-chain.from', { sources }));
   return parts.join(t('view.mode-chain.separator'));
 }
 
@@ -72,6 +77,7 @@ const NodeView = memo(function NodeView(props: NodeViewProps) {
   const t = useT();
   const { node } = box;
   const href = useZoomHref(node);
+  const linkRef = useRef<HTMLAnchorElement>(null);
   const label = t(node.label);
   const showHex = lens !== 'story';
   const lines = status === 'pending' ? [PENDING_TEXT] : compact ? [abbreviatedHex(node.bytes)] : hexLines(node.bytes);
@@ -82,7 +88,6 @@ const NodeView = memo(function NodeView(props: NodeViewProps) {
       style={{ left: box.x, top: box.y, width: box.width, height: box.height }}
       tabIndex={tabbable ? 0 : -1}
       aria-label={useNodeAriaLabel(props)}
-      aria-current={status === 'current' ? 'step' : undefined}
       title={showHex && status !== 'pending' ? `${plainLabel(label)}: ${spacedHex(node.bytes)}` : undefined}
       data-node={node.id}
       data-kind={node.kind}
@@ -90,6 +95,9 @@ const NodeView = memo(function NodeView(props: NodeViewProps) {
       data-status={status}
       data-same={same?.index}
       onFocus={() => onFocusNode(node.id)}
+      onKeyDown={(event) => {
+        if (event.key === 'Enter' && event.target === event.currentTarget) linkRef.current?.click();
+      }}
     >
       <span className="cv-chain__label" aria-hidden="true">
         {status === 'current' && <span className="cv-chain__glyph">{CURRENT_GLYPH}</span>}
@@ -109,7 +117,7 @@ const NodeView = memo(function NodeView(props: NodeViewProps) {
         </span>
       )}
       {href !== undefined && (
-        <a className="cv-chain__zoom" href={href}>
+        <a ref={linkRef} className="cv-chain__zoom" href={href} tabIndex={tabbable ? 0 : -1}>
           {t('view.mode-chain.zoom', { n: node.block + 1 })}
         </a>
       )}
@@ -208,6 +216,44 @@ function useMetrics(lens: Lens, compact: boolean, hasLinks: boolean): LayoutMetr
   );
 }
 
+/**
+ * Keeps the nodes computed in this step centred in the scroller (instantly under reduced motion).
+ * Only the scroller moves (scrollTo), never the page.
+ */
+function useCentredCurrentLane(layout: ChainLayout, step: number) {
+  const scrollerRef = useRef<HTMLDivElement>(null);
+  const reduceMotion = useReducedMotion() ?? false;
+  const span = spanOf(layout.boxes.filter((box) => statusAt(box.node.activeAt, step) === 'current'));
+  const left = span?.left;
+  const right = span?.right;
+  useEffect(() => {
+    const scroller = scrollerRef.current;
+    if (scroller === null || left === undefined || right === undefined) return;
+    const target = centredScrollLeft({ left, right }, scroller.clientWidth, scroller.scrollWidth);
+    if (typeof scroller.scrollTo === 'function') scroller.scrollTo({ left: target, behavior: reduceMotion ? 'auto' : 'smooth' });
+    else scroller.scrollLeft = target;
+  }, [left, right, reduceMotion]);
+  return scrollerRef;
+}
+
+/** Screen-reader names of nodes: the label, plus the block where the label alone is ambiguous (⊕, E K). */
+function useScreenNames(facet: ChainFacet): (id: string) => string {
+  const t = useT();
+  return useMemo(() => {
+    const labels = new Map(facet.nodes.map((node) => [node.id, plainLabel(t(node.label))]));
+    const counts = new Map<string, number>();
+    for (const label of labels.values()) counts.set(label, (counts.get(label) ?? 0) + 1);
+    const names = new Map(
+      facet.nodes.map((node) => {
+        const label = labels.get(node.id) ?? '';
+        const ambiguous = (counts.get(label) ?? 0) > 1 && node.block >= 0;
+        return [node.id, ambiguous ? t('view.mode-chain.nodeName', { label, n: node.block + 1 }) : label];
+      }),
+    );
+    return (id: string) => names.get(id) ?? '';
+  }, [facet, t]);
+}
+
 /** The full hex of the focused node, below the diagram (abbreviated values stay readable). */
 function Readout({ facet, id, step }: { facet: ChainFacet; id: string | null; step: number }) {
   const t = useT();
@@ -252,9 +298,14 @@ function ModeChain({ facet, lens }: { facet: ChainFacet; lens: Lens }) {
   const { labHref } = useLabActions();
   const metrics = useMetrics(lens, narrow, labHref !== undefined);
   const layout = useMemo(() => layoutChain(facet, metrics), [facet, metrics]);
-  const active = useMemo(() => chainActiveAt(facet, step).nodes, [facet, step]);
-  const groups = useMemo(() => sameGroups(facet, active), [facet, active]);
+  // Groups change only when an input/output block gets its value: memoised on that step, they stay
+  // the same objects across the steps in between, so the memoised nodes skip re-rendering.
+  const groupsStep = groupsChangeStep(facet, step);
+  const groups = useMemo(() => sameGroups(facet, chainActiveAt(facet, groupsStep).nodes), [facet, groupsStep]);
   const { canvasRef, tabbableId, focusedId, setFocusedId, onKeyDown } = useRovingFocus(layout);
+  const scrollerRef = useCentredCurrentLane(layout, step);
+  const screenName = useScreenNames(facet);
+  const sourcesOf = (id: string) => sourceIds(facet, id).map(screenName).join(t('view.mode-chain.sourceSeparator'));
   const namesOf = (group: SameGroup | undefined, self: string) =>
     (group?.ids ?? [])
       .filter((id) => id !== self)
@@ -268,7 +319,7 @@ function ModeChain({ facet, lens }: { facet: ChainFacet; lens: Lens }) {
           <Label text={t(facet.formula)} blockIndices={false} />
         </p>
       )}
-      <div className="cv-chain__scroll cv-scroll-shadow">
+      <div ref={scrollerRef} className="cv-chain__scroll cv-scroll-shadow">
         <div
           ref={canvasRef}
           role="group"
@@ -291,6 +342,7 @@ function ModeChain({ facet, lens }: { facet: ChainFacet; lens: Lens }) {
                 compact={narrow}
                 same={same}
                 sameNames={namesOf(same, box.node.id)}
+                sources={sourcesOf(box.node.id)}
                 tabbable={box.node.id === tabbableId}
                 onFocusNode={setFocusedId}
               />

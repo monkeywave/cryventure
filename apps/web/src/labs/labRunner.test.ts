@@ -80,6 +80,59 @@ describe('createLabRunner', () => {
     expect(await runner.run(inWorker, { cipher: 'toy' })).toEqual(LOAD_FAILED);
   });
 
+  it('settles a worker run that never answers as timed out and terminates the worker', async () => {
+    vi.useFakeTimers();
+    try {
+      const { workers, factory } = fakeWorkers();
+      const pending = createLabRunner(factory, toyProducers, { timeoutMs: 1000 }).run(inWorker, { cipher: 'toy' });
+      await vi.advanceTimersByTimeAsync(1000);
+      expect(await pending).toEqual({ ok: false, error: { key: 'ui.lab.error.timedOut' } });
+      expect(workers[0]?.terminated).toBe(true);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('defaults to a generous 30 s timeout', async () => {
+    vi.useFakeTimers();
+    try {
+      const { workers, factory } = fakeWorkers();
+      const pending = createLabRunner(factory, toyProducers).run(inWorker, { cipher: 'toy' });
+      await vi.advanceTimersByTimeAsync(29_999);
+      expect(workers[0]?.terminated).toBe(false);
+      await vi.advanceTimersByTimeAsync(1);
+      expect(await pending).toEqual({ ok: false, error: { key: 'ui.lab.error.timedOut' } });
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('clears the timeout once the worker answered', async () => {
+    vi.useFakeTimers();
+    try {
+      const { workers, factory } = fakeWorkers();
+      const pending = createLabRunner(factory, toyProducers, { timeoutMs: 1000 }).run(inWorker, { cipher: 'toy' });
+      await workers[0]?.answer();
+      expect((await pending).ok).toBe(true);
+      expect(vi.getTimerCount()).toBe(0);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('settles as a failed load when the request cannot be posted', async () => {
+    const { workers, factory } = fakeWorkers();
+    const runner = createLabRunner(() => {
+      const worker = factory();
+      worker.postMessage = () => {
+        throw new Error('DataCloneError');
+      };
+      return worker;
+    }, toyProducers);
+    expect(await runner.run(inWorker, { cipher: 'toy' })).toEqual(LOAD_FAILED);
+    expect(workers[0]?.terminated).toBe(true);
+  });
+
   it('dispose terminates a running worker', () => {
     const { workers, factory } = fakeWorkers();
     const runner = createLabRunner(factory, toyProducers);

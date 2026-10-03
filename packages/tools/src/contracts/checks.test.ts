@@ -54,6 +54,15 @@ describe('refProblems', () => {
   it('reports missing keys and param mismatches per locale', () => {
     expect(refProblems([{ key: 'plugin.x.step', params: { n: 1 } }, { key: 'nope' }], catalogs)).toEqual(['en:nope missing', 'de:plugin.x.step params [n] vs template []', 'de:nope missing']);
   });
+
+  it('lets a plural form leave out {{count}} (it only selects the form), but no other param', () => {
+    const plural = {
+      en: { 'plugin.p.step_one': 'One block of {{size}}.', 'plugin.p.step_other': '{{count}} blocks of {{size}}.' },
+      de: { 'plugin.p.step_one': 'Ein Block zu {{size}}.', 'plugin.p.step_other': '{{count}} Blöcke.' },
+    };
+    expect(refProblems([{ key: 'plugin.p.step', params: { count: 1, size: 4 } }], plural)).toEqual([]);
+    expect(refProblems([{ key: 'plugin.p.step', params: { count: 2, size: 4 } }], plural)).toEqual(['de:plugin.p.step params [count,size] vs template [count]']);
+  });
 });
 
 describe('emittedNarration / runtimeLabelKeys / missingFacetKinds', () => {

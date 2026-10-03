@@ -8,6 +8,8 @@
   "ui.lab.posterPreset": "Example: {{preset}}",
   "ui.lab.error.unknownProducer": "This lab cannot start: no algorithm named “{{id}}” is registered.",
   "ui.lab.error.loadFailed": "The lab could not be loaded. Check your connection and try again.",
+  "ui.lab.error.runFailed": "The lab hit an internal error while computing this input. Try a different input or reset the lab.",
+  "ui.lab.error.timedOut": "The computation took too long and was stopped. Try a shorter input or reset the lab.",
   "ui.lab.error.crashed": "Something went wrong inside this lab.",
   "ui.lab.notice.invalidLink": "This link contained lab settings that could not be read, so the lab starts with its default example.",
   "ui.lab.notice.dismiss": "Dismiss",

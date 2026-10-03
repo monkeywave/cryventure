@@ -1,0 +1,183 @@
+---
+title: 'CTR: Blockchiffre als Stromchiffre'
+description: Wie CTR eine Folge von Zählerblöcken zu einem Schlüsselstrom verschlüsselt, warum es weder Padding noch die inverse Chiffre braucht und warum sich ein Zählerblock nie wiederholen darf.
+lessonId: block-ciphers/modes/ctr
+track: block-ciphers
+phase: 1
+sidebar:
+  order: 3
+tableOfContents: false
+prereqs:
+  - block-ciphers/modes/cbc
+  - foundations/xor
+labs:
+  - ctr-keystream
+refs:
+  - NIST SP 800-38A, Abschnitt 6.5 (The Counter Mode)
+  - NIST SP 800-38A, Anhang B (Generation of Counter Blocks)
+  - NIST SP 800-38A, Anhang F.5 (CTR Example Vectors)
+  - NIST SP 800-38D, Abschnitt 7.1 (GCM-Zählerblock aus einem 96-Bit-IV)
+sourceHash: sha256:88f5c9dbad3abe857d8b7ef46f54e3c61eece433eca3b8e1e9337e1ae69c27c2
+translation:
+  status: ai-reviewed
+  reviewedAt: '2026-10-03'
+  reviewer: AI editorial review (Claude)
+---
+
+import Lab from '../../../../../components/Lab.astro';
+import CheckQuestion from '../../../../../components/lesson/CheckQuestion.astro';
+import Formula from '../../../../../components/lesson/Formula.astro';
+import Lens from '../../../../../components/lesson/Lens.astro';
+import LessonSection from '../../../../../components/lesson/LessonSection.astro';
+import WhyBox from '../../../../../components/lesson/WhyBox.astro';
+
+<LessonSection part="concept">
+
+## Verschlüssle einen Zähler, nicht die Nachricht
+
+Im **Zählermodus** (engl. *Counter Mode*), kurz CTR, gelangt die Nachricht nie in die Blockchiffre.
+CTR verschlüsselt eine Folge von **Zählerblöcken** `T₁, T₂, …` und verknüpft das Ergebnis, einen
+**Schlüsselstrom**, per XOR mit dem Klartext (NIST SP 800-38A, §6.5).
+
+<Formula caption="CTR-Verschlüsselung und -Entschlüsselung, NIST SP 800-38A §6.5.">
+{`Oⱼ = E_K(Tⱼ)
+Cⱼ = Pⱼ ⊕ Oⱼ        Pⱼ = Cⱼ ⊕ Oⱼ`}
+</Formula>
+
+Daraus folgt dreierlei. Es gibt **kein Padding**: Der letzte Block nimmt einfach so viele Bytes des
+Schlüsselstroms, wie er braucht. **Verschlüsseln und Entschlüsseln sind dasselbe**: Beide verknüpfen
+per XOR mit demselben Schlüsselstrom. Und jeder Block ist unabhängig, deshalb läuft CTR **parallel** und kann
+jeden Block für sich entschlüsseln (wahlfreier Zugriff).
+
+<Lens only="story">
+
+Die Blockchiffre wird zu einer Maschine, die aus den Zahlen 1, 2, 3, … zufällig aussehende
+Einmalblätter macht. Über jedes Stück der Nachricht legst du ein frisches Blatt.
+
+</Lens>
+
+</LessonSection>
+
+<LessonSection part="playground">
+
+## Zwanzig Byte, kein Padding
+
+Das Lab verschlüsselt „CTR needs no padding“ (20 Byte) mit AES-128, dem Schlüssel und dem
+Anfangszählerblock `f0f1f2f3f4f5f6f7f8f9fafbfcfdfeff` aus SP 800-38A, Anhang F.5. Der zweite Block
+des Schlüsselstroms wird auf 4 Byte gekürzt, also ist auch der Geheimtext 20 Byte lang.
+
+<Lab labId="ctr-keystream" producerId="ctr" presetId="short-message" layout="mode-chain:45|wire:25|narration:30" />
+
+</LessonSection>
+
+<LessonSection part="inside">
+
+## Hochzählen, immer vorwärts
+
+SP 800-38A, Anhang B.1 definiert die **Standard-Inkrementfunktion**: Addiere 1 zu den rechten `m`
+Bits des Zählerblocks, modulo `2ᵐ`, und lass den Rest unverändert. Im Lab zählt der ganze Block,
+deshalb läuft der Übertrag ins nächste Byte:
+
+<Formula caption="Die ersten beiden Zählerblöcke aus SP 800-38A, Anhang F.5.">
+{`T₁ = f0f1f2f3f4f5f6f7f8f9fafbfcfdfeff
+T₂ = f0f1f2f3f4f5f6f7f8f9fafbfcfdff00`}
+</Formula>
+
+`E_K(T₁) = ec8cdf7398607cb0f2d21675ea9ea1e4` wird mit den ersten 16 Byte XOR-verknüpft; von `E_K(T₂)`
+wird nur `362b7c3c` gebraucht. Der Geheimtext lautet `afd88d53f60519d481f2781acaeec080 5242125b`.
+
+<WhyBox constant="E_K" title="nur die Vorwärtsrichtung">
+  Die Entschlüsselung verknüpft per XOR mit demselben Schlüsselstrom, also wieder mit `E_K(Tⱼ)`. CTR nutzt
+  die Chiffre deshalb nur in Vorwärtsrichtung (SP 800-38A §6.5). Eine Implementierung braucht die
+  inverse Chiffre überhaupt nicht.
+</WhyBox>
+
+</LessonSection>
+
+<LessonSection part="memory">
+
+## Nonce und Zähler in einem Block
+
+SP 800-38A überlässt den Aufbau der Zählerblöcke der Anwendung (Anhang B). Zwei verbreitete
+Varianten:
+
+<Formula caption="Zähler über den ganzen Block (SP 800-38A F.5) und Nonce ‖ Zähler (SP 800-38D §7.1).">
+{`F.5:
+[ 128-Bit-Zähler, +1 pro Block     ]
+GCM:
+[ 96-Bit-Nonce     | 32-Bit-Zähler ]`}
+</Formula>
+
+Bei einer 96-Bit-Nonce kennzeichnet die Nonce (die einmal verwendete Zahl) die Nachricht, und der
+32-Bit-Zähler nummeriert ihre Blöcke. Eine Nachricht kann also nur etwa 2³² Blöcke umfassen, bevor
+der Zähler überläuft.
+
+Bei der Übertragung braucht der Empfänger den Anfangszählerblock (oder nur die Nonce) und dann den
+Geheimtext, der genau so lang ist wie der Klartext: im Lab 16 + 20 = 36 Byte.
+
+</LessonSection>
+
+<LessonSection part="break">
+
+## Mallory wartet auf eine Wiederholung
+
+Die gesamte Sicherheit von CTR hängt an einer Regel: **Unter demselben Schlüssel darf sich ein
+Zählerblock nie wiederholen**, über alle Nachrichten hinweg (SP 800-38A, Anhang B). Derselbe
+Zählerblock ergibt denselben Block des Schlüsselstroms.
+
+Verwendet ein Sender eine Nonce erneut, werden zwei Nachrichten mit demselben Schlüsselstrom
+per XOR verknüpft. Das ist ein wiederverwendetes One-Time-Pad: Verknüpfst du die beiden Geheimtexte per XOR,
+hebt sich der Schlüsselstrom auf, und übrig bleibt `P ⊕ P′`, das XOR der beiden Klartexte. Warum das
+fatal ist, zeigt die [XOR-Lektion](../../../foundations/xor/).
+
+CTR schützt außerdem die **Integrität nicht**: Ein gekipptes Geheimtextbit kippt dasselbe
+Klartextbit, und der Empfänger kann es nicht bemerken. Wie bei CBC gilt: Nimm authentifizierte
+Verschlüsselung wie **AES-GCM**, also CTR plus Authentifizierungstag.
+
+<Lens level="cryptographer">
+
+Mit eindeutigen Zählerblöcken ist CTR IND-CPA-sicher; schon eine einzige Wiederholung verrät einem
+Angreifer `P ⊕ P′`. CTR ist formbar (engl. *malleable*) und daher nicht IND-CCA-sicher.
+
+</Lens>
+
+</LessonSection>
+
+<LessonSection part="check">
+
+## Teste dich selbst
+
+<CheckQuestion
+  id="ctr-no-padding"
+  number={1}
+  question="Wie lang ist mit AES der CTR-Geheimtext einer 20-Byte-Nachricht (der Zählerblock wird getrennt übertragen)?"
+  options={['16 Byte', '20 Byte', '32 Byte', '36 Byte']}
+  answer={1}
+>
+  CTR braucht kein Padding: Der letzte Block nimmt nur so viele Bytes des Schlüsselstroms, wie er
+  braucht (SP 800-38A §6.5). Die 36 Byte im Lab enthalten den 16-Byte-Anfangszählerblock.
+</CheckQuestion>
+
+<CheckQuestion
+  id="ctr-forward-cipher"
+  number={2}
+  question="Welche Richtung der Blockchiffre nutzt die CTR-Entschlüsselung?"
+  options={['Die inverse Chiffre D_K', 'Die Chiffre in Vorwärtsrichtung E_K', 'Beide abwechselnd', 'Keine; CTR nutzt keine Blockchiffre']}
+  answer={1}
+>
+  Die Entschlüsselung berechnet den Schlüsselstrom `E_K(Tⱼ)` neu und verknüpft erneut per XOR
+  (SP 800-38A §6.5). Die inverse Chiffre wird nie gebraucht.
+</CheckQuestion>
+
+<CheckQuestion
+  id="ctr-counter-reuse"
+  number={3}
+  question="Zwei Nachrichten werden unter demselben Schlüssel mit demselben Anfangszählerblock verschlüsselt. Was kann ein Lauscher aus den beiden Geheimtexten berechnen?"
+  options={['Den Schlüssel', 'Nichts Nützliches', 'Das XOR der beiden Klartexte', 'Den Zählerblock']}
+  answer={2}
+>
+  Beide nutzen denselben Schlüsselstrom, also gilt `C ⊕ C′ = P ⊕ P′`: ein wiederverwendetes
+  One-Time-Pad. Zählerblöcke müssen unter einem Schlüssel eindeutig sein (SP 800-38A, Anhang B).
+</CheckQuestion>
+
+</LessonSection>

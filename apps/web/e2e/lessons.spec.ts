@@ -27,7 +27,7 @@ const AES_LESSONS: readonly LessonPage[] = [
 
 /** Lessons of the "Modes" group (docs/M3.md §10); the group overview is checked separately. */
 const MODE_LESSONS: readonly LessonPage[] = [
-  { slug: 'symmetric/modes/ecb/', code: 'ECB', title: { en: 'ECB: the codebook mode', de: 'ECB: das Codebuch-Verfahren' }, labId: 'ecb-blocks' },
+  { slug: 'symmetric/modes/ecb/', code: 'ECB', title: { en: 'ECB: the codebook mode', de: 'ECB: der Codebuch-Modus' }, labId: 'ecb-blocks' },
   { slug: 'symmetric/modes/cbc/', code: 'CBC', title: { en: 'CBC: chaining blocks', de: 'CBC: Blöcke verketten' } },
   { slug: 'symmetric/modes/ctr/', code: 'CTR', title: { en: 'CTR: a block cipher as a stream cipher', de: 'CTR: Blockchiffre als Stromchiffre' } },
 ];

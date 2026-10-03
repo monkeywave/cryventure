@@ -39,4 +39,15 @@ describe('showUpdateToast', () => {
     expect(document.querySelector(TOAST_SELECTOR)).toBeNull();
     expect(onReload).not.toHaveBeenCalled();
   });
+
+  it('replaces a shown toast when asked, so the new reload action applies', () => {
+    const first = vi.fn();
+    const second = vi.fn();
+    showUpdateToast(makeTemplate(), first);
+    showUpdateToast(makeTemplate(), second, { replace: true });
+    expect(document.querySelectorAll(TOAST_SELECTOR)).toHaveLength(1);
+    button('reload').click();
+    expect(first).not.toHaveBeenCalled();
+    expect(second).toHaveBeenCalledTimes(1);
+  });
 });

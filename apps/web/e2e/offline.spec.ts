@@ -4,7 +4,8 @@ import { expectStep, labButton, openLab } from './labPage.ts';
 // docs/M3.md §11: once the service worker controls the page, lessons, labs and search work offline.
 // Relative URLs resolve against baseURL, so this runs unchanged for CV_BASE sub-path builds.
 
-test.skip(process.env.CV_PWA === 'false', 'PWA disabled (CV_PWA=false)');
+const pwaDisabled = process.env.CV_PWA === 'false';
+
 test.skip(
   ({ browserName }) => browserName !== 'chromium',
   'offline emulation of service workers is Chromium-only here',
@@ -34,6 +35,8 @@ async function expectOfflinePage(page: Page, path: string): Promise<void> {
 }
 
 test.describe('offline (PWA)', () => {
+  test.skip(pwaDisabled, 'PWA disabled (CV_PWA=false)');
+
   test.beforeEach(async ({ page, context }) => {
     await waitForServiceWorkerControl(page);
     await context.setOffline(true);
@@ -58,5 +61,21 @@ test.describe('offline (PWA)', () => {
     await page.locator('site-search button[data-open-modal]').click();
     await page.locator('.pagefind-ui__search-input').fill('XOR');
     await expect(page.locator('.pagefind-ui__result-link').first()).toBeVisible();
+  });
+});
+
+test.describe('PWA switched off (CV_PWA=false)', () => {
+  test.skip(!pwaDisabled, 'only for builds with CV_PWA=false');
+
+  const registrationCount = (page: Page) =>
+    page.evaluate(async () => (await navigator.serviceWorker.getRegistrations()).length).catch(() => -1);
+
+  test('links no manifest, and its sw.js removes a worker installed earlier', async ({ page, baseURL }) => {
+    await page.goto('en/');
+    await expect(page.locator('link[rel="manifest"]')).toHaveCount(0);
+    // Stand-in for the worker of an earlier PWA build: the browser fetches this build's sw.js at the same URL.
+    const workerUrl = new URL('sw.js', baseURL).href;
+    await page.evaluate(async (url) => void (await navigator.serviceWorker.register(url)), workerUrl);
+    await expect.poll(() => registrationCount(page)).toBe(0);
   });
 });

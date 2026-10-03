@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { isSupportedVersion, migrate, migrateV1ToV2 } from './migrations.ts';
+import { isSupportedVersion, LEGACY_QUIZ_IDS, migrate, migrateV1ToV2 } from './migrations.ts';
 import { emptyProgress } from './schema.ts';
 
 const answer = { solved: false, lastAnswer: 3 };
@@ -14,23 +14,35 @@ describe('migrate', () => {
   });
 
   it('validates a current-version record', () => {
-    const record = { version: 2, lens: 'cryptographer', lessons: { a: { quiz: { 'ecb-penguin': answer }, legacyQuiz: { '2': answer } } } };
+    const record = { version: 2, lens: 'cryptographer', lessons: { a: { quiz: { 'ecb-penguin': answer } } } };
     expect(migrate(record)).toEqual(record);
   });
 
-  it('upgrades a v1 record: number-keyed answers move to legacyQuiz', () => {
-    const v1 = { version: 1, lens: 'story', lessons: { a: { quiz: { '1': answer, '2': { correct: true, attempts: 1, lastAnswer: 0 } } }, empty: { quiz: {} } } };
+  it('upgrades a v1 record: number-keyed answers move to their frozen ids', () => {
+    const v1 = { version: 1, lens: 'story', lessons: { 'foundations/xor': { quiz: { '1': answer, '2': { correct: true, attempts: 1, lastAnswer: 0 } } }, 'symmetric/aes': { quiz: {} } } };
     expect(migrate(v1)).toEqual({
       version: 2,
       lens: 'story',
-      lessons: { a: { quiz: {}, legacyQuiz: { '1': answer, '2': { solved: true, lastAnswer: 0 } } }, empty: { quiz: {} } },
+      lessons: { 'foundations/xor': { quiz: { 'xor-with-ff': answer, 'two-time-pad': { solved: true, lastAnswer: 0 } } }, 'symmetric/aes': { quiz: {} } },
     });
   });
 });
 
 describe('migrateV1ToV2', () => {
-  it('bumps the version and moves each lesson quiz to legacyQuiz', () => {
-    expect(migrateV1ToV2({ version: 1, lessons: { a: { quiz: { '1': answer } } } })).toEqual({ version: 2, lessons: { a: { quiz: {}, legacyQuiz: { '1': answer } } } });
+  it('bumps the version and keys each answer by the id its v1 number had', () => {
+    expect(migrateV1ToV2({ version: 1, lessons: { 'symmetric/aes/key-expansion': { quiz: { '2': answer } } } })).toEqual({
+      version: 2,
+      lessons: { 'symmetric/aes/key-expansion': { quiz: { 'rcon-10': answer } } },
+    });
+  });
+
+  it('maps by the frozen v1 numbering, so renumbering a question later cannot move answers', () => {
+    expect(LEGACY_QUIZ_IDS['symmetric/aes/subbytes-sbox']).toEqual({ '1': 'sbox-of-00', '2': 'sbox-fixed-points', '3': 'sbox-nonlinearity' });
+  });
+
+  it('drops answers under unknown numbers and lessons without v1 questions', () => {
+    const v1 = { version: 1, lessons: { 'foundations/xor': { quiz: { '3': answer, '9': answer, x: answer } }, 'unknown/lesson': { quiz: { '1': answer } } } };
+    expect(migrateV1ToV2(v1)).toEqual({ version: 2, lessons: { 'foundations/xor': { quiz: { 'otp-possible-plaintexts': answer } }, 'unknown/lesson': { quiz: {} } } });
   });
 
   it('leaves malformed lessons for the parser to drop', () => {

@@ -1,13 +1,17 @@
 {
-  "view.wire.title": "Auf der Leitung",
+  "view.wire.title": "Übertragene Bytes",
   "view.wire.loading": "Der Bytestreifen wird vorbereitet …",
   "view.wire.missing": "Dieses Lab zeichnet nicht auf, welche Bytes übertragen werden.",
-  "view.wire.strip": "Übertragene Bytes: {{count}} Byte in {{segments}} Teilen",
+  "view.wire.strip_one": "Übertragene Bytes: {{bytes}} Byte in {{count}} Teil",
+  "view.wire.strip_other": "Übertragene Bytes: {{bytes}} Byte in {{count}} Teilen",
   "view.wire.range": "{{bytes}} Byte · {{from}}–{{to}}",
   "view.wire.segment": "{{label}} ({{role}}): {{bytes}} Byte an den Offsets {{from}} bis {{to}}",
   "view.wire.segmentHex": "{{summary}}: {{hex}}",
-  "view.wire.segmentActive": "{{summary}}; {{count}} davon sind in diesem Schritt hervorgehoben",
-  "view.wire.segmentFlipped": "{{summary}}; {{count}} davon sind gekippt",
+  "view.wire.segmentActive_one": "{{summary}}; {{count}} davon ist in diesem Schritt hervorgehoben",
+  "view.wire.segmentActive_other": "{{summary}}; {{count}} davon sind in diesem Schritt hervorgehoben",
+  "view.wire.segmentFlipped_one": "{{summary}}; {{count}} davon ist gekippt",
+  "view.wire.segmentFlipped_other": "{{summary}}; {{count}} davon sind gekippt",
+  "view.wire.segmentPending": "{{summary}}; noch nicht gesendet",
   "view.wire.role.iv": "Initialisierungsvektor",
   "view.wire.role.nonce": "Nonce",
   "view.wire.role.ciphertext": "Geheimtext",
@@ -15,5 +19,6 @@
   "view.wire.role.padding": "Padding",
   "view.wire.role.tag": "Tag",
   "view.wire.legendActive": "dicker Rahmen: in diesem Schritt im Fokus",
+  "view.wire.legendPending": "gestrichelt ··: noch nicht gesendet",
   "view.wire.legendFlip": "gekippte Bits (selbst kippen kannst du sie in den Angriffs-Labs)"
 }

@@ -6,7 +6,7 @@ const progress: Progress = {
   version: 2,
   lens: 'cryptographer',
   prologue: { completedAt: '2026-10-02T10:00:00.000Z' },
-  lessons: { 'symmetric/aes/subbytes-sbox': { quiz: { 'sbox-of-00': { solved: true, lastAnswer: 1 } }, legacyQuiz: { '2': { solved: false, lastAnswer: 0 } } } },
+  lessons: { 'symmetric/aes/subbytes-sbox': { quiz: { 'sbox-of-00': { solved: true, lastAnswer: 1 }, 'sbox-fixed-points': { solved: false, lastAnswer: 0 } } } },
 };
 
 describe('exportProgress', () => {
@@ -22,9 +22,9 @@ describe('importProgress', () => {
     expect(importProgress(exportProgress(progress))).toEqual({ ok: true, progress });
   });
 
-  it('accepts a v1 export and migrates its answers to legacyQuiz', () => {
-    const v1 = JSON.stringify({ format: EXCHANGE_FORMAT, version: 1, lens: 'story', lessons: { a: { quiz: { '1': { solved: true, lastAnswer: 1 } } } } });
-    expect(importProgress(v1)).toEqual({ ok: true, progress: { version: 2, lens: 'story', lessons: { a: { quiz: {}, legacyQuiz: { '1': { solved: true, lastAnswer: 1 } } } } } });
+  it('accepts a v1 export and maps its question numbers to ids', () => {
+    const v1 = JSON.stringify({ format: EXCHANGE_FORMAT, version: 1, lens: 'story', lessons: { 'foundations/gf256': { quiz: { '1': { solved: true, lastAnswer: 1 } } } } });
+    expect(importProgress(v1)).toEqual({ ok: true, progress: { version: 2, lens: 'story', lessons: { 'foundations/gf256': { quiz: { 'gf-addition': { solved: true, lastAnswer: 1 } } } } } });
   });
 
   it('rejects invalid JSON', () => {

@@ -3,6 +3,7 @@ import {
   BlockOpRecorder,
   blockCount,
   blockIndices,
+  cipherName,
   highlight,
   i18nRef,
   incrementCounter,
@@ -64,8 +65,6 @@ export interface CtrRecording {
   keystream: number[];
 }
 
-const cipherName = (cipher: BlockCipher): string => cipher.id.toUpperCase();
-
 function recordIncrement(recorder: CtrRecorder, index: number, counter: number[]): number {
   return recorder.op({
     op: 'incrementCounter',
@@ -111,7 +110,7 @@ export function recordCtr(run: CtrRun): CtrRecording {
   const blockSize = cipher.blockSize;
   const regions = ctrRegions(data.length, blockSize);
   const total = blockCount(data.length, blockSize);
-  const initialNarration = i18nRef(`${NS}.step.initial`, { bytes: data.length, blocks: total, blockSize, cipher: cipherName(cipher), counter: toHex(run.counter) });
+  const initialNarration = i18nRef(`${NS}.step.initial`, { bytes: data.length, count: total, blockSize, cipher: cipherName(cipher), counter: toHex(run.counter) });
   const recorder: CtrRecorder = new BlockOpRecorder(regions, { ...zeroSnapshot(regions), input: [...data], counter: [...run.counter] }, initialNarration);
   let counter = run.counter;
   const blocks = allIndices(total).map((index) => {

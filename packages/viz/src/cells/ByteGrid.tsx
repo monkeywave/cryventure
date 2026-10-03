@@ -7,6 +7,7 @@ import { cellIndex, highlightMap, type GridHighlight, type GridOrder, type GridS
 import type { GridMotion } from './gridMotion.ts';
 import { useGridMotion } from './useGridMotion.ts';
 import { useGridNavigation } from './useGridNavigation.ts';
+import { useScrollEdges } from './useScrollEdges.ts';
 
 export type { GridMotion } from './gridMotion.ts';
 
@@ -164,6 +165,7 @@ export function ByteGrid(props: ByteGridProps) {
   const byIndex = useMemo(() => highlightMap(highlights), [highlights]);
   const { gridRef, onKeyDown, isActive, setActive } = useGridNavigation(shape);
   const showsAfter = useGridMotion(gridRef, motion, values);
+  useScrollEdges(gridRef, cols);
   const onFocusCell = useCallback((row: number, col: number) => setActive({ row, col }), [setActive]);
   const cellAt = (row: number, col: number): CellModel => {
     const index = cellIndex(row, col, shape, order);

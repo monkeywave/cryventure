@@ -1,0 +1,173 @@
+---
+title: 'CTR: a block cipher as a stream cipher'
+description: How CTR encrypts a sequence of counter blocks into a keystream, why it needs no padding and never runs the cipher backwards, and why a counter block must never repeat.
+lessonId: block-ciphers/modes/ctr
+track: block-ciphers
+phase: 1
+sidebar:
+  order: 3
+tableOfContents: false
+prereqs:
+  - block-ciphers/modes/cbc
+  - foundations/xor
+labs:
+  - ctr-keystream
+refs:
+  - NIST SP 800-38A, Section 6.5 (The Counter Mode)
+  - NIST SP 800-38A, Appendix B (Generation of Counter Blocks)
+  - NIST SP 800-38A, Appendix F.5 (CTR Example Vectors)
+  - NIST SP 800-38D, Section 7.1 (GCM counter block from a 96-bit IV)
+---
+
+import Lab from '../../../../../components/Lab.astro';
+import CheckQuestion from '../../../../../components/lesson/CheckQuestion.astro';
+import Formula from '../../../../../components/lesson/Formula.astro';
+import Lens from '../../../../../components/lesson/Lens.astro';
+import LessonSection from '../../../../../components/lesson/LessonSection.astro';
+import WhyBox from '../../../../../components/lesson/WhyBox.astro';
+
+<LessonSection part="concept">
+
+## Encrypt a counter, not the message
+
+**Counter mode**, CTR, never feeds the message into the block cipher. It encrypts a sequence of
+**counter blocks** `T₁, T₂, …` and XORs the result, a **keystream**, with the plaintext (NIST
+SP 800-38A, §6.5).
+
+<Formula caption="CTR encryption and decryption, NIST SP 800-38A §6.5.">
+{`Oⱼ = E_K(Tⱼ)
+Cⱼ = Pⱼ ⊕ Oⱼ        Pⱼ = Cⱼ ⊕ Oⱼ`}
+</Formula>
+
+Three things follow. There is **no padding**: the last block simply uses as many keystream bytes as
+it needs. **Encryption equals decryption**: both XOR the same keystream. And every block is
+independent, so CTR runs **in parallel** and can decrypt any block on its own (random access).
+
+<Lens only="story">
+
+The block cipher becomes a machine that turns numbers 1, 2, 3, … into random-looking pads. You lay
+a fresh pad over each piece of the message.
+
+</Lens>
+
+</LessonSection>
+
+<LessonSection part="playground">
+
+## Twenty bytes, no padding
+
+The lab encrypts "CTR needs no padding" (20 bytes) with AES-128, the key and the initial counter
+block `f0f1f2f3f4f5f6f7f8f9fafbfcfdfeff` from SP 800-38A, Appendix F.5. The second keystream block is
+cut to 4 bytes, so the ciphertext is 20 bytes too.
+
+<Lab labId="ctr-keystream" producerId="ctr" presetId="short-message" layout="mode-chain:45|wire:25|narration:30" />
+
+</LessonSection>
+
+<LessonSection part="inside">
+
+## Counting up, always forward
+
+SP 800-38A, Appendix B.1 defines the **standard incrementing function**: add 1 to the rightmost `m`
+bits of the counter block, modulo `2ᵐ`, and leave the rest unchanged. In the lab the whole block
+counts, so the carry runs into the next byte:
+
+<Formula caption="The first two counter blocks of SP 800-38A, Appendix F.5.">
+{`T₁ = f0f1f2f3f4f5f6f7f8f9fafbfcfdfeff
+T₂ = f0f1f2f3f4f5f6f7f8f9fafbfcfdff00`}
+</Formula>
+
+`E_K(T₁) = ec8cdf7398607cb0f2d21675ea9ea1e4` is XORed with the first 16 bytes; of `E_K(T₂)` only
+`362b7c3c` is used. The ciphertext is `afd88d53f60519d481f2781acaeec080 5242125b`.
+
+<WhyBox constant="E_K" title="only the forward cipher">
+  Decryption XORs the same keystream, which is again `E_K(Tⱼ)`. So CTR only ever uses the forward
+  cipher (SP 800-38A §6.5). An implementation needs no inverse cipher at all.
+</WhyBox>
+
+</LessonSection>
+
+<LessonSection part="memory">
+
+## Nonce and counter in one block
+
+SP 800-38A leaves the layout of counter blocks to the application (Appendix B). Two common
+choices:
+
+<Formula caption="Full-block counter (SP 800-38A F.5) versus nonce ‖ counter (SP 800-38D §7.1).">
+{`F.5:
+[ 128-bit counter, +1 per block    ]
+GCM:
+[ 96-bit nonce    | 32-bit counter ]`}
+</Formula>
+
+With a 96-bit nonce, the nonce identifies the message and the 32-bit counter numbers its blocks, so
+one message can hold only about 2³² blocks before the counter would wrap.
+
+On the wire, the receiver needs the initial counter block (or just the nonce), then the ciphertext
+with exactly the plaintext's length: in the lab 16 + 20 = 36 bytes.
+
+</LessonSection>
+
+<LessonSection part="break">
+
+## Mallory waits for a repeat
+
+CTR's whole security rests on one rule: **a counter block must never repeat under the same key**,
+across all messages (SP 800-38A, Appendix B). The same counter block gives the same keystream block.
+
+If a sender reuses a nonce, two messages are XORed with the same keystream. That is a reused
+one-time pad: XORing the two ciphertexts cancels the keystream and leaves `P ⊕ P′`, the XOR of the
+two plaintexts. The [XOR lesson](../../../foundations/xor/) shows why that is fatal.
+
+CTR also has **no integrity**: flipping a ciphertext bit flips the same plaintext bit, and the
+receiver cannot notice. As with CBC, use authenticated encryption such as **AES-GCM**, which is CTR
+plus an authentication tag.
+
+<Lens level="cryptographer">
+
+With unique counter blocks, CTR is IND-CPA secure; with a single repeat, an attacker learns
+`P ⊕ P′`. It is malleable, so it is not IND-CCA secure.
+
+</Lens>
+
+</LessonSection>
+
+<LessonSection part="check">
+
+## Check yourself
+
+<CheckQuestion
+  id="ctr-no-padding"
+  number={1}
+  question="How long is the CTR ciphertext of a 20-byte message with AES (counter block sent separately)?"
+  options={['16 bytes', '20 bytes', '32 bytes', '36 bytes']}
+  answer={1}
+>
+  CTR needs no padding: the last block uses only as many keystream bytes as it needs (SP 800-38A
+  §6.5). The 36 bytes in the lab include the 16-byte initial counter block.
+</CheckQuestion>
+
+<CheckQuestion
+  id="ctr-forward-cipher"
+  number={2}
+  question="Which direction of the block cipher does CTR decryption use?"
+  options={['The inverse cipher D_K', 'The forward cipher E_K', 'Both, alternating', 'None; CTR does not use a block cipher']}
+  answer={1}
+>
+  Decryption recomputes the keystream `E_K(Tⱼ)` and XORs it again (SP 800-38A §6.5). The inverse
+  cipher is never needed.
+</CheckQuestion>
+
+<CheckQuestion
+  id="ctr-counter-reuse"
+  number={3}
+  question="Two messages are encrypted under the same key with the same initial counter block. What can an eavesdropper compute from the two ciphertexts?"
+  options={['The key', 'Nothing useful', 'The XOR of the two plaintexts', 'The counter block']}
+  answer={2}
+>
+  Both use the same keystream, so `C ⊕ C′ = P ⊕ P′`: a reused one-time pad. Counter blocks must be
+  unique under a key (SP 800-38A, Appendix B).
+</CheckQuestion>
+
+</LessonSection>

@@ -27,7 +27,7 @@ export interface ReadySession {
 
 export type LabSession = { status: 'loading' } | { status: 'error'; error: I18nRef } | ReadySession;
 
-/** What `startLab` / `rerunLab` resolve to: never `loading`. */
+/** What `startLab` resolves to: never `loading`. */
 export type SettledLabSession = Exclude<LabSession, { status: 'loading' }>;
 
 export interface StartLabOptions {
@@ -84,30 +84,34 @@ export type IsCurrentRun = () => boolean;
 const ALWAYS_CURRENT: IsCurrentRun = () => true;
 
 /**
+ * What a re-run or a view request resolves to. A failure (invalid params, or a run error such as a
+ * key of the wrong length) never replaces the ready session: the caller keeps the last good bundle
+ * and shows the error next to the inputs. Only a failed `startLab` yields an error session.
+ */
+export type RunOutcome = { ok: true; session: ReadySession } | { ok: false; error: I18nRef };
+
+/**
  * Re-runs with new params, keeping the learner's place: the playhead is mapped to the same meaning in
  * the new trace (`mapStepAcrossTraces`), and breakpoints and the watched cell survive where they still
- * apply. A failed run becomes an error session and leaves the store untouched, as does a run that
- * `isCurrent` reports superseded by the time it settles (its result is for the caller to drop).
+ * apply. A failed run leaves the store untouched, as does a run that `isCurrent` reports superseded by
+ * the time it settles (its result is for the caller to drop).
  */
-export async function rerunLab(session: ReadySession, params: LabParams, isCurrent: IsCurrentRun = ALWAYS_CURRENT): Promise<SettledLabSession> {
+export async function rerunLab(session: ReadySession, params: LabParams, isCurrent: IsCurrentRun = ALWAYS_CURRENT): Promise<RunOutcome> {
   const result = await session.runner.run(session.producer, params);
-  if (!result.ok) return { status: 'error', error: result.error };
-  if (!isCurrent()) return { ...session, params };
+  if (!result.ok) return result;
+  if (!isCurrent()) return { ok: true, session: { ...session, params } };
   const { bundle, step, setBundle, seek } = session.store.getState();
   const nextStep = mapStepAcrossTraces(stateFacet(bundle), step, stateFacet(result.trace));
   setBundle(result.trace, { preserveDebugContext: true });
   seek(nextStep);
-  return { ...session, params };
+  return { ok: true, session: { ...session, params } };
 }
 
-/** A view's re-run request: invalid patches never reach the producer; valid ones re-run like the ParamPanel. */
-export type ParamsRequestOutcome = { ok: true; session: SettledLabSession } | { ok: false; error: I18nRef };
-
-/** Merges `patch` into the session's params, validates with the producer, then re-runs (`rerunLab`). */
-export async function requestLabParams(session: ReadySession, patch: Readonly<Record<string, unknown>>, isCurrent: IsCurrentRun = ALWAYS_CURRENT): Promise<ParamsRequestOutcome> {
+/** Merges `patch` into the session's params, validates with the producer, then re-runs (`rerunLab`); invalid patches never reach the producer. */
+export async function requestLabParams(session: ReadySession, patch: Readonly<Record<string, unknown>>, isCurrent: IsCurrentRun = ALWAYS_CURRENT): Promise<RunOutcome> {
   const merged = mergeParams(session.producer, session.params, patch);
   if (!merged.ok) return merged;
-  return { ok: true, session: await rerunLab(session, merged.value, isCurrent) };
+  return rerunLab(session, merged.value, isCurrent);
 }
 
 function stateFacet(bundle: TraceBundle | null): AnyStateFacet | undefined {

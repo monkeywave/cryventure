@@ -86,6 +86,14 @@ describe('preparePorts', () => {
     const resolve = await preparePorts(mode, { cipher: 'broken' }, registryOf(broken));
     expect(resolve('BlockCipher', 'broken')).toBeUndefined();
   });
+
+  it('reports a module that fails to load as core.error.portLoadFailed, not portMissing', async () => {
+    const broken = producer('broken', ['BlockCipher'], () => Promise.reject(new Error('chunk failed')));
+    const resolve = await preparePorts(mode, { cipher: 'broken' }, registryOf(broken, toy));
+    expect(requirePort(resolve, 'BlockCipher', 'broken')).toEqual({ ok: false, error: { key: 'core.error.portLoadFailed', params: { id: 'broken' } } });
+    const unknown = await preparePorts(mode, { cipher: 'nope' }, registryOf(broken));
+    expect(requirePort(unknown, 'BlockCipher', 'nope')).toEqual({ ok: false, error: { key: 'core.error.portMissing', params: { id: 'nope' } } });
+  });
 });
 
 describe('requirePort', () => {

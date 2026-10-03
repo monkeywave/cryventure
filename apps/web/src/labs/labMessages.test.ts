@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { extractParams } from '@cryventure/core';
+import { loadCoreMessages } from '@cryventure/core/messages';
 import { producerRegistry, viewsForFacets } from './registry.ts';
 import { labMessages } from './labMessages.ts';
 
@@ -20,6 +21,14 @@ describe('labMessages', () => {
     expect(en).toHaveProperty('core.error.hexOddLength');
     expect(en).not.toHaveProperty('ui.notFound.title');
     expect(Object.keys(en).some((key) => key.startsWith('plugin.') && !key.startsWith('plugin.aes.'))).toBe(false);
+  });
+
+  it('ships every core.error.* message, so any run error (e.g. a port that failed to load) renders without lab-specific wiring', () => {
+    for (const lang of ['en', 'de'] as const) {
+      const coreErrors = Object.keys(loadCoreMessages(lang)).filter((key) => key.startsWith('core.error.'));
+      expect(coreErrors.length).toBeGreaterThan(0);
+      expect(Object.keys(labMessages(lang, AES))).toEqual(expect.arrayContaining(coreErrors));
+    }
   });
 
   it("ships only the view catalogs of the views the producer's facets can feed", () => {

@@ -3,11 +3,17 @@ import { migrate } from './migrations.ts';
 import type { Progress } from './schema.ts';
 
 /**
- * The localStorage slot. Its `v1` names the slot, not the schema: the record inside carries its own
- * `version` and is migrated on read (`migrate`), so the key stays when the schema version changes
- * (schema v2 still lives here). Renaming it would orphan every learner's stored progress.
+ * The localStorage slot of schema v2. Each schema version that older app versions cannot read gets
+ * its own slot: an old tab that is still open parses a newer record as empty and would otherwise
+ * write its own empty record over it.
  */
-export const PROGRESS_STORAGE_KEY = 'cv.progress.v1';
+export const PROGRESS_STORAGE_KEY = 'cv.progress.v2';
+
+/**
+ * The slot of schema v1. Read once to seed `PROGRESS_STORAGE_KEY` (see `loadProgress`) and never
+ * written, so tabs of the old app version keep their own data.
+ */
+export const LEGACY_PROGRESS_STORAGE_KEY = 'cv.progress.v1';
 
 /** Parses a stored string; `null`, unparsable JSON or garbage yield empty progress. */
 export function parseStoredProgress(raw: string | null | undefined): Progress {
@@ -19,10 +25,24 @@ export function parseStoredProgress(raw: string | null | undefined): Progress {
   }
 }
 
-/** Never throws; empty progress when storage is unavailable or the entry is unreadable. */
+/** The v1 record migrated and copied into the v2 slot, or empty progress when there is none. */
+function migrateLegacySlot(storage: Storage): Progress {
+  const legacy = storage.getItem(LEGACY_PROGRESS_STORAGE_KEY);
+  const progress = parseStoredProgress(legacy);
+  if (legacy !== null) saveProgress(progress);
+  return progress;
+}
+
+/**
+ * Never throws; empty progress when storage is unavailable or the entry is unreadable. While the v2
+ * slot is absent, the v1 slot is migrated into it (and left as it is).
+ */
 export function loadProgress(): Progress {
   try {
-    return parseStoredProgress(safeStorage()?.getItem(PROGRESS_STORAGE_KEY));
+    const storage = safeStorage();
+    const stored = storage?.getItem(PROGRESS_STORAGE_KEY);
+    if (storage !== undefined && stored === null) return migrateLegacySlot(storage);
+    return parseStoredProgress(stored);
   } catch {
     return parseStoredProgress(undefined);
   }

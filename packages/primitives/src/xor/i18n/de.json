@@ -20,7 +20,7 @@
   "plugin.xor.op.decrypt": "Entschlüsseln – das Ergebnis mit demselben Schlüssel XOR-verknüpfen",
   "plugin.xor.opShort.xorByte": "XOR",
   "plugin.xor.opShort.decrypt": "Entschlüsseln",
-  "plugin.xor.step.initial": "Nachricht und Schlüssel haben je {{count}} Byte. XOR arbeitet auf Bits, jedes Byte sind also einfach 8 Bits zum Verknüpfen: Jedes Schlüsselbit entscheidet, ob das passende Nachrichtenbit bleibt (0) oder kippt (1).",
+  "plugin.xor.step.initial": "Nachricht und Schlüssel haben je {{count}} Byte. XOR arbeitet auf Bits: Jedes Byte besteht aus 8 Bit, die einzeln verknüpft werden. Jedes Schlüsselbit entscheidet, ob das passende Nachrichtenbit bleibt (0) oder kippt (1).",
   "plugin.xor.step.xorByte": "Byte {{index}}: {{message}} ⊕ {{key}} = {{result}}. Überall, wo der Schlüssel ein 1-Bit hat, kippt das Nachrichtenbit.",
   "plugin.xor.step.decrypt": "XOR-verknüpfe das Ergebnis noch einmal mit demselben Schlüssel, und die Nachricht ist wieder da: (m ⊕ k) ⊕ k = m ⊕ (k ⊕ k) = m ⊕ 0 = m. XOR ist zu sich selbst invers, Ver- und Entschlüsseln sind also dieselbe Operation.",
   "plugin.xor.error.invalidParams": "Gib die Nachricht und den Schlüssel als Hextext ein.",

@@ -5,7 +5,8 @@ import type { I18nRef } from '@cryventure/core';
 import type { LabHrefBuilder, LabMode, ParamsPatch } from '@cryventure/viz';
 import { createLabHref } from '../../labs/labHref.ts';
 import { createLabRunner, type LabRunner } from '../../labs/labRunner.ts';
-import { requestLabParams, rerunLab, startLab, type IsCurrentRun, type LabParams, type LabSession } from '../../labs/labSession.ts';
+import { rerunLab, startLab, type IsCurrentRun, type LabParams, type LabSession, type ReadySession } from '../../labs/labSession.ts';
+import { mergeParams } from '../../labs/paramFields.ts';
 import { parseStartAt } from '../../labs/startAt.ts';
 
 export interface UseLabSessionOptions {
@@ -25,7 +26,7 @@ export interface LabSessionApi {
   applyParams: (params: LabParams) => void;
   /** A view's re-run request (`useLabActions().requestParams`): merged, validated, then applied like `applyParams`. */
   requestParams: (patch: ParamsPatch) => void;
-  /** Why the last view request was rejected; `null` once params are applied again. */
+  /** Why the last re-run or view request failed (invalid params or a run error); `null` once params are applied again. The ready session keeps the last good bundle meanwhile. */
   requestError: I18nRef | null;
   /** Forgets the deep link and starts over from the preset. */
   reset: () => void;
@@ -71,49 +72,80 @@ function useLabStart({ labId, producerId, presetId, startAt, mode }: UseLabSessi
   }, [labId, producerId, presetId, startAt, mode, runner, labHref, generation, setSession]);
 }
 
-/** Client-only lifecycle: read the hash, load + run the producer, then re-run on param edits. */
-export function useLabSession({ labId, producerId, presetId, startAt, mode, locale }: UseLabSessionOptions): LabSessionApi {
-  const [session, setSession] = useState<LabSession>({ status: 'loading' });
-  const [generation, setGeneration] = useState(0);
-  const [requestError, setRequestError] = useState<I18nRef | null>(null);
-  const beginRun = useRunGuard();
-  const runner = useLabRunner();
-  const labHref = useMemo(() => createLabHref({ base: import.meta.env.BASE_URL ?? '/', lang: locale }), [locale]);
+interface ParamRuns {
+  applyParams: (params: LabParams) => void;
+  requestParams: (patch: ParamsPatch) => void;
+  requestError: I18nRef | null;
+  setRequestError: (error: I18nRef | null) => void;
+}
 
-  useLabStart({ labId, producerId, presetId, startAt, mode }, { runner, labHref }, generation, setSession);
+/**
+ * Re-runs on param edits and view requests. `latestParams` holds the params of the latest requested
+ * run, which may still be pending: a second edit merges into these rather than into `session.params`
+ * (which updates only once a run finishes), so it never drops the first. A failure (invalid params or
+ * a run error) keeps the ready session with its last good bundle and is reported as `requestError`.
+ */
+function useParamRuns(session: LabSession, setSession: (session: LabSession) => void, beginRun: () => IsCurrentRun, latestParams: { current: LabParams | null }): ParamRuns {
+  const [requestError, setRequestError] = useState<I18nRef | null>(null);
+
+  const run = useCallback(
+    (ready: ReadySession, params: LabParams) => {
+      const isCurrent = beginRun();
+      latestParams.current = params;
+      setRequestError(null);
+      void rerunLab(ready, params, isCurrent).then((outcome) => {
+        if (!isCurrent()) return;
+        if (outcome.ok) setSession(outcome.session);
+        else setRequestError(outcome.error);
+      });
+    },
+    [beginRun, latestParams, setSession],
+  );
 
   const applyParams = useCallback(
     (params: LabParams) => {
-      if (session.status !== 'ready') return;
-      const isCurrent = beginRun();
-      setRequestError(null);
-      void rerunLab(session, params, isCurrent).then((next) => {
-        if (isCurrent()) setSession(next);
-      });
+      if (session.status === 'ready') run(session, params);
     },
-    [session, beginRun],
+    [session, run],
   );
 
   const requestParams = useCallback(
     (patch: ParamsPatch) => {
       if (session.status !== 'ready') return;
-      const isCurrent = beginRun();
-      void requestLabParams(session, patch, isCurrent).then((outcome) => {
-        if (!isCurrent()) return;
-        setRequestError(outcome.ok ? null : outcome.error);
-        if (outcome.ok) setSession(outcome.session);
-      });
+      const merged = mergeParams(session.producer, latestParams.current ?? session.params, patch);
+      if (merged.ok) run(session, merged.value);
+      else setRequestError(merged.error);
     },
-    [session, beginRun],
+    [session, run, latestParams],
   );
+
+  return { applyParams, requestParams, requestError, setRequestError };
+}
+
+/** Client-only lifecycle: read the hash, load + run the producer, then re-run on param edits. */
+export function useLabSession({ labId, producerId, presetId, startAt, mode, locale }: UseLabSessionOptions): LabSessionApi {
+  const [session, setSession] = useState<LabSession>({ status: 'loading' });
+  const [generation, setGeneration] = useState(0);
+  const beginRun = useRunGuard();
+  const runner = useLabRunner();
+  const labHref = useMemo(() => createLabHref({ base: import.meta.env.BASE_URL ?? '/', lang: locale }), [locale]);
+  const latestParams = useRef<LabParams | null>(null);
+  const { applyParams, requestParams, requestError, setRequestError } = useParamRuns(session, setSession, beginRun, latestParams);
+  const settleStart = useCallback((next: LabSession) => {
+    latestParams.current = next.status === 'ready' ? next.params : null;
+    setSession(next);
+  }, []);
+
+  useLabStart({ labId, producerId, presetId, startAt, mode }, { runner, labHref }, generation, settleStart);
 
   const reset = useCallback(() => {
     createLabHashWriter(labId, browserHashEnvironment()).clear();
     beginRun();
+    latestParams.current = null;
     setSession({ status: 'loading' });
     setRequestError(null);
     setGeneration((current) => current + 1);
-  }, [labId, beginRun]);
+  }, [labId, beginRun, setRequestError]);
 
   return { session, applyParams, requestParams, requestError, reset };
 }

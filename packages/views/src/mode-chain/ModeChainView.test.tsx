@@ -1,6 +1,6 @@
 import type { Lens, Locale } from '@cryventure/core';
 import { act, fireEvent, screen } from '@testing-library/react';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { createFixtureBundle, renderLab } from '@cryventure/viz/testing';
 import { LabLayoutProvider, type LabHrefBuilder } from '@cryventure/viz';
 import { loadViewMessages } from '../messages.ts';
@@ -41,20 +41,70 @@ describe('ModeChainView', () => {
     expect([...tops].sort((a, b) => a - b)).toEqual(tops);
   });
 
-  it('follows the playhead: pending, current (with ▸ and aria-current) and done nodes', () => {
+  it('follows the playhead: pending, current (with ▸, said in words) and done nodes', () => {
     const { store } = render('cbc/repeated-blocks');
     expect(statusOf('b0.input')).toBe('active');
     expect(statusOf('b0.xor')).toBe('pending');
-    expect(node('b0.xor').getAttribute('aria-label')).toBe('⊕, block 1: not computed yet');
+    expect(node('b0.xor').getAttribute('aria-label')).toBe('⊕, block 1: not computed yet, from P1 and IV');
     act(() => store.getState().seek(1));
     expect(statusOf('b0.xor')).toBe('current');
-    expect(node('b0.xor').getAttribute('aria-current')).toBe('step');
+    expect(node('b0.xor').getAttribute('aria-label')).toContain('computed in this step');
     expect(node('b0.xor').textContent).toContain('▸');
     expect(statusOf('b0.cipher')).toBe('pending');
     act(() => store.getState().seek(lastStep('cbc/repeated-blocks')));
     expect(statusOf('b0.xor')).toBe('active');
     expect(document.querySelectorAll('[data-node][data-status="pending"]')).toHaveLength(0);
     expect(document.querySelectorAll('.cv-chain__edge[data-status="pending"]')).toHaveLength(0);
+  });
+
+  it('never marks several nodes as aria-current', () => {
+    const { store } = render('ctr/short-message');
+    act(() => store.getState().seek(1));
+    expect(document.querySelectorAll('[data-status="current"]').length).toBeGreaterThan(1);
+    expect(document.querySelectorAll('[aria-current]')).toHaveLength(0);
+  });
+
+  it('says where each node takes its inputs from (the edges are hidden from screen readers)', () => {
+    render('cbc/repeated-blocks');
+    expect(node('b1.xor').getAttribute('aria-label')).toBe('⊕, block 2: not computed yet, from P2 and C1');
+    expect(node('b0.cipher').getAttribute('aria-label')).toMatch(/, from ⊕, block 1$/);
+    expect(node('iv').getAttribute('aria-label')).not.toContain('from');
+  });
+
+  it('says where inputs come from in German', () => {
+    render('cbc/repeated-blocks', { locale: 'de' });
+    expect(node('b1.xor').getAttribute('aria-label')).toMatch(/, von P2 und C1$/);
+  });
+
+  it('describes a single-block diagram in the singular', () => {
+    const facet = chainCase('ecb/repeated-blocks').facet;
+    const one = { ...facet, nodes: facet.nodes.filter((n) => n.block === 0), edges: facet.edges.filter((e) => e.to.startsWith('b0.')) };
+    const bundle = chainBundle('ecb/repeated-blocks');
+    bundle.facets['chain@default'] = one;
+    renderLab(<ModeChainView labId="fixture" lens="engineer" />, { bundle, messages: messagesIn('en') });
+    expect(screen.getByRole('group', { name: /^Dataflow of 1 block, one lane per block\./ })).toBeTruthy();
+  });
+
+  it('describes a single-block diagram in German', () => {
+    const facet = chainCase('ecb/repeated-blocks').facet;
+    const one = { ...facet, nodes: facet.nodes.filter((n) => n.block === 0), edges: facet.edges.filter((e) => e.to.startsWith('b0.')) };
+    const bundle = chainBundle('ecb/repeated-blocks');
+    bundle.facets['chain@default'] = one;
+    renderLab(<ModeChainView labId="fixture" lens="engineer" />, { bundle, messages: messagesIn('de') });
+    expect(screen.getByRole('group', { name: /^Datenfluss eines Blocks, eine Spur pro Block\./ })).toBeTruthy();
+  });
+
+  it('scrolls the lane computed in this step to the middle of the scroller, not the page', () => {
+    const scrollTo = vi.fn();
+    const { store } = render('ecb/repeated-blocks');
+    const scroller = document.querySelector<HTMLElement>('.cv-chain__scroll')!;
+    Object.defineProperty(scroller, 'clientWidth', { configurable: true, value: 200 });
+    Object.defineProperty(scroller, 'scrollWidth', { configurable: true, value: 1000 });
+    scroller.scrollTo = scrollTo as unknown as typeof scroller.scrollTo;
+    act(() => store.getState().seek(5));
+    const box = node('b2.cipher');
+    const middle = parseFloat(box.style.left) + parseFloat(box.style.width) / 2;
+    expect(scrollTo).toHaveBeenLastCalledWith({ left: Math.max(0, middle - 100), behavior: 'smooth' });
   });
 
   it('marks edges pending until their target gets its value', () => {
@@ -108,7 +158,7 @@ describe('ModeChainView', () => {
   it('renders German labels and descriptions', () => {
     render('ctr/short-message', { locale: 'de' });
     expect(screen.getByRole('group', { name: /^Datenfluss von 2 Blöcken/ })).toBeTruthy();
-    expect(node('b0.keystream').getAttribute('aria-label')).toMatch(/^Schlüsselstrom 1, Block 1: noch nicht berechnet$/);
+    expect(node('b0.keystream').getAttribute('aria-label')).toBe('Schlüsselstrom 1, Block 1: noch nicht berechnet, von E K, Block 1');
     expect(document.querySelector('.cv-chain__legend')?.textContent).toContain('gestrichelt');
   });
 
@@ -122,7 +172,7 @@ describe('ModeChainView', () => {
     expect(node('b1.output').dataset['same']).toBe('1');
     expect(node('b2.output').dataset['same']).toBeUndefined();
     expect(node('b1.output').querySelector('.cv-chain__same')?.textContent).toBe('≡B');
-    expect(node('b1.output').getAttribute('aria-label')).toMatch(/same value as C1$/);
+    expect(node('b1.output').getAttribute('aria-label')).toMatch(/same value as C1, from E K, block 2$/);
     expect(document.querySelector('.cv-chain__legend [data-same]')).not.toBeNull();
   });
 
@@ -140,6 +190,26 @@ describe('ModeChainView', () => {
     expect(links.map((link) => link.textContent)).toEqual(['Zoom into block 1', 'Zoom into block 2', 'Zoom into block 3']);
     expect(links[0]?.getAttribute('href')).toBe('/en/lab/aes/#p=41545441434b204154204441574e2121');
     expect(links[0]?.getAttribute('target')).toBeNull();
+  });
+
+  it('keeps zoom links out of the tab order unless their node holds the roving focus', () => {
+    render('ecb/repeated-blocks', { labHref: zoomHref });
+    const tabIndices = () => screen.getAllByRole('link').map((link) => link.tabIndex);
+    expect(tabIndices()).toEqual([-1, -1, -1]);
+    act(() => node('b1.cipher').focus());
+    expect(tabIndices()).toEqual([-1, 0, -1]);
+  });
+
+  it('follows the zoom link with Enter on its cipher node', () => {
+    render('ecb/repeated-blocks', { labHref: zoomHref });
+    const link = screen.getAllByRole('link')[1]!;
+    const click = vi.fn((event: Event) => event.preventDefault());
+    link.addEventListener('click', click);
+    act(() => node('b1.cipher').focus());
+    fireEvent.keyDown(node('b1.cipher'), { key: 'Enter' });
+    expect(click).toHaveBeenCalledTimes(1);
+    fireEvent.keyDown(node('b1.input'), { key: 'Enter' });
+    expect(click).toHaveBeenCalledTimes(1);
   });
 
   it('shows no zoom link without a host link builder', () => {

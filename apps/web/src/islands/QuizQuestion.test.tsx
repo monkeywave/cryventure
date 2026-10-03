@@ -136,22 +136,6 @@ describe('QuizQuestion', () => {
     expect(getProgress().lessons['other/lesson']?.quiz).toEqual({ 'other-question': { solved: true, lastAnswer: 1 } });
   });
 
-  it('restores a v1 answer recorded under the question number', () => {
-    act(() => replaceProgress({ version: 2, lessons: { [LESSON]: { quiz: {}, legacyQuiz: { '2': { solved: true, lastAnswer: 1 } } } } }));
-    renderQuiz();
-    expect(option(/^B/).checked).toBe(true);
-    expect(feedback().textContent).toContain('Correct!');
-  });
-
-  it('moves a v1 answer to the question id when the question is answered again', async () => {
-    act(() => replaceProgress({ version: 2, lessons: { [LESSON]: { quiz: {}, legacyQuiz: { '2': { solved: true, lastAnswer: 1 } } } } }));
-    renderQuiz();
-    await userEvent.click(button('Try again'));
-    await userEvent.click(option(/^C/));
-    await userEvent.click(button('Check'));
-    expect(getProgress().lessons[LESSON]).toEqual({ quiz: { 'aes128-rounds': { solved: true, lastAnswer: 2 } } });
-  });
-
   it('exposes the question id on the form', () => {
     const { container } = renderQuiz();
     expect(container.querySelector('form')?.dataset.questionId).toBe('aes128-rounds');

@@ -12,6 +12,8 @@ export interface WireSegment {
   bytes: number[];
   valueRef?: string;
   block?: number;
+  /** First step at which the segment exists (−1 = present initially; absent = always present). */
+  availableAt?: number;
 }
 
 export interface WireFacet {
@@ -24,32 +26,11 @@ export interface WireFacet {
   activeAt?: { step: number; offsets: number[] }[];
 }
 
-export interface WireSegmentHit {
-  segment: WireSegment;
-  /** Index of the segment in `facet.segments`. */
-  index: number;
-  /** Global offset of the segment's first byte. */
-  start: number;
-  /** Offset within the segment. */
-  byteIndex: number;
-}
-
 const LOWER_HEX_BYTES = /^(?:[0-9a-f]{2})*$/;
 
 /** Byte length of all segments concatenated. */
 export function wireTotalLength(facet: WireFacet): number {
   return facet.segments.reduce((total, segment) => total + segment.bytes.length, 0);
-}
-
-/** The segment holding global byte `offset`, or undefined when out of range. */
-export function wireSegmentAt(facet: WireFacet, offset: number): WireSegmentHit | undefined {
-  let start = 0;
-  for (const [index, segment] of facet.segments.entries()) {
-    const byteIndex = offset - start;
-    if (isIndex(byteIndex, segment.bytes.length)) return { segment, index, start, byteIndex };
-    start += segment.bytes.length;
-  }
-  return undefined;
 }
 
 function duplicateIdIssues(facet: WireFacet): string[] {
@@ -82,10 +63,21 @@ function activeAtIssues(facet: WireFacet, stepCount: number, total: number): str
   return issues;
 }
 
-/** Structural problems of a wire facet (empty = valid): ids, flip mask, step order and range, offsets. */
+function availableAtIssues(facet: WireFacet, stepCount: number): string[] {
+  return facet.segments
+    .filter(({ availableAt }) => availableAt !== undefined && !(Number.isInteger(availableAt) && availableAt >= -1 && availableAt <= stepCount - 1))
+    .map(({ id, availableAt }) => `wire: segment "${id}" availableAt ${availableAt} outside -1..${stepCount - 1}`);
+}
+
+/** Structural problems of a wire facet (empty = valid): ids, flip mask, step order and range, offsets, availability. */
 export function wireIssues(facet: WireFacet, stepCount: number): string[] {
   const total = wireTotalLength(facet);
-  return [...duplicateIdIssues(facet), ...flipIssues(facet, total), ...activeAtIssues(facet, stepCount, total)];
+  return [...duplicateIdIssues(facet), ...flipIssues(facet, total), ...activeAtIssues(facet, stepCount, total), ...availableAtIssues(facet, stepCount)];
+}
+
+/** Whether `segment` exists at `step` (from its `availableAt` on; always when unset). */
+export function isWireSegmentAvailable(segment: WireSegment, step: number): boolean {
+  return segment.availableAt === undefined || segment.availableAt <= step;
 }
 
 /** Offsets highlighted at `step`: the latest `activeAt` entry with step ≤ `step`, else none. */

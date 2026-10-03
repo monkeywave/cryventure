@@ -2,18 +2,22 @@ import {
   allIndices,
   BlockOpRecorder,
   blockIndices,
+  cipherName,
+  encryptInputLength,
   highlight,
   i18nRef,
-  padStep,
+  recordPadding,
   toHex,
+  unpaddedInputRegion,
   unpadStep,
   zeroSnapshot,
   type BlockCipher,
   type ModeDirection,
   type ModePadding,
-  type Pkcs7UnpadResult,
+  type PadRecord,
   type RegionSpec,
   type StateFacet,
+  type UnpadRecord,
 } from '@cryventure/core';
 import type { EcbOpName } from './manifest.ts';
 
@@ -59,11 +63,9 @@ export interface EcbRecording {
   blocks: EcbBlockTrace[];
   /** Everything the output region ends with (all blocks; still padded after decryption). */
   processed: number[];
-  pad?: { step: number; bytes: number[] };
-  unpad?: { step: number; result: Pkcs7UnpadResult };
+  pad?: PadRecord;
+  unpad?: UnpadRecord;
 }
-
-const cipherName = (cipher: BlockCipher): string => cipher.id.toUpperCase();
 
 /** One block: E_K or D_K into `work`, then emit `work` into the output region. */
 function recordBlock(recorder: EcbRecorder, run: EcbRun, index: number, input: number[], length: number): EcbBlockTrace {
@@ -90,21 +92,13 @@ function recordBlock(recorder: EcbRecorder, run: EcbRun, index: number, input: n
 function recordEncrypt(run: EcbRun): EcbRecording {
   const { cipher, data } = run;
   const blockSize = cipher.blockSize;
-  const length = run.padding === 'pkcs7' ? data.length + blockSize - (data.length % blockSize) : data.length;
+  const length = encryptInputLength(data.length, blockSize, run.padding);
   const regions = ecbRegions(length, blockSize);
-  const initial = { ...zeroSnapshot(regions), input: [...data, ...new Array<number>(length - data.length).fill(0)] };
+  const initial = { ...zeroSnapshot(regions), input: unpaddedInputRegion(data, length) };
   const recorder: EcbRecorder = new BlockOpRecorder(regions, initial, i18nRef(`${NS}.step.initialEncrypt`, { bytes: data.length, blockSize, cipher: cipherName(cipher) }));
-  let padded = data;
-  let pad: EcbRecording['pad'];
+  const { padded, pad } = recordPadding(recorder, NS, data, blockSize, run.padding);
   const blocks = allIndices(length / blockSize).map((index) =>
-    recorder.block(index, () => {
-      if (index === 0 && run.padding === 'pkcs7') {
-        const padding = padStep(NS, data, blockSize);
-        padded = padding.padded;
-        pad = { step: recorder.op(padding.step), bytes: padded.slice(data.length) };
-      }
-      return recordBlock(recorder, run, index, padded.slice(index * blockSize, (index + 1) * blockSize), length);
-    }),
+    recorder.block(index, () => recordBlock(recorder, run, index, padded.slice(index * blockSize, (index + 1) * blockSize), length)),
   );
   return { facet: recorder.toFacet(), blocks, processed: blocks.flatMap((block) => block.output), ...(pad === undefined ? {} : { pad }) };
 }
@@ -115,7 +109,7 @@ function recordDecrypt(run: EcbRun): EcbRecording {
   const regions = ecbRegions(data.length, blockSize);
   const blockTotal = data.length / blockSize;
   const initial = { ...zeroSnapshot(regions), input: [...data] };
-  const recorder: EcbRecorder = new BlockOpRecorder(regions, initial, i18nRef(`${NS}.step.initialDecrypt`, { bytes: data.length, blocks: blockTotal, cipher: cipherName(cipher) }));
+  const recorder: EcbRecorder = new BlockOpRecorder(regions, initial, i18nRef(`${NS}.step.initialDecrypt`, { bytes: data.length, count: blockTotal, cipher: cipherName(cipher) }));
   const blocks: EcbBlockTrace[] = [];
   let unpad: EcbRecording['unpad'];
   for (const index of allIndices(blockTotal)) {

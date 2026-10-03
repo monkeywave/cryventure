@@ -15,4 +15,11 @@ describe('BlockOpRecorder', () => {
     expect(facet.steps.map((step) => step.scope)).toEqual([[0, 0], [0, 1], [1, 0], [1, 1]]);
     expect(facet.initialNarration).toEqual({ key: 'x.initial' });
   });
+
+  it('records a top-level op outside every block, with the root scope', () => {
+    const recorder = new BlockOpRecorder<'r', Op>(regions, { r: [0, 0] }, { key: 'x.initial' });
+    expect(recorder.topLevelOp(set(0))).toBe(0);
+    recorder.block(0, () => recorder.op(set(1)));
+    expect(recorder.toFacet().steps.map((step) => step.scope)).toEqual([[], [0, 0]]);
+  });
 });

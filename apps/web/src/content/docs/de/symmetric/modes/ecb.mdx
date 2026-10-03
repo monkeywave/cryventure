@@ -1,5 +1,5 @@
 ---
-title: 'ECB: das Codebuch-Verfahren'
+title: 'ECB: der Codebuch-Modus'
 description: Wie ECB jeden Block für sich mit demselben Schlüssel verschlüsselt, warum gleiche Klartextblöcke gleiche Geheimtextblöcke ergeben und wie dadurch ein Bild durchscheint.
 lessonId: block-ciphers/modes/ecb
 track: block-ciphers
@@ -36,9 +36,9 @@ import WhyBox from '../../../../../components/lesson/WhyBox.astro';
 
 ## Eine Blockchiffre allein verschlüsselt noch keine Nachrichten
 
-AES verschlüsselt genau einen 16-Byte-Block. Echte Nachrichten sind länger, also brauchen wir eine
+AES verschlüsselt genau einen 16-Byte-Block. Echte Nachrichten sind länger, also brauchen wir einen
 **Betriebsmodus**: eine Vorschrift, wie die Blockchiffre auf viele Blöcke angewendet wird. NIST
-SP 800-38A definiert fünf davon. Die einfachste ist **Electronic Codebook**, kurz ECB (§6.1) – das
+SP 800-38A definiert fünf davon. Der einfachste ist **Electronic Codebook**, kurz ECB (§6.1) – das
 elektronische Codebuch.
 
 ECB zerlegt die Nachricht in Blöcke `P₁ … Pₙ` und verschlüsselt jeden davon für sich, immer mit
@@ -132,8 +132,8 @@ Ein Bild ist eine lange Folge von Pixelbytes. Einfarbige Flächen erzeugen viele
 aber die **Kanten** zwischen den Flächen bleiben, wo sie sind: Der Umriss übersteht die
 Verschlüsselung.
 
-Das ist der klassische „ECB-Pinguin“, ein Bild, das seit zwei Jahrzehnten durch die
-Kryptografielehre geistert. Unser Pinguin ist eine eigene Zeichnung und wird live in deinem Browser
+Das ist der klassische „ECB-Pinguin“, ein Bild, das seit zwei Jahrzehnten in der
+Kryptografielehre kursiert. Unser Pinguin ist eine eigene Zeichnung und wird live in deinem Browser
 mit AES verschlüsselt. Schalte auf CBC um (nächste Lektion), und das Bild wird zu gleichmäßigem
 Rauschen.
 

@@ -1,4 +1,4 @@
-import { resolveQuizAnswer, type LessonProgress, type Progress, type QuizAnswer, type QuizQuestionRef } from '../progress/index.ts';
+import { type LessonProgress, type Progress, type QuizAnswer, type QuizQuestionRef } from '../progress/index.ts';
 
 /** Option label for a zero-based index: 0 → "A", 1 → "B", … */
 export function optionLetter(index: number): string {
@@ -38,24 +38,16 @@ export interface LessonScore {
   total: number;
 }
 
-/**
- * Questions count once solved (see `QuizAnswer.solved`). Each question's answer is resolved by id,
- * else by its v1 number (`resolveQuizAnswer`); answers to questions not listed are ignored.
- */
+/** Questions count once solved (see `QuizAnswer.solved`); answers to questions not listed are ignored. */
 export function lessonScore(lesson: LessonProgress | undefined, questions: readonly QuizQuestionRef[]): LessonScore {
-  const answers = questions.map((question) => resolveQuizAnswer(lesson, question)).filter((answer) => answer !== undefined);
+  const answers = questions.map((question) => lesson?.quiz[question.id]).filter((answer) => answer !== undefined);
   const correct = answers.filter((answer) => answer.solved).length;
   return { correct, answered: answers.length, total: questions.length };
 }
 
-/**
- * One question per recorded answer, for a lesson this site version does not know. Ids get number 0
- * (no v1 number); a v1 answer gets its number as id, which can't clash because ids start with a letter.
- */
+/** One question per recorded answer, for a lesson this site version does not know (number 0: unknown). */
 function recordedQuestions(lesson: LessonProgress): QuizQuestionRef[] {
-  const byId = Object.keys(lesson.quiz).map((id) => ({ id, number: 0 }));
-  const byNumber = Object.keys(lesson.legacyQuiz ?? {}).map((key) => ({ id: key, number: Number(key) }));
-  return [...byId, ...byNumber];
+  return Object.keys(lesson.quiz).map((id) => ({ id, number: 0 }));
 }
 
 /**

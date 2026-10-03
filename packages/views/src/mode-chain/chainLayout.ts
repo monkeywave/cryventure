@@ -236,3 +236,21 @@ export function neighbour(boxes: readonly NodeBox[], from: NodeBox, key: string)
   }
   return undefined;
 }
+
+/** A horizontal extent in canvas px. */
+export interface Span {
+  left: number;
+  right: number;
+}
+
+/** Horizontal extent of `boxes` (e.g. the nodes computed in this step); undefined when empty. */
+export function spanOf(boxes: readonly NodeBox[]): Span | undefined {
+  if (boxes.length === 0) return undefined;
+  return { left: Math.min(...boxes.map((box) => box.x)), right: Math.max(...boxes.map((box) => box.x + box.width)) };
+}
+
+/** scrollLeft that centres `span` in a viewport of `viewportWidth`, clamped to the scroll range. */
+export function centredScrollLeft(span: Span, viewportWidth: number, contentWidth: number): number {
+  const centred = (span.left + span.right) / 2 - viewportWidth / 2;
+  return Math.max(0, Math.min(centred, contentWidth - viewportWidth));
+}

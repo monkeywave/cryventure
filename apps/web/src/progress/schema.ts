@@ -17,22 +17,17 @@ export interface QuizAnswer {
   lastAnswer: number;
 }
 
-/** How a check question is addressed: its stable id, and its display number (docs/M3.md §0b). */
+/** A check question as a lesson lists it: its stable id and its display number (docs/M3.md §0b). */
 export interface QuizQuestionRef {
-  /** Kebab-case, unique per lesson, identical in every locale; never changes. */
+  /** Kebab-case, unique per lesson, identical in every locale; never changes. Progress is keyed by it. */
   id: string;
-  /** Display-only; only used to find answers recorded before ids existed (`legacyQuiz`). */
+  /** Display-only; renumbering is fine (v1 numbers are frozen in `LEGACY_QUIZ_IDS`). */
   number: number;
 }
 
 export interface LessonProgress {
   /** Question id → the learner's answer state. */
   quiz: Record<string, QuizAnswer>;
-  /**
-   * Answers recorded by schema v1, keyed by question number (as a string). Read only as a fallback
-   * (see `resolveQuizAnswer`); answering the question again moves its entry to `quiz`.
-   */
-  legacyQuiz?: Record<string, QuizAnswer>;
 }
 
 export interface Progress {
@@ -48,7 +43,6 @@ export function emptyProgress(): Progress {
 }
 
 const QUESTION_ID = /^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$/;
-const QUESTION_NUMBER = /^[1-9]\d*$/;
 
 /**
  * Whether `value` is a valid check-question id: kebab-case (lowercase letters and digits, single
@@ -56,11 +50,6 @@ const QUESTION_NUMBER = /^[1-9]\d*$/;
  */
 export function isQuestionId(value: unknown): value is string {
   return typeof value === 'string' && QUESTION_ID.test(value);
-}
-
-/** The learner's answer to a question: by id, else the v1 answer recorded under its number. */
-export function resolveQuizAnswer(lesson: LessonProgress | undefined, question: QuizQuestionRef): QuizAnswer | undefined {
-  return lesson?.quiz[question.id] ?? lesson?.legacyQuiz?.[String(question.number)];
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -91,14 +80,8 @@ function parseEntries<T>(value: unknown, parseEntry: (entry: unknown) => T | und
   return Object.fromEntries(entries);
 }
 
-const isQuestionNumberKey = (key: string): boolean => QUESTION_NUMBER.test(key);
-
 function parseLesson(value: unknown): LessonProgress | undefined {
-  if (!isRecord(value)) return undefined;
-  const lesson: LessonProgress = { quiz: parseEntries(value.quiz, parseQuizAnswer, isQuestionId) };
-  const legacyQuiz = parseEntries(value.legacyQuiz, parseQuizAnswer, isQuestionNumberKey);
-  if (Object.keys(legacyQuiz).length > 0) lesson.legacyQuiz = legacyQuiz;
-  return lesson;
+  return isRecord(value) ? { quiz: parseEntries(value.quiz, parseQuizAnswer, isQuestionId) } : undefined;
 }
 
 function parsePrologue(value: unknown): Progress['prologue'] {

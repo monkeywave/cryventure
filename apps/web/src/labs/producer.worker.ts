@@ -4,7 +4,7 @@
  * per run and terminates it when the run settles or is superseded.
  */
 import { producerRegistry } from './producers.ts';
-import { handleRunRequest } from './workerProtocol.ts';
+import { answerRunRequest } from './workerProtocol.ts';
 
 interface WorkerScope {
   onmessage: ((event: MessageEvent<unknown>) => void) | null;
@@ -14,5 +14,5 @@ interface WorkerScope {
 const scope = self as unknown as WorkerScope;
 
 scope.onmessage = (event) => {
-  void handleRunRequest(event.data, producerRegistry).then((response) => scope.postMessage(response));
+  void answerRunRequest(event.data, producerRegistry, (response) => scope.postMessage(response));
 };

@@ -1,0 +1,198 @@
+---
+title: 'CBC: Blöcke verketten'
+description: Wie CBC jeden Klartextblock mit dem vorherigen Geheimtextblock XOR-verknüpft, warum der IV unvorhersagbar sein muss und warum CBC zugunsten authentifizierter Verschlüsselung ausgemustert wird.
+lessonId: block-ciphers/modes/cbc
+track: block-ciphers
+phase: 1
+sidebar:
+  order: 2
+tableOfContents: false
+prereqs:
+  - block-ciphers/modes/ecb
+labs:
+  - cbc-chain
+refs:
+  - NIST SP 800-38A, Abschnitt 5.3 (Initialization Vectors)
+  - NIST SP 800-38A, Abschnitt 6.2 (The Cipher Block Chaining Mode)
+  - NIST SP 800-38A, Anhang C (Generation of Initialization Vectors)
+  - NIST SP 800-38A, Anhang D (Error Properties)
+  - NIST SP 800-38A, Anhang F.2 (CBC Example Vectors)
+  - RFC 5652, Abschnitt 6.3 (Content-encryption Process, PKCS#7-Padding)
+  - RFC 7457, Abschnitte 2.3 und 2.4 (Summarizing Known Attacks on TLS)
+  - RFC 8446, Abschnitt 1.2 (TLS 1.3, Major Differences from TLS 1.2)
+  - Wikipedia, „Betriebsmodus (Kryptographie)“ (Hintergrundlektüre)
+sourceHash: sha256:507e8d45078336a5a064d507fe7e02eee350061b8cf5e4a92d08a2dfac78cbb0
+translation:
+  status: ai-reviewed
+  reviewedAt: '2026-10-03'
+  reviewer: AI editorial review (Claude)
+---
+
+import Lab from '../../../../../components/Lab.astro';
+import CheckQuestion from '../../../../../components/lesson/CheckQuestion.astro';
+import Formula from '../../../../../components/lesson/Formula.astro';
+import Lens from '../../../../../components/lesson/Lens.astro';
+import LessonSection from '../../../../../components/lesson/LessonSection.astro';
+import WhyBox from '../../../../../components/lesson/WhyBox.astro';
+
+<LessonSection part="concept">
+
+## Jeder Block erinnert sich an seinen Vorgänger
+
+Die Schwäche von ECB: Gleiche Klartextblöcke ergeben gleiche Geheimtextblöcke. **Cipher Block
+Chaining**, kurz CBC, behebt das, indem es die Vergangenheit einmischt: Bevor ein Klartextblock
+verschlüsselt wird, wird er mit dem vorherigen Geheimtextblock XOR-verknüpft (NIST SP 800-38A,
+§6.2). Der erste Block hat keinen Vorgänger und nimmt stattdessen einen **Initialisierungsvektor
+(IV)**: `C₀ = IV`.
+
+<Formula caption="CBC-Verschlüsselung, NIST SP 800-38A §6.2.">
+{`C₀ = IV
+Cⱼ = E_K(Pⱼ ⊕ Cⱼ₋₁)        für j = 1 … n`}
+</Formula>
+
+<WhyBox constant="IV" title="ein unvorhersagbarer IV">
+  Der IV muss nicht geheim sein, aber für jede Nachricht **unvorhersagbar** (SP 800-38A §5.3).
+  Anhang C nennt zwei Wege: Verschlüssle eine eindeutige Nonce mit demselben Schlüssel, oder zieh
+  den IV aus einem zugelassenen Zufallsbitgenerator.
+</WhyBox>
+
+<Lens only="story">
+
+Stell dir einen Kettenbrief vor: Jeder Satz wird zusammen mit dem bereits verwürfelten Satz davor
+verwürfelt. Schreibst du denselben Satz zweimal, sehen die beiden verwürfelten Fassungen trotzdem
+völlig verschieden aus.
+
+</Lens>
+
+</LessonSection>
+
+<LessonSection part="playground">
+
+## Dieselben zwei Blöcke, jetzt verschieden
+
+Das Lab verschlüsselt denselben Klartext wie die ECB-Lektion: „ATTACK AT DAWN!!“ zweimal (32 Byte),
+mit AES-128, dem Schlüssel und dem IV `000102030405060708090a0b0c0d0e0f` aus SP 800-38A, Anhang F.2.
+Geh die Kette Schritt für Schritt durch: `P₁` und `P₂` sind gleich, `C₁` und `C₂` aber verschieden,
+weil `P₂` mit `C₁` XOR-verknüpft wird und nicht mit dem IV.
+
+<Lab labId="cbc-chain" producerId="cbc" presetId="repeated-blocks" layout="mode-chain:45|wire:25|narration:30" />
+
+</LessonSection>
+
+<LessonSection part="inside">
+
+## In die eine Richtung sequenziell, in die andere parallel
+
+<Formula caption="CBC-Entschlüsselung, NIST SP 800-38A §6.2.">
+{`Pⱼ = D_K(Cⱼ) ⊕ Cⱼ₋₁        für j = 1 … n,  C₀ = IV`}
+</Formula>
+
+Im Lab wird `P₁ ⊕ IV = 41555642474e26465c294e4a5b432f2e` zu
+`C₁ = d4d884b41d73a43210dd016d64d82e52` verschlüsselt und `P₂ ⊕ C₁ = 958cd0f55e38847344fd452c33960f73`
+zu `C₂ = b0117a218182ee3bc8e39d9093fb3b27`.
+
+**Die Verschlüsselung ist sequenziell**: Block `j` braucht zuerst `Cⱼ₋₁`. **Die Entschlüsselung kann
+parallel laufen**: Alle Geheimtextblöcke sind bereits bekannt, also lassen sich alle `D_K(Cⱼ)`
+gleichzeitig berechnen (SP 800-38A §6.2).
+
+**Fehlerfortpflanzung** (SP 800-38A, Anhang D): Ein gekipptes Bit in `Cⱼ` verfälscht `Pⱼ` vollständig
+und kippt dieselbe Bitposition in `Pⱼ₊₁`. Alle späteren Blöcke werden korrekt entschlüsselt.
+
+<Lens level="cryptographer">
+
+Der zweite Effekt ist für Angreifer ein Geschenk: Wer ein gewähltes Bit in `Cⱼ₋₁` kippt, kippt
+genau dieses Bit in `Pⱼ`, ohne dass ein Fehler gemeldet wird. CBC ist formbar (engl. *malleable*)
+und daher nicht IND-CCA-sicher.
+
+</Lens>
+
+</LessonSection>
+
+<LessonSection part="memory">
+
+## So sieht CBC-Geheimtext aus
+
+Der Empfänger braucht den IV, deshalb wird er meist unverschlüsselt vor den Geheimtext gestellt:
+
+<Formula caption="Ein verbreitetes CBC-Übertragungsformat; der IV ist nicht geheim.">
+{`IV ‖ C₁ ‖ C₂ ‖ … ‖ Cₙ        (16 + 16·n Byte bei AES)`}
+</Formula>
+
+Wie ECB arbeitet CBC mit ganzen Blöcken, und SP 800-38A überlässt das Padding der Anwendung. Mit
+**PKCS#7** (RFC 5652, §6.3) bekommt unsere 32-Byte-Nachricht einen vollen Block aus Bytes mit dem
+Wert `10`, übertragen werden also 16 + 48 = 64 Byte. Der letzte Block
+`C₃ = bf48eacf1af5d993343034e7539daba0` verschlüsselt dieses Padding.
+
+<WhyBox constant="C₀" title="der IV als Block null">
+  Wenn du den IV als `C₀` behandelst, wird die Formel einheitlich: Jeder Block, auch der erste, wird
+  mit den 16 Byte XOR-verknüpft, die bei der Übertragung direkt vor ihm stehen.
+</WhyBox>
+
+</LessonSection>
+
+<LessonSection part="break">
+
+## Warum CBC ausgemustert wird
+
+CBC sorgt **nur für Vertraulichkeit**. Es prüft keine Integrität und muss daher mit einem Message
+Authentication Code (MAC) kombiniert werden. Diese Kombination richtig hinzubekommen, erwies sich
+als fehleranfällig, wie die Geschichte von TLS zeigt (RFC 7457):
+
+- **BEAST** (2011): TLS 1.0 verwendete für CBC-Records einen vorhersagbaren IV (RFC 7457, §2.3).
+- **Lucky Thirteen** (2013): Zeitunterschiede bei der Verarbeitung von CBC-Padding und MAC in TLS
+  verrieten Informationen (RFC 7457, §2.4).
+- **POODLE** (2014): SSL 3.0 prüfte sein CBC-Padding nicht richtig (RFC 7457, §2.4).
+
+Jede Lücke wurde geschlossen, doch das Muster kehrte immer wieder. TLS 1.3 hat alle Cipher-Suites
+entfernt, die keine authentifizierte Verschlüsselung bieten (RFC 8446, §1.2). Zum Hintergrund siehe
+den Wikipedia-Artikel „Betriebsmodus (Kryptographie)“.
+
+<Lens level="engineer">
+
+Nimm für neue Entwürfe lieber authentifizierte Verschlüsselung wie **AES-GCM** (nächster
+Meilenstein): AES-GCM verschlüsselt und authentifiziert in einem Schritt, du musst also keinen MAC von
+Hand kombinieren.
+
+</Lens>
+
+</LessonSection>
+
+<LessonSection part="check">
+
+## Teste dich selbst
+
+<CheckQuestion
+  id="cbc-equal-blocks"
+  number={1}
+  question="Eine Nachricht enthält zweimal hintereinander denselben 16-Byte-Block und wird unter einem Schlüssel und einem IV verschlüsselt. Was liefert CBC?"
+  options={['Zwei gleiche Geheimtextblöcke', 'Zwei verschiedene Geheimtextblöcke', 'Einen Fehler; CBC lehnt wiederholte Blöcke ab', 'Einen Block; Duplikate werden verworfen']}
+  answer={1}
+>
+  Der zweite Block wird vor der Verschlüsselung mit `C₁` XOR-verknüpft, der erste mit dem IV, also
+  bekommt die Blockchiffre verschiedene Eingaben (SP 800-38A §6.2). Im Lab gilt `C₁ = d4d884b4…`
+  und `C₂ = b0117a21…`.
+</CheckQuestion>
+
+<CheckQuestion
+  id="cbc-iv-requirement"
+  number={2}
+  question="Was verlangt SP 800-38A vom CBC-IV?"
+  options={['Er muss geheim sein', 'Er muss nur aus Nullen bestehen', 'Er muss unvorhersagbar sein', 'Er muss mit dem Schlüssel übereinstimmen']}
+  answer={2}
+>
+  Der IV darf unverschlüsselt übertragen werden, muss aber unvorhersagbar sein (SP 800-38A §5.3,
+  Anhang C). BEAST nutzte vorhersagbare IVs in TLS 1.0 aus.
+</CheckQuestion>
+
+<CheckQuestion
+  id="cbc-bit-error"
+  number={3}
+  question="Ein Bit des Geheimtextblocks Cⱼ kippt bei der Übertragung. Welche Klartextblöcke sind beim Entschlüsseln betroffen?"
+  options={['Nur Pⱼ', 'Pⱼ und Pⱼ₊₁', 'Pⱼ und alle folgenden Blöcke', 'Keiner; CBC erkennt den Fehler']}
+  answer={1}
+>
+  `Pⱼ` wird vollständig verfälscht, und in `Pⱼ₊₁` kippt dasselbe Bit; spätere Blöcke sind
+  unversehrt (SP 800-38A, Anhang D). CBC erkennt nichts, denn es schützt die Integrität nicht.
+</CheckQuestion>
+
+</LessonSection>

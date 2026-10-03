@@ -34,7 +34,7 @@ export function buildCtrValues(run: CtrRun, recording: CtrRecording, lastStep: n
   return { kind: 'values', schemaVersion: 1, values };
 }
 
-function recordBundle(ctrRun: CtrRun, keyHex: string): PrimitiveRecording {
+function recordBundle(ctrRun: CtrRun): PrimitiveRecording {
   const recording = recordCtr(ctrRun);
   const reference = ctrXor(ctrRun.cipher, ctrRun.key, Uint8Array.from(ctrRun.counter), Uint8Array.from(ctrRun.data));
   assertMatchesReference(recording.output, reference, 'ctr');
@@ -44,7 +44,7 @@ function recordBundle(ctrRun: CtrRun, keyHex: string): PrimitiveRecording {
       state: facet,
       values: buildCtrValues(ctrRun, recording, facet.steps.length - 1),
       narration: narrationFromState(facet),
-      chain: ctrChain(recording, { cipherId: ctrRun.cipher.id, keyHex }),
+      chain: ctrChain(recording, { cipher: ctrRun.cipher, key: ctrRun.key }),
       wire: ctrWire(recording, ctrRun.counter),
     },
     output: { output: recording.output, keystream: recording.keystream },
@@ -61,5 +61,5 @@ export function run(params: CtrParams, options: RunOptions = {}): RunResult {
   const ctrRun: CtrRun = { cipher: prepared.cipher, key: prepared.key, counter: parseHexToArray(valid.counterHex), data: parseHexToArray(valid.inputHex) };
   const error = blockLengthError(ctrRun.cipher, ctrRun.counter.length, `${NS}.error.counterBlockSize`);
   if (error !== undefined) return { ok: false, error };
-  return runPrimitive(ctrManifest, valid, () => recordBundle(ctrRun, valid.keyHex));
+  return runPrimitive(ctrManifest, valid, () => recordBundle(ctrRun));
 }

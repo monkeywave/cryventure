@@ -5,7 +5,12 @@ import { defineConfig, devices } from '@playwright/test';
  * `CV_BASE=/cryventure/ pnpm e2e` (= `pnpm e2e:subpath`) builds and tests the GitHub Pages sub-path variant.
  */
 const base = process.env.CV_BASE ?? '/';
-const baseURL = process.env.E2E_BASE_URL ?? `http://localhost:4321${base}`;
+/**
+ * Own port for the preview server Playwright starts: 4321 is `astro dev`'s default, and with
+ * `reuseExistingServer` a running dev server there would be tested instead of the production build.
+ */
+const PREVIEW_PORT = 4329;
+const baseURL = process.env.E2E_BASE_URL ?? `http://localhost:${PREVIEW_PORT}${base}`;
 const useExternalServer = Boolean(process.env.E2E_BASE_URL);
 
 export default defineConfig({
@@ -22,7 +27,7 @@ export default defineConfig({
     ? undefined
     : {
         // --ignore-lock keeps preview in the foreground: Astro 7 auto-backgrounds it when an AI agent is detected.
-        command: 'pnpm build && pnpm preview --port 4321 --ignore-lock',
+        command: `pnpm build && pnpm preview --port ${PREVIEW_PORT} --ignore-lock`,
         url: baseURL,
         reuseExistingServer: !process.env.CI,
         timeout: 180_000,

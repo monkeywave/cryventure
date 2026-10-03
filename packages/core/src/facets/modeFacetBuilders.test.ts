@@ -43,6 +43,32 @@ describe('WireBuilder', () => {
     expect(wireIssues(facet, 4)).toEqual([]);
   });
 
+  it('emit highlights the offsets and makes their segments available from that step', () => {
+    const wire = new WireBuilder();
+    const iv = wire.segment({ id: 'iv', role: 'iv', label, bytes: [1, 2] });
+    const c0 = wire.segment({ id: 'c0', role: 'ciphertext', label, bytes: [3, 4], block: 0 });
+    const c1 = wire.segment({ id: 'c1', role: 'ciphertext', label, bytes: [5], block: 1 });
+    wire.activate(-1, iv);
+    wire.emit(4, c1);
+    wire.emit(2, c0);
+    wire.emit(3, c0);
+    const facet = wire.toFacet();
+    expect(facet.segments.map((segment) => segment.availableAt)).toEqual([undefined, 2, 4]);
+    expect(facet.activeAt).toEqual([
+      { step: -1, offsets: [0, 1] },
+      { step: 2, offsets: [2, 3] },
+      { step: 3, offsets: [2, 3] },
+      { step: 4, offsets: [4] },
+    ]);
+    expect(wireIssues(facet, 5)).toEqual([]);
+  });
+
+  it('leaves segments that are only activated present from the start', () => {
+    const wire = new WireBuilder();
+    wire.activate(1, wire.segment({ id: 'c0', role: 'ciphertext', label, bytes: [1] }));
+    expect(wire.toFacet().segments[0]).not.toHaveProperty('availableAt');
+  });
+
   it('omits activeAt when nothing is activated', () => {
     expect(new WireBuilder().toFacet()).toEqual({ kind: 'wire', schemaVersion: 1, segments: [] });
   });

@@ -1,0 +1,43 @@
+/*
+ * Lesson content on narrow screens: wide tables and formula blocks scroll inside their own box
+ * instead of squeezing their content, and an edge shadow shows that more is hidden to that side.
+ * The shadows (`scroll` layers) stay at the box edges; the covers (`local` layers) scroll with the
+ * content and hide a shadow once that edge is reached (no script needed).
+ */
+:root {
+  --cv-scroll-shadow: color-mix(in srgb, var(--cv-text-muted) 55%, transparent);
+}
+
+/* Markdown tables (Starlight already makes them `display: block; overflow: auto`). */
+.sl-markdown-content table:not(:where(.not-content *)) {
+  max-width: 100%;
+  background:
+    linear-gradient(to right, var(--sl-color-bg) 40%, transparent) left center / 2.5rem 100% no-repeat local,
+    linear-gradient(to left, var(--sl-color-bg) 40%, transparent) right center / 2.5rem 100% no-repeat local,
+    radial-gradient(farthest-side at 0 50%, var(--cv-scroll-shadow), transparent) left center / 0.75rem 100% no-repeat scroll,
+    radial-gradient(farthest-side at 100% 50%, var(--cv-scroll-shadow), transparent) right center / 0.75rem 100% no-repeat scroll,
+    var(--sl-color-bg);
+}
+
+/* Columns keep a readable width (the table scrolls instead of squeezing them to a word per line);
+   long compounds („Geheimtextblöcke“) break at syllables instead of overflowing. */
+.sl-markdown-content :is(th, td):not(:where(.not-content *)) {
+  min-width: 7rem;
+  hyphens: auto;
+  hyphenate-limit-chars: 8 4 3;
+}
+
+/* A formula in a table cell stays on one line; the table scrolls instead of breaking it per character. */
+.sl-markdown-content :is(th, td) code:not(:where(.not-content *)) {
+  white-space: nowrap;
+}
+
+/* <Formula> blocks already scroll horizontally (`white-space: pre`). */
+.cv-formula .cv-formula__body {
+  background:
+    linear-gradient(to right, var(--cv-surface) 40%, transparent) left center / 2.5rem 100% no-repeat local,
+    linear-gradient(to left, var(--cv-surface) 40%, transparent) right center / 2.5rem 100% no-repeat local,
+    radial-gradient(farthest-side at 0 50%, var(--cv-scroll-shadow), transparent) left center / 0.75rem 100% no-repeat scroll,
+    radial-gradient(farthest-side at 100% 50%, var(--cv-scroll-shadow), transparent) right center / 0.75rem 100% no-repeat scroll,
+    var(--cv-surface);
+}

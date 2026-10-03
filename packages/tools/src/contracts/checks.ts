@@ -42,15 +42,17 @@ function sameNames(a: readonly string[], b: readonly string[]): boolean {
   return [...a].sort().join() === [...b].sort().join();
 }
 
-/** Refs whose key is missing or whose params differ from the template's `{{params}}`. */
+/** Refs whose key is missing or whose params differ from the template's `{{params}}` (a plural form need not use `count`). */
 export function refProblems(refs: readonly I18nRef[], catalogs: LocaleCatalogs): string[] {
   return CONTRACT_LOCALES.flatMap((locale) =>
     refs.flatMap((ref) => {
       const key = resolveMessageKey(catalogs[locale], ref.key, ref.params, locale);
       const template = key === undefined ? undefined : catalogs[locale][key];
       if (template === undefined) return [`${locale}:${ref.key} missing`];
-      const given = Object.keys(ref.params ?? {});
-      return sameNames(given, extractParams(template)) ? [] : [`${locale}:${ref.key} params [${given.join()}] vs template [${extractParams(template).join()}]`];
+      const used = extractParams(template);
+      // A plural form may leave out {{count}}: it only selects the form ("one block").
+      const given = Object.keys(ref.params ?? {}).filter((name) => !(name === 'count' && key !== ref.key && !used.includes(name)));
+      return sameNames(given, used) ? [] : [`${locale}:${ref.key} params [${given.join()}] vs template [${extractParams(template).join()}]`];
     }),
   );
 }

@@ -1,3 +1,4 @@
+import legacyQuizIds from './legacyQuizIds.json';
 import { emptyProgress, parseProgress, PROGRESS_VERSION, type Progress } from './schema.ts';
 
 /** Upgrades a record of version N to version N + 1. Add one entry per future schema change. */
@@ -8,13 +9,29 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 }
 
 /**
- * v1 keyed quiz answers by question number; v2 keys them by question id (docs/M3.md §0b). Numbers
- * cannot be mapped to ids without the lesson sources, so each lesson's answers move to `legacyQuiz`,
- * which readers fall back to. Malformed lessons are left for the parser to drop.
+ * Lesson key → v1 question number → question id, as the questions were numbered when schema v1
+ * shipped (generated once from the MDX of that release).
+ *
+ * FROZEN: this file must never change. It describes data already stored on learners' devices, not
+ * the current lessons: authors may renumber questions freely, and a new question needs no entry here.
+ * `legacyQuizIds.test.ts` checks that its ids still exist in the MDX.
+ */
+export const LEGACY_QUIZ_IDS: Readonly<Record<string, Readonly<Record<string, string>>>> = legacyQuizIds;
+
+/** A v1 lesson quiz with each number key replaced by its frozen id; unknown numbers are dropped. */
+function quizByIds(lessonKey: string, quiz: unknown): Record<string, unknown> {
+  const ids = LEGACY_QUIZ_IDS[lessonKey] ?? {};
+  if (!isRecord(quiz)) return {};
+  return Object.fromEntries(Object.entries(quiz).flatMap(([number, answer]) => (Object.hasOwn(ids, number) ? [[ids[number], answer]] : [])));
+}
+
+/**
+ * v1 keyed quiz answers by question number; v2 keys them by question id (docs/M3.md §0b), mapped
+ * through the frozen `LEGACY_QUIZ_IDS`. Malformed lessons are left for the parser to drop.
  */
 export function migrateV1ToV2(v1: Record<string, unknown>): Record<string, unknown> {
   if (!isRecord(v1.lessons)) return { ...v1, version: 2 };
-  const lessons = Object.fromEntries(Object.entries(v1.lessons).map(([key, lesson]) => [key, isRecord(lesson) ? { quiz: {}, legacyQuiz: lesson.quiz } : lesson]));
+  const lessons = Object.fromEntries(Object.entries(v1.lessons).map(([key, lesson]) => [key, isRecord(lesson) ? { quiz: quizByIds(key, lesson.quiz) } : lesson]));
   return { ...v1, version: 2, lessons };
 }
 

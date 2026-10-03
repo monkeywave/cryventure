@@ -11,7 +11,7 @@ export interface ParamPanelProps {
   params: LabParams;
   /** Called with validated, normalised params. */
   onApply: (params: LabParams) => void;
-  /** Why a view's re-run request was rejected (`useLabActions().requestParams`); shown like a field error. */
+  /** Why the last re-run or view request failed (invalid params or a run error, e.g. a wrong key length); shown like a field error. */
   requestError?: I18nRef | null;
   /** Registered producers, the options of `port` fields (default: the app's producer registry). */
   producers?: readonly PrimitiveManifest[];
@@ -224,20 +224,22 @@ function useExternalParamsGeneration(params: LabParams, onApply: ParamPanelProps
     setOrigin((current) => ({ ...current, own: next }));
     onApply(next);
   };
-  return { generation: origin.generation, applyOwn };
+  // While a field's re-run is pending (or after it failed), `params` still holds the last good run, so the
+  // fields build on what they last applied: a second edit then keeps the first.
+  return { generation: origin.generation, applyOwn, fieldParams: origin.own ?? params };
 }
 
 /** Preset picker plus one input per declared param field; invalid input shows a localized error and is not applied. */
 export function ParamPanel(props: ParamPanelProps) {
   const t = useT();
-  const { generation, applyOwn } = useExternalParamsGeneration(props.params, props.onApply);
+  const { generation, applyOwn, fieldParams } = useExternalParamsGeneration(props.params, props.onApply);
   return (
     <fieldset className="cv-params">
       <legend>{t('ui.lab.params.title')}</legend>
       <PresetSelect {...props} />
       {paramFieldsOf(props.producer).map((field) => {
         const Input = FIELD_INPUTS[field.kind];
-        return <Input key={`${field.name}:${generation}`} field={field} {...props} onApply={applyOwn} />;
+        return <Input key={`${field.name}:${generation}`} field={field} {...props} params={fieldParams} onApply={applyOwn} />;
       })}
       <RequestError error={props.requestError} />
     </fieldset>

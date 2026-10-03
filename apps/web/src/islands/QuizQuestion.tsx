@@ -65,7 +65,7 @@ function QuestionBody({ lessonKey, questionId, number, question, options, answer
   const t = useT();
   const name = useId();
   const hydrated = useHydrated();
-  const quiz = useQuizQuestion(lessonKey, { id: questionId, number }, answer, options.length);
+  const quiz = useQuizQuestion(lessonKey, questionId, answer, options.length);
   const onSubmit = (event: SubmitEvent<HTMLFormElement>): void => {
     event.preventDefault();
     quiz.check();

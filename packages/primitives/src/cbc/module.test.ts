@@ -68,7 +68,7 @@ describe('cbc run: encrypt', () => {
   it('records pad once, then xorChain → encryptBlock → emit per block, scoped block → op', () => {
     const steps = stateOf(bundle(runWith({}))).steps;
     expect(steps.map((step) => step.op)).toEqual(['pad', ...Array(3).fill(['xorChain', 'encryptBlock', 'emit']).flat()]);
-    expect(steps.map((step) => step.scope)).toEqual([[0, 0], [0, 1], [0, 2], [0, 3], [1, 0], [1, 1], [1, 2], [2, 0], [2, 1], [2, 2]]);
+    expect(steps.map((step) => step.scope)).toEqual([[], [0, 0], [0, 1], [0, 2], [1, 0], [1, 1], [1, 2], [2, 0], [2, 1], [2, 2]]);
     expect(steps.every((step) => (CBC_OP_NAMES as readonly string[]).includes(step.op))).toBe(true);
   });
 
@@ -96,7 +96,14 @@ describe('cbc run: encrypt', () => {
     expect(wireIssues(wire, stateOf(trace).steps.length)).toEqual([]);
     expect(wire.segments.map((segment) => [segment.id, segment.role])).toEqual([['iv', 'iv'], ['c0', 'ciphertext'], ['c1', 'ciphertext'], ['c2', 'ciphertext']]);
     expect(wire.activeAt?.map((entry) => entry.step)).toEqual([-1, 3, 6, 9]);
+    expect(wire.segments.map((segment) => segment.availableAt)).toEqual([undefined, 3, 6, 9]);
     expect(wire.flip).toBeUndefined();
+  });
+
+  it('zooms with the params the cipher provides, and not at all without labParams', () => {
+    const { labParams: _, ...plainCipher } = aes;
+    const trace = bundle(run(BASE, { resolve: (() => plainCipher) as unknown as PortResolver }));
+    expect(getFacet<ChainFacet>(trace, 'chain')!.nodes.some((node) => node.zoom !== undefined)).toBe(false);
   });
 
   it('declares key, IV, plaintext and ciphertext values', () => {
@@ -119,6 +126,8 @@ describe('cbc run: decrypt', () => {
     const steps = stateOf(trace).steps;
     expect(steps.map((step) => step.op)).toEqual(['decryptBlock', 'xorChain', 'emit', 'decryptBlock', 'xorChain', 'emit', 'unpad']);
     expect(steps.at(-1)?.narration).toEqual({ key: `${NS}.step.unpad`, params: { count: 15, byte: '0f', length: 17 } });
+    expect(stateOf(trace).initialNarration).toEqual({ key: `${NS}.step.initialDecrypt`, params: { bytes: 32, count: 2, cipher: 'AES' } });
+    expect(getFacet<WireFacet>(trace, 'wire')!.segments.map((segment) => segment.availableAt)).toEqual([undefined, undefined, undefined]);
   });
 
   it('narrates invalid padding as the last step and outputs `padded` instead of failing', () => {

@@ -20,6 +20,21 @@ function renderGrid(props: Partial<ByteGridProps> = {}) {
 const rowTexts = () => screen.getAllByRole('row').map((row) => within(row).getAllByRole('gridcell').map((cell) => cell.textContent));
 
 describe('ByteGrid', () => {
+  it('flags the edges where cells hide in a scrolled grid (for the edge fade)', () => {
+    renderGrid({ shape: [1, 16] });
+    const grid = screen.getByRole('grid');
+    expect(grid.hasAttribute('data-overflow-end')).toBe(false);
+    Object.defineProperty(grid, 'clientWidth', { configurable: true, value: 300 });
+    Object.defineProperty(grid, 'scrollWidth', { configurable: true, value: 700 });
+    fireEvent.scroll(grid);
+    expect(grid.hasAttribute('data-overflow-end')).toBe(true);
+    expect(grid.hasAttribute('data-overflow-start')).toBe(false);
+    grid.scrollLeft = 400;
+    fireEvent.scroll(grid);
+    expect(grid.hasAttribute('data-overflow-end')).toBe(false);
+    expect(grid.hasAttribute('data-overflow-start')).toBe(true);
+  });
+
   it('renders a labelled grid of rows and gridcells', () => {
     renderGrid();
     expect(screen.getByRole('grid', { name: 'State' })).toBeTruthy();

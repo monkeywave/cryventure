@@ -225,6 +225,33 @@
   align-self: center;
 }
 
+/* Stack layout wider than its panel (e.g. 16 columns of a mode lab on a phone): the grid scrolls
+   on its own, capped at the panel's width (the panel is the size container), and fades the edge
+   where more cells hide (ByteGrid sets data-overflow-start/-end). The padding keeps focus rings and
+   the choreography's emphasis ring inside the scroller's clip. */
+.cv-grid:not(.cv-grid--wrap) {
+  --cv-grid-fade-start: 0px;
+  --cv-grid-fade-end: 0px;
+  max-inline-size: calc(100cqi + 8px);
+  margin: -4px;
+  padding: 4px;
+  overflow-x: auto;
+  overscroll-behavior-inline: contain;
+}
+
+.cv-grid[data-overflow-start] {
+  --cv-grid-fade-start: 2.5rem;
+}
+
+.cv-grid[data-overflow-end] {
+  --cv-grid-fade-end: 2.5rem;
+}
+
+.cv-grid[data-overflow-start],
+.cv-grid[data-overflow-end] {
+  mask-image: linear-gradient(to right, transparent, #000 var(--cv-grid-fade-start), #000 calc(100% - var(--cv-grid-fade-end)), transparent);
+}
+
 /* Wrap layout: each row (e.g. one word) is a block; on wide containers `--cv-wrap-columns` blocks
    (the producer's `wordsPerGroup`, set by ByteGrid) share one line, on narrow ones each block gets
    its own line, so it never overflows a narrow panel. The size container is the nearest
@@ -410,6 +437,8 @@
   height: 100%;
   overflow: auto;
   padding: 0.5rem;
+  /* Size container for views that cap their width to the panel (e.g. a scrolling stack grid). */
+  container-type: inline-size;
 }
 
 /* Narrow containers (< 720px, measured by the Workspace): panels stack in reading order. */

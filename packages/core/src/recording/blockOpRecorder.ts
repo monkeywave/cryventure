@@ -31,6 +31,15 @@ export class BlockOpRecorder<R extends string, Op extends { op: string }> {
     return this.tracer.stepCount - 1;
   }
 
+  /**
+   * Records `step` outside every block (root scope `[]`), e.g. the PKCS#7 pad step that prepares the
+   * whole input before the first block. Call it while no block is open.
+   */
+  topLevelOp(step: StepInput<R, Op>): number {
+    this.tracer.step(step);
+    return this.tracer.stepCount - 1;
+  }
+
   toFacet(): StateFacet<R, Op> {
     return this.tracer.toFacet();
   }

@@ -76,11 +76,16 @@ test('progress page shows scores, exports, resets and imports', async ({ page })
   await expect(lessonRow(page, 'AES at a glance')).toContainText('1 of 3 answered correctly');
 });
 
-test('progress stored by v1 (keyed by question number) still shows and moves to the id once answered again', async ({ page }) => {
-  const v1 = { version: 1, lessons: { 'symmetric/aes': { quiz: { '1': { solved: true, lastAnswer: 1 } } } } };
+test('progress stored by v1 (keyed by question number) moves to cv.progress.v2 by its frozen id; the v1 slot is never written', async ({ page }) => {
+  const v1 = { version: 1, lens: 'cryptographer', lessons: { 'symmetric/aes': { quiz: { '1': { solved: true, lastAnswer: 1 } } } } };
+  const v1Json = JSON.stringify(v1);
   await page.goto('en/progress/');
-  await page.evaluate((record) => localStorage.setItem('cv.progress.v1', JSON.stringify(record)), v1);
+  await page.evaluate((record) => {
+    localStorage.clear();
+    localStorage.setItem('cv.progress.v1', record);
+  }, v1Json);
   await page.reload();
+  await expect(page.locator('html')).toHaveAttribute('data-lens', 'cryptographer');
   await expect(lessonRow(page, 'AES at a glance')).toContainText('1 of 3 answered correctly');
 
   const question = await firstQuestion(page);
@@ -92,8 +97,18 @@ test('progress stored by v1 (keyed by question number) still shows and moves to 
   await question.getByRole('radio', { name: /^C/ }).check();
   await question.getByRole('button', { name: 'Check' }).click();
   await expect(question.getByRole('status')).toContainText('Not quite');
-  const stored = await page.evaluate(() => JSON.parse(localStorage.getItem('cv.progress.v1') ?? 'null'));
-  expect(stored).toEqual({ version: 2, lessons: { 'symmetric/aes': { quiz: { 'aes192-rounds': { solved: true, lastAnswer: 2 } } } } });
+  const stored = await page.evaluate(() => ({ v1: localStorage.getItem('cv.progress.v1'), v2: JSON.parse(localStorage.getItem('cv.progress.v2') ?? 'null') }));
+  expect(stored.v1).toBe(v1Json);
+  expect(stored.v2).toEqual({ version: 2, lens: 'cryptographer', lessons: { 'symmetric/aes': { quiz: { 'aes192-rounds': { solved: true, lastAnswer: 2 } } } } });
+});
+
+test('an old app version writing the v1 slot in another tab cannot wipe v2 progress', async ({ page, context }) => {
+  await answerCorrectlyAfterOneMiss(page);
+  const oldTab = await context.newPage();
+  await oldTab.goto('en/progress/');
+  await oldTab.evaluate(() => localStorage.setItem('cv.progress.v1', JSON.stringify({ version: 1, lessons: {} })));
+  await page.goto('en/progress/');
+  await expect(lessonRow(page, 'AES at a glance')).toContainText('1 of 3 answered correctly');
 });
 
 test('German progress page is translated', async ({ page }) => {

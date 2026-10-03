@@ -86,6 +86,32 @@ export function workboxOptions({ distDir, base }) {
   };
 }
 
+/**
+ * `sw.js` for builds with `CV_PWA=false`. A browser that installed the PWA from an earlier build keeps
+ * running that worker (and serving its precache) as long as a `sw.js` exists at its URL; without one
+ * it may keep the stale worker indefinitely. This worker replaces it, activates at once, deletes the
+ * caches of its own scope (Workbox names them after the scope; other apps on the origin keep theirs),
+ * unregisters itself and reloads the pages it controlled, which then load from the network.
+ * It has no fetch handler, so it never serves anything.
+ */
+export function selfUnregisteringWorker() {
+  return `// CryVenture: the PWA is switched off (CV_PWA=false). This worker removes an earlier one.
+self.addEventListener('install', () => self.skipWaiting());
+self.addEventListener('activate', (event) => {
+  event.waitUntil(
+    (async () => {
+      const scope = self.registration.scope;
+      const names = await caches.keys();
+      await Promise.all(names.filter((name) => name.includes(scope)).map((name) => caches.delete(name)));
+      await self.registration.unregister();
+      const windows = await self.clients.matchAll({ type: 'window' });
+      await Promise.all(windows.map((client) => client.navigate(client.url).catch(() => undefined)));
+    })(),
+  );
+});
+`;
+}
+
 /** @param {number} bytes */
 export function formatMegabytes(bytes) {
   return `${(bytes / (1024 * 1024)).toFixed(2)} MB`;

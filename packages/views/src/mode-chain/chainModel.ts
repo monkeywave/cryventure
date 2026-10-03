@@ -77,6 +77,20 @@ export function sameGroups(facet: ChainFacet, active: ReadonlySet<string>): Map<
   return groups;
 }
 
+/**
+ * The last step at or before `step` that gave a compared (input/output) node its value: the groups
+ * only change there, so memoising on it keeps the group objects (and memoised nodes) stable.
+ */
+export function groupsChangeStep(facet: ChainFacet, step: number): number {
+  const changes = facet.nodes.filter((node) => node.block >= 0 && COMPARED_KINDS.has(node.kind) && node.activeAt <= step).map((node) => node.activeAt);
+  return Math.max(Math.min(step, -1), ...changes);
+}
+
+/** Ids of the nodes whose edges feed `id`, in edge order (the dataflow screen readers cannot see). */
+export function sourceIds(facet: ChainFacet, id: string): string[] {
+  return facet.edges.filter((edge) => edge.to === id).map((edge) => edge.from);
+}
+
 /** Letter of a same-value group: A, B, … */
 export function groupLetter(index: number): string {
   return String.fromCharCode(0x41 + (index % 26));
