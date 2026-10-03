@@ -1,6 +1,6 @@
 import { useId, useState, type ChangeEvent } from 'react';
 import { useT } from '@cryventure/viz';
-import { exportProgress, getProgress, importProgress, replaceProgress } from '../../progress/index.ts';
+import { exportProgress, getProgress, importProgress, importProgressKeepingLens } from '../../progress/index.ts';
 import { downloadText } from './downloadText.ts';
 
 export const EXPORT_FILE_NAME = 'cryventure-progress.json';
@@ -16,7 +16,7 @@ async function importFile(file: File): Promise<TransferStatus> {
   }
   const result = importProgress(text);
   if (!result.ok) return { tone: 'error', key: `quiz.progress.import.error.${result.error}` };
-  replaceProgress(result.progress);
+  importProgressKeepingLens(result.progress);
   return { tone: 'ok', key: 'quiz.progress.import.done' };
 }
 

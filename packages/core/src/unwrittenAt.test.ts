@@ -59,3 +59,16 @@ describe('unwrittenAt (cached)', () => {
     }
   });
 });
+
+describe('unwrittenAt (stable identity)', () => {
+  it('returns the same Set while no first write lands in the region, and a new one when one does', () => {
+    const facet = { regions, steps: [...steps, step([{ region: 'fixed', offset: 1, values: [7] }])] };
+    // output's only first write is at step 1: steps -1 and 0 share one Set, 1..3 share another.
+    expect(unwrittenAt(facet, 0).get('output')).toBe(unwrittenAt(facet, -1).get('output'));
+    expect(unwrittenAt(facet, 1).get('output')).not.toBe(unwrittenAt(facet, 0).get('output'));
+    expect(unwrittenAt(facet, 3).get('output')).toBe(unwrittenAt(facet, 1).get('output'));
+    // input is fully written at step 0 and never changes afterwards.
+    expect(unwrittenAt(facet, 3).get('input')).toBe(unwrittenAt(facet, 0).get('input'));
+    expect(unwrittenAt(facet, 0).get('input')).not.toBe(unwrittenAt(facet, -1).get('input'));
+  });
+});

@@ -78,14 +78,21 @@ export async function startLab({ producerId, presetId, link, startAt, mode, regi
   return { status: 'ready', producer, views, store, params: start.params, notice: start.notice, choreography };
 }
 
+/** `true` while a run is still the latest one; a superseded run must not touch the shared store. */
+export type IsCurrentRun = () => boolean;
+
+const ALWAYS_CURRENT: IsCurrentRun = () => true;
+
 /**
  * Re-runs with new params, keeping the learner's place: the playhead is mapped to the same meaning in
  * the new trace (`mapStepAcrossTraces`), and breakpoints and the watched cell survive where they still
- * apply. A failed run becomes an error session and leaves the store untouched.
+ * apply. A failed run becomes an error session and leaves the store untouched, as does a run that
+ * `isCurrent` reports superseded by the time it settles (its result is for the caller to drop).
  */
-export async function rerunLab(session: ReadySession, params: LabParams): Promise<SettledLabSession> {
+export async function rerunLab(session: ReadySession, params: LabParams, isCurrent: IsCurrentRun = ALWAYS_CURRENT): Promise<SettledLabSession> {
   const result = await runProducer(session.producer, params);
   if (!result.ok) return { status: 'error', error: result.error };
+  if (!isCurrent()) return { ...session, params };
   const { bundle, step, setBundle, seek } = session.store.getState();
   const nextStep = mapStepAcrossTraces(stateFacet(bundle), step, stateFacet(result.trace));
   setBundle(result.trace, { preserveDebugContext: true });
@@ -97,10 +104,10 @@ export async function rerunLab(session: ReadySession, params: LabParams): Promis
 export type ParamsRequestOutcome = { ok: true; session: SettledLabSession } | { ok: false; error: I18nRef };
 
 /** Merges `patch` into the session's params, validates with the producer, then re-runs (`rerunLab`). */
-export async function requestLabParams(session: ReadySession, patch: Readonly<Record<string, unknown>>): Promise<ParamsRequestOutcome> {
+export async function requestLabParams(session: ReadySession, patch: Readonly<Record<string, unknown>>, isCurrent: IsCurrentRun = ALWAYS_CURRENT): Promise<ParamsRequestOutcome> {
   const merged = mergeParams(session.producer, session.params, patch);
   if (!merged.ok) return merged;
-  return { ok: true, session: await rerunLab(session, merged.value) };
+  return { ok: true, session: await rerunLab(session, merged.value, isCurrent) };
 }
 
 function stateFacet(bundle: TraceBundle | null): AnyStateFacet | undefined {

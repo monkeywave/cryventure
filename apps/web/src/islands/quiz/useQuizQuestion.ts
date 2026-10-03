@@ -20,7 +20,8 @@ export interface QuizQuestionState {
 
 /**
  * One check question backed by progress. The stored answer is shown until the learner changes the
- * selection or retries; checking records the answer (correct or not) in progress.
+ * selection or retries; checking records the answer (correct or not) in progress, but an answer checked
+ * after "Show answer" never marks the question solved (one solved earlier stays solved).
  */
 export function useQuizQuestion(lessonKey: string, questionNumber: number, answer: number, optionCount: number): QuizQuestionState {
   const stored = useProgress((progress) => progress.lessons[lessonKey]?.quiz[String(questionNumber)]);
@@ -39,7 +40,8 @@ export function useQuizQuestion(lessonKey: string, questionNumber: number, answe
   };
   const check = (): void => {
     if (selected === undefined) return setNeedsSelection(true);
-    recordQuizAnswer(lessonKey, questionNumber, selected, selected === answer);
+    // A correct answer only counts as solved when the learner found it without "Show answer".
+    recordQuizAnswer(lessonKey, questionNumber, selected, selected === answer && !revealed);
     setDraft(undefined);
   };
   const retry = (): void => {

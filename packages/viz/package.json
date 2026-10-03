@@ -7,6 +7,7 @@
   "exports": {
     ".": "./src/index.ts",
     "./messages": "./src/i18n/messages.ts",
+    "./storage": "./src/workspace/safeStorage.ts",
     "./testing": "./src/testing/index.ts",
     "./testing/setup": "./src/testing/setup.ts",
     "./viz.css": "./src/viz.css"

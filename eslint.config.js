@@ -139,7 +139,7 @@ const boundariesConfig = {
 
 const PACKAGE_INTERNALS = {
   group: ['**/packages/**'],
-  message: 'apps/web reaches workspace packages through their public exports (@cryventure/<pkg>[/messages]), never by relative path.',
+  message: 'apps/web reaches workspace packages through their public exports (@cryventure/<pkg>[/<subpath>] as declared in its package.json exports), never by relative path.',
 };
 
 /**

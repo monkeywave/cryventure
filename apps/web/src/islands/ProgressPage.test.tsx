@@ -67,8 +67,24 @@ describe('ProgressPage import', () => {
     renderPage();
     await upload(exportProgress(SAMPLE));
     expect(await screen.findByText('Progress imported.')).toBeTruthy();
-    expect(getProgress()).toEqual(SAMPLE);
+    expect(getProgress().lessons).toEqual(SAMPLE.lessons);
     expect(lessonItem('AES at a glance').textContent).toContain('2 of 3');
+  });
+
+  it("keeps this device's lens (a preference, not progress) when importing", async () => {
+    act(() => replaceProgress({ ...emptyProgress(), lens: 'cryptographer' }));
+    renderPage();
+    await upload(exportProgress(SAMPLE));
+    expect(await screen.findByText('Progress imported.')).toBeTruthy();
+    expect(getProgress()).toEqual({ ...SAMPLE, lens: 'cryptographer' });
+  });
+
+  it('does not adopt the exported lens on a device without one', async () => {
+    act(() => replaceProgress(emptyProgress()));
+    renderPage();
+    await upload(exportProgress(SAMPLE));
+    expect(await screen.findByText('Progress imported.')).toBeTruthy();
+    expect(getProgress().lens).toBeUndefined();
   });
 
   it.each([

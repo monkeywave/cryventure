@@ -112,6 +112,38 @@ describe('ParamPanel', () => {
     expect(key().getAttribute('aria-invalid')).toBe('false');
   });
 
+  it('resets an invalid draft and its error when a preset leaves that field unchanged', () => {
+    const panel = (params: LabParams) => (
+      <I18nProvider messages={labMessages('en', aes)}>
+        <ParamPanel producer={aes} params={params} onApply={vi.fn()} />
+      </I18nProvider>
+    );
+    const defaults = aes.defaults as LabParams;
+    const { rerender } = render(panel(defaults));
+    const key = () => screen.getByLabelText('Key (hex)');
+    fireEvent.change(key(), { target: { value: 'zz' } });
+    rerender(panel({ ...defaults, plaintextHex: 'ff'.repeat(16) }));
+    expect(key()).toHaveProperty('value', defaults.keyHex);
+    expect(key().getAttribute('aria-invalid')).toBe('false');
+    expect(screen.queryByText(/is not a hex digit/)).toBeNull();
+  });
+
+  it("keeps another field's invalid draft while the learner's own edit is applied", () => {
+    const onApply = vi.fn();
+    const panel = (params: LabParams) => (
+      <I18nProvider messages={labMessages('en', aes)}>
+        <ParamPanel producer={aes} params={params} onApply={onApply} />
+      </I18nProvider>
+    );
+    const { rerender } = render(panel(aes.defaults as LabParams));
+    fireEvent.change(screen.getByLabelText('Key (hex)'), { target: { value: 'zz' } });
+    fireEvent.change(screen.getByLabelText('Plaintext (hex)'), { target: { value: 'AA'.repeat(16) } });
+    rerender(panel(onApply.mock.calls[0]?.[0] as LabParams));
+    expect(screen.getByLabelText('Key (hex)')).toHaveProperty('value', 'zz');
+    expect(screen.getByLabelText('Key (hex)').getAttribute('aria-invalid')).toBe('true');
+    expect(screen.getByLabelText('Plaintext (hex)')).toHaveProperty('value', 'AA'.repeat(16));
+  });
+
   it("shows a rejected view request's error, localized", () => {
     render(
       <I18nProvider messages={labMessages('en', aes)}>

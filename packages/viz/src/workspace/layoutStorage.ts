@@ -1,3 +1,5 @@
+import { safeStorage } from './safeStorage.ts';
+
 /** Panel id → size in percent, as react-resizable-panels reports it. */
 export type PanelSizes = Record<string, number>;
 
@@ -22,15 +24,6 @@ function isStoredLayout(value: unknown): value is StoredLayout {
 
 function sameIds(a: readonly string[], b: readonly string[]): boolean {
   return a.length === b.length && a.every((id, i) => id === b[i]);
-}
-
-/** Never throws (private mode, quota, blocked storage); returns `undefined` when unavailable. */
-export function safeStorage(): Storage | undefined {
-  try {
-    return globalThis.localStorage ?? undefined;
-  } catch {
-    return undefined;
-  }
 }
 
 /**

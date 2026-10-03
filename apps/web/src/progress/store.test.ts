@@ -2,7 +2,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { emptyProgress, type ProgressV1 } from './schema.ts';
 import { PROGRESS_STORAGE_KEY } from './storage.ts';
-import { createProgressStore, nextQuizAnswer, resetKeepingLens, withQuizAnswer, type ProgressPersistence } from './store.ts';
+import { createProgressStore, nextQuizAnswer, resetKeepingLens, withLensOf, withQuizAnswer, type ProgressPersistence } from './store.ts';
 
 function fakePersistence(initial: ProgressV1 = emptyProgress()): ProgressPersistence & { saved: ProgressV1[] } {
   const saved: ProgressV1[] = [];
@@ -38,6 +38,18 @@ describe('resetKeepingLens', () => {
     const progress: ProgressV1 = { version: 1, lens: 'story', prologue: { completedAt: 'x' }, lessons: { a: { quiz: {} } } };
     expect(resetKeepingLens(progress)).toEqual({ version: 1, lens: 'story', lessons: {} });
     expect(resetKeepingLens(emptyProgress())).toEqual(emptyProgress());
+  });
+});
+
+describe('withLensOf', () => {
+  const imported: ProgressV1 = { version: 1, lens: 'story', lessons: { a: { quiz: { 1: { solved: true, lastAnswer: 0 } } } } };
+
+  it("takes everything from the new progress except the lens, which stays the current one's", () => {
+    expect(withLensOf(imported, { ...emptyProgress(), lens: 'engineer' })).toEqual({ ...imported, lens: 'engineer' });
+  });
+
+  it('drops the new lens when there is no current one', () => {
+    expect(withLensOf(imported, emptyProgress())).not.toHaveProperty('lens');
   });
 });
 

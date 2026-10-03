@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import type { Lens } from '@cryventure/core';
 import { completePrologue, setLens, useProgress } from '../../progress/index.ts';
 import { clampNoteToBytes, noteToBytes, randomKey, type FillRandom } from './noteBytes.ts';
@@ -29,7 +29,7 @@ const EMPTY_KEY = new Uint8Array(0);
 function useNoteAndKey(defaultNote: string, fill?: FillRandom) {
   const [note, setNoteText] = useState(() => clampNoteToBytes(defaultNote));
   const [key, setKey] = useState<Uint8Array>(EMPTY_KEY);
-  const noteBytes = noteToBytes(note);
+  const noteBytes = useMemo(() => noteToBytes(note), [note]);
   return {
     note,
     noteBytes,

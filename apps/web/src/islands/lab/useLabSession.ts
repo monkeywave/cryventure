@@ -3,7 +3,7 @@ import { readLabLink, type LabLinkRead } from '../../labs/deepLink.ts';
 import { browserHashEnvironment, createLabHashWriter } from '../../labs/hashWriter.ts';
 import type { I18nRef } from '@cryventure/core';
 import type { LabMode, ParamsPatch } from '@cryventure/viz';
-import { requestLabParams, rerunLab, startLab, type LabParams, type LabSession } from '../../labs/labSession.ts';
+import { requestLabParams, rerunLab, startLab, type IsCurrentRun, type LabParams, type LabSession } from '../../labs/labSession.ts';
 import { parseStartAt } from '../../labs/startAt.ts';
 
 export interface UseLabSessionOptions {
@@ -33,7 +33,7 @@ const ABSENT: LabLinkRead = { status: 'absent' };
  * Returns `beginRun`: each call starts a new run and returns `isCurrent`, which stays true only until
  * the next run starts. Re-runs, view requests and resets share it, so a slow result never overwrites a newer one.
  */
-function useRunGuard(): () => () => boolean {
+function useRunGuard(): () => IsCurrentRun {
   const latestRun = useRef(0);
   return useCallback(() => {
     const run = ++latestRun.current;
@@ -69,7 +69,7 @@ export function useLabSession({ labId, producerId, presetId, startAt, mode }: Us
       if (session.status !== 'ready') return;
       const isCurrent = beginRun();
       setRequestError(null);
-      void rerunLab(session, params).then((next) => {
+      void rerunLab(session, params, isCurrent).then((next) => {
         if (isCurrent()) setSession(next);
       });
     },
@@ -80,7 +80,7 @@ export function useLabSession({ labId, producerId, presetId, startAt, mode }: Us
     (patch: ParamsPatch) => {
       if (session.status !== 'ready') return;
       const isCurrent = beginRun();
-      void requestLabParams(session, patch).then((outcome) => {
+      void requestLabParams(session, patch, isCurrent).then((outcome) => {
         if (!isCurrent()) return;
         setRequestError(outcome.ok ? null : outcome.error);
         if (outcome.ok) setSession(outcome.session);

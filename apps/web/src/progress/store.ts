@@ -75,10 +75,15 @@ export function withQuizAnswer(progress: ProgressV1, lessonKey: string, question
   return { ...progress, lessons: { ...progress.lessons, [lessonKey]: { ...lesson, quiz } } };
 }
 
+/** `next` with the lens of `current`: the lens is a device preference rather than progress. */
+export function withLensOf(next: ProgressV1, current: ProgressV1): ProgressV1 {
+  const { lens: _lens, ...rest } = next;
+  return current.lens === undefined ? rest : { ...rest, lens: current.lens };
+}
+
 /** Clears quiz results and the prologue but keeps the lens, which is a preference rather than progress. */
 export function resetKeepingLens(progress: ProgressV1): ProgressV1 {
-  const reset = emptyProgress();
-  return progress.lens === undefined ? reset : { ...reset, lens: progress.lens };
+  return withLensOf(emptyProgress(), progress);
 }
 
 const store = createProgressStore();
@@ -106,4 +111,9 @@ export function resetProgress(): void {
 /** Replaces all progress, e.g. after a successful import. */
 export function replaceProgress(progress: ProgressV1): void {
   updateProgress(() => progress);
+}
+
+/** Adopts imported progress but keeps this device's lens (like `resetProgress`). */
+export function importProgressKeepingLens(imported: ProgressV1): void {
+  updateProgress((current) => withLensOf(imported, current));
 }

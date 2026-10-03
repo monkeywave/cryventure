@@ -78,6 +78,24 @@ describe('QuizQuestion', () => {
     expect(getProgress().lessons[LESSON]).toBeUndefined();
   });
 
+  it('records an answer checked after "Show answer" without marking the question solved', async () => {
+    renderQuiz();
+    await userEvent.click(button('Show answer'));
+    await userEvent.click(option(/^B/));
+    await userEvent.click(button('Check'));
+    expect(getProgress().lessons[LESSON]?.quiz['2']).toEqual({ solved: false, lastAnswer: 1 });
+  });
+
+  it('keeps a question solved earlier solved when it is checked again after "Show answer"', async () => {
+    act(() => replaceProgress({ version: 1, lessons: { [LESSON]: { quiz: { 2: { solved: true, lastAnswer: 1 } } } } }));
+    renderQuiz();
+    await userEvent.click(button('Try again'));
+    await userEvent.click(button('Show answer'));
+    await userEvent.click(option(/^B/));
+    await userEvent.click(button('Check'));
+    expect(getProgress().lessons[LESSON]?.quiz['2']).toEqual({ solved: true, lastAnswer: 1 });
+  });
+
   it('works with the keyboard alone', async () => {
     renderQuiz();
     const user = userEvent.setup();

@@ -93,9 +93,10 @@ interface Draft {
 }
 
 /**
- * A text field's draft. When the param value changes to something the field did not apply itself (a
- * preset, a view request), the draft shows it and any error clears; the learner's own edits keep
- * their text and focus, also while their re-run is still pending.
+ * A text field's draft. When the param value changes to something the field did not apply itself (e.g.
+ * another field's edit normalised it), the draft shows it and any error clears; the learner's own edits
+ * keep their text and focus, also while their re-run is still pending. Params applied from outside the
+ * fields remount the field instead (`useExternalParamsGeneration`).
  */
 function useDraft(props: FieldProps) {
   const value = props.params[props.field.name];
@@ -161,16 +162,43 @@ function RequestError({ error }: { error: I18nRef | null | undefined }) {
   );
 }
 
+/** The params the panel last saw, the params its fields last applied, and how often params came from outside. */
+interface ParamsOrigin {
+  seen: LabParams;
+  own: LabParams | null;
+  generation: number;
+}
+
+/**
+ * Counts params applied from outside the fields (a preset, a view request, a reset): any new params
+ * object that is not the one a field's own edit produced. Keying the fields by this generation drops
+ * every field's draft and error then, while the learner's own typing keeps its drafts and focus.
+ */
+function useExternalParamsGeneration(params: LabParams, onApply: ParamPanelProps['onApply']) {
+  const [origin, setOrigin] = useState<ParamsOrigin>({ seen: params, own: null, generation: 0 });
+  if (origin.seen !== params) {
+    // Adjusting state while rendering (React's documented alternative to an effect) avoids a stale frame.
+    const external = params !== origin.own;
+    setOrigin({ seen: params, own: external ? null : origin.own, generation: origin.generation + (external ? 1 : 0) });
+  }
+  const applyOwn = (next: LabParams) => {
+    setOrigin((current) => ({ ...current, own: next }));
+    onApply(next);
+  };
+  return { generation: origin.generation, applyOwn };
+}
+
 /** Preset picker plus one input per declared param field; invalid input shows a localized error and is not applied. */
 export function ParamPanel(props: ParamPanelProps) {
   const t = useT();
+  const { generation, applyOwn } = useExternalParamsGeneration(props.params, props.onApply);
   return (
     <fieldset className="cv-params">
       <legend>{t('ui.lab.params.title')}</legend>
       <PresetSelect {...props} />
       {paramFieldsOf(props.producer).map((field) => {
         const Input = FIELD_INPUTS[field.kind];
-        return <Input key={field.name} field={field} {...props} />;
+        return <Input key={`${field.name}:${generation}`} field={field} {...props} onApply={applyOwn} />;
       })}
       <RequestError error={props.requestError} />
     </fieldset>

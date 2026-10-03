@@ -1,4 +1,4 @@
-import { allIndices, byteToHex, i18nRef, RecordingTracer, zeroSnapshot, type RegionSpec, type StateFacet } from '@cryventure/core';
+import { allIndices, byteToHex, i18nRef, RecordingTracer, xorBytes, zeroSnapshot, type RegionSpec, type StateFacet } from '@cryventure/core';
 import type { XorOpName } from './manifest.ts';
 
 /** Trace vocabulary of the XOR producer: four byte rows and one op per lesson beat. */
@@ -17,9 +17,9 @@ export function xorRegions(length: number): RegionSpec<XorRegion>[] {
   return REGION_IDS.map((id) => ({ id, labelKey: `${NS}.region.${id}`, elem: 'u8', shape: [length], initial: 'blank' }));
 }
 
-/** Byte-wise XOR of two equal-length rows. */
+/** Byte-wise XOR of two equal-length rows (throws on length mismatch, like core `xorBytes`). */
 export function xorRows(a: readonly number[], b: readonly number[]): number[] {
-  return a.map((byte, index) => byte ^ (b[index] ?? 0));
+  return Array.from(xorBytes(a, b));
 }
 
 type XorTracer = RecordingTracer<XorRegion, XorOp>;

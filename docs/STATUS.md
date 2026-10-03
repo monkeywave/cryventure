@@ -4,7 +4,7 @@
 > `docs/EXTENDING.md` / `docs/AUTHORING.md` as needed. Continue with **Next up** below.
 > Update this file at the end of every milestone or significant change.
 
-_Last updated: 2026-10-02 (M2 complete)._
+_Last updated: 2026-10-03 (M2 complete + /simplify + /code-review)._
 
 ## Where things live
 
@@ -50,11 +50,27 @@ _Last updated: 2026-10-02 (M2 complete)._
 
 ## Next up — M3 (from `docs/PLAN.md` §7)
 
+Deliverables:
 1. Mode plugins `primitives/{ecb,cbc,ctr}` (+ `core/padding/pkcs7`) as `Mode(BlockCipher)` combinators; ModeChain +
-   Wire views. Composite producers must load the i18n namespaces of all constituents (see backlog).
-2. PenguinLab (worker, image upload); padding-oracle, CBC bit-flip and CTR reuse labs.
-3. SP 800-38A vectors (as `conformance.json`).
-4. PWA (`navigateFallback: null`, Pagefind in the precache, prompt-to-reload) — re-check `@vite-pwa/astro` vs Astro 7.
+   Wire views.
+2. PenguinLab (worker, image upload); padding-oracle, CBC bit-flip and CTR keystream-reuse labs.
+3. SP 800-38A vectors (F.1 ECB, F.2 CBC, F.5 CTR) as `conformance.json`; noble oracle tests.
+4. Lessons `modes/{ecb,cbc,ctr,padding-oracle}` (EN+DE, quizzes, lens blocks).
+5. PWA (`navigateFallback: null`, Pagefind in the precache, prompt-to-reload) — re-check `@vite-pwa/astro` vs Astro 7,
+   else `vite-plugin-pwa`/workbox directly; offline e2e.
+
+Design questions to settle first (write `docs/M3.md` like `docs/M2.md` before coding):
+- **Ports don't exist yet.** `implements: ['BlockCipher']` is only a string. Define the `BlockCipher` port in core
+  (`blockSize`, `keySizes`, `encryptBlock(key, block, tracer?)`) and have `aes` expose it via its `load()` module.
+- **Composites:** how `cbc(aes-128)` is registered (`defineComposite`? a mode manifest with `accepts` predicate),
+  how a composite resolves its constituent through the registry (no plugin→plugin imports), lab routes only for
+  registered presets, and how composites load the i18n namespaces of all constituents.
+- **Nested traces:** each block encryption is a child trace (PLAN §2b "zoomable"); decide whether M3 ships lazy
+  drill-down (mode-level trace with block cipher calls as opaque steps + "zoom into block i") or only the mode level.
+- **Attack labs:** PLAN cuts `defineAttack` until needed. Padding oracle / bit-flip / CTR reuse: decide producer
+  vs. dedicated island; oracle runs in a Web Worker, no network.
+- Consider first fixing two M2 backlog items that M3 would otherwise copy: initial-state narration (removes synthetic
+  `load` steps + `startAt` workarounds) and stable quiz question ids.
 
 ## Deviations from the plan (decided)
 
@@ -107,6 +123,8 @@ _Last updated: 2026-10-02 (M2 complete)._
   - `MathText` superscripts every `^n` in translated text; a param-level formatter would be safer.
   - Pages with several labs embed the same `messages` JSON per island; one shared per-page blob would save ~15 KB.
   - One quiz island per lesson instead of one per question.
+- `StateRegions` passes `step={facet.steps[step]}` to every `RegionPanel`, so memoised panels still re-render each
+  step (stable `unwrittenAt` Sets are in place; pass only per-region data to finish this).
 - Unused keys `lesson.check.reveal` / `lesson.check.answer` in `lesson.json` (left in place).
 
 ## Quality gates (all must be green before committing)

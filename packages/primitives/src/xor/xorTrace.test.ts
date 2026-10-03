@@ -58,3 +58,9 @@ describe('xor blank regions', () => {
     expect([...last.values()].every((indices) => indices.size === 0)).toBe(true);
   });
 });
+
+describe('xorRows (length contract)', () => {
+  it('rejects rows of different lengths instead of padding with zeros', () => {
+    expect(() => xorRows([1, 2], [3])).toThrow(RangeError);
+  });
+});

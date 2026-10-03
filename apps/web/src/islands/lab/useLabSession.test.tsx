@@ -50,6 +50,22 @@ describe('useLabSession stale results', () => {
     expect(result.current.requestError).toBeNull();
   });
 
+  it('hands each re-run and view request a guard that turns false once a newer run starts', async () => {
+    const { result } = await renderReady();
+    labSession.rerunLab.mockReturnValueOnce(new Promise(() => undefined));
+    labSession.requestLabParams.mockReturnValueOnce(new Promise(() => undefined));
+    act(() => result.current.applyParams({ n: 1 }));
+    const rerunGuard = labSession.rerunLab.mock.calls[0]?.[2] as () => boolean;
+    expect(rerunGuard()).toBe(true);
+    act(() => result.current.requestParams({ n: 2 }));
+    const requestGuard = labSession.requestLabParams.mock.calls[0]?.[2] as () => boolean;
+    expect(rerunGuard()).toBe(false);
+    expect(requestGuard()).toBe(true);
+    labSession.startLab.mockReturnValueOnce(new Promise(() => undefined));
+    act(() => result.current.reset());
+    expect(requestGuard()).toBe(false);
+  });
+
   it('ignores a re-run that settles after a reset', async () => {
     const { result } = await renderReady();
     const rerun = deferred<SettledLabSession>();

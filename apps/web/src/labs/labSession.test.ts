@@ -159,6 +159,55 @@ describe('rerunLab', () => {
   });
 });
 
+describe('rerunLab with a superseded run', () => {
+  /** Mimics `useRunGuard`: each call starts a run whose `isCurrent` turns false once the next one starts. */
+  function runGuard() {
+    let latest = 0;
+    return () => {
+      const run = ++latest;
+      return () => run === latest;
+    };
+  }
+
+  /** The session with a producer whose module loads only when the returned `release(i)` is called for load `i`. */
+  function gated(session: ReadySession) {
+    const gates: (() => void)[] = [];
+    const load = async () => {
+      await new Promise<void>((resolve) => gates.push(resolve));
+      return session.producer.load();
+    };
+    return { session: { ...session, producer: { ...session.producer, load } }, release: (index: number) => gates[index]?.() };
+  }
+
+  it('does not touch the store when a newer run started meanwhile', async () => {
+    const { session, release } = gated(await readyAes());
+    const beginRun = runGuard();
+    const older = rerunLab(session, { ...C1, plaintextHex: '00'.repeat(16) }, beginRun());
+    const newer = rerunLab(session, { ...C1, plaintextHex: '11'.repeat(16) }, beginRun());
+    await Promise.resolve();
+    release(1);
+    await newer;
+    const newerBundle = session.store.getState().bundle;
+    release(0);
+    await older;
+    expect(session.store.getState().bundle).toBe(newerBundle);
+  });
+
+  it('leaves the store untouched when the run is no longer current', async () => {
+    const session = await readyAes();
+    const bundle = session.store.getState().bundle;
+    await rerunLab(session, { ...C1, plaintextHex: '00'.repeat(16) }, () => false);
+    expect(session.store.getState().bundle).toBe(bundle);
+  });
+
+  it('requestLabParams passes the guard through', async () => {
+    const session = await readyAes();
+    const bundle = session.store.getState().bundle;
+    await requestLabParams(session, { plaintextHex: '00'.repeat(16) }, () => false);
+    expect(session.store.getState().bundle).toBe(bundle);
+  });
+});
+
 describe('rerunLab keeps the debugger context', () => {
   const firstIndex = (session: ReadySession, predicate: (step: { op: string; round: number }) => boolean) =>
     (stateSteps(session.store.getState().bundle) as unknown as { op: string; round: number }[]).findIndex(predicate);

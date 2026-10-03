@@ -1,4 +1,4 @@
-import { safeStorage } from '@cryventure/viz';
+import { safeStorage } from '@cryventure/viz/storage';
 import { migrate } from './migrations.ts';
 import type { ProgressV1 } from './schema.ts';
 
