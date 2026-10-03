@@ -197,3 +197,11 @@ describe('createLabStore labHref', () => {
     expect(labHref).toHaveBeenCalledWith('aes', { keyHex: '00' }, 3);
   });
 });
+
+describe('createLabStore blockLabHref', () => {
+  it('is absent without a host builder and exposes the given one', () => {
+    expect(createLabStore(createFixtureBundle()).getState().blockLabHref).toBeUndefined();
+    const blockLabHref = vi.fn((producerId: string, keyHex: string, blockHex: string) => `/en/lab/${producerId}/#${keyHex}${blockHex}`);
+    expect(createLabStore(createFixtureBundle(), { blockLabHref }).getState().blockLabHref?.('aes', '00', 'ff')).toBe('/en/lab/aes/#00ff');
+  });
+});

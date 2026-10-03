@@ -40,6 +40,12 @@ describe('aesManifest', () => {
     expect(AES_PRESETS[3]?.params.keyHex).toBe(vectors.appendixB.key);
   });
 
+  it('names the params of its own lab for one block (the mode views zoom into it), which validate', () => {
+    const params = aesManifest.blockLabParams?.(vectors.appendixB.key, vectors.appendixB.input);
+    expect(params).toEqual({ keyHex: vectors.appendixB.key, plaintextHex: vectors.appendixB.input, detail: 'op' });
+    expect(aesManifest.validate(params).ok).toBe(true);
+  });
+
   it('validates every preset', () => {
     for (const preset of AES_PRESETS) expect(aesManifest.validate(preset.params).ok).toBe(true);
   });

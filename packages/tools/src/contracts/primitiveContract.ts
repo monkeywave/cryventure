@@ -10,12 +10,10 @@ import {
   type MathFacet,
   type PrimitiveManifest,
   type PrimitiveModule,
-  type ProducerLookup,
   type RunOptions,
   type TableFacet,
   type TraceBundle,
 } from '@cryventure/core';
-import { primitiveManifests } from '@cryventure/primitives';
 import { beforeAll, describe, expect, it } from 'vitest';
 import { loadPluginCatalogs, type LocaleCatalogs } from './catalogs.ts';
 import { conformanceFormatProblems, conformanceProblems, loadConformanceVectors, type ConformanceVectors } from './conformance.ts';
@@ -42,7 +40,7 @@ import {
 } from './checks.ts';
 import { modeFacetIssues, modeFacetRefs } from './modeFacetChecks.ts';
 import { implementedPortProblems, portFieldProblems, runInProblems, textFieldProblems } from './portChecks.ts';
-import { primitiveProducers, runOptionsFor } from './runWithPorts.ts';
+import { runOptionsFor, type ProducerSet } from './runWithPorts.ts';
 
 export interface PrimitiveContractOptions<P> {
   /** Plugin EN/DE catalogs; defaults to `packages/primitives/src/<id>/i18n/{en,de}.json`. */
@@ -51,11 +49,9 @@ export interface PrimitiveContractOptions<P> {
   conformance?: unknown;
   /** Extra conformance check against the plugin's `vectors/`, given the lazily loaded module. */
   vectorsCheck?: (module: PrimitiveModule<P>) => void | Promise<void>;
-  /** Registered producers for `port` params: field options and `resolve`; defaults to every primitive. */
-  producers?: { list: readonly PrimitiveManifest[]; lookup: ProducerLookup };
+  /** Registered producers for `port` params: field options and `resolve` (e.g. `primitiveProducerSet`). */
+  producers: ProducerSet;
 }
-
-type Producers = NonNullable<PrimitiveContractOptions<unknown>['producers']>;
 
 interface RunCase<P> {
   name: string;
@@ -74,7 +70,7 @@ export function runOrThrow<P>(module: PrimitiveModule<P>, params: P, options?: R
   return result.trace;
 }
 
-function manifestSuite<P>(manifest: PrimitiveManifest<P>, catalogs: LocaleCatalogs, producers: Producers): void {
+function manifestSuite<P>(manifest: PrimitiveManifest<P>, catalogs: LocaleCatalogs, producers: ProducerSet): void {
   it('has valid manifest basics', () => {
     expect(() => assertManifestBasics(manifest)).not.toThrow();
     expect(manifest.kind).toBe('primitive');
@@ -113,7 +109,7 @@ function manifestSuite<P>(manifest: PrimitiveManifest<P>, catalogs: LocaleCatalo
   }
 }
 
-function runSuite<P>(manifest: PrimitiveManifest<P>, catalogs: LocaleCatalogs, producers: Producers, testCase: RunCase<P>): void {
+function runSuite<P>(manifest: PrimitiveManifest<P>, catalogs: LocaleCatalogs, producers: ProducerSet, testCase: RunCase<P>): void {
   let module: PrimitiveModule<P>;
   let options: RunOptions;
   let bundle: TraceBundle;
@@ -202,7 +198,7 @@ function facetChecks<F>(kind: string, validate: (facet: F) => string[], refs: (f
 }
 
 /** Checks the generic conformance file: at least one well-formed case, each reproduced by `run()`. */
-function conformanceSuite<P>(manifest: PrimitiveManifest<P>, vectors: unknown, producers: Producers): void {
+function conformanceSuite<P>(manifest: PrimitiveManifest<P>, vectors: unknown, producers: ProducerSet): void {
   it('ships well-formed conformance vectors (vectors/conformance.json, ≥1 case)', () => expect(conformanceFormatProblems(vectors)).toEqual([]));
   it('reproduces every conformance vector', async () => {
     if (conformanceFormatProblems(vectors).length > 0) throw new Error('vectors/conformance.json is missing or malformed (see the previous test)');
@@ -212,9 +208,9 @@ function conformanceSuite<P>(manifest: PrimitiveManifest<P>, vectors: unknown, p
 }
 
 /** Registers the generic contract suite for one primitive plugin (call at test-file top level). */
-export function primitiveContract<P>(manifest: PrimitiveManifest<P>, options: PrimitiveContractOptions<P> = {}): void {
+export function primitiveContract<P>(manifest: PrimitiveManifest<P>, options: PrimitiveContractOptions<P>): void {
   const catalogs = options.catalogs ?? loadPluginCatalogs('primitives', manifest.id);
-  const producers = options.producers ?? { list: primitiveManifests, lookup: primitiveProducers };
+  const { producers } = options;
   describe(`primitive "${manifest.id}" contract`, () => {
     manifestSuite(manifest, catalogs, producers);
     describe.each(runCases(manifest))('run($name)', (testCase) => runSuite(manifest, catalogs, producers, testCase));

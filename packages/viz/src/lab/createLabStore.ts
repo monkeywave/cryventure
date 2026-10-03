@@ -41,10 +41,18 @@ export type ParamsRequestHandler = (patch: ParamsPatch) => void;
  */
 export type LabHrefBuilder = (producerId: string, params: unknown, step?: number) => string | undefined;
 
+/**
+ * The host's link to the standalone lab of block cipher `producerId` encrypting one block (hex) under
+ * a key (hex), e.g. a chain view's "zoom into block i"; `undefined` when the host cannot link to it.
+ */
+export type BlockLabHrefBuilder = (producerId: string, keyHex: string, blockHex: string) => string | undefined;
+
 /** Host wiring fixed for the store's lifetime. */
 export interface LabStoreOptions {
   /** Backs `labHref`; without it the action is absent and views render no link. */
   labHref?: LabHrefBuilder;
+  /** Backs `blockLabHref`; without it the action is absent and views render no zoom link. */
+  blockLabHref?: BlockLabHrefBuilder;
 }
 
 export interface LabActions {
@@ -83,6 +91,8 @@ export interface LabActions {
   setParamsRequestHandler(handler: ParamsRequestHandler | undefined): void;
   /** Optional, wired by the host (`LabStoreOptions.labHref`): a link to the standalone lab of another producer. */
   labHref?: LabHrefBuilder;
+  /** Optional, wired by the host (`LabStoreOptions.blockLabHref`): a link to a block cipher's lab encrypting one block. */
+  blockLabHref?: BlockLabHrefBuilder;
 }
 
 export interface LabPlayhead {
@@ -141,6 +151,7 @@ export function createLabStore(bundle: TraceBundle | null = null, options: LabSt
       paramsRequestHandler = handler;
     },
     ...(options.labHref === undefined ? {} : { labHref: options.labHref }),
+    ...(options.blockLabHref === undefined ? {} : { blockLabHref: options.blockLabHref }),
   }));
   syncProgress(store);
   return store;

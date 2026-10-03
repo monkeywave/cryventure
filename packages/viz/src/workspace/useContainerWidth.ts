@@ -19,13 +19,16 @@ function observeWidth(element: Element, onWidth: (width: number) => void): () =>
   return () => observer.disconnect();
 }
 
-/** Observes the element behind the returned ref; `onWidth` must be stable. Stops on detach/unmount. */
-function useWidthObserver<T extends Element>(onWidth: (width: number) => void): RefCallback<T> {
+/**
+ * Observes the width of the element behind the returned ref (passed along with the element);
+ * `onWidth` must be stable. Stops on detach/unmount.
+ */
+export function useWidthObserver<T extends Element>(onWidth: (width: number, element: T) => void): RefCallback<T> {
   const stopRef = useRef<() => void>(() => {});
   const ref = useCallback(
     (element: T | null) => {
       stopRef.current();
-      stopRef.current = element === null ? () => {} : observeWidth(element, onWidth);
+      stopRef.current = element === null ? () => {} : observeWidth(element, (width) => onWidth(width, element));
     },
     [onWidth],
   );

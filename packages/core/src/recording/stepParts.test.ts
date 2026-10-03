@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { i18nRef } from '../i18n.ts';
-import { highlight, mathTerm } from './stepParts.ts';
+import { highlight, mathTerm, u8Regions } from './stepParts.ts';
 
 describe('highlight', () => {
   it('highlights the single element of a one-element region by default', () => {
@@ -27,5 +27,14 @@ describe('mathTerm', () => {
 
   it('keeps the carry bit when given', () => {
     expect(mathTerm('s', label, 0x1ae, 9, 'intermediate', { op: 'shift', carryBit: 8 })).toEqual({ id: 's', label, value: 0x1ae, width: 9, role: 'intermediate', op: 'shift', carryBit: 8 });
+  });
+});
+
+describe('u8Regions', () => {
+  it('builds one labelled u8 row per shape entry, in order, with the blank ones marked', () => {
+    expect(u8Regions<'a' | 'b'>('plugin.x', { a: 2, b: 3 }, ['b'])).toEqual([
+      { id: 'a', labelKey: 'plugin.x.region.a', elem: 'u8', shape: [2] },
+      { id: 'b', labelKey: 'plugin.x.region.b', elem: 'u8', shape: [3], initial: 'blank' },
+    ]);
   });
 });

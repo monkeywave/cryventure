@@ -51,13 +51,13 @@ describe('runOptionsFor', () => {
 
 describe('runWithPorts', () => {
   it('runs a composite against the real registered cipher', async () => {
-    const result = await runWithPorts(zeroMode, { cipher: 'aes' });
+    const result = await runWithPorts(zeroMode, { cipher: 'aes' }, primitiveProducers);
     // FIPS 197 / SP 800-38A: AES-128 of the zero block under the zero key.
     expect(result.ok && toHex(result.trace.output['ciphertext'] ?? [])).toBe('66e94bd4ef8a2c3b884cfa59ca342b2e');
   });
 
   it('reports a producer that is not registered as a missing port', async () => {
-    expect(await runWithPorts(zeroMode, { cipher: 'nope' })).toEqual({ ok: false, error: i18nRef('core.error.portMissing', { id: 'nope' }) });
+    expect(await runWithPorts(zeroMode, { cipher: 'nope' }, primitiveProducers)).toEqual({ ok: false, error: i18nRef('core.error.portMissing', { id: 'nope' }) });
   });
 
   it('resolves against the given producers only', async () => {

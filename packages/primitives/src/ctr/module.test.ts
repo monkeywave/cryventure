@@ -85,7 +85,7 @@ describe('ctr run', () => {
     const chain = getFacet<ChainFacet>(trace, 'chain')!;
     expect(chainIssues(chain, stateOf(trace).steps.length)).toEqual([]);
     expect(chain).toMatchObject({ mode: 'ctr', direction: 'encrypt', formula: { key: `${NS}.formula.encrypt` } });
-    expect(chain.nodes.filter((node) => node.kind === 'cipher').map((node) => node.zoom?.params['plaintextHex'])).toEqual([COUNTER, 'f0f1f2f3f4f5f6f7f8f9fafbfcfdff00']);
+    expect(chain.nodes.filter((node) => node.kind === 'cipher').map((node) => node.zoom?.blockHex)).toEqual([COUNTER, 'f0f1f2f3f4f5f6f7f8f9fafbfcfdff00']);
     expect(chain.edges).toContainEqual({ from: 'b0.counter', to: 'b1.counter', activeAt: 2 });
     expect(chain.nodes.find((node) => node.id === 'b1.keystream')?.bytes).toHaveLength(4);
   });
@@ -99,10 +99,11 @@ describe('ctr run', () => {
     expect(wire.segments.map((segment) => segment.availableAt)).toEqual([undefined, 1, 4]);
   });
 
-  it('zooms only when the cipher provides lab params', () => {
-    const { labParams: _, ...plainCipher } = aes;
-    const trace = bundle(run(BASE, { resolve: (() => plainCipher) as unknown as PortResolver }));
-    expect(getFacet<ChainFacet>(trace, 'chain')!.nodes.some((node) => node.zoom !== undefined)).toBe(false);
+  it('links every sent output node to its wire segment, available when the node gets its value', () => {
+    const trace = bundle(runWith({}));
+    const segments = getFacet<WireFacet>(trace, 'wire')!.segments;
+    const outputs = getFacet<ChainFacet>(trace, 'chain')!.nodes.filter((node) => node.kind === 'output');
+    expect(outputs.map((node) => [node.segmentId, node.activeAt])).toEqual(outputs.map((node) => [`c${node.block}`, segments.find((segment) => segment.id === node.segmentId)?.availableAt]));
   });
 
   it('declares key, counter, input, keystream and output values', () => {

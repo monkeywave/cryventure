@@ -2,33 +2,33 @@ import type { Lens, Locale } from '@cryventure/core';
 import { act, fireEvent, screen } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 import { createFixtureBundle, renderLab } from '@cryventure/viz/testing';
-import { LabLayoutProvider, type LabHrefBuilder } from '@cryventure/viz';
+import { LabLayoutProvider, type BlockLabHrefBuilder } from '@cryventure/viz';
 import { loadViewMessages } from '../messages.ts';
 import ModeChainView from './ModeChainView.tsx';
-import { chainBundle, chainCase, chainLabels, type ChainCaseId } from './testFixture.ts';
+import { modeBundle, modeCase, modeLabels, type ModeCaseId } from '../testing/modeFixture.ts';
 
-const messagesIn = (locale: Locale) => ({ ...loadViewMessages(locale), ...chainLabels[locale] });
+const messagesIn = (locale: Locale) => ({ ...loadViewMessages(locale), ...modeLabels[locale] });
 
 interface RenderOptions {
   lens?: Lens;
   locale?: Locale;
-  labHref?: LabHrefBuilder;
+  blockLabHref?: BlockLabHrefBuilder;
   narrow?: boolean;
 }
 
-function render(id: ChainCaseId, { lens = 'engineer', locale = 'en', labHref, narrow = false }: RenderOptions = {}) {
+function render(id: ModeCaseId, { lens = 'engineer', locale = 'en', blockLabHref, narrow = false }: RenderOptions = {}) {
   return renderLab(
     <LabLayoutProvider narrow={narrow}>
       <ModeChainView labId="fixture" lens={lens} />
     </LabLayoutProvider>,
-    { bundle: chainBundle(id), messages: messagesIn(locale), labHref },
+    { bundle: modeBundle(id), messages: messagesIn(locale), blockLabHref },
   );
 }
 
 const node = (id: string) => document.querySelector<HTMLElement>(`[data-node="${id}"]`)!;
 const statusOf = (id: string) => node(id).dataset['status'];
-const lastStep = (id: ChainCaseId) => chainCase(id).stepCount - 1;
-const zoomHref: LabHrefBuilder = (producerId, params) => `/en/lab/${producerId}/#p=${(params as { plaintextHex: string }).plaintextHex}`;
+const lastStep = (id: ModeCaseId) => modeCase(id).stepCount - 1;
+const zoomHref: BlockLabHrefBuilder = (producerId, _keyHex, blockHex) => `/en/lab/${producerId}/#p=${blockHex}`;
 
 describe('ModeChainView', () => {
   it('lays out one lane per block, the IV and padding lane first', () => {
@@ -77,18 +77,18 @@ describe('ModeChainView', () => {
   });
 
   it('describes a single-block diagram in the singular', () => {
-    const facet = chainCase('ecb/repeated-blocks').facet;
+    const facet = modeCase('ecb/repeated-blocks').chain;
     const one = { ...facet, nodes: facet.nodes.filter((n) => n.block === 0), edges: facet.edges.filter((e) => e.to.startsWith('b0.')) };
-    const bundle = chainBundle('ecb/repeated-blocks');
+    const bundle = modeBundle('ecb/repeated-blocks');
     bundle.facets['chain@default'] = one;
     renderLab(<ModeChainView labId="fixture" lens="engineer" />, { bundle, messages: messagesIn('en') });
     expect(screen.getByRole('group', { name: /^Dataflow of 1 block, one lane per block\./ })).toBeTruthy();
   });
 
   it('describes a single-block diagram in German', () => {
-    const facet = chainCase('ecb/repeated-blocks').facet;
+    const facet = modeCase('ecb/repeated-blocks').chain;
     const one = { ...facet, nodes: facet.nodes.filter((n) => n.block === 0), edges: facet.edges.filter((e) => e.to.startsWith('b0.')) };
-    const bundle = chainBundle('ecb/repeated-blocks');
+    const bundle = modeBundle('ecb/repeated-blocks');
     bundle.facets['chain@default'] = one;
     renderLab(<ModeChainView labId="fixture" lens="engineer" />, { bundle, messages: messagesIn('de') });
     expect(screen.getByRole('group', { name: /^Datenfluss eines Blocks, eine Spur pro Block\./ })).toBeTruthy();
@@ -185,7 +185,7 @@ describe('ModeChainView', () => {
   });
 
   it('links each encrypting cipher node into the block cipher lab when the host builds links', () => {
-    render('ecb/repeated-blocks', { labHref: zoomHref });
+    render('ecb/repeated-blocks', { blockLabHref: zoomHref });
     const links = screen.getAllByRole('link');
     expect(links.map((link) => link.textContent)).toEqual(['Zoom into block 1', 'Zoom into block 2', 'Zoom into block 3']);
     expect(links[0]?.getAttribute('href')).toBe('/en/lab/aes/#p=41545441434b204154204441574e2121');
@@ -193,7 +193,7 @@ describe('ModeChainView', () => {
   });
 
   it('keeps zoom links out of the tab order unless their node holds the roving focus', () => {
-    render('ecb/repeated-blocks', { labHref: zoomHref });
+    render('ecb/repeated-blocks', { blockLabHref: zoomHref });
     const tabIndices = () => screen.getAllByRole('link').map((link) => link.tabIndex);
     expect(tabIndices()).toEqual([-1, -1, -1]);
     act(() => node('b1.cipher').focus());
@@ -201,7 +201,7 @@ describe('ModeChainView', () => {
   });
 
   it('follows the zoom link with Enter on its cipher node', () => {
-    render('ecb/repeated-blocks', { labHref: zoomHref });
+    render('ecb/repeated-blocks', { blockLabHref: zoomHref });
     const link = screen.getAllByRole('link')[1]!;
     const click = vi.fn((event: Event) => event.preventDefault());
     link.addEventListener('click', click);
@@ -218,7 +218,7 @@ describe('ModeChainView', () => {
   });
 
   it('shows no zoom link for decryption (the AES lab encrypts)', () => {
-    render('ecb/repeated-blocks-decrypt', { labHref: zoomHref });
+    render('ecb/repeated-blocks-decrypt', { blockLabHref: zoomHref });
     expect(screen.queryAllByRole('link')).toHaveLength(0);
   });
 

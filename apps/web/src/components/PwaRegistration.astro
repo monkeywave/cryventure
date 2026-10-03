@@ -26,18 +26,21 @@ const messages = loadMessages(Astro.currentLocale ?? 'en', ['ui']);
 </template>
 
 <script>
-  import { Workbox } from 'workbox-window';
-  import { registerServiceWorker, supportsServiceWorker } from '../pwa/registerServiceWorker';
+  import { registerServiceWorker, supportsServiceWorker, whenPageIdle } from '../pwa/registerServiceWorker';
   import { showUpdateToast } from '../pwa/updateToast';
 
   const template = document.getElementById('cv-pwa');
   if (template instanceof HTMLTemplateElement && supportsServiceWorker(navigator)) {
     const { sw = '', scope } = template.dataset;
-    void registerServiceWorker({
-      container: navigator.serviceWorker,
-      workbox: new Workbox(sw, { scope }),
-      showToast: (onReload, options) => showUpdateToast(template, onReload, options),
-      reload: () => window.location.reload(),
+    // workbox-window loads only after the page is idle, so it never weighs on the first paint.
+    whenPageIdle(async () => {
+      const { Workbox } = await import('workbox-window');
+      void registerServiceWorker({
+        container: navigator.serviceWorker,
+        workbox: new Workbox(sw, { scope }),
+        showToast: (onReload, options) => showUpdateToast(template, onReload, options),
+        reload: () => window.location.reload(),
+      });
     });
   }
 </script>

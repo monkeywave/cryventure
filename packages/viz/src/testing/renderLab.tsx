@@ -2,7 +2,7 @@ import { render, type RenderResult } from '@testing-library/react';
 import type { ReactNode } from 'react';
 import type { Messages, TraceBundle } from '@cryventure/core';
 import { I18nProvider } from '../i18n/I18nProvider.tsx';
-import { createLabStore, type LabHrefBuilder, type LabStore, type ParamsRequestHandler } from '../lab/createLabStore.ts';
+import { createLabStore, type BlockLabHrefBuilder, type LabHrefBuilder, type LabStore, type ParamsRequestHandler } from '../lab/createLabStore.ts';
 import { LabRoot } from '../lab/LabRoot.tsx';
 import { vizMessages } from '../i18n/messages.ts';
 import type { OpLabelMap } from '../player/opLabel.ts';
@@ -18,11 +18,13 @@ export interface RenderLabOptions {
   onRequestParams?: ParamsRequestHandler;
   /** The host's link builder behind `useLabActions().labHref` (ignored when `store` is given). */
   labHref?: LabHrefBuilder;
+  /** The host's zoom link builder behind `useLabActions().blockLabHref` (ignored when `store` is given). */
+  blockLabHref?: BlockLabHrefBuilder;
 }
 
 /** Renders `ui` inside a full lab (i18n + store + keyboard + motion) for component tests. */
 export function renderLab(ui: ReactNode, options: RenderLabOptions = {}): RenderResult & { store: LabStore } {
-  const store = options.store ?? createLabStore(options.bundle ?? null, { labHref: options.labHref });
+  const store = options.store ?? createLabStore(options.bundle ?? null, { labHref: options.labHref, blockLabHref: options.blockLabHref });
   const result = render(
     <I18nProvider messages={{ ...vizMessages.en, ...options.messages }}>
       <LabRoot store={store} opLabels={options.opLabels} onRequestParams={options.onRequestParams}>

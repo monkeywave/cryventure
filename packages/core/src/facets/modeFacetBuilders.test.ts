@@ -22,6 +22,18 @@ describe('ChainBuilder', () => {
     expect(chainIssues(facet, 1)).toEqual([]);
   });
 
+  it('delays a node, so edges linked into it afterwards are active from the new step', () => {
+    const chain = new ChainBuilder();
+    chain.node({ id: 'b0.input', block: 0, kind: 'input', label, bytes: [2], activeAt: -1 });
+    chain.node({ id: 'pad', block: -1, kind: 'pad', label, bytes: [1], activeAt: 0 });
+    chain.delay('b0.input', 0);
+    chain.link('pad', 'b0.input');
+    const facet = chain.toFacet({ mode: 'ecb', direction: 'encrypt', formula: label });
+    expect(facet.nodes.map((node) => [node.id, node.activeAt])).toEqual([['b0.input', 0], ['pad', 0]]);
+    expect(facet.edges).toEqual([{ from: 'pad', to: 'b0.input', activeAt: 0 }]);
+    expect(() => chain.delay('nope', 0)).toThrow(RangeError);
+  });
+
   it('throws when linking to an unknown target', () => {
     expect(() => new ChainBuilder().link('a', 'b')).toThrow(RangeError);
   });
@@ -43,24 +55,15 @@ describe('WireBuilder', () => {
     expect(wireIssues(facet, 4)).toEqual([]);
   });
 
-  it('emit highlights the offsets and makes their segments available from that step', () => {
+  it('keeps the availableAt a segment is created with', () => {
     const wire = new WireBuilder();
     const iv = wire.segment({ id: 'iv', role: 'iv', label, bytes: [1, 2] });
-    const c0 = wire.segment({ id: 'c0', role: 'ciphertext', label, bytes: [3, 4], block: 0 });
-    const c1 = wire.segment({ id: 'c1', role: 'ciphertext', label, bytes: [5], block: 1 });
+    const c0 = wire.segment({ id: 'c0', role: 'ciphertext', label, bytes: [3, 4], block: 0, availableAt: 2 });
     wire.activate(-1, iv);
-    wire.emit(4, c1);
-    wire.emit(2, c0);
-    wire.emit(3, c0);
+    wire.activate(2, c0);
     const facet = wire.toFacet();
-    expect(facet.segments.map((segment) => segment.availableAt)).toEqual([undefined, 2, 4]);
-    expect(facet.activeAt).toEqual([
-      { step: -1, offsets: [0, 1] },
-      { step: 2, offsets: [2, 3] },
-      { step: 3, offsets: [2, 3] },
-      { step: 4, offsets: [4] },
-    ]);
-    expect(wireIssues(facet, 5)).toEqual([]);
+    expect(facet.segments.map((segment) => segment.availableAt)).toEqual([undefined, 2]);
+    expect(wireIssues(facet, 3)).toEqual([]);
   });
 
   it('leaves segments that are only activated present from the start', () => {

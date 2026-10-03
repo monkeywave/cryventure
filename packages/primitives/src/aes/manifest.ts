@@ -118,6 +118,8 @@ export const aesManifest = definePrimitive<AesParams>({
   validate: validateAesParams,
   load: () => import('./module.ts'),
   loadChoreography: () => import('./choreography.ts'),
+  // The mode views zoom into this lab for one block, at op granularity.
+  blockLabParams: (keyHex, blockHex) => ({ keyHex, plaintextHex: blockHex, detail: 'op' }),
 });
 
 export default aesManifest;

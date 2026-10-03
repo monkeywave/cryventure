@@ -1,16 +1,10 @@
-import { Registry, bytesEqual, pkcs7Pad, type PrimitiveManifest } from '@cryventure/core';
-import { primitiveManifests } from '@cryventure/primitives';
+import { Registry, blocksOf, bytesEqual, pkcs7Pad, type PrimitiveManifest } from '@cryventure/core';
 import { describe, expect, it } from 'vitest';
+import { producerRegistry } from '../../labs/producers.ts';
 import { runPenguinJob, type PenguinRequest } from './penguinJob.ts';
 import { countRepeatedBlocks } from './pixels.ts';
 
 const BLOCK = 16;
-
-function producers(): Registry<PrimitiveManifest> {
-  const registry = new Registry<PrimitiveManifest>('producers');
-  primitiveManifests.forEach((manifest) => registry.register(manifest));
-  return registry;
-}
 
 /**
  * 32 pixels of one flat colour = 96 RGB bytes = 6 blocks. A pixel is 3 bytes and a block 16, so the
@@ -24,13 +18,13 @@ function flatImageRgb(): Uint8Array {
 }
 
 function request(overrides: Partial<PenguinRequest> = {}): PenguinRequest {
-  return { id: 7, mode: 'ecb', key: new Uint8Array(16).fill(0x2b), iv: new Uint8Array(16).fill(0x01), rgb: flatImageRgb(), ...overrides };
+  return { mode: 'ecb', key: new Uint8Array(16).fill(0x2b), iv: new Uint8Array(16).fill(0x01), rgb: flatImageRgb(), ...overrides };
 }
 
-const block = (bytes: Uint8Array, index: number) => bytes.subarray(index * BLOCK, (index + 1) * BLOCK);
+const block = (bytes: Uint8Array, index: number) => blocksOf(bytes, BLOCK)[index]!;
 
 async function ciphertextOf(overrides: Partial<PenguinRequest>): Promise<Uint8Array> {
-  const response = await runPenguinJob(request(overrides), producers());
+  const response = await runPenguinJob(request(overrides), producerRegistry);
   if (!response.ok) throw new Error(response.error.key);
   return response.ciphertext;
 }
@@ -61,12 +55,8 @@ describe('runPenguinJob', () => {
     expect(await ciphertextOf({ rgb: new Uint8Array(0) })).toHaveLength(BLOCK);
   });
 
-  it('echoes the job id', async () => {
-    expect((await runPenguinJob(request({ id: 42 }), producers())).id).toBe(42);
-  });
-
   it('reports a wrong key length as core.error.keyLength', async () => {
-    const response = await runPenguinJob(request({ key: new Uint8Array(5) }), producers());
+    const response = await runPenguinJob(request({ key: new Uint8Array(5) }), producerRegistry);
     expect(response).toMatchObject({ ok: false, error: { key: 'core.error.keyLength' } });
   });
 

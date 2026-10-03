@@ -75,6 +75,11 @@ export interface PrimitiveManifest<P = unknown> {
   load: () => Promise<PrimitiveModule<P>>;
   /** Optional step choreography (animations); views fall back to `fallbackChoreography` without it. */
   loadChoreography?: () => Promise<ChoreographyModule>;
+  /**
+   * Optional (additive): params of this producer's own lab encrypting one block (aes:
+   * `{ keyHex, plaintextHex: blockHex, detail: 'op' }`). The mode views "zoom" into that lab; without it, they don't.
+   */
+  blockLabParams?(keyHex: string, blockHex: string): Record<string, string>;
 }
 
 export type Lens = 'story' | 'engineer' | 'cryptographer';

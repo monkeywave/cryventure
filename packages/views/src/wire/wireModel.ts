@@ -1,6 +1,6 @@
-import { isWireSegmentAvailable, parseHex, wireActiveOffsetsAt, type WireFacet, type WireRole, type WireSegment } from '@cryventure/core';
+import { byteToHex, hexDigits, parseHex, toHex, type WireFacet, type WireRole, type WireSegment } from '@cryventure/core';
 
-/** Pure helpers of the wire view: segment placement, rows of 16/8/4, availability, highlights and the flip mask. */
+/** Pure helpers of the wire view: segment placement, rows of 16/8/4, highlight change steps and the flip mask. */
 
 export const BYTES_PER_ROW = 16;
 /** Row widths the strip wraps to, widest first. */
@@ -13,21 +13,22 @@ export const WIRE_GUTTER_EM = 3.75;
 
 export interface PlacedByte {
   value: number;
+  /** Two hex digits of `value`. */
+  hex: string;
   /** Global offset over the concatenated segments. */
   offset: number;
-  active: boolean;
   /** Bits the flip mask sets in this byte (0 = untouched). */
   flipMask: number;
 }
 
+/** A segment's static placement: independent of the step, so it is built once per facet and row width. */
 export interface PlacedSegment {
   segment: WireSegment;
   start: number;
   /** Rows of at most `bytesPerRow` bytes. */
   rows: PlacedByte[][];
-  /** Not sent yet at the step (before the segment's `availableAt`): value withheld. */
-  pending: boolean;
-  activeCount: number;
+  /** The segment's bytes as hex in groups of 4 (for its summary). */
+  hex: string;
   flippedCount: number;
 }
 
@@ -63,30 +64,28 @@ export function fitBytesPerRow(width: number | undefined, emPx: number): number 
 }
 
 /**
- * The last step at or before `step` at which the highlights or a segment's availability changed:
- * `placeSegments` gives equal results for both, so memoising on it skips the steps in between.
+ * The last step at or before `step` at which the highlights changed: `wireActiveOffsetsAt` gives
+ * equal results for both, so memoising on it skips the steps in between.
  */
 export function wireChangeStep(facet: WireFacet, step: number): number {
-  const changes = [...(facet.activeAt ?? []).map((entry) => entry.step), ...facet.segments.flatMap((segment) => (segment.availableAt === undefined ? [] : [segment.availableAt]))];
+  const changes = (facet.activeAt ?? []).map((entry) => entry.step);
   return Math.max(Math.min(step, -1), ...changes.filter((change) => change <= step));
 }
 
-/** Segments with their global start, bytes in rows of `bytesPerRow`, and what is sent and lit at `step`. */
-export function placeSegments(facet: WireFacet, step: number, bytesPerRow: number = BYTES_PER_ROW): PlacedSegment[] {
-  const active = new Set(wireActiveOffsetsAt(facet, step));
+/** Segments with their global start and bytes in rows of `bytesPerRow`; the step-dependent state (sent, lit) stays out. */
+export function placeSegments(facet: WireFacet, bytesPerRow: number = BYTES_PER_ROW): PlacedSegment[] {
   const mask = flipMaskBytes(facet);
   let start = 0;
   return facet.segments.map((segment) => {
     const bytes = segment.bytes.map((value, index) => {
       const offset = start + index;
-      return { value, offset, active: active.has(offset), flipMask: mask[offset] ?? 0 };
+      return { value, hex: byteToHex(value), offset, flipMask: mask[offset] ?? 0 };
     });
     const placed = {
       segment,
       start,
       rows: chunk(bytes, bytesPerRow),
-      pending: !isWireSegmentAvailable(segment, step),
-      activeCount: bytes.filter((byte) => byte.active).length,
+      hex: toHex(segment.bytes, { group: 4 }),
       flippedCount: bytes.filter((byte) => byte.flipMask !== 0).length,
     };
     start += segment.bytes.length;
@@ -94,7 +93,12 @@ export function placeSegments(facet: WireFacet, step: number, bytesPerRow: numbe
   });
 }
 
+/** Offsets of `placed` lit in `active`. */
+export function countActive(placed: PlacedSegment, active: ReadonlySet<number>): number {
+  return placed.segment.bytes.reduce((count, _, index) => count + (active.has(placed.start + index) ? 1 : 0), 0);
+}
+
 /** Offset label of the ruler, e.g. `0x10`; four digits once the strip passes 255 bytes. */
 export function offsetLabel(offset: number, total: number): string {
-  return `0x${offset.toString(16).padStart(total > 0x100 ? 4 : 2, '0')}`;
+  return `0x${hexDigits(offset, total > 0x100 ? 4 : 2)}`;
 }

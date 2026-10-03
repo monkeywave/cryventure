@@ -84,7 +84,7 @@ describe('cbc run: encrypt', () => {
     expect(chainIssues(chain, stateOf(trace).steps.length)).toEqual([]);
     expect(chain).toMatchObject({ mode: 'cbc', direction: 'encrypt', formula: { key: `${NS}.formula.encrypt` } });
     const cipher0 = chain.nodes.find((node) => node.id === 'b0.cipher');
-    expect(cipher0?.zoom).toEqual({ producerId: 'aes', params: { keyHex: KEY, plaintextHex: toHex(parseHexOrThrow(BLOCK).map((b, i) => b ^ (iv[i] ?? 0))), detail: 'op' } });
+    expect(cipher0?.zoom).toEqual({ producerId: 'aes', keyHex: KEY, blockHex: toHex(parseHexOrThrow(BLOCK).map((b, i) => b ^ (iv[i] ?? 0))) });
     expect(chain.edges).toContainEqual({ from: 'iv', to: 'b0.xor', activeAt: 1 });
     expect(chain.edges).toContainEqual({ from: 'b0.output', to: 'b1.xor', activeAt: 4 });
     expect(chain.edges).toContainEqual({ from: 'pad', to: 'b2.input', activeAt: 0 });
@@ -100,10 +100,11 @@ describe('cbc run: encrypt', () => {
     expect(wire.flip).toBeUndefined();
   });
 
-  it('zooms with the params the cipher provides, and not at all without labParams', () => {
-    const { labParams: _, ...plainCipher } = aes;
-    const trace = bundle(run(BASE, { resolve: (() => plainCipher) as unknown as PortResolver }));
-    expect(getFacet<ChainFacet>(trace, 'chain')!.nodes.some((node) => node.zoom !== undefined)).toBe(false);
+  it('links every sent output node to its wire segment, available when the node gets its value', () => {
+    const trace = bundle(runWith({}));
+    const segments = getFacet<WireFacet>(trace, 'wire')!.segments;
+    const outputs = getFacet<ChainFacet>(trace, 'chain')!.nodes.filter((node) => node.kind === 'output');
+    expect(outputs.map((node) => [node.segmentId, node.activeAt])).toEqual(outputs.map((node) => [`c${node.block}`, segments.find((segment) => segment.id === node.segmentId)?.availableAt]));
   });
 
   it('declares key, IV, plaintext and ciphertext values', () => {

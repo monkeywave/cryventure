@@ -5,7 +5,7 @@
 export { I18nProvider, useT, type I18nProviderProps } from './i18n/I18nProvider.tsx';
 // lab runtime
 export { INITIAL_STEP, LAB_MODES, selectStepCount, type LabMode } from './lab/labReducers.ts';
-export { createLabStore, type LabActions, type LabHrefBuilder, type LabState, type LabStoreOptions, type LabStore, type ParamsPatch, type ParamsRequestHandler, type SetBundleOptions } from './lab/createLabStore.ts';
+export { createLabStore, type BlockLabHrefBuilder, type LabActions, type LabHrefBuilder, type LabState, type LabStoreOptions, type LabStore, type ParamsPatch, type ParamsRequestHandler, type SetBundleOptions } from './lab/createLabStore.ts';
 export { stateSteps, type AnyStateFacet, type AnyStateStep } from './lab/stateSteps.ts';
 export { useLab, useLabActions, useLabStore } from './lab/LabContext.tsx';
 export { LabRoot, type LabRootProps } from './lab/LabRoot.tsx';
@@ -38,3 +38,4 @@ export { Workspace, type WorkspaceProps } from './workspace/Workspace.tsx';
 export { ViewStatus, type ViewStatusKind, type ViewStatusProps } from './workspace/ViewStatus.tsx';
 export { ErrorBoundary, type ErrorBoundaryProps } from './workspace/ErrorBoundary.tsx';
 export { safeStorage } from './workspace/safeStorage.ts';
+export { useWidthObserver } from './workspace/useContainerWidth.ts';

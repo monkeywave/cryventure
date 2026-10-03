@@ -1,15 +1,44 @@
 // @vitest-environment jsdom
 import '@cryventure/viz/testing/setup';
-import { fireEvent, render, screen } from '@testing-library/react';
-import { describe, expect, it, vi } from 'vitest';
+import { act, fireEvent, render, screen } from '@testing-library/react';
+import { useState } from 'react';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { PrimitiveManifest } from '@cryventure/core';
 import { I18nProvider } from '@cryventure/viz';
 import { labMessages } from '../../labs/labMessages.ts';
 import type { LabParams } from '../../labs/labSession.ts';
 import { producerRegistry } from '../../labs/registry.ts';
-import { ParamPanel } from './ParamPanel.tsx';
+import { ParamPanel, TEXT_EDIT_DEBOUNCE_MS } from './ParamPanel.tsx';
 
 const aes = producerRegistry.require('aes') as PrimitiveManifest<LabParams>;
+
+beforeEach(() => {
+  vi.useFakeTimers();
+});
+
+afterEach(() => {
+  vi.useRealTimers();
+});
+
+/** Types `value` into a text or hex field and waits out the debounce, so the edit is validated and applied. */
+function typeInto(input: HTMLElement, value: string) {
+  fireEvent.change(input, { target: { value } });
+  act(() => vi.advanceTimersByTime(TEXT_EDIT_DEBOUNCE_MS));
+}
+
+/** A panel whose params follow its own edits, like `useLabSession().pendingParams` does in the lab. */
+function PendingParamsPanel({ onApply }: { onApply: (params: LabParams) => void }) {
+  const [params, setParams] = useState(aes.defaults as LabParams);
+  const apply = (next: LabParams) => {
+    onApply(next);
+    setParams(next);
+  };
+  return (
+    <I18nProvider messages={labMessages('en', aes)}>
+      <ParamPanel producer={aes} params={params} onApply={apply} />
+    </I18nProvider>
+  );
+}
 
 function renderPanel(lang = 'en', onApply = vi.fn()) {
   render(
@@ -42,17 +71,47 @@ describe('ParamPanel', () => {
     expect(onApply).toHaveBeenCalledWith({ ...aes.defaults, detail: 'round' });
   });
 
-  it('builds a second edit on the first while its re-run is pending (params not yet updated)', () => {
-    const onApply = renderPanel();
-    fireEvent.change(screen.getByLabelText('Key (hex)'), { target: { value: '00'.repeat(16) } });
-    fireEvent.change(screen.getByLabelText('Plaintext (hex)'), { target: { value: '11'.repeat(16) } });
+  it('builds a second edit on the first, through the pending params it is given', () => {
+    const onApply = vi.fn();
+    render(<PendingParamsPanel onApply={onApply} />);
+    typeInto(screen.getByLabelText('Key (hex)'), '00'.repeat(16));
+    typeInto(screen.getByLabelText('Plaintext (hex)'), '11'.repeat(16));
     expect(onApply).toHaveBeenLastCalledWith({ ...aes.defaults, keyHex: '00'.repeat(16), plaintextHex: '11'.repeat(16) });
+  });
+
+  it('applies text edits only once typing pauses, with the last text', () => {
+    const onApply = renderPanel();
+    const key = screen.getByLabelText('Key (hex)');
+    fireEvent.change(key, { target: { value: '0' } });
+    act(() => vi.advanceTimersByTime(TEXT_EDIT_DEBOUNCE_MS - 1));
+    fireEvent.change(key, { target: { value: '00'.repeat(16) } });
+    expect(key).toHaveProperty('value', '00'.repeat(16));
+    act(() => vi.advanceTimersByTime(TEXT_EDIT_DEBOUNCE_MS - 1));
+    expect(onApply).not.toHaveBeenCalled();
+    act(() => vi.advanceTimersByTime(1));
+    expect(onApply).toHaveBeenCalledTimes(1);
+    expect(onApply).toHaveBeenCalledWith({ ...aes.defaults, keyHex: '00'.repeat(16) });
+  });
+
+  it('drops a pending text edit when params change from outside', () => {
+    const onApply = vi.fn();
+    const panel = (params: LabParams) => (
+      <I18nProvider messages={labMessages('en', aes)}>
+        <ParamPanel producer={aes} params={params} onApply={onApply} />
+      </I18nProvider>
+    );
+    const { rerender } = render(panel(aes.defaults as LabParams));
+    fireEvent.change(screen.getByLabelText('Key (hex)'), { target: { value: '00'.repeat(16) } });
+    rerender(panel({ ...(aes.defaults as LabParams), keyHex: 'ff'.repeat(16) }));
+    act(() => vi.advanceTimersByTime(TEXT_EDIT_DEBOUNCE_MS));
+    expect(onApply).not.toHaveBeenCalled();
+    expect(screen.getByLabelText('Key (hex)')).toHaveProperty('value', 'ff'.repeat(16));
   });
 
   it('shows a localized error and does not apply invalid hex', () => {
     const onApply = renderPanel();
     const key = screen.getByLabelText('Key (hex)');
-    fireEvent.change(key, { target: { value: 'zz' } });
+    typeInto(key, 'zz');
     expect(onApply).not.toHaveBeenCalled();
     expect(key.getAttribute('aria-invalid')).toBe('true');
     expect(screen.getByText(/is not a hex digit/)).toBeTruthy();
@@ -80,7 +139,7 @@ describe('ParamPanel', () => {
     );
     const { rerender } = render(panel(aes.defaults as LabParams));
     const draft = 'FF'.repeat(16);
-    fireEvent.change(screen.getByLabelText('Key (hex)'), { target: { value: draft } });
+    typeInto(screen.getByLabelText('Key (hex)'), draft);
     rerender(panel(onApply.mock.calls[0]?.[0] as LabParams));
     expect(screen.getByLabelText('Key (hex)')).toHaveProperty('value', draft);
   });
@@ -95,7 +154,7 @@ describe('ParamPanel', () => {
     const defaults = aes.defaults as LabParams;
     const { rerender } = render(panel(defaults));
     const key = () => screen.getByLabelText('Key (hex)');
-    fireEvent.change(key(), { target: { value: 'AA'.repeat(16) } });
+    typeInto(key(), 'AA'.repeat(16));
     const own = onApply.mock.calls[0]?.[0] as LabParams;
     rerender(panel(own));
     rerender(panel({ ...defaults, keyHex: '00'.repeat(16) }));
@@ -112,7 +171,7 @@ describe('ParamPanel', () => {
     );
     const { rerender } = render(panel(aes.defaults as LabParams));
     const key = () => screen.getByLabelText('Key (hex)');
-    fireEvent.change(key(), { target: { value: 'zz' } });
+    typeInto(key(), 'zz');
     expect(key().getAttribute('aria-invalid')).toBe('true');
     rerender(panel({ ...(aes.defaults as LabParams), keyHex: 'ff'.repeat(16) }));
     expect(key()).toHaveProperty('value', 'ff'.repeat(16));
@@ -128,7 +187,7 @@ describe('ParamPanel', () => {
     const defaults = aes.defaults as LabParams;
     const { rerender } = render(panel(defaults));
     const key = () => screen.getByLabelText('Key (hex)');
-    fireEvent.change(key(), { target: { value: 'zz' } });
+    typeInto(key(), 'zz');
     rerender(panel({ ...defaults, plaintextHex: 'ff'.repeat(16) }));
     expect(key()).toHaveProperty('value', defaults.keyHex);
     expect(key().getAttribute('aria-invalid')).toBe('false');
@@ -143,8 +202,8 @@ describe('ParamPanel', () => {
       </I18nProvider>
     );
     const { rerender } = render(panel(aes.defaults as LabParams));
-    fireEvent.change(screen.getByLabelText('Key (hex)'), { target: { value: 'zz' } });
-    fireEvent.change(screen.getByLabelText('Plaintext (hex)'), { target: { value: 'AA'.repeat(16) } });
+    typeInto(screen.getByLabelText('Key (hex)'), 'zz');
+    typeInto(screen.getByLabelText('Plaintext (hex)'), 'AA'.repeat(16));
     rerender(panel(onApply.mock.calls[0]?.[0] as LabParams));
     expect(screen.getByLabelText('Key (hex)')).toHaveProperty('value', 'zz');
     expect(screen.getByLabelText('Key (hex)').getAttribute('aria-invalid')).toBe('true');
@@ -220,7 +279,7 @@ describe('ParamPanel text fields', () => {
 
   it('counts bytes, not characters, and applies valid text', () => {
     const onApply = renderComposite();
-    fireEvent.change(screen.getByLabelText('Plaintext (hex)'), { target: { value: 'äö' } });
+    typeInto(screen.getByLabelText('Plaintext (hex)'), 'äö');
     expect(screen.getByText('4 / 8 bytes (UTF-8)')).toBeTruthy();
     expect(onApply).toHaveBeenCalledWith({ cipher: 'aes', note: 'äö' });
   });
@@ -228,7 +287,7 @@ describe('ParamPanel text fields', () => {
   it('flags text over the limit, shows the validation error and does not apply it', () => {
     const onApply = renderComposite();
     const input = screen.getByLabelText('Plaintext (hex)');
-    fireEvent.change(input, { target: { value: 'ääääää' } });
+    typeInto(input, 'ääääää');
     expect(onApply).not.toHaveBeenCalled();
     expect(input.getAttribute('aria-invalid')).toBe('true');
     expect(screen.getByText('12 / 8 bytes (UTF-8)').getAttribute('data-over')).toBe('true');

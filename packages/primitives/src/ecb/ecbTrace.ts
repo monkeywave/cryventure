@@ -1,54 +1,25 @@
 import {
   allIndices,
-  BlockOpRecorder,
   blockIndices,
   cipherName,
-  encryptInputLength,
   highlight,
   i18nRef,
-  recordPadding,
+  recordPaddedMode,
   toHex,
-  unpaddedInputRegion,
-  unpadStep,
-  zeroSnapshot,
-  type BlockCipher,
-  type ModeDirection,
-  type ModePadding,
-  type PadRecord,
-  type RegionSpec,
-  type StateFacet,
-  type UnpadRecord,
+  u8Regions,
+  type BlockStepInput,
+  type PaddedModeRecording,
+  type PaddedModeRun,
 } from '@cryventure/core';
 import type { EcbOpName } from './manifest.ts';
 
 /** Traced ECB (SP 800-38A §6.1): scope levels block → op, one opaque cipher call per block. */
 export type EcbRegion = 'input' | 'work' | 'output';
 export type EcbOp = { op: EcbOpName };
-export type EcbStateFacet = StateFacet<EcbRegion, EcbOp>;
-type EcbRecorder = BlockOpRecorder<EcbRegion, EcbOp>;
 
 const NS = 'plugin.ecb';
 
-/** `input`/`output` hold all blocks; `work` is the cipher's in/out register (one block). */
-export function ecbRegions(length: number, blockSize: number): RegionSpec<EcbRegion>[] {
-  const region = (id: EcbRegion, size: number, blank: boolean): RegionSpec<EcbRegion> => ({
-    id,
-    labelKey: `${NS}.region.${id}`,
-    elem: 'u8',
-    shape: [size],
-    ...(blank ? { initial: 'blank' as const } : {}),
-  });
-  return [region('input', length, false), region('work', blockSize, true), region('output', length, true)];
-}
-
-export interface EcbRun {
-  cipher: BlockCipher;
-  key: Uint8Array;
-  /** The input as given (unpadded plaintext, or the ciphertext). */
-  data: number[];
-  direction: ModeDirection;
-  padding: ModePadding;
-}
+export type EcbRun = PaddedModeRun;
 
 /** One block with the steps that produce its values (for the chain and wire facets). */
 export interface EcbBlockTrace {
@@ -58,20 +29,13 @@ export interface EcbBlockTrace {
   steps: { cipher: number; emit: number };
 }
 
-export interface EcbRecording {
-  facet: EcbStateFacet;
-  blocks: EcbBlockTrace[];
-  /** Everything the output region ends with (all blocks; still padded after decryption). */
-  processed: number[];
-  pad?: PadRecord;
-  unpad?: UnpadRecord;
-}
+export type EcbRecording = PaddedModeRecording<EcbRegion, EcbOp, EcbBlockTrace>;
 
 /** One block: E_K or D_K into `work`, then emit `work` into the output region. */
-function recordBlock(recorder: EcbRecorder, run: EcbRun, index: number, input: number[], length: number): EcbBlockTrace {
+function recordBlock(run: EcbRun, { recorder, index, input }: BlockStepInput<EcbRegion, EcbOp, EcbBlockTrace>): EcbBlockTrace {
   const { cipher, key, direction } = run;
   const blockSize = cipher.blockSize;
-  const indices = blockIndices(index, blockSize, length);
+  const indices = blockIndices(index, blockSize, (index + 1) * blockSize);
   const work = allIndices(blockSize);
   const output = Array.from(direction === 'encrypt' ? cipher.encryptBlock(key, Uint8Array.from(input)) : cipher.decryptBlock(key, Uint8Array.from(input)));
   const cipherStep = recorder.op({
@@ -89,46 +53,16 @@ function recordBlock(recorder: EcbRecorder, run: EcbRun, index: number, input: n
   return { input, output, steps: { cipher: cipherStep, emit } };
 }
 
-function recordEncrypt(run: EcbRun): EcbRecording {
-  const { cipher, data } = run;
-  const blockSize = cipher.blockSize;
-  const length = encryptInputLength(data.length, blockSize, run.padding);
-  const regions = ecbRegions(length, blockSize);
-  const initial = { ...zeroSnapshot(regions), input: unpaddedInputRegion(data, length) };
-  const recorder: EcbRecorder = new BlockOpRecorder(regions, initial, i18nRef(`${NS}.step.initialEncrypt`, { bytes: data.length, blockSize, cipher: cipherName(cipher) }));
-  const { padded, pad } = recordPadding(recorder, NS, data, blockSize, run.padding);
-  const blocks = allIndices(length / blockSize).map((index) =>
-    recorder.block(index, () => recordBlock(recorder, run, index, padded.slice(index * blockSize, (index + 1) * blockSize), length)),
-  );
-  return { facet: recorder.toFacet(), blocks, processed: blocks.flatMap((block) => block.output), ...(pad === undefined ? {} : { pad }) };
-}
-
-function recordDecrypt(run: EcbRun): EcbRecording {
-  const { cipher, data } = run;
-  const blockSize = cipher.blockSize;
-  const regions = ecbRegions(data.length, blockSize);
-  const blockTotal = data.length / blockSize;
-  const initial = { ...zeroSnapshot(regions), input: [...data] };
-  const recorder: EcbRecorder = new BlockOpRecorder(regions, initial, i18nRef(`${NS}.step.initialDecrypt`, { bytes: data.length, count: blockTotal, cipher: cipherName(cipher) }));
-  const blocks: EcbBlockTrace[] = [];
-  let unpad: EcbRecording['unpad'];
-  for (const index of allIndices(blockTotal)) {
-    recorder.block(index, () => {
-      blocks.push(recordBlock(recorder, run, index, data.slice(index * blockSize, (index + 1) * blockSize), data.length));
-      if (index === blockTotal - 1 && run.padding === 'pkcs7') {
-        const check = unpadStep(NS, blocks.flatMap((block) => block.output), blockSize);
-        unpad = { step: recorder.op(check.step), result: check.result };
-      }
-    });
-  }
-  return { facet: recorder.toFacet(), blocks, processed: blocks.flatMap((block) => block.output), ...(unpad === undefined ? {} : { unpad }) };
-}
-
 /**
- * Records ECB over `run.data`, which must be block-aligned unless encrypting with PKCS#7 (the run
- * checks this first). Encrypt: pad (once), then per block encryptBlock → emit. Decrypt: per block
- * decryptBlock → emit, then unpad (PKCS#7 only).
+ * Records ECB over `run.data`. Encrypt: pad (once), then per block encryptBlock → emit. Decrypt:
+ * per block decryptBlock → emit, then unpad (PKCS#7 only). `input`/`output` hold all blocks; `work`
+ * is the cipher's in/out register (one block).
  */
 export function recordEcb(run: EcbRun): EcbRecording {
-  return run.direction === 'encrypt' ? recordEncrypt(run) : recordDecrypt(run);
+  return recordPaddedMode<EcbRegion, EcbOp, EcbBlockTrace>({
+    namespace: NS,
+    run,
+    regions: (length) => u8Regions<EcbRegion>(NS, { input: length, work: run.cipher.blockSize, output: length }, ['work', 'output']),
+    blockStep: (step) => recordBlock(run, step),
+  });
 }

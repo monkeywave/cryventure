@@ -40,6 +40,7 @@ export interface LaneHeader {
 export interface ChainLayout {
   width: number;
   height: number;
+  /** In reading order (`readingOrder`): focus order and render order. */
   boxes: NodeBox[];
   boxById: Map<string, NodeBox>;
   edges: EdgePath[];
@@ -191,7 +192,9 @@ export function edgePathData(source: NodeBox, target: NodeBox): string {
 
 /** The whole diagram's geometry for `facet` under `metrics`. */
 export function layoutChain(facet: ChainFacet, metrics: LayoutMetrics): ChainLayout {
-  const { boxes, width, height, headers } = boxesOf(facet, metrics);
+  const placed = boxesOf(facet, metrics);
+  const { width, height, headers } = placed;
+  const boxes = readingOrder(placed.boxes);
   const boxById = new Map(boxes.map((box) => [box.node.id, box]));
   const edges = facet.edges.flatMap((edge) => {
     const source = boxById.get(edge.from);

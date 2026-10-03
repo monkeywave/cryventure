@@ -22,7 +22,6 @@ export interface InitialContent {
 export class PairedRecorder<R extends string, Op extends { op: string }> {
   private readonly tracer: RecordingTracer<R, Op>;
   private readonly mathSteps: MathStep[] = [];
-  private recordedSteps = 0;
 
   constructor(
     regions: RegionSpec<R>[],
@@ -36,7 +35,7 @@ export class PairedRecorder<R extends string, Op extends { op: string }> {
 
   /** Steps recorded so far (the next step's index). */
   get stepCount(): number {
-    return this.recordedSteps;
+    return this.tracer.stepCount;
   }
 
   enter(scopeIndex?: number): void {
@@ -49,7 +48,7 @@ export class PairedRecorder<R extends string, Op extends { op: string }> {
 
   step(input: StepInput<R, Op>, math: MathContent): void {
     this.tracer.step(input);
-    this.mathSteps.push({ step: this.recordedSteps++, ...math });
+    this.mathSteps.push({ step: this.tracer.stepCount - 1, ...math });
   }
 
   /** One step in its own child scope (the next sibling at the current level). */

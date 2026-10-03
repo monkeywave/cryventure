@@ -82,9 +82,9 @@ describe('assertMatchesReference', () => {
 
 describe('blockModeOutputs', () => {
   it('names the output by direction and padding result', () => {
-    expect(blockModeOutputs('encrypt', [1])).toEqual({ ciphertext: [1] });
-    expect(blockModeOutputs('decrypt', [1])).toEqual({ plaintext: [1] });
-    expect(blockModeOutputs('decrypt', [1, 1], { ok: true, data: Uint8Array.of(1), padLength: 1 })).toEqual({ plaintext: [1] });
-    expect(blockModeOutputs('decrypt', [1, 0], { ok: false, reason: 'zero-pad-byte', padLength: 0 })).toEqual({ padded: [1, 0] });
+    expect(blockModeOutputs('encrypt', [1])).toEqual({ name: 'ciphertext', bytes: [1] });
+    expect(blockModeOutputs('decrypt', [1])).toEqual({ name: 'plaintext', bytes: [1] });
+    expect(blockModeOutputs('decrypt', [1, 1], { ok: true, data: Uint8Array.of(1), padLength: 1 })).toEqual({ name: 'plaintext', bytes: [1] });
+    expect(blockModeOutputs('decrypt', [1, 0], { ok: false, reason: 'zero-pad-byte', padLength: 0 })).toEqual({ name: 'padded', bytes: [1, 0] });
   });
 });

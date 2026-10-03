@@ -1,4 +1,17 @@
-import { ChainBuilder, chainLabel, cipherZoom, i18nRef, laneNodeId as nodeId, WireBuilder, type BlockCipher, type ChainFacet, type WireFacet } from '@cryventure/core';
+import {
+  addBlockSegment,
+  blockSegmentId,
+  ChainBuilder,
+  chainLabel,
+  cipherZoom,
+  i18nRef,
+  laneNodeId as nodeId,
+  laneNodes,
+  WireBuilder,
+  type BlockCipher,
+  type ChainFacet,
+  type WireFacet,
+} from '@cryventure/core';
 import type { CtrBlockTrace, CtrRecording } from './ctrTrace.ts';
 
 /** The chain and wire facets of a CTR recording (docs/M3.md §6). */
@@ -11,21 +24,17 @@ export interface CtrFacetContext {
 
 const label = (name: string, n?: number) => chainLabel(NS, name, n);
 
-/** One lane: Tᵢ → E_K → keystream; Pᵢ ⊕ keystream → Cᵢ. E_K always encrypts, so every cipher node zooms (when the cipher has a lab). */
+/** One lane: Tᵢ → E_K → keystream; Pᵢ ⊕ keystream → Cᵢ, sent on the wire. E_K always encrypts, so every cipher node zooms. */
 function lane(chain: ChainBuilder, block: CtrBlockTrace, index: number, context: CtrFacetContext): void {
   const n = index + 1;
-  chain.node({ id: nodeId(index, 'counter'), block: index, kind: 'counter', label: label('counter', n), bytes: block.counter, activeAt: block.steps.counter, ...(index === 0 ? { valueRef: 'counter' } : {}) });
-  if (index > 0) chain.link(nodeId(index - 1, 'counter'), nodeId(index, 'counter'));
-  const zoom = cipherZoom(context.cipher, context.key, block.counter);
-  chain.node({ id: nodeId(index, 'cipher'), block: index, kind: 'cipher', label: label('encrypt'), bytes: block.keystream, activeAt: block.steps.cipher, ...zoom });
-  chain.link(nodeId(index, 'counter'), nodeId(index, 'cipher'));
-  chain.node({ id: nodeId(index, 'keystream'), block: index, kind: 'keystream', label: label('keystream', n), bytes: block.keystream.slice(0, block.input.length), activeAt: block.steps.cipher });
-  chain.link(nodeId(index, 'cipher'), nodeId(index, 'keystream'));
-  chain.node({ id: nodeId(index, 'input'), block: index, kind: 'input', label: label('plaintext', n), bytes: block.input, activeAt: -1 });
-  chain.node({ id: nodeId(index, 'xor'), block: index, kind: 'xor', label: label('xor'), bytes: block.output, activeAt: block.steps.xor });
-  chain.link([nodeId(index, 'input'), nodeId(index, 'keystream')], nodeId(index, 'xor'));
-  chain.node({ id: nodeId(index, 'output'), block: index, kind: 'output', label: label('ciphertext', n), bytes: block.output, activeAt: block.steps.xor });
-  chain.link(nodeId(index, 'xor'), nodeId(index, 'output'));
+  const node = laneNodes(chain, index);
+  const previousCounter = index === 0 ? undefined : nodeId(index - 1, 'counter');
+  const counter = node('counter', 'counter', label('counter', n), block.counter, block.steps.counter, previousCounter, index === 0 ? { valueRef: 'counter' } : {});
+  const cipher = node('cipher', 'cipher', label('encrypt'), block.keystream, block.steps.cipher, counter, cipherZoom(context.cipher, context.key, block.counter));
+  const keystream = node('keystream', 'keystream', label('keystream', n), block.keystream.slice(0, block.input.length), block.steps.cipher, cipher);
+  const input = node('input', 'input', label('plaintext', n), block.input, -1);
+  const xor = node('xor', 'xor', label('xor'), block.output, block.steps.xor, [input, keystream]);
+  node('output', 'output', label('ciphertext', n), block.output, block.steps.xor, xor, { segmentId: blockSegmentId(index) });
 }
 
 export function ctrChain(recording: CtrRecording, context: CtrFacetContext): ChainFacet {
@@ -38,9 +47,6 @@ export function ctrChain(recording: CtrRecording, context: CtrFacetContext): Cha
 export function ctrWire(recording: CtrRecording, initialCounter: number[]): WireFacet {
   const wire = new WireBuilder();
   wire.activate(-1, wire.segment({ id: 'nonce', role: 'nonce', label: i18nRef(`${NS}.wire.nonce`), bytes: initialCounter, valueRef: 'counter' }));
-  recording.blocks.forEach((block, index) => {
-    const offsets = wire.segment({ id: `c${index}`, role: 'ciphertext', label: i18nRef(`${NS}.wire.block`, { n: index + 1 }), bytes: block.output, block: index });
-    wire.emit(block.steps.xor, offsets);
-  });
+  recording.blocks.forEach((block, index) => wire.activate(block.steps.xor, addBlockSegment(wire, NS, index, block.output, block.steps.xor)));
   return wire.toFacet();
 }

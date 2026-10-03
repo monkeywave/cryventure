@@ -95,12 +95,18 @@ export function assertMatchesReference(traced: ArrayLike<number>, reference: Arr
   if (!bytesEqual(traced, reference)) throw new Error(`${what}: the traced output differs from the core reference`);
 }
 
+/** The named output of an ECB/CBC run. */
+export interface BlockModeOutput {
+  name: 'ciphertext' | 'plaintext' | 'padded';
+  bytes: number[];
+}
+
 /**
- * Named outputs of ECB/CBC: `ciphertext` when encrypting; when decrypting `plaintext` (no padding,
- * or valid PKCS#7 removed) or `padded` (all decrypted blocks, when the PKCS#7 check failed).
+ * The output of ECB/CBC: `ciphertext` when encrypting; when decrypting `plaintext` (no padding, or
+ * valid PKCS#7 removed) or `padded` (all decrypted blocks, when the PKCS#7 check failed).
  */
-export function blockModeOutputs(direction: ModeDirection, processed: number[], unpad?: Pkcs7UnpadResult): Record<string, number[]> {
-  if (direction === 'encrypt') return { ciphertext: processed };
-  if (unpad === undefined) return { plaintext: processed };
-  return unpad.ok ? { plaintext: Array.from(unpad.data) } : { padded: processed };
+export function blockModeOutputs(direction: ModeDirection, processed: number[], unpad?: Pkcs7UnpadResult): BlockModeOutput {
+  if (direction === 'encrypt') return { name: 'ciphertext', bytes: processed };
+  if (unpad === undefined) return { name: 'plaintext', bytes: processed };
+  return unpad.ok ? { name: 'plaintext', bytes: Array.from(unpad.data) } : { name: 'padded', bytes: processed };
 }

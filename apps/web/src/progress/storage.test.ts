@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { emptyProgress, type Progress } from './schema.ts';
-import { LEGACY_PROGRESS_STORAGE_KEY, loadProgress, parseStoredProgress, PROGRESS_STORAGE_KEY, saveProgress } from './storage.ts';
+import { LEGACY_PROGRESS_STORAGE_KEY, LENS_STORAGE_KEY, loadProgress, parseStoredProgress, PROGRESS_STORAGE_KEY, saveLens, saveProgress } from './storage.ts';
 
 const progress: Progress = { version: 2, lens: 'story', lessons: { a: { quiz: { 'aes-rounds': { solved: true, lastAnswer: 0 } } } } };
 
@@ -82,5 +82,41 @@ describe('saveProgress / loadProgress', () => {
     });
     expect(loadProgress()).toEqual(emptyProgress());
     expect(saveProgress(progress)).toBe(false);
+  });
+});
+
+describe('the cv.lens key', () => {
+  it('is its own schema-independent key, written and removed by saveLens', () => {
+    expect(LENS_STORAGE_KEY).toBe('cv.lens');
+    expect(saveLens('story')).toBe(true);
+    expect(localStorage.getItem(LENS_STORAGE_KEY)).toBe('story');
+    saveLens(undefined);
+    expect(localStorage.getItem(LENS_STORAGE_KEY)).toBeNull();
+  });
+
+  it('is seeded from the v2 record when absent', () => {
+    saveProgress(progress);
+    loadProgress();
+    expect(localStorage.getItem(LENS_STORAGE_KEY)).toBe('story');
+  });
+
+  it('is seeded from the v1 record on migration', () => {
+    localStorage.setItem(LEGACY_PROGRESS_STORAGE_KEY, JSON.stringify({ version: 1, lens: 'cryptographer', lessons: {} }));
+    loadProgress();
+    expect(localStorage.getItem(LENS_STORAGE_KEY)).toBe('cryptographer');
+  });
+
+  it('is left alone when already present', () => {
+    saveProgress(progress);
+    localStorage.setItem(LENS_STORAGE_KEY, 'engineer');
+    loadProgress();
+    expect(localStorage.getItem(LENS_STORAGE_KEY)).toBe('engineer');
+  });
+
+  it('saveLens never throws', () => {
+    vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {
+      throw new DOMException('full', 'QuotaExceededError');
+    });
+    expect(saveLens('story')).toBe(false);
   });
 });

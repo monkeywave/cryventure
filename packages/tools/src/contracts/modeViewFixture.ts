@@ -16,17 +16,12 @@ import { runOrThrow } from './primitiveContract.ts';
 import { runOptionsFor } from './runWithPorts.ts';
 
 /**
- * JSON snapshots of the `chain` / `wire` facets of real ecb, cbc and ctr runs for the mode-chain and
+ * JSON snapshot of the `chain` and `wire` facets of real ecb, cbc and ctr runs for the mode-chain and
  * wire view tests (views may not import primitives). Kept fresh by `modeViewFixture.test.ts`.
  */
-export type ModeFacetKind = 'chain' | 'wire';
+export const MODE_VIEW_FIXTURE = 'packages/views/src/testing/modes.json';
 
-export const MODE_VIEW_FIXTURES: Readonly<Record<ModeFacetKind, string>> = {
-  chain: 'packages/views/src/mode-chain/fixtures/modes.json',
-  wire: 'packages/views/src/wire/fixtures/modes.json',
-};
-
-/** The runs the fixtures snapshot: `<producer>/<preset>`. */
+/** The runs the fixture snapshots: `<producer>/<preset>`. */
 const CASES = [
   ['ecb', 'repeated-blocks'],
   ['ecb', 'repeated-blocks-decrypt'],
@@ -34,15 +29,16 @@ const CASES = [
   ['ctr', 'short-message'],
 ] as const;
 
-export interface ModeViewCase<F> {
+export interface ModeViewCase {
   producer: string;
   preset: string;
   stepCount: number;
-  facet: F;
+  chain: ChainFacet;
+  wire: WireFacet;
 }
 
-export interface ModeViewFixture<F> {
-  cases: ModeViewCase<F>[];
+export interface ModeViewFixture {
+  cases: ModeViewCase[];
   /** The plugin catalog entries the facets reference, per locale. */
   labels: Record<Locale, Messages>;
 }
@@ -67,17 +63,17 @@ function labelsFor(refs: readonly I18nRef[], producers: readonly string[]): Reco
   return Object.fromEntries(supportedLocales.map((locale) => [locale, labelsIn(locale)])) as Record<Locale, Messages>;
 }
 
-/** The fixture of `kind` as fresh runs of the cases produce it. */
-export async function buildModeViewFixture(kind: 'chain'): Promise<ModeViewFixture<ChainFacet>>;
-export async function buildModeViewFixture(kind: 'wire'): Promise<ModeViewFixture<WireFacet>>;
-export async function buildModeViewFixture(kind: ModeFacetKind): Promise<ModeViewFixture<ChainFacet | WireFacet>> {
+/** The fixture as fresh runs of the cases produce it. */
+export async function buildModeViewFixture(): Promise<ModeViewFixture> {
   const cases = await Promise.all(
-    CASES.map(async ([producer, preset]) => {
+    CASES.map(async ([producer, preset]): Promise<ModeViewCase> => {
       const bundle = await runCase(producer, preset);
       const state = getFacet<StateFacet<string, { op: string }>>(bundle, 'state')!;
-      return { producer, preset, stepCount: state.steps.length, facet: getFacet<ChainFacet | WireFacet>(bundle, kind)! };
+      const chain = getFacet<ChainFacet>(bundle, 'chain')!;
+      const wire = getFacet<WireFacet>(bundle, 'wire')!;
+      return { producer, preset, stepCount: state.steps.length, chain, wire };
     }),
   );
-  const refs = cases.flatMap(({ facet }) => (facet.kind === 'chain' ? chainLabelRefs(facet) : wireLabelRefs(facet)));
+  const refs = cases.flatMap(({ chain, wire }) => [...chainLabelRefs(chain), ...wireLabelRefs(wire)]);
   return { cases, labels: labelsFor(refs, [...new Set(CASES.map(([producer]) => producer))]) };
 }

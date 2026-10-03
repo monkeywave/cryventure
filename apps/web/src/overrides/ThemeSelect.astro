@@ -2,7 +2,7 @@
 /**
  * Starlight's ThemeSelect plus the page-wide lens selector (docs/M2.md §6). Starlight renders this
  * twice per page (desktop header, mobile menu footer); one bundled script serves both instances.
- * The stored lens reaches `<html data-lens>` before paint through the early script in `Head.astro`.
+ * The stored lens (its own `cv.lens` key) reaches `<html data-lens>` before paint through the early script in `Head.astro`.
  */
 import Default from '@astrojs/starlight/components/ThemeSelect.astro';
 import Select from '@astrojs/starlight/components/Select.astro';

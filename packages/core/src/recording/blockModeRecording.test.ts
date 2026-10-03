@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { BlockOpRecorder } from './blockOpRecorder.ts';
-import { encryptInputLength, recordPadding, unpaddedInputRegion } from './blockModeRecording.ts';
+import { toyCipher } from '../modes/testCiphers.ts';
+import { encryptInputLength, processedBytes, recordPadding, recordPaddedMode, unpaddedInputRegion } from './blockModeRecording.ts';
+import { u8Regions } from './stepParts.ts';
 
 const NS = 'plugin.demo';
 type Op = { op: 'pad' | 'set' };
@@ -30,5 +32,49 @@ describe('recordPadding', () => {
     const recorder = recorderFor(4);
     expect(recordPadding(recorder, NS, [1, 2, 3, 4], 4, 'none')).toEqual({ padded: [1, 2, 3, 4] });
     expect(recorder.toFacet().steps).toEqual([]);
+  });
+});
+
+describe('recordPaddedMode', () => {
+  type Region = 'input' | 'output';
+  type BlockOp = { op: 'emit' };
+  const key = Uint8Array.of(0, 0, 0, 0);
+  const regions = (length: number) => u8Regions<Region>(NS, { input: length, output: length }, ['output']);
+  /** Copies each input block (decrypting: the toy cipher's inverse) into the output region. */
+  const record = (direction: 'encrypt' | 'decrypt', data: number[], padding: 'pkcs7' | 'none') =>
+    recordPaddedMode<Region, BlockOp, { input: number[]; output: number[] }>({
+      namespace: NS,
+      run: { cipher: toyCipher, key, data, direction, padding },
+      regions,
+      blockStep: ({ recorder, index, input, previous }) => {
+        const output = Array.from(direction === 'encrypt' ? toyCipher.encryptBlock(key, Uint8Array.from(input)) : toyCipher.decryptBlock(key, Uint8Array.from(input)));
+        recorder.op({ op: 'emit', writes: [{ region: 'output', offset: index * 4, values: output }], highlights: [], narration: { key: `${NS}.step.emit`, params: { previous: previous === undefined ? 0 : 1 } } });
+        return { input, output };
+      },
+    });
+
+  it('encrypts: pad at top level, then one block scope per (padded) block', () => {
+    const recording = record('encrypt', [1, 2, 3, 4, 5], 'pkcs7');
+    expect(recording.pad).toEqual({ step: 0, bytes: [3, 3, 3] });
+    expect(recording.blocks.map((block) => block.input)).toEqual([[1, 2, 3, 4], [5, 3, 3, 3]]);
+    expect(recording.facet.steps.map((step) => [step.op, step.scope])).toEqual([['pad', []], ['emit', [0, 0]], ['emit', [1, 0]]]);
+    expect(recording.facet.initial['input']).toEqual([1, 2, 3, 4, 5, 0, 0, 0]);
+    expect(recording.facet.initialNarration).toEqual({ key: `${NS}.step.initialEncrypt`, params: { bytes: 5, blockSize: 4, cipher: 'TOY' } });
+    expect(recording.facet.steps.map((step) => step.narration.params?.['previous'])).toEqual([undefined, 0, 1]);
+  });
+
+  it('decrypts: unpad inside the last block, without failing on invalid padding', () => {
+    const ciphertext = processedBytes(record('encrypt', [1, 2, 3, 4, 5], 'pkcs7'));
+    const recording = record('decrypt', ciphertext, 'pkcs7');
+    expect(recording.unpad).toMatchObject({ step: 2, result: { ok: true, padLength: 3 } });
+    expect(processedBytes(recording)).toEqual([1, 2, 3, 4, 5, 3, 3, 3]);
+    expect(recording.facet.steps.map((step) => [step.op, step.scope])).toEqual([['emit', [0, 0]], ['emit', [1, 0]], ['unpad', [1, 1]]]);
+    expect(recording.facet.initialNarration).toEqual({ key: `${NS}.step.initialDecrypt`, params: { bytes: 8, count: 2, cipher: 'TOY' } });
+    expect(record('decrypt', ciphertext.slice(0, 4), 'pkcs7').unpad?.result.ok).toBe(false);
+  });
+
+  it('records neither pad nor unpad without padding', () => {
+    expect(record('encrypt', [1, 2, 3, 4], 'none')).not.toHaveProperty('pad');
+    expect(record('decrypt', [1, 2, 3, 4], 'none')).not.toHaveProperty('unpad');
   });
 });

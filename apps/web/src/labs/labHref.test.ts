@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { readLabLink } from './deepLink.ts';
-import { createLabHref, labRoutePath } from './labHref.ts';
+import { createBlockLabHref, createLabHref, labRoutePath } from './labHref.ts';
 
 const params = { keyHex: '000102030405060708090a0b0c0d0e0f', plaintextHex: '00112233445566778899aabbccddeeff', detail: 'op' };
 
@@ -28,5 +28,19 @@ describe('createLabHref', () => {
 
   it('builds the route path', () => {
     expect(labRoutePath('en', 'cbc')).toBe('en/lab/cbc/');
+  });
+});
+
+describe('createBlockLabHref', () => {
+  it('links into the cipher lab with the params its manifest names for the block', () => {
+    const href = createBlockLabHref({ base: '/', lang: 'en' })('aes', params.keyHex, params.plaintextHex);
+    expect(href).toMatch(/^\/en\/lab\/aes\/#lab=aes&p=[\w-]+&v=1$/);
+    expect(readLabLink(href?.slice(href.indexOf('#')) ?? '', 'aes')).toEqual({ status: 'valid', state: { params } });
+  });
+
+  it('is undefined for a producer without blockLabParams or an unregistered one', () => {
+    const href = createBlockLabHref({ base: '/', lang: 'en' });
+    expect(href('xor', '00', '00')).toBeUndefined();
+    expect(href('ghost', '00', '00')).toBeUndefined();
   });
 });

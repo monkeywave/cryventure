@@ -6,7 +6,7 @@ import { createProgressStore, nextQuizAnswer, resetKeepingLens, withLensOf, with
 
 function fakePersistence(initial: Progress = emptyProgress()): ProgressPersistence & { saved: Progress[] } {
   const saved: Progress[] = [];
-  return { saved, load: vi.fn(() => initial), save: vi.fn((p: Progress) => (saved.push(p), true)) };
+  return { saved, load: vi.fn(() => initial), save: vi.fn((p: Progress) => (saved.push(p), true)), saveLens: vi.fn() };
 }
 
 function storageEvent(key: string | null, newValue: string | null): StorageEvent {
@@ -61,6 +61,17 @@ describe('withLensOf', () => {
 });
 
 describe('createProgressStore', () => {
+  it('mirrors the lens into its own key only when the lens changes', () => {
+    const persistence = fakePersistence({ ...emptyProgress(), lens: 'story' });
+    const store = createProgressStore(persistence);
+    store.updateProgress((p) => withQuizAnswer(p, 'a', 'q', 0, true));
+    expect(persistence.saveLens).not.toHaveBeenCalled();
+    store.updateProgress((p) => ({ ...p, lens: 'cryptographer' }));
+    expect(persistence.saveLens).toHaveBeenCalledWith('cryptographer');
+    store.updateProgress(() => emptyProgress());
+    expect(persistence.saveLens).toHaveBeenLastCalledWith(undefined);
+  });
+
   it('loads lazily, once', () => {
     const persistence = fakePersistence();
     const store = createProgressStore(persistence);

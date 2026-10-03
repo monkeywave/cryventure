@@ -1,5 +1,5 @@
 import { toLocale, type ProducerLookup } from '@cryventure/core';
-import type { LabHrefBuilder } from '@cryventure/viz';
+import type { BlockLabHrefBuilder, LabHrefBuilder } from '@cryventure/viz';
 import { joinBase } from '../lib/withBase.ts';
 import { encodeLabStates, MAX_HASH_LENGTH, type LabLinkState } from './deepLink.ts';
 import { producerRegistry } from './producers.ts';
@@ -28,5 +28,19 @@ export function createLabHref({ base, lang, producers = producerRegistry }: LabH
     const hash = encodeLabStates(new Map([[producerId, state]]));
     if (hash.length + 1 > MAX_HASH_LENGTH) return undefined;
     return `${joinBase(base, labRoutePath(locale, producerId))}#${hash}`;
+  };
+}
+
+/**
+ * `useLabActions().blockLabHref` for the web app: the cipher's own lab encrypting one block, with the
+ * params its manifest names (`blockLabParams`). `undefined` when the manifest has no such hook (or
+ * `createLabHref` cannot link).
+ */
+export function createBlockLabHref(context: LabHrefContext): BlockLabHrefBuilder {
+  const { producers = producerRegistry } = context;
+  const labHref = createLabHref(context);
+  return (producerId, keyHex, blockHex) => {
+    const params = producers.get(producerId)?.blockLabParams?.(keyHex, blockHex);
+    return params === undefined ? undefined : labHref(producerId, params);
   };
 }

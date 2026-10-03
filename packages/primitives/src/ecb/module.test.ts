@@ -80,7 +80,7 @@ describe('ecb run: encrypt', () => {
     const chain = getFacet<ChainFacet>(trace, 'chain')!;
     expect(chainIssues(chain, stateOf(trace).steps.length)).toEqual([]);
     expect(chain).toMatchObject({ mode: 'ecb', direction: 'encrypt', formula: { key: `${NS}.formula.encrypt` } });
-    expect(chain.nodes.find((node) => node.id === 'b1.cipher')?.zoom).toEqual({ producerId: 'aes', params: { keyHex: KEY, plaintextHex: BLOCK, detail: 'op' } });
+    expect(chain.nodes.find((node) => node.id === 'b1.cipher')?.zoom).toEqual({ producerId: 'aes', keyHex: KEY, blockHex: BLOCK });
     expect(chain.edges).toContainEqual({ from: 'pad', to: 'b2.input', activeAt: 0 });
     expect(chain.edges.filter((edge) => edge.to === 'b1.cipher')).toEqual([{ from: 'b1.input', to: 'b1.cipher', activeAt: 3 }]);
   });
@@ -94,15 +94,11 @@ describe('ecb run: encrypt', () => {
     expect(wire.segments.map((segment) => segment.availableAt)).toEqual([2, 4, 6]);
   });
 
-  it('zooms with the params the cipher provides, and not at all without labParams', () => {
-    const { labParams: _, ...plainCipher } = aes;
-    const custom: BlockCipher = { ...aes, labParams: (_key, block) => ({ block: toHex(block) }) };
-    const zooms = (cipher: BlockCipher) => {
-      const trace = bundle(run(BASE, { resolve: (() => cipher) as unknown as PortResolver }));
-      return getFacet<ChainFacet>(trace, 'chain')!.nodes.filter((node) => node.kind === 'cipher').map((node) => node.zoom);
-    };
-    expect(zooms(plainCipher)).toEqual([undefined, undefined, undefined]);
-    expect(zooms(custom)[0]).toEqual({ producerId: 'aes', params: { block: BLOCK } });
+  it('links every sent output node to its wire segment, available when the node gets its value', () => {
+    const trace = bundle(runWith({}));
+    const segments = getFacet<WireFacet>(trace, 'wire')!.segments;
+    const outputs = getFacet<ChainFacet>(trace, 'chain')!.nodes.filter((node) => node.kind === 'output');
+    expect(outputs.map((node) => [node.segmentId, node.activeAt])).toEqual(outputs.map((node) => [`c${node.block}`, segments.find((segment) => segment.id === node.segmentId)?.availableAt]));
   });
 
   it('declares key, plaintext and ciphertext values', () => {

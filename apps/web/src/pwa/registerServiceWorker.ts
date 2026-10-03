@@ -26,7 +26,25 @@ export interface ServiceWorkerRegistrationDeps {
  * browsers (privacy modes, embedded views) expose the property as `undefined`.
  */
 export function supportsServiceWorker(nav: { serviceWorker?: ServiceWorkerContainer | undefined }): boolean {
-  return 'serviceWorker' in nav && nav.serviceWorker !== undefined && nav.serviceWorker !== null;
+  return nav.serviceWorker != null;
+}
+
+/** The part of `window` that `whenPageIdle` uses. */
+export interface IdleHost {
+  document: Pick<Document, 'readyState'>;
+  addEventListener: (type: 'load', listener: () => void, options: { once: true }) => void;
+  requestIdleCallback?: (callback: () => void) => unknown;
+  setTimeout: (callback: () => void) => unknown;
+}
+
+/**
+ * Runs `callback` once the page has loaded and the browser is idle (a plain timeout where
+ * `requestIdleCallback` is missing), so the registration never competes with the first paint.
+ */
+export function whenPageIdle(callback: () => void, host: IdleHost = window): void {
+  const onIdle = () => (host.requestIdleCallback ? host.requestIdleCallback(callback) : host.setTimeout(callback));
+  if (host.document.readyState === 'complete') onIdle();
+  else host.addEventListener('load', onIdle, { once: true });
 }
 
 /**

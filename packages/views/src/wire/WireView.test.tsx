@@ -1,15 +1,15 @@
 import type { Lens, Locale, WireFacet } from '@cryventure/core';
 import { act, screen } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
-import { createFixtureBundle, renderLab } from '@cryventure/viz/testing';
+import { createFixtureBundle, installResizeObserverMock, renderLab } from '@cryventure/viz/testing';
 import { loadViewMessages } from '../messages.ts';
 import WireView from './WireView.tsx';
-import { wireBundle, wireCase, wireLabels, type WireCaseId } from './testFixture.ts';
+import { modeBundle, modeCase, modeLabels, type ModeCaseId } from '../testing/modeFixture.ts';
 
-const messagesIn = (locale: Locale) => ({ ...loadViewMessages(locale), ...wireLabels[locale] });
+const messagesIn = (locale: Locale) => ({ ...loadViewMessages(locale), ...modeLabels[locale] });
 
-function render(id: WireCaseId, lens: Lens = 'engineer', locale: Locale = 'en', facet?: WireFacet) {
-  const bundle = wireBundle(id);
+function render(id: ModeCaseId, lens: Lens = 'engineer', locale: Locale = 'en', facet?: WireFacet) {
+  const bundle = modeBundle(id);
   if (facet !== undefined) bundle.facets['wire@default'] = facet;
   return renderLab(<WireView labId="fixture" lens={lens} />, { bundle, messages: messagesIn(locale) });
 }
@@ -18,31 +18,7 @@ const segment = (id: string) => document.querySelector<HTMLElement>(`[data-segme
 /** What a screen reader reads for a segment: its visually hidden summary (the boxes are hidden). */
 const summaryOf = (id: string) => segment(id).querySelector('.cv-visually-hidden')?.textContent ?? '';
 const activeOffsets = () => [...document.querySelectorAll<HTMLElement>('.cv-wire__byte[data-active]')].map((byte) => Number(byte.dataset['offset']));
-/** A controllable ResizeObserver (jsdom has none). */
-function installResizeObserverMock() {
-  const original = globalThis.ResizeObserver;
-  const callbacks = new Map<Element, ResizeObserverCallback>();
-  globalThis.ResizeObserver = class {
-    constructor(private readonly callback: ResizeObserverCallback) {}
-    observe(element: Element) {
-      callbacks.set(element, this.callback);
-    }
-    unobserve(element: Element) {
-      callbacks.delete(element);
-    }
-    disconnect() {
-      callbacks.clear();
-    }
-  } as unknown as typeof ResizeObserver;
-  return {
-    resize: (element: Element, width: number) => callbacks.get(element)?.([{ target: element, contentRect: { width } } as unknown as ResizeObserverEntry], {} as ResizeObserver),
-    restore: () => {
-      globalThis.ResizeObserver = original;
-    },
-  };
-}
-
-const lastStep = (id: WireCaseId) => wireCase(id).stepCount - 1;
+const lastStep = (id: ModeCaseId) => modeCase(id).stepCount - 1;
 
 describe('WireView', () => {
   it('groups the bytes by segment with role, label and offsets ruler', () => {
@@ -80,7 +56,7 @@ describe('WireView', () => {
   });
 
   it('uses singular forms for one part and one byte', () => {
-    const facet = wireCase('ctr/short-message').facet;
+    const facet = modeCase('ctr/short-message').wire;
     const one = { ...facet, segments: facet.segments.slice(0, 1), activeAt: [{ step: -1, offsets: [0] }] };
     render('ctr/short-message', 'engineer', 'en', one);
     expect(screen.getByRole('list', { name: 'Bytes as they travel: 16 bytes in 1 part' })).toBeTruthy();
@@ -88,7 +64,7 @@ describe('WireView', () => {
   });
 
   it('uses singular forms in German', () => {
-    const facet = wireCase('ctr/short-message').facet;
+    const facet = modeCase('ctr/short-message').wire;
     const one = { ...facet, segments: facet.segments.slice(0, 1), activeAt: [{ step: -1, offsets: [0] }], flip: { param: 'm', maskHex: '01' } };
     render('ctr/short-message', 'engineer', 'de', one);
     expect(screen.getByRole('list', { name: 'Übertragene Bytes: 16 Byte in 1 Teil' })).toBeTruthy();
@@ -131,7 +107,7 @@ describe('WireView', () => {
   });
 
   it('renders a flip mask read-only', () => {
-    const facet = wireCase('ecb/repeated-blocks').facet;
+    const facet = modeCase('ecb/repeated-blocks').wire;
     const mask = '00'.repeat(47) + '01';
     const { store } = render('ecb/repeated-blocks', 'engineer', 'en', { ...facet, flip: { param: 'flipHex', maskHex: mask } });
     act(() => store.getState().seek(lastStep('ecb/repeated-blocks')));

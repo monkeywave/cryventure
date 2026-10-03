@@ -1,5 +1,5 @@
 import { emptyProgress, type Lens, type Progress, type QuizAnswer } from './schema.ts';
-import { loadProgress, parseStoredProgress, PROGRESS_STORAGE_KEY, saveProgress } from './storage.ts';
+import { loadProgress, parseStoredProgress, PROGRESS_STORAGE_KEY, saveLens, saveProgress } from './storage.ts';
 
 export type ProgressListener = () => void;
 export type ProgressUpdater = (progress: Progress) => Progress;
@@ -8,6 +8,8 @@ export type ProgressUpdater = (progress: Progress) => Progress;
 export interface ProgressPersistence {
   load: () => Progress;
   save: (progress: Progress) => boolean;
+  /** Mirrors the lens into its own schema-independent key (`LENS_STORAGE_KEY`) whenever it changes. */
+  saveLens?: (lens: Lens | undefined) => void;
 }
 
 export interface ProgressStore {
@@ -16,7 +18,7 @@ export interface ProgressStore {
   updateProgress: (update: ProgressUpdater) => void;
 }
 
-const defaultPersistence: ProgressPersistence = { load: loadProgress, save: saveProgress };
+const defaultPersistence: ProgressPersistence = { load: loadProgress, save: saveProgress, saveLens };
 
 function eventTarget(): Pick<Window, 'addEventListener' | 'removeEventListener'> | undefined {
   return typeof window === 'undefined' ? undefined : window;
@@ -51,10 +53,12 @@ export function createProgressStore(persistence: ProgressPersistence = defaultPe
   };
 
   const updateProgress = (update: ProgressUpdater): void => {
-    const next = update(getProgress());
-    if (next === current) return;
+    const previous = getProgress();
+    const next = update(previous);
+    if (next === previous) return;
     current = next;
     persistence.save(next);
+    if (next.lens !== previous.lens) persistence.saveLens?.(next.lens);
     notify();
   };
 

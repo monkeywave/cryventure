@@ -2,8 +2,8 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { readLabLink, type LabLinkRead } from '../../labs/deepLink.ts';
 import { browserHashEnvironment, createLabHashWriter } from '../../labs/hashWriter.ts';
 import type { I18nRef } from '@cryventure/core';
-import type { LabHrefBuilder, LabMode, ParamsPatch } from '@cryventure/viz';
-import { createLabHref } from '../../labs/labHref.ts';
+import type { BlockLabHrefBuilder, LabHrefBuilder, LabMode, ParamsPatch } from '@cryventure/viz';
+import { createBlockLabHref, createLabHref } from '../../labs/labHref.ts';
 import { createLabRunner, type LabRunner } from '../../labs/labRunner.ts';
 import { rerunLab, startLab, type IsCurrentRun, type LabParams, type LabSession, type ReadySession } from '../../labs/labSession.ts';
 import { mergeParams } from '../../labs/paramFields.ts';
@@ -22,6 +22,12 @@ export interface UseLabSessionOptions {
 
 export interface LabSessionApi {
   session: LabSession;
+  /**
+   * The params of the latest requested run, which may still be pending (or have failed): what the
+   * param panel shows and builds the next edit on. `session.params` updates only once a run succeeds.
+   * `null` while no session is ready.
+   */
+  pendingParams: LabParams | null;
   /** Re-runs the producer with validated params. */
   applyParams: (params: LabParams) => void;
   /** A view's re-run request (`useLabActions().requestParams`): merged, validated, then applied like `applyParams`. */
@@ -56,20 +62,39 @@ function useLabRunner(): LabRunner {
 interface LabWiring {
   runner: LabRunner;
   labHref: LabHrefBuilder;
+  blockLabHref: BlockLabHrefBuilder;
 }
 
 /** Loads and runs the producer on mount and after every reset (a new `generation`); only the first start reads the deep link. */
-function useLabStart({ labId, producerId, presetId, startAt, mode }: UseLabSessionOptions, { runner, labHref }: LabWiring, generation: number, setSession: (session: LabSession) => void): void {
+function useLabStart({ labId, producerId, presetId, startAt, mode }: UseLabSessionOptions, { runner, labHref, blockLabHref }: LabWiring, generation: number, setSession: (session: LabSession) => void): void {
   useEffect(() => {
     let cancelled = false;
     const link = generation === 0 ? readLabLink(window.location.hash, labId) : ABSENT;
-    void startLab({ producerId, presetId, link, startAt: startAt === undefined ? undefined : parseStartAt(startAt), mode, runner, labHref }).then((next) => {
+    void startLab({ producerId, presetId, link, startAt: startAt === undefined ? undefined : parseStartAt(startAt), mode, runner, labHref, blockLabHref }).then((next) => {
       if (!cancelled) setSession(next);
     });
     return () => {
       cancelled = true;
     };
-  }, [labId, producerId, presetId, startAt, mode, runner, labHref, generation, setSession]);
+  }, [labId, producerId, presetId, startAt, mode, runner, labHref, blockLabHref, generation, setSession]);
+}
+
+interface PendingParams {
+  pendingParams: LabParams | null;
+  /** The same value, readable without a re-render: two requests in one tick still merge. */
+  latestPendingParams: { readonly current: LabParams | null };
+  setPendingParams: (params: LabParams | null) => void;
+}
+
+/** The params of the latest requested run, as state (for rendering) mirrored in a ref (for merging). */
+function usePendingParams(): PendingParams {
+  const [pendingParams, setState] = useState<LabParams | null>(null);
+  const latestPendingParams = useRef<LabParams | null>(null);
+  const setPendingParams = useCallback((params: LabParams | null) => {
+    latestPendingParams.current = params;
+    setState(params);
+  }, []);
+  return { pendingParams, latestPendingParams, setPendingParams };
 }
 
 interface ParamRuns {
@@ -80,18 +105,18 @@ interface ParamRuns {
 }
 
 /**
- * Re-runs on param edits and view requests. `latestParams` holds the params of the latest requested
- * run, which may still be pending: a second edit merges into these rather than into `session.params`
- * (which updates only once a run finishes), so it never drops the first. A failure (invalid params or
- * a run error) keeps the ready session with its last good bundle and is reported as `requestError`.
+ * Re-runs on param edits and view requests. A second edit merges into the pending params rather than
+ * into `session.params` (which updates only once a run finishes), so it never drops the first. A failure
+ * (invalid params or a run error) keeps the ready session with its last good bundle and is reported as `requestError`.
  */
-function useParamRuns(session: LabSession, setSession: (session: LabSession) => void, beginRun: () => IsCurrentRun, latestParams: { current: LabParams | null }): ParamRuns {
+function useParamRuns(session: LabSession, setSession: (session: LabSession) => void, beginRun: () => IsCurrentRun, pending: PendingParams): ParamRuns {
   const [requestError, setRequestError] = useState<I18nRef | null>(null);
+  const { latestPendingParams, setPendingParams } = pending;
 
   const run = useCallback(
     (ready: ReadySession, params: LabParams) => {
       const isCurrent = beginRun();
-      latestParams.current = params;
+      setPendingParams(params);
       setRequestError(null);
       void rerunLab(ready, params, isCurrent).then((outcome) => {
         if (!isCurrent()) return;
@@ -99,7 +124,7 @@ function useParamRuns(session: LabSession, setSession: (session: LabSession) => 
         else setRequestError(outcome.error);
       });
     },
-    [beginRun, latestParams, setSession],
+    [beginRun, setPendingParams, setSession],
   );
 
   const applyParams = useCallback(
@@ -112,11 +137,11 @@ function useParamRuns(session: LabSession, setSession: (session: LabSession) => 
   const requestParams = useCallback(
     (patch: ParamsPatch) => {
       if (session.status !== 'ready') return;
-      const merged = mergeParams(session.producer, latestParams.current ?? session.params, patch);
+      const merged = mergeParams(session.producer, latestPendingParams.current ?? session.params, patch);
       if (merged.ok) run(session, merged.value);
       else setRequestError(merged.error);
     },
-    [session, run, latestParams],
+    [session, run, latestPendingParams],
   );
 
   return { applyParams, requestParams, requestError, setRequestError };
@@ -129,23 +154,28 @@ export function useLabSession({ labId, producerId, presetId, startAt, mode, loca
   const beginRun = useRunGuard();
   const runner = useLabRunner();
   const labHref = useMemo(() => createLabHref({ base: import.meta.env.BASE_URL ?? '/', lang: locale }), [locale]);
-  const latestParams = useRef<LabParams | null>(null);
-  const { applyParams, requestParams, requestError, setRequestError } = useParamRuns(session, setSession, beginRun, latestParams);
-  const settleStart = useCallback((next: LabSession) => {
-    latestParams.current = next.status === 'ready' ? next.params : null;
-    setSession(next);
-  }, []);
+  const blockLabHref = useMemo(() => createBlockLabHref({ base: import.meta.env.BASE_URL ?? '/', lang: locale }), [locale]);
+  const pending = usePendingParams();
+  const { pendingParams, setPendingParams } = pending;
+  const { applyParams, requestParams, requestError, setRequestError } = useParamRuns(session, setSession, beginRun, pending);
+  const settleStart = useCallback(
+    (next: LabSession) => {
+      setPendingParams(next.status === 'ready' ? next.params : null);
+      setSession(next);
+    },
+    [setPendingParams],
+  );
 
-  useLabStart({ labId, producerId, presetId, startAt, mode }, { runner, labHref }, generation, settleStart);
+  useLabStart({ labId, producerId, presetId, startAt, mode }, { runner, labHref, blockLabHref }, generation, settleStart);
 
   const reset = useCallback(() => {
     createLabHashWriter(labId, browserHashEnvironment()).clear();
     beginRun();
-    latestParams.current = null;
+    setPendingParams(null);
     setSession({ status: 'loading' });
     setRequestError(null);
     setGeneration((current) => current + 1);
-  }, [labId, beginRun, setRequestError]);
+  }, [labId, beginRun, setPendingParams, setRequestError]);
 
-  return { session, applyParams, requestParams, requestError, reset };
+  return { session, pendingParams, applyParams, requestParams, requestError, reset };
 }

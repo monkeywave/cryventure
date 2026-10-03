@@ -1,15 +1,6 @@
 import { stateAt, unwrittenAt, zeroSnapshot } from '@cryventure/core';
 import { describe, expect, it } from 'vitest';
-import { recordXor, xorRegions, xorRows } from './xorTrace.ts';
-
-describe('xorRows', () => {
-  it('XORs byte by byte and is its own inverse', () => {
-    const message = [0x68, 0x65];
-    const key = [0x2b, 0x7e];
-    expect(xorRows(message, key)).toEqual([0x43, 0x1b]);
-    expect(xorRows(xorRows(message, key), key)).toEqual(message);
-  });
-});
+import { recordXor, xorRegions } from './xorTrace.ts';
 
 describe('xorRegions', () => {
   it('declares four flat u8 rows of the message length', () => {
@@ -20,6 +11,7 @@ describe('xorRegions', () => {
       ['recovered', [3]],
     ]);
     expect(zeroSnapshot(xorRegions(2))).toEqual({ message: [0, 0], key: [0, 0], result: [0, 0], recovered: [0, 0] });
+    expect(xorRegions(1).filter((region) => region.initial === 'blank').map((region) => region.id)).toEqual(['result', 'recovered']);
   });
 });
 
@@ -58,11 +50,5 @@ describe('xor blank regions', () => {
     expect([...(unwrittenAt(facet, 0).get('result') ?? [])]).toEqual([1]);
     const last = unwrittenAt(facet, facet.steps.length - 1);
     expect([...last.values()].every((indices) => indices.size === 0)).toBe(true);
-  });
-});
-
-describe('xorRows (length contract)', () => {
-  it('rejects rows of different lengths instead of padding with zeros', () => {
-    expect(() => xorRows([1, 2], [3])).toThrow(RangeError);
   });
 });

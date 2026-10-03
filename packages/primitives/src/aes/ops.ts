@@ -1,4 +1,4 @@
-import { gmul, xorBytes } from '@cryventure/core';
+import { gmul, xorBytesToArray } from '@cryventure/core';
 import { INV_SBOX, lookup, SBOX } from './sbox.ts';
 import {
   cellIndex,
@@ -95,5 +95,5 @@ export function invMixColumns(state: readonly number[]): AesState {
 
 /** XOR with the round key; AddRoundKey is its own inverse. */
 export function addRoundKey(state: readonly number[], roundKey: readonly number[]): AesState {
-  return Array.from(xorBytes(state, roundKey));
+  return xorBytesToArray(state, roundKey);
 }

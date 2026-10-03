@@ -1,5 +1,6 @@
 import { definePrimitive, i18nRef, RecordingTracer, type MathFacet, type TableFacet, type TraceBundle } from '@cryventure/core';
 import { primitiveContract } from './primitiveContract.ts';
+import { producerRegistry } from './runWithPorts.ts';
 
 /** A minimal primitive declaring `math` and `table` facets: the contract kit must validate both and check their keys. */
 const ID = 'math-table-fixture';
@@ -57,4 +58,5 @@ const manifest = definePrimitive<Record<string, never>>({
 
 const conformance = { source: 'FIPS 197 Table 4', cases: [{ name: 'first S-box entry', params: {}, outputs: { entry: '63' } }] };
 
-primitiveContract(manifest, { catalogs: { en: catalog('EN'), de: catalog('DE') }, conformance });
+// No port params: an empty producer set.
+primitiveContract(manifest, { catalogs: { en: catalog('EN'), de: catalog('DE') }, conformance, producers: { list: [], lookup: producerRegistry([]) } });

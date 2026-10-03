@@ -113,6 +113,9 @@ const boundariesConfig = {
   settings: {
     'boundaries/include': ['packages/**/*'],
     'boundaries/elements': [
+      // Test-only helpers shared by a package's plugin tests: packages/<pkg>/src/testing/ (not a plugin;
+      // listed first because the first matching element wins).
+      { type: 'test-support', pattern: 'packages/*/src/testing', partialMatch: false },
       // A plugin folder: packages/<family>/src/<id>/ (the package's own src/index.ts is not a plugin).
       ...PLUGIN_FAMILIES.map((family) => ({
         type: 'plugin',

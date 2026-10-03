@@ -1,5 +1,5 @@
 import { getFacet, type ChoreographyModule, type I18nRef, type PrimitiveManifest, type TraceBundle } from '@cryventure/core';
-import { createLabStore, stateSteps, type AnyStateFacet, type LabHrefBuilder, type LabMode, type LabStore, type ReactViewManifest } from '@cryventure/viz';
+import { createLabStore, stateSteps, type AnyStateFacet, type BlockLabHrefBuilder, type LabHrefBuilder, type LabMode, type LabStore, type ReactViewManifest } from '@cryventure/viz';
 import type { LabLinkRead } from './deepLink.ts';
 import { createLabRunner, type LabRunner } from './labRunner.ts';
 import { mergeParams } from './paramFields.ts';
@@ -43,6 +43,8 @@ export interface StartLabOptions {
   runner?: LabRunner;
   /** Links to standalone labs for views (`useLabActions().labHref`). */
   labHref?: LabHrefBuilder;
+  /** Zoom links into a block cipher's lab for views (`useLabActions().blockLabHref`). */
+  blockLabHref?: BlockLabHrefBuilder;
 }
 
 /** Loads the producer's optional choreography (code-split); a failed import keeps the generic fallback. */
@@ -63,16 +65,16 @@ export async function preloadViews(views: readonly Pick<ReactViewManifest, 'load
  * manifest → start params (link / preset / defaults) → run (ports prepared, main thread or worker) → store in `mode`, seeked to the start step.
  * The producer module, its choreography and the views load in parallel, not one after another.
  */
-export async function startLab({ producerId, presetId, link, startAt, mode, registries, runner: givenRunner, labHref }: StartLabOptions): Promise<SettledLabSession> {
+export async function startLab({ producerId, presetId, link, startAt, mode, registries, runner: givenRunner, labHref, blockLabHref }: StartLabOptions): Promise<SettledLabSession> {
   const resolved = resolveLab(producerId, registries);
   if (!resolved.ok) return { status: 'error', error: resolved.error };
   const producer = resolved.lab.producer as PrimitiveManifest<LabParams>;
   const { views } = resolved.lab;
   const start = resolveStartParams(producer, link, presetId);
-  const runner = givenRunner ?? createLabRunner(undefined, registries?.producers ?? producerRegistry);
+  const runner = givenRunner ?? createLabRunner({ producers: registries?.producers ?? producerRegistry });
   const [result, choreography] = await Promise.all([runner.run(producer, start.params), loadChoreographyModule(producer), preloadViews(views)]);
   if (!result.ok) return { status: 'error', error: result.error };
-  const store = createLabStore(result.trace, { labHref });
+  const store = createLabStore(result.trace, { labHref, blockLabHref });
   if (mode !== undefined) store.getState().setMode(mode);
   store.getState().seek(initialStep(start.step, startAt, stateSteps(result.trace)));
   return { status: 'ready', producer, views, store, params: start.params, notice: start.notice, choreography, runner };

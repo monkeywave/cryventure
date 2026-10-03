@@ -36,6 +36,8 @@ interface ReadyLabProps {
   layout?: string;
   lens: Lens;
   session: ReadySession;
+  /** The params of the latest requested run (`useLabSession().pendingParams`), shown in the ParamPanel. */
+  params: LabParams;
   onParams: (params: LabParams) => void;
   /** A view's re-run request (`useLabActions().requestParams`). */
   onRequestParams: ParamsRequestHandler;
@@ -43,14 +45,14 @@ interface ReadyLabProps {
   requestError: I18nRef | null;
 }
 
-function ReadyLab({ labId, layout, lens, session, onParams, onRequestParams, requestError }: ReadyLabProps) {
+function ReadyLab({ labId, layout, lens, session, params, onParams, onRequestParams, requestError }: ReadyLabProps) {
   const t = useT();
   useHashSync(labId, session.store, session.params);
   return (
     <LabRoot store={session.store} choreography={session.choreography} opLabels={session.producer.ops} onRequestParams={onRequestParams}>
       <p className="cv-lab__title">{t(session.producer.titleKey)}</p>
       {session.notice && <InvalidLinkNotice />}
-      <ParamPanel producer={session.producer} params={session.params} onApply={onParams} requestError={requestError} />
+      <ParamPanel producer={session.producer} params={params} onApply={onParams} requestError={requestError} />
       <PlayerBar />
       <Workspace views={session.views} layout={layout} labId={labId} lens={lens} />
       <OutputPanel producer={session.producer} />
@@ -59,12 +61,12 @@ function ReadyLab({ labId, layout, lens, session, onParams, onRequestParams, req
 }
 
 function LabBody({ labId, producerId, presetId, startAt, mode, locale, layout, lens, children }: Omit<LabProps, 'messages' | 'lens'> & { lens: Lens }) {
-  const { session, applyParams, requestParams, requestError, reset } = useLabSession({ labId, producerId, presetId, startAt, mode, locale });
+  const { session, pendingParams, applyParams, requestParams, requestError, reset } = useLabSession({ labId, producerId, presetId, startAt, mode, locale });
   if (session.status === 'loading') return <>{children}</>;
   if (session.status === 'error') return <LabError error={session.error} onReset={reset} />;
   return (
     <ErrorBoundary fallback={(resetBoundary) => <LabError error={i18nRef('ui.lab.error.crashed')} onReset={() => { reset(); resetBoundary(); }} />}>
-      <ReadyLab labId={labId} layout={layout} lens={lens} session={session} onParams={applyParams} onRequestParams={requestParams} requestError={requestError} />
+      <ReadyLab labId={labId} layout={layout} lens={lens} session={session} params={pendingParams ?? session.params} onParams={applyParams} onRequestParams={requestParams} requestError={requestError} />
     </ErrorBoundary>
   );
 }

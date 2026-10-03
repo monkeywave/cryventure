@@ -1,7 +1,7 @@
-import { chainActiveAt } from '@cryventure/core';
+import { chainActiveNodesAt } from '@cryventure/core';
 import { describe, expect, it } from 'vitest';
 import { abbreviatedHex, groupLetter, groupsChangeStep, hexLines, labelSegments, nodeRole, plainLabel, sameGroups, sourceIds, spacedHex } from './chainModel.ts';
-import { chainCase } from './testFixture.ts';
+import { modeCase } from '../testing/modeFixture.ts';
 
 const block = Array.from({ length: 16 }, (_, i) => i);
 
@@ -23,7 +23,7 @@ describe('hex text', () => {
 
 describe('nodeRole', () => {
   it('maps inputs and outputs by direction, the rest by kind', () => {
-    const { facet } = chainCase('ecb/repeated-blocks-decrypt');
+    const { chain: facet } = modeCase('ecb/repeated-blocks-decrypt');
     const input = facet.nodes.find((node) => node.id === 'b0.input')!;
     const cipher = facet.nodes.find((node) => node.id === 'b0.cipher')!;
     expect(nodeRole(input, 'decrypt')).toBe('ciphertext');
@@ -34,22 +34,22 @@ describe('nodeRole', () => {
 
 describe('sameGroups', () => {
   it('groups equal ECB blocks among the nodes that already have their value', () => {
-    const { facet, stepCount } = chainCase('ecb/repeated-blocks');
-    const atStart = sameGroups(facet, chainActiveAt(facet, -1).nodes);
+    const { chain: facet, stepCount } = modeCase('ecb/repeated-blocks');
+    const atStart = sameGroups(facet, chainActiveNodesAt(facet, -1));
     expect([...atStart.keys()]).toEqual(['b0.input', 'b1.input']);
-    const atEnd = sameGroups(facet, chainActiveAt(facet, stepCount - 1).nodes);
+    const atEnd = sameGroups(facet, chainActiveNodesAt(facet, stepCount - 1));
     expect(atEnd.get('b0.output')).toEqual({ index: 1, ids: ['b0.output', 'b1.output'] });
     expect(atEnd.has('b2.output')).toBe(false);
   });
 
   it('finds no equal CBC ciphertext blocks', () => {
-    const { facet, stepCount } = chainCase('cbc/repeated-blocks');
-    const groups = sameGroups(facet, chainActiveAt(facet, stepCount - 1).nodes);
+    const { chain: facet, stepCount } = modeCase('cbc/repeated-blocks');
+    const groups = sameGroups(facet, chainActiveNodesAt(facet, stepCount - 1));
     expect([...groups.keys()]).toEqual(['b0.input', 'b1.input']);
   });
 
   it('keys the groups by the last step that gave an input or output block its value', () => {
-    const { facet } = chainCase('ecb/repeated-blocks');
+    const { chain: facet } = modeCase('ecb/repeated-blocks');
     // Outputs arrive at steps 2, 4 and 6; the cipher steps in between change no group.
     expect([-1, 0, 1, 2, 3, 4, 5, 6].map((step) => groupsChangeStep(facet, step))).toEqual([-1, 0, 0, 2, 2, 4, 4, 6]);
   });
@@ -61,7 +61,7 @@ describe('sameGroups', () => {
 
 describe('sourceIds', () => {
   it('lists the nodes feeding a node, in edge order', () => {
-    const { facet } = chainCase('cbc/repeated-blocks');
+    const { chain: facet } = modeCase('cbc/repeated-blocks');
     expect(sourceIds(facet, 'b1.xor')).toEqual(['b1.input', 'b0.output']);
     expect(sourceIds(facet, 'b0.cipher')).toEqual(['b0.xor']);
     expect(sourceIds(facet, 'iv')).toEqual([]);

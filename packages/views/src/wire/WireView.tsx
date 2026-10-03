@@ -1,7 +1,7 @@
-import { memo, useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, type RefCallback } from 'react';
-import { isWireSegmentAvailable, toHex, wireTotalLength, type Lens, type WireFacet } from '@cryventure/core';
-import { ViewStatus, useFacet, useLab, useT, type ViewProps } from '@cryventure/viz';
-import { BYTES_PER_ROW, fitBytesPerRow, offsetLabel, placeSegments, ROLE_GLYPHS, wireChangeStep, type PlacedSegment } from './wireModel.ts';
+import { memo, useCallback, useMemo, useState, type CSSProperties, type RefCallback } from 'react';
+import { isWireSegmentAvailable, wireActiveOffsetsAt, wireTotalLength, type Lens, type WireFacet } from '@cryventure/core';
+import { ViewStatus, useFacet, useLab, useT, useWidthObserver, type ViewProps } from '@cryventure/viz';
+import { BYTES_PER_ROW, countActive, fitBytesPerRow, offsetLabel, placeSegments, ROLE_GLYPHS, wireChangeStep, type PlacedSegment } from './wireModel.ts';
 import './wire.css';
 
 /**
@@ -21,7 +21,7 @@ const PENDING_TEXT = '··';
 
 interface ByteBoxProps {
   offset: number;
-  value: number;
+  hex: string;
   active: boolean;
   flipped: boolean;
   showHex: boolean;
@@ -29,7 +29,7 @@ interface ByteBoxProps {
 }
 
 /** One byte; primitive props, so only the boxes whose state changes re-render on a step. */
-const ByteBox = memo(function ByteBox({ offset, value, active, flipped, showHex, pending }: ByteBoxProps) {
+const ByteBox = memo(function ByteBox({ offset, hex, active, flipped, showHex, pending }: ByteBoxProps) {
   if (pending) {
     return (
       <span className="cv-wire__byte" data-offset={offset}>
@@ -39,7 +39,7 @@ const ByteBox = memo(function ByteBox({ offset, value, active, flipped, showHex,
   }
   return (
     <span className="cv-wire__byte" data-offset={offset} data-active={active ? '' : undefined} data-flipped={flipped ? '' : undefined}>
-      {showHex ? toHex([value]) : null}
+      {showHex ? hex : null}
       {flipped && <span className="cv-wire__flip">{FLIP_GLYPH}</span>}
     </span>
   );
@@ -48,28 +48,23 @@ const ByteBox = memo(function ByteBox({ offset, value, active, flipped, showHex,
 /** Bytes per row (16, 8 or 4) fitting the width of the element behind the returned ref. */
 function useBytesPerRow<T extends HTMLElement>(): [RefCallback<T>, number] {
   const [bytesPerRow, setBytesPerRow] = useState(BYTES_PER_ROW);
-  const stopRef = useRef<() => void>(() => {});
-  const ref = useCallback((element: T | null) => {
-    stopRef.current();
-    stopRef.current = () => {};
-    if (element === null) return;
-    const fit = (width: number) => setBytesPerRow(fitBytesPerRow(width, parseFloat(getComputedStyle(element).fontSize) || 16));
-    fit(element.getBoundingClientRect().width);
-    if (typeof ResizeObserver !== 'function') return;
-    const observer = new ResizeObserver((entries) => {
-      const entry = entries.at(-1);
-      if (entry !== undefined) fit(entry.contentRect.width);
-    });
-    observer.observe(element);
-    stopRef.current = () => observer.disconnect();
-  }, []);
-  useEffect(() => () => stopRef.current(), []);
-  return [ref, bytesPerRow];
+  const onWidth = useCallback((width: number, element: T) => setBytesPerRow(fitBytesPerRow(width, parseFloat(getComputedStyle(element).fontSize) || 16)), []);
+  return [useWidthObserver<T>(onWidth), bytesPerRow];
 }
 
-function useSegmentLabel(placed: PlacedSegment, total: number, lens: Lens): string {
+interface SegmentProps {
+  placed: PlacedSegment;
+  total: number;
+  lens: Lens;
+  /** Not sent yet at the step (before the segment's `availableAt`): value withheld. */
+  pending: boolean;
+  /** Offsets lit at the step (global; the same set until the highlights change). */
+  active: ReadonlySet<number>;
+}
+
+function useSegmentLabel({ placed, total, lens, pending }: SegmentProps, activeCount: number): string {
   const t = useT();
-  const { segment, start, pending, activeCount, flippedCount } = placed;
+  const { segment, start, hex, flippedCount } = placed;
   let summary = t('view.wire.segment', {
     label: t(segment.label),
     role: t(`view.wire.role.${segment.role}`),
@@ -78,16 +73,19 @@ function useSegmentLabel(placed: PlacedSegment, total: number, lens: Lens): stri
     to: offsetLabel(start + segment.bytes.length - 1, total),
   });
   if (pending) return t('view.wire.segmentPending', { summary });
-  if (lens !== 'story') summary = t('view.wire.segmentHex', { summary, hex: toHex(segment.bytes, { group: 4 }) });
+  if (lens !== 'story') summary = t('view.wire.segmentHex', { summary, hex });
   if (activeCount > 0) summary = t('view.wire.segmentActive', { summary, count: activeCount });
   if (flippedCount > 0) summary = t('view.wire.segmentFlipped', { summary, count: flippedCount });
   return summary;
 }
 
-function Segment({ placed, total, lens }: { placed: PlacedSegment; total: number; lens: Lens }) {
+/** One segment; re-renders only when its placement, availability or the highlights change. */
+const Segment = memo(function Segment(props: SegmentProps) {
   const t = useT();
-  const { segment, start, rows, pending, activeCount } = placed;
+  const { placed, total, lens, pending, active } = props;
+  const { segment, start, rows } = placed;
   const end = start + segment.bytes.length - 1;
+  const activeCount = countActive(placed, active);
   return (
     <li
       className="cv-wire__segment"
@@ -97,7 +95,7 @@ function Segment({ placed, total, lens }: { placed: PlacedSegment; total: number
       data-pending={pending ? '' : undefined}
       style={{ '--cv-wire-cols': rows[0]?.length ?? 1 } as CSSProperties}
     >
-      <span className="cv-visually-hidden">{useSegmentLabel(placed, total, lens)}</span>
+      <span className="cv-visually-hidden">{useSegmentLabel(props, activeCount)}</span>
       <span className="cv-wire__header" aria-hidden="true">
         <span className="cv-wire__glyph">{ROLE_GLYPHS[segment.role]}</span>
         <span className="cv-wire__label">{t(segment.label)}</span>
@@ -111,8 +109,8 @@ function Segment({ placed, total, lens }: { placed: PlacedSegment; total: number
               <ByteBox
                 key={byte.offset}
                 offset={byte.offset}
-                value={byte.value}
-                active={byte.active}
+                hex={byte.hex}
+                active={active.has(byte.offset)}
                 flipped={byte.flipMask !== 0}
                 showHex={lens !== 'story'}
                 pending={pending}
@@ -123,22 +121,23 @@ function Segment({ placed, total, lens }: { placed: PlacedSegment; total: number
       </span>
     </li>
   );
-}
+});
 
 function Wire({ facet, lens }: { facet: WireFacet; lens: Lens }) {
   const t = useT();
   const step = useLab((state) => state.step);
   const [stripRef, bytesPerRow] = useBytesPerRow<HTMLOListElement>();
-  // Placement changes only at highlight/availability changes: memoised on that step, not every step.
+  const segments = useMemo(() => placeSegments(facet, bytesPerRow), [facet, bytesPerRow]);
+  // The highlights change only at `activeAt` entries: memoised on that step, not every step.
   const changeStep = wireChangeStep(facet, step);
-  const segments = useMemo(() => placeSegments(facet, changeStep, bytesPerRow), [facet, changeStep, bytesPerRow]);
+  const active = useMemo(() => new Set(wireActiveOffsetsAt(facet, changeStep)), [facet, changeStep]);
   const total = wireTotalLength(facet);
   const sendsLater = facet.segments.some((segment) => !isWireSegmentAvailable(segment, -1));
   return (
     <section className="cv-view cv-wire" aria-label={t('view.wire.title')} data-lens={lens}>
       <ol ref={stripRef} className="cv-wire__strip" aria-label={t('view.wire.strip', { count: facet.segments.length, bytes: total })}>
         {segments.map((placed) => (
-          <Segment key={placed.segment.id} placed={placed} total={total} lens={lens} />
+          <Segment key={placed.segment.id} placed={placed} total={total} lens={lens} pending={!isWireSegmentAvailable(placed.segment, step)} active={active} />
         ))}
       </ol>
       <p className="cv-wire__legend">

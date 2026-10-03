@@ -48,15 +48,16 @@ function unavailableHighlightIssues(wire: WireFacet): string[] {
   );
 }
 
-/** A chain output node of block b gets its value when the wire segment of block b is sent (where the wire says when). */
-function outputTimingIssues(chain: ChainFacet, wire: WireFacet): string[] {
-  return chain.nodes
-    .filter((node) => node.kind === 'output')
-    .flatMap((node) => {
-      const segment = wire.segments.find((candidate) => candidate.block === node.block && candidate.availableAt !== undefined);
-      if (segment === undefined || segment.availableAt === node.activeAt) return [];
-      return [`chain: output node "${node.id}" activeAt ${node.activeAt} differs from wire segment "${segment.id}" availableAt ${segment.availableAt}`];
-    });
+/** A chain node linked to a wire segment (`segmentId`) gets its value when that segment is sent (where the wire says when). */
+function segmentTimingIssues(chain: ChainFacet, wire: WireFacet): string[] {
+  const segmentById = new Map(wire.segments.map((segment) => [segment.id, segment]));
+  return chain.nodes.flatMap((node) => {
+    if (node.segmentId === undefined) return [];
+    const segment = segmentById.get(node.segmentId);
+    if (segment === undefined) return [`chain: node "${node.id}" segmentId "${node.segmentId}" is not a wire segment`];
+    if (segment.availableAt === undefined || segment.availableAt === node.activeAt) return [];
+    return [`chain: node "${node.id}" activeAt ${node.activeAt} differs from wire segment "${segment.id}" availableAt ${segment.availableAt}`];
+  });
 }
 
 /** Structural issues of the bundle's chain and wire facets, against its state facet's step count and values facet. */
@@ -69,7 +70,7 @@ export function modeFacetIssues(bundle: TraceBundle): string[] {
     ...(chain === undefined ? [] : chainIssues(chain, steps)),
     ...(wire === undefined ? [] : [...wireIssues(wire, steps), ...unavailableHighlightIssues(wire)]),
     ...valueRefIssues(chain, wire, getFacet<ValuesFacet>(bundle, 'values')),
-    ...(chain === undefined || wire === undefined ? [] : outputTimingIssues(chain, wire)),
+    ...(chain === undefined || wire === undefined ? [] : segmentTimingIssues(chain, wire)),
   ];
 }
 

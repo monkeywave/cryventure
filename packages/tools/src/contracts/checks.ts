@@ -6,6 +6,7 @@ import {
   getFacet,
   INITIAL_STEP_INDEX,
   narrationAt,
+  PLURAL_CATEGORIES,
   resolveMessageKey,
   regionSize,
   stateAt,
@@ -14,6 +15,7 @@ import {
   type FacetKind,
   type I18nRef,
   type MathFacet,
+  type Messages,
   type NarrationFacet,
   type ParamField,
   type PrimitiveManifest,
@@ -42,17 +44,22 @@ function sameNames(a: readonly string[], b: readonly string[]): boolean {
   return [...a].sort().join() === [...b].sort().join();
 }
 
-/** Refs whose key is missing or whose params differ from the template's `{{params}}` (a plural form need not use `count`). */
+/** The `{{params}}` a ref may pass: its template's, or the union over all plural forms (`_one`, `_other`, …) when it resolves to one. */
+function templateParams(catalog: Messages, refKey: string, resolvedKey: string): string[] {
+  if (resolvedKey === refKey) return extractParams(catalog[resolvedKey] ?? '');
+  const forms = PLURAL_CATEGORIES.map((category) => catalog[`${refKey}_${category}`]).filter((template) => template !== undefined);
+  return [...new Set(forms.flatMap(extractParams))];
+}
+
+/** Refs whose key is missing or whose params differ from the template's `{{params}}` (across all plural forms of the key). */
 export function refProblems(refs: readonly I18nRef[], catalogs: LocaleCatalogs): string[] {
   return CONTRACT_LOCALES.flatMap((locale) =>
     refs.flatMap((ref) => {
       const key = resolveMessageKey(catalogs[locale], ref.key, ref.params, locale);
-      const template = key === undefined ? undefined : catalogs[locale][key];
-      if (template === undefined) return [`${locale}:${ref.key} missing`];
-      const used = extractParams(template);
-      // A plural form may leave out {{count}}: it only selects the form ("one block").
-      const given = Object.keys(ref.params ?? {}).filter((name) => !(name === 'count' && key !== ref.key && !used.includes(name)));
-      return sameNames(given, used) ? [] : [`${locale}:${ref.key} params [${given.join()}] vs template [${extractParams(template).join()}]`];
+      if (key === undefined) return [`${locale}:${ref.key} missing`];
+      const used = templateParams(catalogs[locale], ref.key, key);
+      const given = Object.keys(ref.params ?? {});
+      return sameNames(given, used) ? [] : [`${locale}:${ref.key} params [${given.join()}] vs template [${used.join()}]`];
     }),
   );
 }

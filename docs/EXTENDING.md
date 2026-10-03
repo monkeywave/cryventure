@@ -108,6 +108,11 @@ another producer through a **port**, an interface in `@cryventure/core` (`ports.
   `BlockCipher` throws (a `RangeError`) on a wrong key or block length. The contract kit checks that
   every declared port is exposed and sane (for `BlockCipher`: sizes, a decrypt∘encrypt round trip
   per key size, wrong lengths throw).
+- **Zooming into a block:** a port stays pure crypto. A block cipher whose own lab can show one block
+  adds the optional manifest hook `blockLabParams(keyHex, blockHex)` returning that lab's params
+  (aes: `{ keyHex, plaintextHex: blockHex, detail: 'op' }`). The mode producers put
+  `zoom: { producerId, keyHex, blockHex }` on their cipher chain nodes, and the web host turns it into
+  a link via `useLabActions().blockLabHref`; without the hook there is no link.
 - **Using a port:** declare a `port` param,
   `{ name: 'cipher', kind: 'port', port: 'BlockCipher', labelKey }`. Its value is a producer id;
   `validate()` only checks that it is a kebab-case string. The panel's options are
@@ -120,8 +125,9 @@ another producer through a **port**, an interface in `@cryventure/core` (`ports.
   the cipher or a `core.error.portMissing` run error. Key sizes come from the resolved cipher:
   `checkKeyLength(cipher, key)` returns a `core.error.keyLength` run error (with `{{sizes}}`), not a
   validate error.
-- Oracles and tests run composites with `runWithPorts(manifest, params)` from `@cryventure/tools`,
-  which resolves ports against the real primitive registry (`runOptionsFor` gives just the options).
+- Oracles and tests run composites with `runWithPorts(manifest, params, producers)` from
+  `@cryventure/tools`, which resolves ports against the producers they pass (`primitiveProducers`
+  for the real primitive registry; `runOptionsFor` gives just the options).
 
 ### `runIn`
 
@@ -244,13 +250,14 @@ over the preset. When the lab container is narrower than 720px, panels stack ver
 - for `defaults` and every preset: `run()` is deterministic, emits every declared facet, labels
   regions, scope levels (including `nextKey`/`prevKey`) and values with existing keys, declares
   `words` region layouts whose `wordBytes` divide the region, narrates with existing keys whose
-  `{{params}}` match the templates, replays consistently (keyframes and `stateAt` equal a
+  `{{params}}` match the templates (for a plural key: the union over its `_one`/`_other`/… forms),
+  replays consistently (keyframes and `stateAt` equal a
   sequential replay), and is JSON-serializable
 - with `loadChoreography`: every step's choreography targets existing cells, ends neutral and
   narrates with existing keys; with a `derivation` facet: topological order and `groups` labels
   with existing keys and matching `{{params}}`
 - with port params: runs (including conformance cases) get `resolve` from `preparePorts` over the
-  real primitive registry; `port` fields name a port some producer implements, `text` fields have a
+  `producers` the caller passes (`all.contract.test.ts`: `primitiveProducerSet`, every primitive); `port` fields name a port some producer implements, `text` fields have a
   positive `maxLength` that `defaults` and presets fit, and `runIn` is `main` or `worker`
 - with `implements`: every declared port is exposed on the module and passes its sanity check
 - when a run emits `chain` or `wire` facets: `chainIssues`/`wireIssues` against the state facet's

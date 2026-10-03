@@ -3,7 +3,7 @@ import { toHex, type ModeDirection, type ModePadding, type PrimitiveManifest } f
 import { primitiveManifests } from '@cryventure/primitives';
 import fc from 'fast-check';
 import { describe, expect, it } from 'vitest';
-import { runWithPorts } from '../contracts/runWithPorts.ts';
+import { primitiveProducers, runWithPorts } from '../contracts/runWithPorts.ts';
 
 /**
  * Oracle: the traced mode producers `ecb`, `cbc` and `ctr` (with the AES plugin as their cipher)
@@ -32,7 +32,7 @@ function manifest(id: string): PrimitiveManifest {
 
 /** Runs producer `id` with AES and returns its outputs as hex. */
 async function runMode(id: string, params: Record<string, string>): Promise<Record<string, string>> {
-  const result = await runWithPorts(manifest(id), { cipher: 'aes', ...params });
+  const result = await runWithPorts(manifest(id), { cipher: 'aes', ...params }, primitiveProducers);
   if (!result.ok) throw new Error(`${id} rejected params: ${result.error.key}`);
   return Object.fromEntries(Object.entries(result.trace.output).map(([name, bytes]) => [name, toHex(bytes)]));
 }

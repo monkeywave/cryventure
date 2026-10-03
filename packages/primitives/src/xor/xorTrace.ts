@@ -1,4 +1,4 @@
-import { allIndices, byteToHex, i18nRef, RecordingTracer, xorBytes, zeroSnapshot, type RegionSpec, type StateFacet } from '@cryventure/core';
+import { allIndices, byteToHex, i18nRef, RecordingTracer, u8Regions, xorBytesToArray, zeroSnapshot, type RegionSpec, type StateFacet } from '@cryventure/core';
 import type { XorOpName } from './manifest.ts';
 
 /** Trace vocabulary of the XOR producer: four byte rows and one op per lesson beat. */
@@ -7,10 +7,9 @@ export type XorOp = { op: XorOpName };
 export type XorStateFacet = StateFacet<XorRegion, XorOp>;
 
 const NS = 'plugin.xor';
-const REGION_IDS: readonly XorRegion[] = ['message', 'key', 'result', 'recovered'];
 
-/** Rows the initial state holds (step −1); the others start blank until a step computes them. */
-const GIVEN_REGIONS: readonly XorRegion[] = ['message', 'key'];
+/** Rows a step computes: they start blank (message and key are given in the initial state, step −1). */
+const COMPUTED_REGIONS: readonly XorRegion[] = ['result', 'recovered'];
 
 /**
  * One flat u8 row per region; the state view draws 1-D regions as rows of up to 16 bytes with offsets.
@@ -18,12 +17,7 @@ const GIVEN_REGIONS: readonly XorRegion[] = ['message', 'key'];
  * placeholders until a step computes them.
  */
 export function xorRegions(length: number): RegionSpec<XorRegion>[] {
-  return REGION_IDS.map((id) => ({ id, labelKey: `${NS}.region.${id}`, elem: 'u8', shape: [length], ...(GIVEN_REGIONS.includes(id) ? {} : { initial: 'blank' as const }) }));
-}
-
-/** Byte-wise XOR of two equal-length rows (throws on length mismatch, like core `xorBytes`). */
-export function xorRows(a: readonly number[], b: readonly number[]): number[] {
-  return Array.from(xorBytes(a, b));
+  return u8Regions<XorRegion>(NS, { message: length, key: length, result: length, recovered: length }, COMPUTED_REGIONS);
 }
 
 type XorTracer = RecordingTracer<XorRegion, XorOp>;
@@ -45,7 +39,7 @@ function xorByte(tracer: XorTracer, index: number, message: number, key: number)
 }
 
 function decrypt(tracer: XorTracer, result: number[], key: number[]): number[] {
-  const recovered = xorRows(result, key);
+  const recovered = xorBytesToArray(result, key);
   const indices = allIndices(result.length);
   tracer.step({
     op: 'decrypt',

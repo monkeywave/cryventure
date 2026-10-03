@@ -32,5 +32,6 @@
   "ui.penguin.padding": "Only the colour bytes are encrypted (red, green, blue; no alpha). They are padded with PKCS#7 to whole 16-byte blocks; the padding is not drawn.",
   "ui.penguin.error.keyLength": "The key must be exactly 16 bytes (32 hex digits) long; this one has {{length}}.",
   "ui.penguin.error.ivLength": "The IV must be exactly 16 bytes (32 hex digits) long; this one has {{length}}.",
-  "ui.penguin.error.encryptFailed": "Encryption failed. Please try again."
+  "ui.penguin.error.encryptFailed": "Encryption failed. Please try again.",
+  "ui.penguin.error.timedOut": "Encryption took too long and was stopped. Try a smaller picture."
 }

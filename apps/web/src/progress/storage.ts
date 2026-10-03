@@ -1,6 +1,6 @@
 import { safeStorage } from '@cryventure/viz/storage';
 import { migrate } from './migrations.ts';
-import type { Progress } from './schema.ts';
+import type { Lens, Progress } from './schema.ts';
 
 /**
  * The localStorage slot of schema v2. Each schema version that older app versions cannot read gets
@@ -14,6 +14,13 @@ export const PROGRESS_STORAGE_KEY = 'cv.progress.v2';
  * written, so tabs of the old app version keep their own data.
  */
 export const LEGACY_PROGRESS_STORAGE_KEY = 'cv.progress.v1';
+
+/**
+ * The lens on its own, independent of the progress schema: the pre-paint script in `Head.astro` reads
+ * only this key. The progress store writes it whenever the lens changes; `loadProgress` seeds it from
+ * the v1 or v2 progress record when it is still absent.
+ */
+export const LENS_STORAGE_KEY = 'cv.lens';
 
 /** Parses a stored string; `null`, unparsable JSON or garbage yield empty progress. */
 export function parseStoredProgress(raw: string | null | undefined): Progress {
@@ -41,8 +48,9 @@ export function loadProgress(): Progress {
   try {
     const storage = safeStorage();
     const stored = storage?.getItem(PROGRESS_STORAGE_KEY);
-    if (storage !== undefined && stored === null) return migrateLegacySlot(storage);
-    return parseStoredProgress(stored);
+    const progress = storage !== undefined && stored === null ? migrateLegacySlot(storage) : parseStoredProgress(stored);
+    if (storage?.getItem(LENS_STORAGE_KEY) === null) saveLens(progress.lens);
+    return progress;
   } catch {
     return parseStoredProgress(undefined);
   }
@@ -60,3 +68,15 @@ export function saveProgress(progress: Progress): boolean {
   }
 }
 
+/** Best effort: stores `lens` under `LENS_STORAGE_KEY`, or removes the key for `undefined`. */
+export function saveLens(lens: Lens | undefined): boolean {
+  try {
+    const storage = safeStorage();
+    if (storage === undefined) return false;
+    if (lens === undefined) storage.removeItem(LENS_STORAGE_KEY);
+    else storage.setItem(LENS_STORAGE_KEY, lens);
+    return true;
+  } catch {
+    return false;
+  }
+}

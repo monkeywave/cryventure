@@ -1,8 +1,22 @@
 import type { MathTerm, MathTermRole } from '../facets/math.ts';
-import type { Highlight, HighlightKind } from '../facets/state.ts';
+import type { Highlight, HighlightKind, RegionSpec } from '../facets/state.ts';
 import type { I18nRef } from '../i18n.ts';
 
-/** Building blocks producers share when recording steps: highlights and math terms. */
+/** Building blocks producers share when recording steps: regions, highlights and math terms. */
+
+/**
+ * One flat `u8` region per entry of `shapes` (in key order, `shapes[id]` bytes long), labelled
+ * `<namespace>.region.<id>`. The `blankIds` start blank: their zeros are placeholders until a step writes them.
+ */
+export function u8Regions<R extends string>(namespace: string, shapes: Readonly<Record<R, number>>, blankIds: readonly R[] = []): RegionSpec<R>[] {
+  return (Object.keys(shapes) as R[]).map((id) => ({
+    id,
+    labelKey: `${namespace}.region.${id}`,
+    elem: 'u8',
+    shape: [shapes[id]],
+    ...(blankIds.includes(id) ? { initial: 'blank' as const } : {}),
+  }));
+}
 
 const ONLY_ELEMENT: readonly number[] = [0];
 

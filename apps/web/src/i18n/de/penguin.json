@@ -32,5 +32,6 @@
   "ui.penguin.padding": "Verschlüsselt werden nur die Farbbytes (Rot, Grün, Blau; ohne Alpha). Sie werden mit PKCS#7 auf volle 16-Byte-Blöcke aufgefüllt (Padding); das Padding wird nicht gezeichnet.",
   "ui.penguin.error.keyLength": "Der Schlüssel muss genau 16 Byte (32 Hexziffern) lang sein; dieser hat {{length}}.",
   "ui.penguin.error.ivLength": "Der IV muss genau 16 Byte (32 Hexziffern) lang sein; dieser hat {{length}}.",
-  "ui.penguin.error.encryptFailed": "Die Verschlüsselung ist fehlgeschlagen. Versuch es noch einmal."
+  "ui.penguin.error.encryptFailed": "Die Verschlüsselung ist fehlgeschlagen. Versuch es noch einmal.",
+  "ui.penguin.error.timedOut": "Die Verschlüsselung hat zu lange gedauert und wurde abgebrochen. Probier ein kleineres Bild."
 }

@@ -1,8 +1,8 @@
 import { memo, useEffect, useMemo, useRef, useState, type KeyboardEvent } from 'react';
 import { m, useReducedMotion } from 'motion/react';
-import { chainActiveAt, type ChainFacet, type ChainNode, type Lens } from '@cryventure/core';
+import { chainActiveNodesAt, type ChainFacet, type ChainNode, type Lens, type Translate } from '@cryventure/core';
 import { ViewStatus, useFacet, useLab, useLabActions, useLabLayout, useT, type ViewProps } from '@cryventure/viz';
-import { centredScrollLeft, layoutChain, neighbour, readingOrder, spanOf, type ChainLayout, type EdgePath, type LayoutMetrics, type NodeBox } from './chainLayout.ts';
+import { centredScrollLeft, layoutChain, neighbour, spanOf, type ChainLayout, type EdgePath, type LayoutMetrics, type NodeBox } from './chainLayout.ts';
 import { abbreviatedHex, groupLetter, groupsChangeStep, hexLines, labelSegments, nodeRole, plainLabel, sameGroups, sourceIds, spacedHex, type SameGroup } from './chainModel.ts';
 import './modeChain.css';
 
@@ -41,9 +41,9 @@ function Label({ text, blockIndices }: { text: string; blockIndices: boolean }) 
 
 /** "Zoom into block n" for a cipher node, when it zooms and the host builds lab links. */
 function useZoomHref(node: ChainNode): string | undefined {
-  const { labHref } = useLabActions();
-  if (node.zoom === undefined || labHref === undefined) return undefined;
-  return labHref(node.zoom.producerId, node.zoom.params);
+  const { blockLabHref } = useLabActions();
+  if (node.zoom === undefined || blockLabHref === undefined) return undefined;
+  return blockLabHref(node.zoom.producerId, node.zoom.keyHex, node.zoom.blockHex);
 }
 
 interface NodeViewProps {
@@ -125,7 +125,8 @@ const NodeView = memo(function NodeView(props: NodeViewProps) {
   );
 });
 
-function EdgeView({ path, status, animate }: { path: EdgePath; status: NodeStatus; animate: boolean }) {
+/** One edge; primitive props besides the stable path, so only edges whose status changes re-render on a step. */
+const EdgeView = memo(function EdgeView({ path, status, animate }: { path: EdgePath; status: NodeStatus; animate: boolean }) {
   const pending = status === 'pending';
   return (
     <m.path
@@ -140,7 +141,7 @@ function EdgeView({ path, status, animate }: { path: EdgePath; status: NodeStatu
       transition={DRAW_TRANSITION}
     />
   );
-}
+});
 
 /** True after the first commit: edges active on arrival appear drawn, later ones draw themselves in. */
 function useHasMounted(): boolean {
@@ -191,7 +192,7 @@ function LaneHeaders({ layout }: { layout: ChainLayout }) {
 function useRovingFocus(layout: ChainLayout) {
   const canvasRef = useRef<HTMLDivElement>(null);
   const [focusedId, setFocusedId] = useState<string | null>(null);
-  const tabbableId = focusedId !== null && layout.boxById.has(focusedId) ? focusedId : readingOrder(layout.boxes)[0]?.node.id;
+  const tabbableId = focusedId !== null && layout.boxById.has(focusedId) ? focusedId : layout.boxes[0]?.node.id;
   const onKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
     if (!NAVIGATION_KEYS.has(event.key) || event.altKey || event.ctrlKey || event.metaKey || event.shiftKey) return;
     const from = tabbableId === undefined ? undefined : layout.boxById.get(tabbableId);
@@ -237,21 +238,36 @@ function useCentredCurrentLane(layout: ChainLayout, step: number) {
 }
 
 /** Screen-reader names of nodes: the label, plus the block where the label alone is ambiguous (⊕, E K). */
-function useScreenNames(facet: ChainFacet): (id: string) => string {
+function screenNames(facet: ChainFacet, labels: ReadonlyMap<string, string>, t: Translate): Map<string, string> {
+  const counts = new Map<string, number>();
+  for (const label of labels.values()) counts.set(label, (counts.get(label) ?? 0) + 1);
+  return new Map(
+    facet.nodes.map((node) => {
+      const label = labels.get(node.id) ?? '';
+      const ambiguous = (counts.get(label) ?? 0) > 1 && node.block >= 0;
+      return [node.id, ambiguous ? t('view.mode-chain.nodeName', { label, n: node.block + 1 }) : label];
+    }),
+  );
+}
+
+/**
+ * Per node id, the parts of its accessible name the drawing alone shows: the screen names of the
+ * nodes feeding it, and the labels of the other members of its ≡ group (memoised per facet and
+ * language, the group names per group change).
+ */
+function useNodeRelations(facet: ChainFacet, groups: ReadonlyMap<string, SameGroup>): { sources: Map<string, string>; sameNames: Map<string, string> } {
   const t = useT();
-  return useMemo(() => {
-    const labels = new Map(facet.nodes.map((node) => [node.id, plainLabel(t(node.label))]));
-    const counts = new Map<string, number>();
-    for (const label of labels.values()) counts.set(label, (counts.get(label) ?? 0) + 1);
-    const names = new Map(
-      facet.nodes.map((node) => {
-        const label = labels.get(node.id) ?? '';
-        const ambiguous = (counts.get(label) ?? 0) > 1 && node.block >= 0;
-        return [node.id, ambiguous ? t('view.mode-chain.nodeName', { label, n: node.block + 1 }) : label];
-      }),
-    );
-    return (id: string) => names.get(id) ?? '';
-  }, [facet, t]);
+  const labels = useMemo(() => new Map(facet.nodes.map((node) => [node.id, plainLabel(t(node.label))])), [facet, t]);
+  const sources = useMemo(() => {
+    const names = screenNames(facet, labels, t);
+    const separator = t('view.mode-chain.sourceSeparator');
+    return new Map(facet.nodes.map((node) => [node.id, sourceIds(facet, node.id).map((id) => names.get(id) ?? '').join(separator)]));
+  }, [facet, labels, t]);
+  const sameNames = useMemo(() => {
+    const separator = t('view.mode-chain.separator');
+    return new Map([...groups].map(([self, group]) => [self, group.ids.filter((id) => id !== self).map((id) => labels.get(id) ?? '').join(separator)]));
+  }, [groups, labels, t]);
+  return { sources, sameNames };
 }
 
 /** The full hex of the focused node, below the diagram (abbreviated values stay readable). */
@@ -295,23 +311,16 @@ function ModeChain({ facet, lens }: { facet: ChainFacet; lens: Lens }) {
   const t = useT();
   const step = useLab((state) => state.step);
   const { narrow } = useLabLayout();
-  const { labHref } = useLabActions();
-  const metrics = useMetrics(lens, narrow, labHref !== undefined);
+  const { blockLabHref } = useLabActions();
+  const metrics = useMetrics(lens, narrow, blockLabHref !== undefined);
   const layout = useMemo(() => layoutChain(facet, metrics), [facet, metrics]);
   // Groups change only when an input/output block gets its value: memoised on that step, they stay
   // the same objects across the steps in between, so the memoised nodes skip re-rendering.
   const groupsStep = groupsChangeStep(facet, step);
-  const groups = useMemo(() => sameGroups(facet, chainActiveAt(facet, groupsStep).nodes), [facet, groupsStep]);
+  const groups = useMemo(() => sameGroups(facet, chainActiveNodesAt(facet, groupsStep)), [facet, groupsStep]);
   const { canvasRef, tabbableId, focusedId, setFocusedId, onKeyDown } = useRovingFocus(layout);
   const scrollerRef = useCentredCurrentLane(layout, step);
-  const screenName = useScreenNames(facet);
-  const sourcesOf = (id: string) => sourceIds(facet, id).map(screenName).join(t('view.mode-chain.sourceSeparator'));
-  const namesOf = (group: SameGroup | undefined, self: string) =>
-    (group?.ids ?? [])
-      .filter((id) => id !== self)
-      .map((id) => layout.boxById.get(id)?.node)
-      .map((node) => (node === undefined ? '' : plainLabel(t(node.label))))
-      .join(t('view.mode-chain.separator'));
+  const { sources, sameNames } = useNodeRelations(facet, groups);
   return (
     <section className="cv-view cv-chain" aria-label={t('view.mode-chain.title')} data-lens={lens}>
       {lens === 'cryptographer' && (
@@ -330,24 +339,21 @@ function ModeChain({ facet, lens }: { facet: ChainFacet; lens: Lens }) {
         >
           <LaneHeaders layout={layout} />
           <Edges layout={layout} step={step} />
-          {readingOrder(layout.boxes).map((box) => {
-            const same = groups.get(box.node.id);
-            return (
-              <NodeView
-                key={box.node.id}
-                box={box}
-                facet={facet}
-                status={statusAt(box.node.activeAt, step)}
-                lens={lens}
-                compact={narrow}
-                same={same}
-                sameNames={namesOf(same, box.node.id)}
-                sources={sourcesOf(box.node.id)}
-                tabbable={box.node.id === tabbableId}
-                onFocusNode={setFocusedId}
-              />
-            );
-          })}
+          {layout.boxes.map((box) => (
+            <NodeView
+              key={box.node.id}
+              box={box}
+              facet={facet}
+              status={statusAt(box.node.activeAt, step)}
+              lens={lens}
+              compact={narrow}
+              same={groups.get(box.node.id)}
+              sameNames={sameNames.get(box.node.id) ?? ''}
+              sources={sources.get(box.node.id) ?? ''}
+              tabbable={box.node.id === tabbableId}
+              onFocusNode={setFocusedId}
+            />
+          ))}
         </div>
       </div>
       {lens !== 'story' && <Readout facet={facet} id={focusedId} step={step} />}

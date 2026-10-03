@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { describe, expect, it, vi } from 'vitest';
-import { registerServiceWorker, supportsServiceWorker, type ServiceWorkerHost, type UpdateWorkbox } from './registerServiceWorker';
+import { registerServiceWorker, supportsServiceWorker, whenPageIdle, type IdleHost, type ServiceWorkerHost, type UpdateWorkbox } from './registerServiceWorker';
 
 type Listener = () => void;
 
@@ -43,6 +43,40 @@ describe('supportsServiceWorker', () => {
     expect(supportsServiceWorker({})).toBe(false);
     expect(supportsServiceWorker({ serviceWorker: undefined })).toBe(false);
     expect(supportsServiceWorker({ serviceWorker: {} as ServiceWorkerContainer })).toBe(true);
+  });
+});
+
+describe('whenPageIdle', () => {
+  function fakeHost(readyState: DocumentReadyState, idle: boolean) {
+    const target = new EventTarget();
+    const host: IdleHost & { fireLoad: () => void } = {
+      document: { readyState },
+      addEventListener: (type, listener, options) => target.addEventListener(type, listener, options),
+      requestIdleCallback: idle ? vi.fn((callback: () => void) => callback()) : undefined,
+      setTimeout: vi.fn((callback: () => void) => callback()),
+      fireLoad: () => target.dispatchEvent(new Event('load')),
+    };
+    return host;
+  }
+
+  it('waits for load, then for an idle callback', () => {
+    const host = fakeHost('interactive', true);
+    const callback = vi.fn();
+    whenPageIdle(callback, host);
+    expect(callback).not.toHaveBeenCalled();
+    host.fireLoad();
+    expect(host.requestIdleCallback).toHaveBeenCalledTimes(1);
+    expect(callback).toHaveBeenCalledTimes(1);
+    host.fireLoad();
+    expect(callback).toHaveBeenCalledTimes(1);
+  });
+
+  it('runs right away once loaded, falling back to a timeout without requestIdleCallback', () => {
+    const host = fakeHost('complete', false);
+    const callback = vi.fn();
+    whenPageIdle(callback, host);
+    expect(host.setTimeout).toHaveBeenCalledTimes(1);
+    expect(callback).toHaveBeenCalledTimes(1);
   });
 });
 

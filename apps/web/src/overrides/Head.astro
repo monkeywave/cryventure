@@ -6,7 +6,7 @@
  */
 import Default from '@astrojs/starlight/components/Head.astro';
 import { DEFAULT_LENS, LENS_ORDER } from '../progress/lens';
-import { LEGACY_PROGRESS_STORAGE_KEY, PROGRESS_STORAGE_KEY } from '../progress/storage';
+import { LENS_STORAGE_KEY } from '../progress/storage';
 import PwaRegistration from '../components/PwaRegistration.astro';
 import { isPwaEnabled } from '../../scripts/pwa.mjs';
 
@@ -19,15 +19,15 @@ const pwaEnabled = import.meta.env.PROD && isPwaEnabled(process.env);
 
 {/*
   Inlined (CSP allows it) so the stored lens applies before first paint. Values travel as data-*
-  attributes rather than define:vars, which would wrap the script and confuse type checking. Until the
-  progress store has migrated the v1 slot (first page load after the upgrade), the lens is read from it.
+  attributes rather than define:vars, which would wrap the script and confuse type checking. It reads
+  only the schema-independent lens key, which the progress store keeps in sync (and seeds from v1/v2).
 */}
-<script is:inline data-storage-key={PROGRESS_STORAGE_KEY} data-legacy-storage-key={LEGACY_PROGRESS_STORAGE_KEY} data-lenses={LENS_ORDER.join(' ')} data-fallback={DEFAULT_LENS}>
+<script is:inline data-storage-key={LENS_STORAGE_KEY} data-lenses={LENS_ORDER.join(' ')} data-fallback={DEFAULT_LENS}>
   {
-    const { storageKey, legacyStorageKey, lenses, fallback } = document.currentScript.dataset;
+    const { storageKey, lenses, fallback } = document.currentScript.dataset;
     let lens = fallback;
     try {
-      const stored = JSON.parse(localStorage.getItem(storageKey) ?? localStorage.getItem(legacyStorageKey) ?? 'null')?.lens;
+      const stored = localStorage.getItem(storageKey);
       if (lenses.split(' ').includes(stored)) lens = stored;
     } catch {
       // Unreadable storage: keep the default lens.

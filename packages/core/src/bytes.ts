@@ -117,6 +117,11 @@ export function xorBytes(a: ArrayLike<number>, b: ArrayLike<number>): Uint8Array
   return Uint8Array.from({ length: a.length }, (_, i) => (a[i] ?? 0) ^ (b[i] ?? 0));
 }
 
+/** `xorBytes` as a plain `number[]` (e.g. a state region row); throws on length mismatch. */
+export function xorBytesToArray(a: ArrayLike<number>, b: ArrayLike<number>): number[] {
+  return Array.from(xorBytes(a, b));
+}
+
 /**
  * `TextEncoder` exists in every runtime CryVenture targets (browsers, workers,
  * Node ≥ 22); core compiles without the DOM lib, so it is typed locally.

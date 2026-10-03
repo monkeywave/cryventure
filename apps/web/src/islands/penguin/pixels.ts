@@ -2,6 +2,7 @@
  * Pure pixel/byte helpers for the PenguinLab (docs/M3.md §9). No DOM: the island and the worker
  * pass plain typed arrays, so all of this is unit-tested in node.
  */
+import { blocksOf, toHex } from '@cryventure/core';
 
 export const RGB_CHANNELS = 3;
 export const RGBA_CHANNELS = 4;
@@ -45,13 +46,8 @@ export function fitWithin(size: Size, maxSide: number): Size {
 
 /** How many blocks equal an earlier block, e.g. 2 for `A B A C A`. ECB leaks exactly this structure. */
 export function countRepeatedBlocks(bytes: Uint8Array, blockSize: number): { repeated: number; total: number } {
-  const seen = new Set<string>();
-  const total = Math.floor(bytes.length / blockSize);
-  let repeated = 0;
-  for (let block = 0; block < total; block++) {
-    const key = bytes.subarray(block * blockSize, (block + 1) * blockSize).join(',');
-    if (seen.has(key)) repeated++;
-    else seen.add(key);
-  }
-  return { repeated, total };
+  const wholeBlocks = bytes.subarray(0, bytes.length - (bytes.length % blockSize));
+  const blocks = blocksOf(wholeBlocks, blockSize);
+  const distinct = new Set(blocks.map((block) => toHex(block)));
+  return { repeated: blocks.length - distinct.size, total: blocks.length };
 }

@@ -3,7 +3,6 @@ import {
   parseHexToArray,
   RecordingTracer,
   runPrimitive,
-  toHex,
   valueRef,
   type BlockCipher,
   type PortMap,
@@ -101,7 +100,6 @@ const aesBlockCipher: BlockCipher = {
   keySizes: [...VALID_KEY_SIZES],
   encryptBlock: (key, block) => Uint8Array.from(encryptBlock(key, block)),
   decryptBlock: (key, block) => Uint8Array.from(decryptBlock(key, block)),
-  labParams: (key, block) => ({ keyHex: toHex(key), plaintextHex: toHex(block), detail: 'op' }),
 };
 
 /** Every port `aesManifest.implements`. */

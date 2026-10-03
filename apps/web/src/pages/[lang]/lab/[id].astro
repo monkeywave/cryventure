@@ -17,12 +17,13 @@ export function getStaticPaths() {
 
 const locale = toLocale(Astro.params.lang);
 const producer = producerRegistry.require(Astro.params.id);
-const { title, description } = labRouteTexts(producer, labMessages(locale, producer));
+const messages = labMessages(locale, producer);
+const { title, description } = labRouteTexts(producer, messages);
 ---
 
 <StarlightPage frontmatter={{ title, description, pagefind: false, tableOfContents: false }}>
   <div data-pagefind-ignore>
     {description && <p class="cv-lab-route__description">{description}</p>}
-    <Lab labId={producer.id} producerId={producer.id} />
+    <Lab labId={producer.id} producerId={producer.id} messages={messages} />
   </div>
 </StarlightPage>

@@ -43,3 +43,4 @@ export * from './modes/cbc.ts';
 export * from './modes/ctr.ts';
 export * from './modes/modeKit.ts';
 export * from './modes/blockModeFacets.ts';
+export * from './modes/paddedModeProducer.ts';

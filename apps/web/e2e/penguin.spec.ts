@@ -1,6 +1,7 @@
 import { expect, test, type Locator, type Page } from '@playwright/test';
 import penguinEn from '../src/i18n/en/penguin.json' with { type: 'json' };
 import penguinDe from '../src/i18n/de/penguin.json' with { type: 'json' };
+import { countRepeatedBlocks } from '../src/islands/penguin/pixels.ts';
 import { blockingViolations } from './helpers/axe.ts';
 import { PHONE, expectNoHorizontalOverflow } from './labPage.ts';
 
@@ -27,20 +28,12 @@ async function encrypt(lab: Locator, mode: 'ECB' | 'CBC', messages = penguinEn):
 
 /** Reads the encrypted canvas back as RGB bytes and counts 16-byte blocks equal to an earlier one. */
 async function encryptedStats(lab: Locator): Promise<{ repeated: number; total: number; nonBlack: number }> {
-  return lab.getByTestId('penguin-encrypted').evaluate((element, blockSize) => {
+  const rgb = await lab.getByTestId('penguin-encrypted').evaluate((element) => {
     const canvas = element as HTMLCanvasElement;
     const rgba = canvas.getContext('2d')!.getImageData(0, 0, canvas.width, canvas.height).data;
-    const rgb = rgba.filter((_, index) => index % 4 !== 3);
-    const seen = new Set<string>();
-    let repeated = 0;
-    const total = Math.floor(rgb.length / blockSize);
-    for (let block = 0; block < total; block++) {
-      const key = rgb.subarray(block * blockSize, (block + 1) * blockSize).join(',');
-      if (seen.has(key)) repeated++;
-      else seen.add(key);
-    }
-    return { repeated, total, nonBlack: rgb.filter((byte) => byte !== 0).length };
-  }, BLOCK);
+    return Array.from(rgba.filter((_, index) => index % 4 !== 3));
+  });
+  return { ...countRepeatedBlocks(Uint8Array.from(rgb), BLOCK), nonBlack: rgb.filter((byte) => byte !== 0).length };
 }
 
 test.describe('PenguinLab', () => {

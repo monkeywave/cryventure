@@ -285,7 +285,7 @@ describe('startLab / rerunLab with ports and a runner', () => {
   });
 
   it('uses the given runner and wires labHref into the store', async () => {
-    const runner = createLabRunner(undefined, toyProducers);
+    const runner = createLabRunner({ producers: toyProducers });
     const labHref = vi.fn(() => '/en/lab/toy/');
     const session = await toyStart({ runner, labHref });
     if (session.status !== 'ready') throw new Error('expected ready');

@@ -7,7 +7,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { loadCoreMessages } from '@cryventure/core/messages';
 import en from '../../i18n/en/penguin.json' with { type: 'json' };
 import de from '../../i18n/de/penguin.json' with { type: 'json' };
-import { FakeWorker } from './fakeWorker.testing.ts';
+import { fakeWorkers } from '../../labs/fakeWorker.testing.ts';
+import type { PenguinRequest } from './penguinJob.ts';
 import PenguinLab from './PenguinLab.tsx';
 import { PENGUIN_SIZE } from './penguinArt.ts';
 
@@ -35,12 +36,14 @@ const encryptButton = () => screen.getByRole('button', { name: 'Encrypt' });
 const status = () => screen.getByRole('status');
 
 async function renderLab() {
-  render(<PenguinLab messages={messages} locale="en" createWorker={FakeWorker.factory} />);
+  render(<PenguinLab messages={messages} locale="en" createWorker={fakes.factory} />);
   await waitFor(() => expect(screen.getByRole('img', { name: /cartoon penguin/ })).toBeTruthy());
 }
 
+let fakes = fakeWorkers<PenguinRequest>();
+
 beforeEach(() => {
-  FakeWorker.created = [];
+  fakes = fakeWorkers<PenguinRequest>();
 });
 
 afterEach(() => {
@@ -72,12 +75,12 @@ describe('PenguinLab', () => {
     stubCanvas();
     await renderLab();
     await userEvent.click(encryptButton());
-    const worker = FakeWorker.last();
+    const worker = fakes.last();
     expect(worker.requests[0]).toMatchObject({ mode: 'ecb' });
     expect(worker.requests[0]!.rgb).toHaveLength(PENGUIN_SIZE * PENGUIN_SIZE * 3);
     expect(status().textContent).toContain('Encrypting with AES-ECB');
     const ciphertext = new Uint8Array(32); // two equal blocks
-    act(() => worker.respond({ id: worker.requests[0]!.id, ok: true, ciphertext }));
+    await act(async () => worker.respond({ ok: true, ciphertext }));
     expect(status().textContent).toContain('AES-ECB: 1 of 2 ciphertext blocks repeats an earlier block.');
     expect(screen.getByRole('img', { name: /under AES-ECB, drawn as pixels: 1 of 2 16-byte ciphertext blocks repeats an earlier block/ })).toBeTruthy();
     expect(screen.getByText('Encrypted (AES-ECB)')).toBeTruthy();
@@ -87,16 +90,16 @@ describe('PenguinLab', () => {
     stubCanvas();
     await renderLab();
     await userEvent.click(encryptButton());
-    const worker = FakeWorker.last();
-    act(() => worker.respond({ id: worker.requests[0]!.id, ok: true, ciphertext: new Uint8Array(48) })); // three equal blocks
+    const worker = fakes.last();
+    await act(async () => worker.respond({ ok: true, ciphertext: new Uint8Array(48) })); // three equal blocks
     expect(status().textContent).toContain('AES-ECB: 2 of 3 ciphertext blocks repeat an earlier block.');
     cleanup();
 
-    render(<PenguinLab messages={{ ...de, ...coreEn }} locale="de" createWorker={FakeWorker.factory} />);
+    render(<PenguinLab messages={{ ...de, ...coreEn }} locale="de" createWorker={fakes.factory} />);
     await waitFor(() => expect(screen.getByRole('img', { name: /Comic-Pinguin/ })).toBeTruthy());
     await userEvent.click(screen.getByRole('button', { name: 'Verschlüsseln' }));
-    const deWorker = FakeWorker.last();
-    act(() => deWorker.respond({ id: deWorker.requests[0]!.id, ok: true, ciphertext: new Uint8Array(32) }));
+    const deWorker = fakes.last();
+    await act(async () => deWorker.respond({ ok: true, ciphertext: new Uint8Array(32) }));
     expect(status().textContent).toContain('AES-ECB: 1 von 2 Geheimtextblöcken wiederholt einen früheren Block.');
   });
 
@@ -122,7 +125,7 @@ describe('PenguinLab', () => {
     expect(screen.getByText(/The key must be exactly 16 bytes .* this one has 2\./)).toBeTruthy();
     expect(key.getAttribute('aria-invalid')).toBe('true');
     await userEvent.click(encryptButton());
-    expect(FakeWorker.created).toHaveLength(0);
+    expect(fakes.workers).toHaveLength(0);
     expect(document.activeElement).toBe(key);
   });
 });

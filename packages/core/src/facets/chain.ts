@@ -17,7 +17,10 @@ export interface ChainNode {
   valueRef?: string;
   /** State step at which the node gets its value (-1 = initial). */
   activeAt: number;
-  zoom?: { producerId: string; params: Record<string, string> };
+  /** The wire segment carrying this node's value; it becomes available when the node gets its value. */
+  segmentId?: string;
+  /** The block cipher call to zoom into: the host links it via the producer's `blockLabParams`. */
+  zoom?: { producerId: string; keyHex: string; blockHex: string };
 }
 
 export interface ChainEdge {
@@ -98,10 +101,15 @@ export function chainIssues(facet: ChainFacet, stepCount: number): string[] {
   return [...duplicateIdIssues(facet), ...endpointIssues(facet, nodeById), ...rangeIssues(facet, stepCount), ...orderingIssues(facet, nodeById)];
 }
 
+/** Node ids that have their value at `step` (activeAt ≤ step). */
+export function chainActiveNodesAt(facet: ChainFacet, step: number): Set<string> {
+  return new Set(facet.nodes.filter((node) => node.activeAt <= step).map((node) => node.id));
+}
+
 /** Node ids and edge keys that have their value at `step` (activeAt ≤ step). */
 export function chainActiveAt(facet: ChainFacet, step: number): ChainActivity {
   return {
-    nodes: new Set(facet.nodes.filter((node) => node.activeAt <= step).map((node) => node.id)),
+    nodes: chainActiveNodesAt(facet, step),
     edges: new Set(facet.edges.filter((edge) => edge.activeAt <= step).map(chainEdgeKey)),
   };
 }

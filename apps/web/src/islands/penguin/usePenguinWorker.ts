@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { i18nRef, type I18nRef } from '@cryventure/core';
+import { DEFAULT_WORKER_TIMEOUT_MS, startWorkerRun, type RunWorker, type RunWorkerFactory, type WorkerRun, type WorkerRunOutcome } from '../../labs/workerRun.ts';
 import type { PenguinMode, PenguinRequest, PenguinResponse } from './penguinJob.ts';
 import type { Size } from './pixels.ts';
 
@@ -10,25 +11,35 @@ export interface PenguinResult extends Size {
 
 export type PenguinJobState = { status: 'idle' } | { status: 'busy'; mode: PenguinMode } | { status: 'done'; result: PenguinResult } | { status: 'error'; error: I18nRef };
 
-export type PenguinJob = Omit<PenguinRequest, 'id'> & Size;
+export type PenguinJob = PenguinRequest & Size;
 
 /** Builds the module worker; injectable so the hook can be tested without a real worker. */
-export type WorkerFactory = () => Worker;
+export type WorkerFactory = RunWorkerFactory<PenguinRequest>;
 
-const createPenguinWorker: WorkerFactory = () => new Worker(new URL('./penguin.worker.ts', import.meta.url), { type: 'module' });
+const createPenguinWorker: WorkerFactory = () => new Worker(new URL('./penguin.worker.ts', import.meta.url), { type: 'module' }) as unknown as RunWorker<PenguinRequest>;
+
+const ENCRYPT_FAILED = i18nRef('ui.penguin.error.encryptFailed');
+const TIMED_OUT = i18nRef('ui.penguin.error.timedOut');
+
+/** The state a finished (not cancelled) run leads to. */
+function settledState(outcome: WorkerRunOutcome<PenguinResponse>, { mode, width, height }: PenguinJob): PenguinJobState {
+  if (!outcome.ok) return { status: 'error', error: outcome.reason === 'timedOut' ? TIMED_OUT : ENCRYPT_FAILED };
+  const response = outcome.data;
+  return response.ok ? { status: 'done', result: { mode, ciphertext: response.ciphertext, width, height } } : { status: 'error', error: response.error };
+}
 
 /**
- * Runs one encryption job at a time in a fresh module worker. Starting a job terminates the
- * previous worker, so a superseded job can neither finish late nor keep the CPU busy.
+ * Runs one encryption job at a time in a fresh module worker (`startWorkerRun`). Starting a job
+ * terminates the previous worker, so a superseded job can neither finish late nor keep the CPU busy;
+ * only the current run may update the state.
  */
 export function usePenguinWorker(createWorker: WorkerFactory = createPenguinWorker) {
   const [state, setState] = useState<PenguinJobState>({ status: 'idle' });
-  const workerRef = useRef<Worker | undefined>(undefined);
-  const jobIdRef = useRef(0);
+  const currentRun = useRef<WorkerRun<PenguinResponse> | undefined>(undefined);
 
   const stop = useCallback(() => {
-    workerRef.current?.terminate();
-    workerRef.current = undefined;
+    currentRun.current?.cancel();
+    currentRun.current = undefined;
   }, []);
 
   useEffect(() => stop, [stop]);
@@ -36,29 +47,21 @@ export function usePenguinWorker(createWorker: WorkerFactory = createPenguinWork
   const start = useCallback(
     (job: PenguinJob) => {
       stop();
-      const id = ++jobIdRef.current;
-      const { width, height, ...request } = job;
-      const worker = createWorker();
-      workerRef.current = worker;
+      const { width: _width, height: _height, ...request } = job;
+      const run = startWorkerRun<PenguinRequest, PenguinResponse>(createWorker, request, { transfer: [request.rgb.buffer], timeoutMs: DEFAULT_WORKER_TIMEOUT_MS });
+      currentRun.current = run;
       setState({ status: 'busy', mode: job.mode });
-      worker.onmessage = (event: MessageEvent<PenguinResponse>) => {
-        if (event.data.id !== jobIdRef.current) return;
-        stop();
-        setState(event.data.ok ? { status: 'done', result: { mode: job.mode, ciphertext: event.data.ciphertext, width, height } } : { status: 'error', error: event.data.error });
-      };
-      worker.onerror = () => {
-        if (id !== jobIdRef.current) return;
-        stop();
-        setState({ status: 'error', error: i18nRef('ui.penguin.error.encryptFailed') });
-      };
-      worker.postMessage({ id, ...request } satisfies PenguinRequest, [request.rgb.buffer]);
+      void run.outcome.then((outcome) => {
+        if (currentRun.current !== run) return;
+        currentRun.current = undefined;
+        setState(settledState(outcome, job));
+      });
     },
     [createWorker, stop],
   );
 
   const reset = useCallback(() => {
     stop();
-    jobIdRef.current++;
     setState({ status: 'idle' });
   }, [stop]);
 

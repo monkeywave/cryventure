@@ -16,6 +16,18 @@ export class ChainBuilder {
     return node.id;
   }
 
+  /**
+   * Delays an already added node (with no incoming edges yet) to get its value at `activeAt`, e.g. the
+   * last input block, complete only after the PKCS#7 pad step; throws a RangeError for an unknown `id`.
+   */
+  delay(id: string, activeAt: number): void {
+    const index = this.nodes.findIndex((node) => node.id === id);
+    const node = this.nodes[index];
+    if (node === undefined) throw new RangeError(`ChainBuilder.delay: unknown node "${id}"`);
+    this.nodes[index] = { ...node, activeAt };
+    this.activeAtById.set(id, activeAt);
+  }
+
   /** Edges from each of `from` into the already added node `to`; throws a RangeError for an unknown `to`. */
   link(from: string | readonly string[], to: string): void {
     const activeAt = this.activeAtById.get(to);
@@ -32,10 +44,9 @@ export class ChainBuilder {
 export class WireBuilder {
   private readonly segments: WireSegment[] = [];
   private readonly offsetsByStep = new Map<number, number[]>();
-  private readonly availableAtByIndex = new Map<number, number>();
   private length = 0;
 
-  /** Appends `segment` and returns the global offsets of its bytes. */
+  /** Appends `segment` (with its `availableAt`, if it is sent during the run) and returns the global offsets of its bytes. */
   segment(segment: WireSegment): number[] {
     this.segments.push(segment);
     const offsets = segment.bytes.map((_, index) => this.length + index);
@@ -48,31 +59,8 @@ export class WireBuilder {
     this.offsetsByStep.set(step, [...(this.offsetsByStep.get(step) ?? []), ...offsets]);
   }
 
-  /** Highlights `offsets` from `step` on and marks their segments as sent from `step` (the earliest emit wins). */
-  emit(step: number, offsets: readonly number[]): void {
-    this.activate(step, offsets);
-    for (const offset of offsets) {
-      const index = this.segmentIndexAt(offset);
-      this.availableAtByIndex.set(index, Math.min(step, this.availableAtByIndex.get(index) ?? step));
-    }
-  }
-
-  private segmentIndexAt(offset: number): number {
-    let start = 0;
-    const index = this.segments.findIndex((segment) => (start += segment.bytes.length) > offset);
-    if (index < 0 || offset < 0) throw new RangeError(`WireBuilder.emit: offset ${offset} outside the segments`);
-    return index;
-  }
-
-  private sentSegments(): WireSegment[] {
-    return this.segments.map((segment, index) => {
-      const availableAt = this.availableAtByIndex.get(index);
-      return availableAt === undefined ? segment : { ...segment, availableAt };
-    });
-  }
-
   toFacet(): WireFacet {
-    const facet: WireFacet = { kind: 'wire', schemaVersion: 1, segments: this.sentSegments() };
+    const facet: WireFacet = { kind: 'wire', schemaVersion: 1, segments: [...this.segments] };
     if (this.offsetsByStep.size === 0) return facet;
     const activeAt = [...this.offsetsByStep.entries()].sort(([a], [b]) => a - b).map(([step, offsets]) => ({ step, offsets }));
     return { ...facet, activeAt };

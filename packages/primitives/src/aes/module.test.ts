@@ -87,10 +87,6 @@ describe('ports.BlockCipher', () => {
     expect(toHex(cipher.decryptBlock(key, ciphertext))).toBe(vectors.appendixB.input);
   });
 
-  it('names the params of its own lab for one block (the mode views zoom into it)', () => {
-    expect(cipher.labParams?.(key, input)).toEqual({ keyHex: vectors.appendixB.key, plaintextHex: vectors.appendixB.input, detail: 'op' });
-  });
-
   it('throws a RangeError on a wrong key or block length', () => {
     const block = new Uint8Array(16);
     expect(() => cipher.encryptBlock(new Uint8Array(15), block)).toThrow(RangeError);

@@ -9,14 +9,10 @@
 }
 
 /* Markdown tables (Starlight already makes them `display: block; overflow: auto`). */
+/* `--cv-scroll-cover` is the element's own background, which covers each shadow at its scroll edge. */
 .sl-markdown-content table:not(:where(.not-content *)) {
   max-width: 100%;
-  background:
-    linear-gradient(to right, var(--sl-color-bg) 40%, transparent) left center / 2.5rem 100% no-repeat local,
-    linear-gradient(to left, var(--sl-color-bg) 40%, transparent) right center / 2.5rem 100% no-repeat local,
-    radial-gradient(farthest-side at 0 50%, var(--cv-scroll-shadow), transparent) left center / 0.75rem 100% no-repeat scroll,
-    radial-gradient(farthest-side at 100% 50%, var(--cv-scroll-shadow), transparent) right center / 0.75rem 100% no-repeat scroll,
-    var(--sl-color-bg);
+  --cv-scroll-cover: var(--sl-color-bg);
 }
 
 /* Columns keep a readable width (the table scrolls instead of squeezing them to a word per line);
@@ -34,10 +30,15 @@
 
 /* <Formula> blocks already scroll horizontally (`white-space: pre`). */
 .cv-formula .cv-formula__body {
+  --cv-scroll-cover: var(--cv-surface);
+}
+
+/* The shared scroll-shadow stack of the horizontally scrolling blocks above. */
+:is(.sl-markdown-content table:not(:where(.not-content *)), .cv-formula .cv-formula__body) {
   background:
-    linear-gradient(to right, var(--cv-surface) 40%, transparent) left center / 2.5rem 100% no-repeat local,
-    linear-gradient(to left, var(--cv-surface) 40%, transparent) right center / 2.5rem 100% no-repeat local,
+    linear-gradient(to right, var(--cv-scroll-cover) 40%, transparent) left center / 2.5rem 100% no-repeat local,
+    linear-gradient(to left, var(--cv-scroll-cover) 40%, transparent) right center / 2.5rem 100% no-repeat local,
     radial-gradient(farthest-side at 0 50%, var(--cv-scroll-shadow), transparent) left center / 0.75rem 100% no-repeat scroll,
     radial-gradient(farthest-side at 100% 50%, var(--cv-scroll-shadow), transparent) right center / 0.75rem 100% no-repeat scroll,
-    var(--cv-surface);
+    var(--cv-scroll-cover);
 }

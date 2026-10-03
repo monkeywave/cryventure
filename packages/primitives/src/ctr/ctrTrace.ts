@@ -8,10 +8,10 @@ import {
   i18nRef,
   incrementCounter,
   toHex,
-  xorBytes,
+  u8Regions,
+  xorBytesToArray,
   zeroSnapshot,
   type BlockCipher,
-  type RegionSpec,
   type StateFacet,
 } from '@cryventure/core';
 import type { CtrOpName } from './manifest.ts';
@@ -23,18 +23,6 @@ export type CtrStateFacet = StateFacet<CtrRegion, CtrOp>;
 type CtrRecorder = BlockOpRecorder<CtrRegion, CtrOp>;
 
 const NS = 'plugin.ctr';
-
-/** `input`/`output` hold all bytes; `counter` (the cipher's input Tᵢ) and `keystream` (its output) one block each. */
-export function ctrRegions(length: number, blockSize: number): RegionSpec<CtrRegion>[] {
-  const region = (id: CtrRegion, size: number, blank: boolean): RegionSpec<CtrRegion> => ({
-    id,
-    labelKey: `${NS}.region.${id}`,
-    elem: 'u8',
-    shape: [size],
-    ...(blank ? { initial: 'blank' as const } : {}),
-  });
-  return [region('input', length, false), region('counter', blockSize, false), region('keystream', blockSize, true), region('output', length, true)];
-}
 
 export interface CtrRun {
   cipher: BlockCipher;
@@ -60,9 +48,16 @@ export interface CtrBlockTrace {
 export interface CtrRecording {
   facet: CtrStateFacet;
   blocks: CtrBlockTrace[];
-  output: number[];
-  /** The keystream bytes actually used (as long as the input). */
-  keystream: number[];
+}
+
+/** The output of all blocks. */
+export function ctrOutput(recording: CtrRecording): number[] {
+  return recording.blocks.flatMap((block) => block.output);
+}
+
+/** The keystream bytes actually used (as long as the input). */
+export function ctrKeystream(recording: CtrRecording): number[] {
+  return recording.blocks.flatMap((block) => block.keystream.slice(0, block.input.length));
 }
 
 function recordIncrement(recorder: CtrRecorder, index: number, counter: number[]): number {
@@ -94,7 +89,7 @@ function recordBlock(recorder: CtrRecorder, run: CtrRun, index: number, counter:
   });
   const indices = blockIndices(index, blockSize, data.length);
   const input = data.slice(index * blockSize, index * blockSize + indices.length);
-  const output = Array.from(xorBytes(input, keystream.slice(0, input.length)));
+  const output = xorBytesToArray(input, keystream.slice(0, input.length));
   const xor = recorder.op({
     op: 'xorKeystream',
     writes: [{ region: 'output', offset: index * blockSize, values: output }],
@@ -104,11 +99,15 @@ function recordBlock(recorder: CtrRecorder, run: CtrRun, index: number, counter:
   return { counter, keystream, input, output, steps: { counter: counterStep, cipher: cipherStep, xor } };
 }
 
-/** Records CTR over `run.data` (any length): per block incrementCounter (from the second on) → encryptBlock → xorKeystream. */
+/**
+ * Records CTR over `run.data` (any length): per block incrementCounter (from the second on) →
+ * encryptBlock → xorKeystream. `input`/`output` hold all bytes; `counter` (the cipher's input Tᵢ)
+ * and `keystream` (its output) one block each.
+ */
 export function recordCtr(run: CtrRun): CtrRecording {
   const { cipher, data } = run;
   const blockSize = cipher.blockSize;
-  const regions = ctrRegions(data.length, blockSize);
+  const regions = u8Regions<CtrRegion>(NS, { input: data.length, counter: blockSize, keystream: blockSize, output: data.length }, ['keystream', 'output']);
   const total = blockCount(data.length, blockSize);
   const initialNarration = i18nRef(`${NS}.step.initial`, { bytes: data.length, count: total, blockSize, cipher: cipherName(cipher), counter: toHex(run.counter) });
   const recorder: CtrRecorder = new BlockOpRecorder(regions, { ...zeroSnapshot(regions), input: [...data], counter: [...run.counter] }, initialNarration);
@@ -117,10 +116,5 @@ export function recordCtr(run: CtrRun): CtrRecording {
     if (index > 0) counter = Array.from(incrementCounter(Uint8Array.from(counter)));
     return recorder.block(index, () => recordBlock(recorder, run, index, counter));
   });
-  return {
-    facet: recorder.toFacet(),
-    blocks,
-    output: blocks.flatMap((block) => block.output),
-    keystream: blocks.flatMap((block) => block.keystream.slice(0, block.input.length)),
-  };
+  return { facet: recorder.toFacet(), blocks };
 }

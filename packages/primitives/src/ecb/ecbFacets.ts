@@ -1,18 +1,21 @@
 import {
+  addBlockSegment,
   addPadNode,
   addUnpadNode,
+  blockSegmentId,
   ChainBuilder,
   chainLabel,
   cipherZoom,
   i18nRef,
-  laneNodeId as nodeId,
+  laneNodes,
   WireBuilder,
   type BlockCipher,
   type ChainFacet,
   type ModeDirection,
+  type PaddedModeBlocks,
   type WireFacet,
 } from '@cryventure/core';
-import type { EcbBlockTrace, EcbRecording } from './ecbTrace.ts';
+import type { EcbBlockTrace } from './ecbTrace.ts';
 
 /** The chain and wire facets of an ECB recording (docs/M3.md §6). */
 const NS = 'plugin.ecb';
@@ -25,37 +28,32 @@ export interface EcbFacetContext {
 
 const label = (name: string, n?: number) => chainLabel(NS, name, n);
 
-/** One independent lane: input → E_K or D_K → output. Encryption nodes zoom into the cipher's own lab. */
-function lane(chain: ChainBuilder, block: EcbBlockTrace, index: number, context: EcbFacetContext, inputActiveAt: number): void {
+/** One independent lane: input → E_K or D_K → output. Encryption nodes zoom into the cipher's own lab; their output is sent on the wire. */
+function lane(chain: ChainBuilder, block: EcbBlockTrace, index: number, context: EcbFacetContext): void {
   const n = index + 1;
   const encrypting = context.direction === 'encrypt';
-  chain.node({ id: nodeId(index, 'input'), block: index, kind: 'input', label: label(encrypting ? 'plaintext' : 'ciphertext', n), bytes: block.input, activeAt: inputActiveAt });
+  const node = laneNodes(chain, index);
+  const input = node('input', 'input', label(encrypting ? 'plaintext' : 'ciphertext', n), block.input, -1);
   const zoom = encrypting ? cipherZoom(context.cipher, context.key, block.input) : {};
-  chain.node({ id: nodeId(index, 'cipher'), block: index, kind: 'cipher', label: label(encrypting ? 'encrypt' : 'decrypt'), bytes: block.output, activeAt: block.steps.cipher, ...zoom });
-  chain.link(nodeId(index, 'input'), nodeId(index, 'cipher'));
-  chain.node({ id: nodeId(index, 'output'), block: index, kind: 'output', label: label(encrypting ? 'ciphertext' : 'plaintext', n), bytes: block.output, activeAt: block.steps.emit });
-  chain.link(nodeId(index, 'cipher'), nodeId(index, 'output'));
+  const cipher = node('cipher', 'cipher', label(encrypting ? 'encrypt' : 'decrypt'), block.output, block.steps.cipher, input, zoom);
+  const sent = encrypting ? { segmentId: blockSegmentId(index) } : {};
+  node('output', 'output', label(encrypting ? 'ciphertext' : 'plaintext', n), block.output, block.steps.emit, cipher, sent);
 }
 
-export function ecbChain(recording: EcbRecording, context: EcbFacetContext): ChainFacet {
+export function ecbChain(recording: PaddedModeBlocks<EcbBlockTrace>, context: EcbFacetContext): ChainFacet {
   const chain = new ChainBuilder();
-  const last = recording.blocks.length - 1;
-  // PKCS#7 bytes always land in the last block, which is complete only after the pad step.
-  const padStep = recording.pad?.step ?? -1;
-  recording.blocks.forEach((block, index) => lane(chain, block, index, context, index === last ? padStep : -1));
+  recording.blocks.forEach((block, index) => lane(chain, block, index, context));
   addPadNode(chain, NS, recording);
   addUnpadNode(chain, NS, recording);
   return chain.toFacet({ mode: 'ecb', direction: context.direction, formula: i18nRef(`${NS}.formula.${context.direction}`) });
 }
 
-/** What travels: the ciphertext blocks, lit when emitted (encrypt) or deciphered (decrypt). */
-export function ecbWire(recording: EcbRecording, context: EcbFacetContext): WireFacet {
+/** What travels: the ciphertext blocks, sent and lit when emitted (encrypt) or lit when deciphered (decrypt). */
+export function ecbWire(recording: PaddedModeBlocks<EcbBlockTrace>, context: Pick<EcbFacetContext, 'direction'>): WireFacet {
   const wire = new WireBuilder();
   recording.blocks.forEach((block, index) => {
-    const encrypting = context.direction === 'encrypt';
-    const offsets = wire.segment({ id: `c${index}`, role: 'ciphertext', label: i18nRef(`${NS}.wire.block`, { n: index + 1 }), bytes: encrypting ? block.output : block.input, block: index });
-    if (encrypting) wire.emit(block.steps.emit, offsets);
-    else wire.activate(block.steps.cipher, offsets);
+    if (context.direction === 'encrypt') wire.activate(block.steps.emit, addBlockSegment(wire, NS, index, block.output, block.steps.emit));
+    else wire.activate(block.steps.cipher, addBlockSegment(wire, NS, index, block.input));
   });
   return wire.toFacet();
 }

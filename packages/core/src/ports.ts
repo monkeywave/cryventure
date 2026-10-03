@@ -16,11 +16,6 @@ export interface BlockCipher {
   encryptBlock(key: Uint8Array, block: Uint8Array): Uint8Array;
   /** Decrypts one block; throws on a wrong key or block length. */
   decryptBlock(key: Uint8Array, block: Uint8Array): Uint8Array;
-  /**
-   * Params of the producer's own lab encrypting `block` under `key` (aes:
-   * `{ keyHex, plaintextHex, detail: 'op' }`). The mode views "zoom" into that lab; without it, they don't.
-   */
-  labParams?(key: Uint8Array, block: Uint8Array): Record<string, string>;
 }
 
 /** Every port by name. */

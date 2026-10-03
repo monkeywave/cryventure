@@ -5,9 +5,11 @@ import type { LabParams } from '../../labs/labSession.ts';
 import { editField, hintKeyOf } from '../../labs/paramFields.ts';
 import { producerRegistry } from '../../labs/producers.ts';
 import { matchingPresetId } from '../../labs/startParams.ts';
+import { useDebouncedCallback } from '../shared/useDebouncedCallback.ts';
 
 export interface ParamPanelProps {
   producer: PrimitiveManifest<LabParams>;
+  /** The params of the latest requested run (`useLabSession().pendingParams`), so a second edit builds on a first one still running. */
   params: LabParams;
   /** Called with validated, normalised params. */
   onApply: (params: LabParams) => void;
@@ -18,6 +20,9 @@ export interface ParamPanelProps {
 }
 
 const CUSTOM = '';
+
+/** Text and hex edits re-run only after the learner paused typing this long; selects apply at once. */
+export const TEXT_EDIT_DEBOUNCE_MS = 150;
 
 function PresetSelect({ producer, params, onApply }: ParamPanelProps) {
   const t = useT();
@@ -97,13 +102,15 @@ interface Draft {
 }
 
 /**
- * A text field's draft. When the param value changes to something the field did not apply itself (e.g.
- * another field's edit normalised it), the draft shows it and any error clears; the learner's own edits
- * keep their text and focus, also while their re-run is still pending. Params applied from outside the
- * fields remount the field instead (`useExternalParamsGeneration`).
+ * A text field's draft. The text shows at once; it is validated and applied once typing pauses
+ * (`TEXT_EDIT_DEBOUNCE_MS`). When the param value changes to something the field did not apply itself
+ * (e.g. another field's edit normalised it), the draft shows it and any error clears; the learner's own
+ * edits keep their text and focus, also while their re-run is still pending. Params applied from
+ * outside the fields remount the field instead (`useExternalParamsGeneration`), dropping a pending edit.
  */
 function useDraft(props: FieldProps) {
-  const value = props.params[props.field.name];
+  const { name } = props.field;
+  const value = props.params[name];
   const [draft, setDraft] = useState<Draft>({ text: String(value ?? ''), seen: value, applied: value });
   const { error, edit, clearError } = useFieldEdit(props);
   if (!Object.is(draft.seen, value)) {
@@ -112,9 +119,13 @@ function useDraft(props: FieldProps) {
     setDraft(own ? { ...draft, seen: value } : { text: String(value ?? ''), seen: value, applied: value });
     if (!own) clearError();
   }
-  const change = (text: string) => {
+  const commit = useDebouncedCallback((text: string) => {
     const applied = edit(text);
-    setDraft({ ...draft, text, applied: applied === undefined ? draft.applied : applied[props.field.name] });
+    if (applied !== undefined) setDraft((current) => ({ ...current, applied: applied[name] }));
+  }, TEXT_EDIT_DEBOUNCE_MS);
+  const change = (text: string) => {
+    setDraft((current) => ({ ...current, text }));
+    commit(text);
   };
   return { text: draft.text, error, change };
 }
@@ -201,10 +212,10 @@ function RequestError({ error }: { error: I18nRef | null | undefined }) {
   );
 }
 
-/** The params the panel last saw, the params its fields last applied, and how often params came from outside. */
+/** The params the panel last saw, the params object its fields last applied, and how often params came from outside. */
 interface ParamsOrigin {
   seen: LabParams;
-  own: LabParams | null;
+  ownApplied: LabParams | null;
   generation: number;
 }
 
@@ -214,32 +225,30 @@ interface ParamsOrigin {
  * every field's draft and error then, while the learner's own typing keeps its drafts and focus.
  */
 function useExternalParamsGeneration(params: LabParams, onApply: ParamPanelProps['onApply']) {
-  const [origin, setOrigin] = useState<ParamsOrigin>({ seen: params, own: null, generation: 0 });
+  const [origin, setOrigin] = useState<ParamsOrigin>({ seen: params, ownApplied: null, generation: 0 });
   if (origin.seen !== params) {
     // Adjusting state while rendering (React's documented alternative to an effect) avoids a stale frame.
-    const external = params !== origin.own;
-    setOrigin({ seen: params, own: external ? null : origin.own, generation: origin.generation + (external ? 1 : 0) });
+    const external = params !== origin.ownApplied;
+    setOrigin({ seen: params, ownApplied: external ? null : origin.ownApplied, generation: origin.generation + (external ? 1 : 0) });
   }
   const applyOwn = (next: LabParams) => {
-    setOrigin((current) => ({ ...current, own: next }));
+    setOrigin((current) => ({ ...current, ownApplied: next }));
     onApply(next);
   };
-  // While a field's re-run is pending (or after it failed), `params` still holds the last good run, so the
-  // fields build on what they last applied: a second edit then keeps the first.
-  return { generation: origin.generation, applyOwn, fieldParams: origin.own ?? params };
+  return { generation: origin.generation, applyOwn };
 }
 
 /** Preset picker plus one input per declared param field; invalid input shows a localized error and is not applied. */
 export function ParamPanel(props: ParamPanelProps) {
   const t = useT();
-  const { generation, applyOwn, fieldParams } = useExternalParamsGeneration(props.params, props.onApply);
+  const { generation, applyOwn } = useExternalParamsGeneration(props.params, props.onApply);
   return (
     <fieldset className="cv-params">
       <legend>{t('ui.lab.params.title')}</legend>
       <PresetSelect {...props} />
       {paramFieldsOf(props.producer).map((field) => {
         const Input = FIELD_INPUTS[field.kind];
-        return <Input key={`${field.name}:${generation}`} field={field} {...props} params={fieldParams} onApply={applyOwn} />;
+        return <Input key={`${field.name}:${generation}`} field={field} {...props} onApply={applyOwn} />;
       })}
       <RequestError error={props.requestError} />
     </fieldset>

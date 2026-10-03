@@ -49,13 +49,15 @@ describe('modeFacetIssues', () => {
     expect(modeFacetIssues(bundleWith({ chain: lateChain, wire: late }, 2))).toEqual(['wire: activeAt step 0 highlights offset 0 of segment "c", available only from step 1']);
   });
 
-  it('requires a chain output node to get its value when the wire segment of its block is sent', () => {
+  it('requires a node linked to a wire segment to get its value when that segment is sent', () => {
+    const linkOutput = (segmentId: string): ChainFacet => ({ ...chain, nodes: chain.nodes.map((node) => (node.kind === 'output' ? { ...node, segmentId } : node)) });
+    const linked = linkOutput('c');
     const sent: WireFacet = { ...wire, segments: [{ ...wire.segments[0]!, block: 0, availableAt: 1 }], activeAt: [{ step: 1, offsets: [0] }] };
-    expect(modeFacetIssues(bundleWith({ chain, wire: sent }, 2))).toEqual(['chain: output node "b0.out" activeAt 0 differs from wire segment "c" availableAt 1']);
+    expect(modeFacetIssues(bundleWith({ chain: linked, wire: sent }, 2))).toEqual(['chain: node "b0.out" activeAt 0 differs from wire segment "c" availableAt 1']);
     const matching: WireFacet = { ...sent, segments: [{ ...sent.segments[0]!, availableAt: 0 }], activeAt: [{ step: 0, offsets: [0] }] };
-    expect(modeFacetIssues(bundleWith({ chain, wire: matching }, 2))).toEqual([]);
-    const unpaired: WireFacet = { ...sent, segments: [{ ...sent.segments[0]!, block: 3 }] };
-    expect(modeFacetIssues(bundleWith({ chain, wire: unpaired }, 2))).toEqual([]);
+    expect(modeFacetIssues(bundleWith({ chain: linked, wire: matching }, 2))).toEqual([]);
+    expect(modeFacetIssues(bundleWith({ chain, wire: sent }, 2))).toEqual([]);
+    expect(modeFacetIssues(bundleWith({ chain: linkOutput('gone'), wire: matching }, 2))).toEqual(['chain: node "b0.out" segmentId "gone" is not a wire segment']);
   });
 });
 

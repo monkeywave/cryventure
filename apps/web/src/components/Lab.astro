@@ -7,7 +7,7 @@
  */
 import '@cryventure/viz/viz.css';
 import '../styles/lab.css';
-import { createTranslator, paramFieldsOf, type Lens } from '@cryventure/core';
+import { createTranslator, paramFieldsOf, type Lens, type Messages } from '@cryventure/core';
 import LabIsland from '../islands/Lab.tsx';
 import { labMessages } from '../labs/labMessages';
 import { choiceLabelKey } from '../labs/paramFields';
@@ -27,14 +27,16 @@ interface Props {
   startAt?: string;
   /** Preselected player mode: `"story"` or `"debugger"` (default). Playback still needs a user action. */
   mode?: string;
+  /** This lab's message table, when the page has already built it (`labMessages(lang, producer)`). */
+  messages?: Messages;
 }
 
-const { labId, producerId, presetId, layout, lens, startAt, mode } = Astro.props;
+const { labId, producerId, presetId, layout, lens, startAt, mode, messages: givenMessages } = Astro.props;
 const lang = Astro.currentLocale ?? 'en';
 const resolved = resolveLab(producerId);
 if (!resolved.ok) throw new Error(`<Lab labId="${labId}">: unknown producer "${producerId}"`);
 const { producer } = resolved.lab;
-const messages = labMessages(lang, producer);
+const messages = givenMessages ?? labMessages(lang, producer);
 const t = createTranslator(messages, { locale: lang });
 const preset = producer.presets.find((entry) => entry.id === presetId);
 if (presetId !== undefined && preset === undefined) throw new Error(`<Lab labId="${labId}">: unknown preset "${presetId}"`);

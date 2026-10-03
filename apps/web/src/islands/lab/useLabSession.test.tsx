@@ -148,13 +148,53 @@ describe('useLabSession edits while a run is pending', () => {
   });
 });
 
+describe('useLabSession pendingParams', () => {
+  it('starts as the start params, follows each requested run before it settles and keeps a failed one', async () => {
+    const { result } = await renderReady();
+    expect(result.current.pendingParams).toEqual({ tag: 'start' });
+    const run = deferred<RunOutcome>();
+    labSession.rerunLab.mockReturnValueOnce(run.promise);
+    act(() => result.current.requestParams({ a: 1 }));
+    expect(result.current.pendingParams).toEqual({ tag: 'start', a: 1 });
+    expect(tagOf(result.current.session)).toBe('start');
+    await act(async () => run.resolve({ ok: false, error: { key: 'core.error.keyLength' } }));
+    expect(result.current.pendingParams).toEqual({ tag: 'start', a: 1 });
+  });
+
+  it('is null while loading after a reset, then the fresh start params', async () => {
+    const { result } = await renderReady();
+    const restart = deferred<LabSession>();
+    labSession.startLab.mockReturnValueOnce(restart.promise);
+    act(() => result.current.reset());
+    expect(result.current.pendingParams).toBeNull();
+    await act(async () => restart.resolve(ready('restarted')));
+    expect(result.current.pendingParams).toEqual({ tag: 'restarted' });
+  });
+
+  it('merges two view requests made in the same tick', async () => {
+    const { result } = await renderReady();
+    labSession.rerunLab.mockReturnValue(new Promise(() => undefined));
+    act(() => {
+      result.current.requestParams({ a: 1 });
+      result.current.requestParams({ b: 2 });
+    });
+    expect(paramsOfRun(1)).toEqual({ tag: 'start', a: 1, b: 2 });
+    expect(result.current.pendingParams).toEqual({ tag: 'start', a: 1, b: 2 });
+  });
+});
+
 describe('useLabSession wiring', () => {
-  it('starts with a per-lab runner and a labHref for the page locale', async () => {
+  it('starts with a per-lab runner and labHref/blockLabHref for the page locale', async () => {
     labSession.startLab.mockResolvedValueOnce(ready('start'));
     renderHook(() => useLabSession({ labId: 'lab', producerId: 'p', locale: 'de' }));
     await waitFor(() => expect(labSession.startLab).toHaveBeenCalled());
-    const options = labSession.startLab.mock.calls[0]?.[0] as { runner: { run: unknown }; labHref: (id: string, params: unknown) => string | undefined };
+    const options = labSession.startLab.mock.calls[0]?.[0] as {
+      runner: { run: unknown };
+      labHref: (id: string, params: unknown) => string | undefined;
+      blockLabHref: (id: string, keyHex: string, blockHex: string) => string | undefined;
+    };
     expect(options.runner.run).toBeTypeOf('function');
     expect(options.labHref('aes', {})).toMatch(/^\/de\/lab\/aes\/#lab=aes&/);
+    expect(options.blockLabHref('aes', '00'.repeat(16), '11'.repeat(16))).toMatch(/^\/de\/lab\/aes\/#lab=aes&/);
   });
 });

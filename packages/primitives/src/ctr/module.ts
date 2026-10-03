@@ -15,7 +15,7 @@ import {
   type ValuesFacet,
 } from '@cryventure/core';
 import { ctrChain, ctrWire } from './ctrFacets.ts';
-import { recordCtr, type CtrRecording, type CtrRun } from './ctrTrace.ts';
+import { ctrKeystream, ctrOutput, recordCtr, type CtrRun } from './ctrTrace.ts';
 import { ctrManifest, type CtrParams } from './manifest.ts';
 
 /** CTR producer: Cᵢ = Pᵢ ⊕ E_K(Tᵢ), Tᵢ₊₁ = Tᵢ + 1, over the `BlockCipher` named by `cipher`. */
@@ -23,13 +23,13 @@ const NS = 'plugin.ctr';
 const CTR_SCOPE_LEVELS = scopeLevels(NS, 'block', 'op');
 
 /** Key, initial counter block and input exist from the initial state on; output and keystream from the last step. */
-export function buildCtrValues(run: CtrRun, recording: CtrRecording, lastStep: number): ValuesFacet {
+function ctrValues(run: CtrRun, output: number[], keystream: number[], lastStep: number): ValuesFacet {
   const values = [
     valueRef(NS, 'key', 'key', Array.from(run.key), INITIAL_STEP_INDEX),
     valueRef(NS, 'counter', 'nonce', run.counter, INITIAL_STEP_INDEX),
     valueRef(NS, 'input', 'plaintext', run.data, INITIAL_STEP_INDEX),
-    valueRef(NS, 'keystream', 'secret', recording.keystream, lastStep),
-    valueRef(NS, 'output', 'ciphertext', recording.output, lastStep),
+    valueRef(NS, 'keystream', 'secret', keystream, lastStep),
+    valueRef(NS, 'output', 'ciphertext', output, lastStep),
   ];
   return { kind: 'values', schemaVersion: 1, values };
 }
@@ -37,17 +37,19 @@ export function buildCtrValues(run: CtrRun, recording: CtrRecording, lastStep: n
 function recordBundle(ctrRun: CtrRun): PrimitiveRecording {
   const recording = recordCtr(ctrRun);
   const reference = ctrXor(ctrRun.cipher, ctrRun.key, Uint8Array.from(ctrRun.counter), Uint8Array.from(ctrRun.data));
-  assertMatchesReference(recording.output, reference, 'ctr');
+  const output = ctrOutput(recording);
+  const keystream = ctrKeystream(recording);
+  assertMatchesReference(output, reference, 'ctr');
   const facet = { ...recording.facet, scopeLevels: CTR_SCOPE_LEVELS };
   return {
     facets: {
       state: facet,
-      values: buildCtrValues(ctrRun, recording, facet.steps.length - 1),
+      values: ctrValues(ctrRun, output, keystream, facet.steps.length - 1),
       narration: narrationFromState(facet),
       chain: ctrChain(recording, { cipher: ctrRun.cipher, key: ctrRun.key }),
       wire: ctrWire(recording, ctrRun.counter),
     },
-    output: { output: recording.output, keystream: recording.keystream },
+    output: { output, keystream },
   };
 }
 

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { i18nRef } from '../i18n.ts';
-import { chainActiveAt, chainEdgeKey, chainIssues, chainLabelRefs, chainLanes, type ChainFacet, type ChainNode } from './chain.ts';
+import { chainActiveAt, chainActiveNodesAt, chainEdgeKey, chainIssues, chainLabelRefs, chainLanes, type ChainFacet, type ChainNode } from './chain.ts';
 
 const node = (id: string, block: number, activeAt: number, kind: ChainNode['kind'] = 'xor'): ChainNode => ({
   id,
@@ -85,6 +85,10 @@ describe('chainActiveAt', () => {
     expect([...atZero.nodes]).toEqual(['iv', 'b0.in', 'b0.xor', 'b1.in']);
     expect([...atZero.edges]).toEqual([chainEdgeKey({ from: 'iv', to: 'b0.xor' }), 'b0.in->b0.xor']);
     expect(chainActiveAt(chain(), 2).nodes.size).toBe(6);
+  });
+
+  it('chainActiveNodesAt returns the same nodes without the edges', () => {
+    for (const step of [-1, 0, 2]) expect(chainActiveNodesAt(chain(), step)).toEqual(chainActiveAt(chain(), step).nodes);
   });
 });
 

@@ -39,8 +39,8 @@ export function migrateV1ToV2(v1: Record<string, unknown>): Record<string, unkno
 const MIGRATIONS: Readonly<Record<number, Migration>> = { 1: migrateV1ToV2 };
 
 function versionOf(raw: unknown): number | undefined {
-  if (typeof raw !== 'object' || raw === null || Array.isArray(raw)) return undefined;
-  const { version } = raw as { version?: unknown };
+  if (!isRecord(raw)) return undefined;
+  const { version } = raw;
   return typeof version === 'number' && Number.isSafeInteger(version) && version >= 1 ? version : undefined;
 }
 
@@ -56,9 +56,9 @@ export function isSupportedVersion(raw: unknown): boolean {
  * something, so a record from a newer app version survives until then.
  */
 export function migrate(raw: unknown): Progress {
-  let version = versionOf(raw);
-  if (version === undefined || version > PROGRESS_VERSION) return emptyProgress();
+  if (!isSupportedVersion(raw)) return emptyProgress();
   let record = raw as Record<string, unknown>;
+  let version = record.version as number;
   while (version < PROGRESS_VERSION) {
     const step = MIGRATIONS[version];
     if (step === undefined) return emptyProgress();

@@ -9,7 +9,7 @@ import '../islands/penguin/penguin.css';
 import { loadCoreMessages } from '@cryventure/core/messages';
 import { loadMessages, pickPrefix, toLocale } from '../i18n/loadMessages';
 import PenguinLabIsland from '../islands/penguin/PenguinLab.tsx';
-import type { PenguinMode } from '../islands/penguin/penguinJob.ts';
+import { PENGUIN_MODES, type PenguinMode } from '../islands/penguin/penguinJob.ts';
 import EducationalOnly from './EducationalOnly.astro';
 
 interface Props {
@@ -18,7 +18,7 @@ interface Props {
 }
 
 const { mode } = Astro.props;
-if (mode !== undefined && mode !== 'ecb' && mode !== 'cbc') throw new Error(`<PenguinLab>: unknown mode "${String(mode)}"`);
+if (mode !== undefined && !PENGUIN_MODES.includes(mode)) throw new Error(`<PenguinLab>: unknown mode "${String(mode)}"`);
 const locale = toLocale(Astro.currentLocale);
 const messages = { ...pickPrefix(loadMessages(locale, ['penguin']), 'ui.penguin.'), ...pickPrefix(loadCoreMessages(locale), 'core.error.') };
 ---

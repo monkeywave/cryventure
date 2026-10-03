@@ -30,8 +30,6 @@ export const PENGUIN_MODES: readonly PenguinMode[] = ['ecb', 'cbc'];
 export const PENGUIN_CIPHER_ID = 'aes';
 
 export interface PenguinRequest {
-  /** Increasing job id: the island ignores answers to superseded jobs. */
-  id: number;
   mode: PenguinMode;
   key: Uint8Array;
   /** Used by CBC only (one block). */
@@ -40,7 +38,7 @@ export interface PenguinRequest {
   rgb: Uint8Array;
 }
 
-export type PenguinResponse = { id: number; ok: true; ciphertext: Uint8Array } | { id: number; ok: false; error: I18nRef };
+export type PenguinResponse = { ok: true; ciphertext: Uint8Array } | { ok: false; error: I18nRef };
 
 /** A one-field param source, so the lab resolves its cipher exactly like a mode producer's `cipher` param. */
 const PENGUIN_PORT_PARAMS: ParamFieldSource = {
@@ -59,12 +57,12 @@ export function encryptRgb(cipher: BlockCipher, request: Pick<PenguinRequest, 'm
 export async function runPenguinJob(request: PenguinRequest, producers: ProducerLookup): Promise<PenguinResponse> {
   const resolve = await preparePorts(PENGUIN_PORT_PARAMS, { cipher: PENGUIN_CIPHER_ID }, producers);
   const cipher = requirePort(resolve, 'BlockCipher', PENGUIN_CIPHER_ID);
-  if (!cipher.ok) return { id: request.id, ok: false, error: cipher.error };
+  if (!cipher.ok) return { ok: false, error: cipher.error };
   const keyError = checkKeyLength(cipher.port, request.key);
-  if (keyError !== undefined) return { id: request.id, ok: false, error: keyError };
+  if (keyError !== undefined) return { ok: false, error: keyError };
   try {
-    return { id: request.id, ok: true, ciphertext: encryptRgb(cipher.port, request) };
+    return { ok: true, ciphertext: encryptRgb(cipher.port, request) };
   } catch {
-    return { id: request.id, ok: false, error: i18nRef('ui.penguin.error.encryptFailed') };
+    return { ok: false, error: i18nRef('ui.penguin.error.encryptFailed') };
   }
 }

@@ -1,6 +1,6 @@
 import fc from 'fast-check';
 import { describe, expect, it } from 'vitest';
-import { byteToHex, bytesEqual, hexDigits, parseHex, parseHexOfLength, parseHexOrThrow, parseHexToArray, toHex, utf8Bytes, xorBytes } from './bytes.ts';
+import { byteToHex, bytesEqual, hexDigits, parseHex, parseHexOfLength, parseHexOrThrow, parseHexToArray, toHex, utf8Bytes, xorBytes, xorBytesToArray } from './bytes.ts';
 
 const bytesOf = (input: string): number[] => {
   const result = parseHex(input);
@@ -54,6 +54,13 @@ describe('bytesEqual', () => {
     expect(bytesEqual([1, 2], new Uint8Array([1, 2]))).toBe(true);
     expect(bytesEqual([1, 2], [1, 3])).toBe(false);
     expect(bytesEqual([1], [1, 2])).toBe(false);
+  });
+});
+
+describe('xorBytesToArray', () => {
+  it('returns the XOR as a plain array and keeps the length contract', () => {
+    expect(xorBytesToArray([0xff, 0x0f], [0x0f, 0x0f])).toEqual([0xf0, 0x00]);
+    expect(() => xorBytesToArray([1], [1, 2])).toThrow(RangeError);
   });
 });
 
