@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import type { ChoreographyModule, PrimitiveManifest } from '@cryventure/core';
+import { ecbManifest } from '@cryventure/primitives/ecb';
 import { stateSteps } from '@cryventure/viz';
 import { encodeJsonBase64Url } from './base64url.ts';
 import { readLabLink } from './deepLink.ts';
@@ -131,6 +132,29 @@ describe('startLab', () => {
   it("lets the deep link's step win over startAt", async () => {
     const session = await readyAes(readLabLink('lab=x&s=5&v=1', 'x'), { startAt: parseStartAt('round:1,op:subBytes') });
     expect(session.store.getState().step).toBe(5);
+  });
+
+  it('falls back to the preset with a notice when valid-looking link params fail at run time', async () => {
+    const preset = ecbManifest.presets[0]!;
+    const link = readLabLink(`lab=ecb&p=${encodeJsonBase64Url({ ...preset.params, keyHex: '0001020304' })}&s=5&v=1`, 'ecb');
+    const session = await startLab({ producerId: 'ecb', presetId: preset.id, link });
+    expect(session).toMatchObject({ status: 'ready', notice: true, params: preset.params });
+    if (session.status !== 'ready') return;
+    expect(session.store.getState().step).toBe(-1);
+  });
+
+  it('keeps the error session when the preset fallback fails too', async () => {
+    const producer = {
+      id: 'p',
+      facets: ['state'],
+      presets: [],
+      defaults: { n: 0 },
+      validate: (params: unknown) => ({ ok: true, value: params }),
+      load: async () => ({ run: () => ({ ok: false, error: { key: 'x' } }) }),
+    } as unknown as PrimitiveManifest;
+    const registries = { producers: { get: () => producer }, views: { list: () => [] } } as unknown as StartLabOptions['registries'];
+    const link = readLabLink(`lab=p&p=${encodeJsonBase64Url({ n: 1 })}&v=1`, 'p');
+    expect(await startLab({ producerId: 'p', link, registries })).toEqual({ status: 'error', error: { key: 'x' } });
   });
 
   it('reports an unknown producer', async () => {

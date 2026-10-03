@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { PrimitiveManifest } from '@cryventure/core';
+import { cbcManifest } from '@cryventure/primitives/cbc';
 import { matchingPresetId, presetParams, resolveStartParams } from './startParams.ts';
 
 interface Toy {
@@ -28,6 +29,16 @@ describe('matchingPresetId', () => {
   it('finds a preset by value', () => {
     expect(matchingPresetId(toy, { n: 1 })).toBe('one');
     expect(matchingPresetId(toy, { n: 7 })).toBeUndefined();
+  });
+
+  it('ignores key order (validators may rebuild params in a different order)', () => {
+    const preset = cbcManifest.presets[0]!;
+    const reordered = Object.fromEntries(Object.entries(preset.params).reverse()) as typeof preset.params;
+    expect(JSON.stringify(reordered)).not.toBe(JSON.stringify(preset.params));
+    expect(matchingPresetId(cbcManifest, reordered)).toBe(preset.id);
+    const validated = cbcManifest.validate(preset.params);
+    if (!validated.ok) throw new Error('preset must validate');
+    expect(matchingPresetId(cbcManifest, validated.value)).toBe(preset.id);
   });
 });
 

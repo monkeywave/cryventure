@@ -5,7 +5,7 @@ import { createLabRunner, type LabRunner } from './labRunner.ts';
 import { mergeParams } from './paramFields.ts';
 import { producerRegistry, resolveLab, type LabRegistries } from './registry.ts';
 import { initialStep, type StartAt } from './startAt.ts';
-import { resolveStartParams } from './startParams.ts';
+import { presetParams, resolveStartParams, type StartParams } from './startParams.ts';
 import { mapStepAcrossTraces } from './stepMapping.ts';
 
 export { runProducer } from './runProducer.ts';
@@ -70,14 +70,32 @@ export async function startLab({ producerId, presetId, link, startAt, mode, regi
   if (!resolved.ok) return { status: 'error', error: resolved.error };
   const producer = resolved.lab.producer as PrimitiveManifest<LabParams>;
   const { views } = resolved.lab;
-  const start = resolveStartParams(producer, link, presetId);
   const runner = givenRunner ?? createLabRunner({ producers: registries?.producers ?? producerRegistry });
-  const [result, choreography] = await Promise.all([runner.run(producer, start.params), loadChoreographyModule(producer), preloadViews(views)]);
+  const [{ start, result }, choreography] = await Promise.all([
+    runStartParams(runner, producer, resolveStartParams(producer, link, presetId), presetId),
+    loadChoreographyModule(producer),
+    preloadViews(views),
+  ]);
   if (!result.ok) return { status: 'error', error: result.error };
   const store = createLabStore(result.trace, { labHref, blockLabHref });
   if (mode !== undefined) store.getState().setMode(mode);
   store.getState().seek(initialStep(start.step, startAt, stateSteps(result.trace)));
   return { status: 'ready', producer, views, store, params: start.params, notice: start.notice, choreography, runner };
+}
+
+/**
+ * Runs the start params; when link-derived params pass validation but fail at run time (wrong key
+ * size, IV length, unknown cipher, ...), retries once with the preset/defaults and raises the notice,
+ * exactly as an unusable link does in `resolveStartParams`. A failing fallback keeps its error.
+ */
+async function runStartParams(runner: LabRunner, producer: PrimitiveManifest<LabParams>, start: StartParams<LabParams>, presetId: string | undefined) {
+  const result = await runner.run(producer, start.params);
+  const fallbackParams = presetParams(producer, presetId);
+  // `resolveStartParams` hands out the preset/defaults object itself, so a different object came from the link.
+  const fromLink = start.params !== fallbackParams;
+  if (result.ok || !fromLink) return { start, result };
+  const fallback: StartParams<LabParams> = { params: fallbackParams, step: undefined, notice: true };
+  return { start: fallback, result: await runner.run(producer, fallback.params) };
 }
 
 /** `true` while a run is still the latest one; a superseded run must not touch the shared store. */

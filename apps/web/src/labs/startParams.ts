@@ -14,10 +14,17 @@ export function presetParams<P>(producer: PrimitiveManifest<P>, presetId: string
   return producer.presets.find((preset) => preset.id === presetId)?.params ?? producer.defaults;
 }
 
-/** Id of the preset whose params equal `params` (after validation), if any. */
+/** Id of the preset whose params equal `params` (after validation) value by value, whatever the key order; if any. */
 export function matchingPresetId<P>(producer: PrimitiveManifest<P>, params: P): string | undefined {
-  const wanted = JSON.stringify(params);
-  return producer.presets.find((preset) => JSON.stringify(preset.params) === wanted)?.id;
+  return producer.presets.find((preset) => sameParams(preset.params, params))?.id;
+}
+
+/** Per-key equality over the union of both key sets, so the order in which a producer builds its params never matters. */
+function sameParams(a: unknown, b: unknown): boolean {
+  const left = a as Record<string, unknown>;
+  const right = b as Record<string, unknown>;
+  const keys = new Set([...Object.keys(left), ...Object.keys(right)]);
+  return [...keys].every((key) => JSON.stringify(left[key]) === JSON.stringify(right[key]));
 }
 
 /**
