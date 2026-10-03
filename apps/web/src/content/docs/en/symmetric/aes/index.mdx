@@ -137,11 +137,12 @@ attacks on AES-128 reach 7 rounds; against the full 10 rounds, the best known ke
 
 ## Check yourself
 
-<CheckQuestion number={1} question="How many rounds does AES-192 use?" options={['10', '12', '14', '16']} answer={1}>
+<CheckQuestion id="aes192-rounds" number={1} question="How many rounds does AES-192 use?" options={['10', '12', '14', '16']} answer={1}>
   `Nr = Nk + 6`, and AES-192 has `Nk = 6` key words (FIPS 197, Table 3).
 </CheckQuestion>
 
 <CheckQuestion
+  id="input-byte-5-position"
   number={2}
   question="Where does input byte in[5] land in the state?"
   options={['s[1, 1]', 's[1, 0]', 's[0, 1]', 's[2, 1]']}
@@ -151,6 +152,7 @@ attacks on AES-128 reach 7 rounds; against the full 10 rounds, the best known ke
 </CheckQuestion>
 
 <CheckQuestion
+  id="final-round-omits"
   number={3}
   question="Which step does the final round leave out?"
   options={['SubBytes', 'ShiftRows', 'MixColumns', 'AddRoundKey']}

@@ -93,6 +93,7 @@ attack against a T-table implementation.
 ## Check yourself
 
 <CheckQuestion
+  id="armv8-aese-round-key"
   number={1}
   question="When does ARMv8 AESE add the round key?"
   options={['Before ShiftRows and SubBytes', 'After MixColumns', 'After SubBytes only', 'Never; AESMC does it']}
@@ -102,6 +103,7 @@ attack against a T-table implementation.
 </CheckQuestion>
 
 <CheckQuestion
+  id="openssl-rd-key-size"
   number={2}
   question="How large is the rd_key array in OpenSSL's AES_KEY?"
   options={['176 bytes', '208 bytes', '240 bytes', '256 bytes']}

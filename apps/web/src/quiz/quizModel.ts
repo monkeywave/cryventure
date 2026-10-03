@@ -1,4 +1,4 @@
-import type { LessonProgress, ProgressV1, QuizAnswer } from '../progress/index.ts';
+import { resolveQuizAnswer, type LessonProgress, type Progress, type QuizAnswer, type QuizQuestionRef } from '../progress/index.ts';
 
 /** Option label for a zero-based index: 0 → "A", 1 → "B", … */
 export function optionLetter(index: number): string {
@@ -28,7 +28,8 @@ export interface QuizLesson {
   key: string;
   title: string;
   href?: string;
-  questionCount: number;
+  /** The lesson's questions, from its MDX source (see `extractCheckQuestions`). */
+  questions: readonly QuizQuestionRef[];
 }
 
 export interface LessonScore {
@@ -37,32 +38,34 @@ export interface LessonScore {
   total: number;
 }
 
-/** Questions count once solved (see `QuizAnswer.solved`); answers to question numbers beyond `questionCount` are ignored. */
-export function lessonScore(lesson: LessonProgress | undefined, questionCount: number): LessonScore {
-  const answers = Object.entries(lesson?.quiz ?? {})
-    .filter(([questionNumber]) => Number(questionNumber) <= questionCount)
-    .map(([, answer]) => answer);
+/**
+ * Questions count once solved (see `QuizAnswer.solved`). Each question's answer is resolved by id,
+ * else by its v1 number (`resolveQuizAnswer`); answers to questions not listed are ignored.
+ */
+export function lessonScore(lesson: LessonProgress | undefined, questions: readonly QuizQuestionRef[]): LessonScore {
+  const answers = questions.map((question) => resolveQuizAnswer(lesson, question)).filter((answer) => answer !== undefined);
   const correct = answers.filter((answer) => answer.solved).length;
-  return { correct, answered: answers.length, total: questionCount };
+  return { correct, answered: answers.length, total: questions.length };
 }
 
-function highestQuestionNumber(lesson: LessonProgress): number {
-  return Math.max(0, ...Object.keys(lesson.quiz).map(Number).filter(Number.isSafeInteger));
+/**
+ * One question per recorded answer, for a lesson this site version does not know. Ids get number 0
+ * (no v1 number); a v1 answer gets its number as id, which can't clash because ids start with a letter.
+ */
+function recordedQuestions(lesson: LessonProgress): QuizQuestionRef[] {
+  const byId = Object.keys(lesson.quiz).map((id) => ({ id, number: 0 }));
+  const byNumber = Object.keys(lesson.legacyQuiz ?? {}).map((key) => ({ id: key, number: Number(key) }));
+  return [...byId, ...byNumber];
 }
 
 /**
  * The known lessons in their given order, followed by lessons that only appear in the progress
  * (e.g. imported from a newer site version), titled by their key.
  */
-export function lessonsWithProgress(known: readonly QuizLesson[], progress: ProgressV1): QuizLesson[] {
+export function lessonsWithProgress(known: readonly QuizLesson[], progress: Progress): QuizLesson[] {
   const knownKeys = new Set(known.map((lesson) => lesson.key));
   const extra = Object.entries(progress.lessons)
-    .filter(([key, lesson]) => !knownKeys.has(key) && Object.keys(lesson.quiz).length > 0)
-    .map(([key, lesson]) => ({ key, title: key, questionCount: highestQuestionNumber(lesson) }));
+    .map(([key, lesson]) => ({ key, title: key, questions: recordedQuestions(lesson) }))
+    .filter((lesson) => !knownKeys.has(lesson.key) && lesson.questions.length > 0);
   return [...known, ...extra];
-}
-
-/** Number of `<CheckQuestion` elements in an MDX source. */
-export function countCheckQuestions(mdxSource: string | undefined): number {
-  return mdxSource?.match(/<CheckQuestion\b/g)?.length ?? 0;
 }

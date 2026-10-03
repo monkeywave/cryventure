@@ -16,7 +16,7 @@ refs:
   - FIPS 197, Abschnitt 5 (Algorithm Specification, Tabelle 3)
   - FIPS 197, Abschnitt 5.1 (Cipher, Abbildung 5)
   - FIPS 197, Anhang B (Cipher Example)
-sourceHash: sha256:fd56800ec02d959af095494de392cf59585d73a8a91e59d8388dd30658723a90
+sourceHash: sha256:acf2fe4e635387f46c30fc6b96dda1ef8dca668f86b81efa70b981d29d24e756
 translation:
   status: ai-reviewed
   reviewedAt: '2026-10-02'
@@ -145,11 +145,12 @@ reichen bis 7 Runden; gegen alle 10 Runden kostet die beste bekannte Schlüsselr
 
 ## Teste dich selbst
 
-<CheckQuestion number={1} question="Wie viele Runden hat AES-192?" options={['10', '12', '14', '16']} answer={1}>
+<CheckQuestion id="aes192-rounds" number={1} question="Wie viele Runden hat AES-192?" options={['10', '12', '14', '16']} answer={1}>
   `Nr = Nk + 6`, und AES-192 hat `Nk = 6` Schlüsselwörter (FIPS 197, Tabelle 3).
 </CheckQuestion>
 
 <CheckQuestion
+  id="input-byte-5-position"
   number={2}
   question="Wo landet das Eingabebyte in[5] in der Zustandsmatrix?"
   options={['s[1, 1]', 's[1, 0]', 's[0, 1]', 's[2, 1]']}
@@ -159,6 +160,7 @@ reichen bis 7 Runden; gegen alle 10 Runden kostet die beste bekannte Schlüsselr
 </CheckQuestion>
 
 <CheckQuestion
+  id="final-round-omits"
   number={3}
   question="Welchen Schritt lässt die Schlussrunde aus?"
   options={['SubBytes', 'ShiftRows', 'MixColumns', 'AddRoundKey']}

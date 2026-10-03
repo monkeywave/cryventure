@@ -61,7 +61,7 @@ test('progress page shows scores, exports, resets and imports', async ({ page })
   const [download] = await Promise.all([page.waitForEvent('download'), page.getByRole('button', { name: 'Export progress' }).click()]);
   expect(download.suggestedFilename()).toBe('cryventure-progress.json');
   const exported = await readFile(await download.path(), 'utf8');
-  expect(JSON.parse(exported)).toMatchObject({ format: 'cryventure-progress', version: 1, lessons: { 'symmetric/aes': { quiz: { 1: { solved: true, lastAnswer: 1 } } } } });
+  expect(JSON.parse(exported)).toMatchObject({ format: 'cryventure-progress', version: 2, lessons: { 'symmetric/aes': { quiz: { 'aes192-rounds': { solved: true, lastAnswer: 1 } } } } });
 
   await page.getByRole('button', { name: 'Reset progress' }).click();
   await page.getByRole('button', { name: 'Yes, reset' }).click();
@@ -74,6 +74,26 @@ test('progress page shows scores, exports, resets and imports', async ({ page })
   await fileInput.setInputFiles({ name: 'cryventure-progress.json', mimeType: 'application/json', buffer: Buffer.from(exported) });
   await expect(page.getByText('Progress imported.')).toBeVisible();
   await expect(lessonRow(page, 'AES at a glance')).toContainText('1 of 3 answered correctly');
+});
+
+test('progress stored by v1 (keyed by question number) still shows and moves to the id once answered again', async ({ page }) => {
+  const v1 = { version: 1, lessons: { 'symmetric/aes': { quiz: { '1': { solved: true, lastAnswer: 1 } } } } };
+  await page.goto('en/progress/');
+  await page.evaluate((record) => localStorage.setItem('cv.progress.v1', JSON.stringify(record)), v1);
+  await page.reload();
+  await expect(lessonRow(page, 'AES at a glance')).toContainText('1 of 3 answered correctly');
+
+  const question = await firstQuestion(page);
+  await expect(question).toHaveAttribute('data-question-id', 'aes192-rounds');
+  await expect(question.getByRole('status')).toContainText('Correct!');
+  await expect(question.getByRole('radio', { name: /^B/ })).toBeChecked();
+
+  await question.getByRole('button', { name: 'Try again' }).click();
+  await question.getByRole('radio', { name: /^C/ }).check();
+  await question.getByRole('button', { name: 'Check' }).click();
+  await expect(question.getByRole('status')).toContainText('Not quite');
+  const stored = await page.evaluate(() => JSON.parse(localStorage.getItem('cv.progress.v1') ?? 'null'));
+  expect(stored).toEqual({ version: 2, lessons: { 'symmetric/aes': { quiz: { 'aes192-rounds': { solved: true, lastAnswer: 2 } } } } });
 });
 
 test('German progress page is translated', async ({ page }) => {

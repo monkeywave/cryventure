@@ -1,9 +1,10 @@
 import type { I18nRef } from '../i18n.ts';
-import { isIndex } from './validation.ts';
+import { INITIAL_STEP_INDEX, isIndex, isStepIndex } from './validation.ts';
 
 /**
  * Math facet: per-step equations (GF(2^8) multiplication, inversion, the affine map …) as plain
- * terms that views typeset. Each `MathStep.step` is a state-facet step index (see docs/M2.md §2).
+ * terms that views typeset. Each `MathStep.step` is a state-facet step index (see docs/M2.md §2), or −1
+ * for the initial state (e.g. the loaded operands, see docs/M3.md §0a).
  */
 
 /** How a term enters the computation. */
@@ -33,7 +34,7 @@ export interface MathTerm {
 }
 
 export interface MathStep {
-  /** State-facet step index. */
+  /** State-facet step index, or −1 for the initial state. */
   step: number;
   formula: I18nRef;
   terms: MathTerm[];
@@ -43,7 +44,7 @@ export interface MathFacet {
   kind: 'math';
   schemaVersion: 1;
   notation: { field: 'gf2^8'; modulus: number };
-  /** Strictly increasing `step`. */
+  /** Strictly increasing `step` (the first may be −1, the initial state). */
   steps: MathStep[];
 }
 
@@ -78,7 +79,7 @@ export function mathTermProblems(term: MathTerm, where: string): string[] {
 
 function mathStepProblems(step: MathStep, previous: number | undefined): string[] {
   const problems: string[] = [];
-  if (!Number.isInteger(step.step) || step.step < 0) problems.push(`math: step ${step.step} is not a non-negative integer`);
+  if (!isStepIndex(step.step)) problems.push(`math: step ${step.step} is not an integer ≥ ${INITIAL_STEP_INDEX}`);
   if (previous !== undefined && step.step <= previous) problems.push(`math: step ${step.step} does not increase (after ${previous})`);
   const ids = new Set<string>();
   for (const term of step.terms) {

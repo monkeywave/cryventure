@@ -9,6 +9,9 @@ import { useQuizQuestion, type QuizQuestionState } from './quiz/useQuizQuestion.
 export interface QuizQuestionProps {
   /** Lesson the question belongs to (see `lessonKeyFromPath`). */
   lessonKey: string;
+  /** Stable question id (kebab-case, unique per lesson, same in every locale); progress is keyed by it. */
+  questionId: string;
+  /** Display-only question number. */
   number: number;
   question: string;
   options: string[];
@@ -58,17 +61,17 @@ function QuizActions({ quiz }: { quiz: QuizQuestionState }) {
   );
 }
 
-function QuestionBody({ lessonKey, number, question, options, answer, children }: QuestionBodyProps) {
+function QuestionBody({ lessonKey, questionId, number, question, options, answer, children }: QuestionBodyProps) {
   const t = useT();
   const name = useId();
   const hydrated = useHydrated();
-  const quiz = useQuizQuestion(lessonKey, number, answer, options.length);
+  const quiz = useQuizQuestion(lessonKey, { id: questionId, number }, answer, options.length);
   const onSubmit = (event: SubmitEvent<HTMLFormElement>): void => {
     event.preventDefault();
     quiz.check();
   };
   return (
-    <form className="cv-check cv-quiz" data-status={quiz.status} data-hydrated={hydrated} onSubmit={onSubmit} noValidate>
+    <form className="cv-check cv-quiz" data-question-id={questionId} data-status={quiz.status} data-hydrated={hydrated} onSubmit={onSubmit} noValidate>
       <fieldset className="cv-quiz__fieldset">
         <legend className="cv-quiz__question">
           <strong>{t('quiz.question.label', { number })}:</strong> {question}

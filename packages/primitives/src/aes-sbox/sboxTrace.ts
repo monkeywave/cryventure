@@ -14,6 +14,7 @@ import {
   type GinvStep,
   type Highlight,
   type I18nRef,
+  type InitialContent,
   type MathFacet,
   type MathTerm,
   type MathTermOptions,
@@ -32,11 +33,13 @@ export type SboxStateFacet = StateFacet<SboxRegion, SboxOp>;
 const NS = 'plugin.aes-sbox';
 const BYTE_WIDTH = 8;
 
-/** Phases (outermost scope level): load, inversion, affine map. */
-export const PHASE = { load: 0, inversion: 1, affine: 2 } as const;
+/** Phases (outermost scope level): inversion, affine map. The input x is the initial state (step −1). */
+export const PHASE = { inversion: 0, affine: 1 } as const;
 
-/** One byte per region; the affine constant is known up front, every other byte is a placeholder until a step computes it. */
-const SBOX_REGIONS = (['input', 'inverse', 'constant', 'output'] as const).map((id) => singleCellRegion(NS, id, { order: 'row-major', blank: id !== 'constant' }));
+/** One byte per region; the input x and the affine constant are known up front, every other byte is a placeholder until a step computes it. */
+const SBOX_REGIONS = (['input', 'inverse', 'constant', 'output'] as const).map((id) =>
+  singleCellRegion(NS, id, { order: 'row-major', blank: id === 'inverse' || id === 'output' }),
+);
 
 /** A byte term (`width` overrides 8 for a single bit). */
 function term(id: string, label: I18nRef, value: number, role: MathTerm['role'], { width = BYTE_WIDTH, ...options }: MathTermOptions & { width?: number } = {}): MathTerm {
@@ -58,9 +61,10 @@ interface SboxStep {
 
 type SboxRecorder = PairedRecorder<SboxRegion, SboxOp>;
 
-function sboxRecorder(): SboxRecorder {
-  const initial = { input: [0], inverse: [0], constant: [AFFINE_CONSTANT], output: [0] };
-  return new PairedRecorder<SboxRegion, SboxOp>(SBOX_REGIONS, initial, scopeLevels(NS, 'phase', 'op'));
+/** The initial state holds x (narrated at step −1, with its math) and the affine constant. */
+function sboxRecorder(x: number): SboxRecorder {
+  const initial = { input: [x], inverse: [0], constant: [AFFINE_CONSTANT], output: [0] };
+  return new PairedRecorder<SboxRegion, SboxOp>(SBOX_REGIONS, initial, scopeLevels(NS, 'phase', 'op'), initialContent(x));
 }
 
 /** One op-level state step (own scope) plus its math step. */
@@ -74,16 +78,11 @@ function inPhase(recorder: SboxRecorder, index: number, body: () => void): void 
   recorder.leave();
 }
 
-function loadStep(x: number): SboxStep {
+function initialContent(x: number): InitialContent {
   const narrationKey = x === 0 ? 'loadZero' : 'load';
   return {
-    op: 'load',
-    region: 'input',
-    value: x,
-    highlights: [highlight('input', 'write')],
     narration: i18nRef(`${NS}.step.${narrationKey}`, { x: braceHex(x) }),
-    formula: i18nRef(`${NS}.math.load`, { x: braceHex(x) }),
-    terms: [xTerm(x)],
+    math: { formula: i18nRef(`${NS}.math.load`, { x: braceHex(x) }), terms: [xTerm(x)] },
   };
 }
 
@@ -183,10 +182,9 @@ export interface SboxDerivation {
 
 /** Records the full derivation of S(x) in scopes [phase, op]. */
 export function recordSboxDerivation(x: number): SboxDerivation {
-  const recorder = sboxRecorder();
+  const recorder = sboxRecorder(x);
   let inverse = 0;
   let sbox = 0;
-  inPhase(recorder, PHASE.load, () => emit(recorder, loadStep(x)));
   inPhase(recorder, PHASE.inversion, () => (inverse = recordInversion(recorder, x)));
   const inverseStep = recorder.stepCount - 1;
   inPhase(recorder, PHASE.affine, () => {

@@ -40,7 +40,7 @@ export const XOR_PARAM_FIELDS: ParamField[] = [
   { name: 'keyHex', kind: 'hex', labelKey: `${NS}.param.key`, hintKey: `${NS}.param.keyHint` },
 ];
 
-export const XOR_OP_NAMES = ['loadMessage', 'loadKey', 'xorByte', 'decrypt'] as const;
+export const XOR_OP_NAMES = ['xorByte', 'decrypt'] as const;
 export type XorOpName = (typeof XOR_OP_NAMES)[number];
 
 /** Labels of every op the module records (`StateStep.op`); the player and debugger show them. */

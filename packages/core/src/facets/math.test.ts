@@ -15,6 +15,12 @@ describe('mathStepAt', () => {
     expect(mathStepAt(sparse, 100)?.step).toBe(9);
   });
   it('handles an empty facet', () => expect(mathStepAt(facet([]), 0)).toBeUndefined());
+  it('returns a step −1 entry at the initial state and until the next entry', () => {
+    const withInitial = facet([mathStep(-1), mathStep(2)]);
+    expect(mathStepAt(withInitial, -1)?.step).toBe(-1);
+    expect(mathStepAt(withInitial, 1)?.step).toBe(-1);
+    expect(mathStepAt(withInitial, 2)?.step).toBe(2);
+  });
 });
 
 describe('mathTermProblems', () => {
@@ -38,9 +44,11 @@ describe('validateMathFacet / assertValidMathFacet', () => {
     expect(validateMathFacet(valid)).toEqual([]);
     expect(() => assertValidMathFacet(valid)).not.toThrow();
   });
-  it('requires strictly increasing, non-negative integer steps', () => {
+  it('requires strictly increasing integer steps ≥ −1', () => {
     expect(validateMathFacet(facet([mathStep(2), mathStep(2)]))).toEqual(['math: step 2 does not increase (after 2)']);
-    expect(validateMathFacet(facet([mathStep(-1)]))).toEqual(['math: step -1 is not a non-negative integer']);
+    expect(validateMathFacet(facet([mathStep(-1), mathStep(0)]))).toEqual([]);
+    expect(validateMathFacet(facet([mathStep(-2)]))).toEqual(['math: step -2 is not an integer ≥ -1']);
+    expect(validateMathFacet(facet([mathStep(0.5)]))).toEqual(['math: step 0.5 is not an integer ≥ -1']);
   });
   it('rejects duplicate term ids, bad terms and a bad modulus', () => {
     const bad = facet([mathStep(0, [term('a', 1), term('a', 0x100)])], 0);

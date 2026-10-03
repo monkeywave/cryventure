@@ -71,7 +71,7 @@ i of `{83}` the lab adds `{57} • xⁱ` to an accumulator, and each `• x` is 
 view shows the bit strips; switch to the cryptographer lens to see the same values as polynomials.
 Change the operation to *xtime* or *inverse*, or type your own bytes.
 
-<Lab labId="gf256-calc" producerId="gf256" presetId="fips197-mul" startAt="op:load" layout="math:50|state:20|narration:30" />
+<Lab labId="gf256-calc" producerId="gf256" presetId="fips197-mul" layout="math:50|state:20|narration:30" />
 
 </LessonSection>
 
@@ -100,7 +100,7 @@ Any product is a XOR of such shifted copies, one per set bit of the second facto
 a⁻¹ = a²⁵⁴. Example: `{53}⁻¹ = {ca}`. AES defines `{00}⁻¹ = {00}` (FIPS 197, §5.1.1). This inverse
 is the heart of the AES S-box: [Deriving the S-box](../../symmetric/aes/sbox-derivation/).
 
-<Lab labId="gf256-inverse" producerId="gf256" presetId="inverse" startAt="op:load" layout="math:50|state:20|narration:30" />
+<Lab labId="gf256-inverse" producerId="gf256" presetId="inverse" layout="math:50|state:20|narration:30" />
 
 <Lens level="cryptographer">
 
@@ -156,17 +156,18 @@ irreducible m(x), GF(2⁸) gives AES both, on exactly the 256 values a byte can 
 
 ## Check yourself
 
-<CheckQuestion number={1} question="What is {57} + {83} in GF(2⁸)?" options={['{da}', '{d4}', '{c1}', '{01}{d4}']} answer={1}>
+<CheckQuestion id="gf-addition" number={1} question="What is {57} + {83} in GF(2⁸)?" options={['{da}', '{d4}', '{c1}', '{01}{d4}']} answer={1}>
   Addition is coefficient-wise mod 2, i.e. XOR: `{57} ⊕ {83} = {d4}` (FIPS 197, §4.1). `{da}` is the
   integer sum, and `{c1}` is the product.
 </CheckQuestion>
 
-<CheckQuestion number={2} question="What is xtime({80})?" options={['{00}', '{01}{00}', '{1b}', '{80}']} answer={2}>
+<CheckQuestion id="xtime-80" number={2} question="What is xtime({80})?" options={['{00}', '{01}{00}', '{1b}', '{80}']} answer={2}>
   Shifting `{80}` left drops bit 7 and leaves `{00}`. Bit 7 was set, so the x⁸ term is reduced by XOR
   with `{1b}`: the result is `{1b}` (FIPS 197, §4.2.1).
 </CheckQuestion>
 
 <CheckQuestion
+  id="irreducible-modulus"
   number={3}
   question="Why does the AES modulus have to be irreducible?"
   options={['To make XOR faster', 'So that every non-zero byte has a multiplicative inverse', 'So that {02} generates all non-zero bytes', 'So that products never need a reduction']}

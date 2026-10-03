@@ -9,12 +9,16 @@ export type XorStateFacet = StateFacet<XorRegion, XorOp>;
 const NS = 'plugin.xor';
 const REGION_IDS: readonly XorRegion[] = ['message', 'key', 'result', 'recovered'];
 
+/** Rows the initial state holds (step −1); the others start blank until a step computes them. */
+const GIVEN_REGIONS: readonly XorRegion[] = ['message', 'key'];
+
 /**
  * One flat u8 row per region; the state view draws 1-D regions as rows of up to 16 bytes with offsets.
- * Every row starts blank: its zeros are placeholders until a step loads or computes it.
+ * Message and key are given in the initial state; result and recovered start blank: their zeros are
+ * placeholders until a step computes them.
  */
 export function xorRegions(length: number): RegionSpec<XorRegion>[] {
-  return REGION_IDS.map((id) => ({ id, labelKey: `${NS}.region.${id}`, elem: 'u8', shape: [length], initial: 'blank' }));
+  return REGION_IDS.map((id) => ({ id, labelKey: `${NS}.region.${id}`, elem: 'u8', shape: [length], ...(GIVEN_REGIONS.includes(id) ? {} : { initial: 'blank' as const }) }));
 }
 
 /** Byte-wise XOR of two equal-length rows (throws on length mismatch, like core `xorBytes`). */
@@ -23,15 +27,6 @@ export function xorRows(a: readonly number[], b: readonly number[]): number[] {
 }
 
 type XorTracer = RecordingTracer<XorRegion, XorOp>;
-
-function loadRow(tracer: XorTracer, op: 'loadMessage' | 'loadKey', region: 'message' | 'key', bytes: number[]): void {
-  tracer.step({
-    op,
-    writes: [{ region, offset: 0, values: bytes }],
-    highlights: [{ region, indices: allIndices(bytes.length), kind: 'write' }],
-    narration: i18nRef(`${NS}.step.${op}`, { count: bytes.length }),
-  });
-}
 
 /** Records one byte's XOR and returns it. */
 function xorByte(tracer: XorTracer, index: number, message: number, key: number): number {
@@ -71,13 +66,13 @@ export interface XorRecording {
   recovered: number[];
 }
 
-/** Records: load message, load key, one XOR step per byte, then decrypt with the same key. */
+/** Records message and key as the (narrated) initial state, then one XOR step per byte, then decrypt with the same key. */
 export function recordXor(message: number[], key: number[]): XorRecording {
   const regions = xorRegions(message.length);
-  const tracer: XorTracer = new RecordingTracer<XorRegion, XorOp>(regions, zeroSnapshot(regions));
+  const initial = { ...zeroSnapshot(regions), message: [...message], key: [...key] };
+  const initialNarration = i18nRef(`${NS}.step.initial`, { count: message.length });
+  const tracer: XorTracer = new RecordingTracer<XorRegion, XorOp>(regions, initial, { initialNarration });
   tracer.enter();
-  loadRow(tracer, 'loadMessage', 'message', message);
-  loadRow(tracer, 'loadKey', 'key', key);
   const result = message.map((byte, index) => xorByte(tracer, index, byte, key[index] ?? 0));
   const recovered = decrypt(tracer, result, key);
   tracer.leave();

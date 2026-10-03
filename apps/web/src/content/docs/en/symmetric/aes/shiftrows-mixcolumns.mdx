@@ -113,15 +113,16 @@ toggle for this experiment follows in a later milestone.
 
 ## Check yourself
 
-<CheckQuestion number={1} question="By how many positions does ShiftRows rotate row 3?" options={['0', '1', '2', '3']} answer={3}>
+<CheckQuestion id="shiftrows-row-3" number={1} question="By how many positions does ShiftRows rotate row 3?" options={['0', '1', '2', '3']} answer={3}>
   Row `r` is rotated left by `r` positions (for the 128-bit AES block).
 </CheckQuestion>
 
-<CheckQuestion number={2} question="What is xtime(57)?" options={['AE', 'AF', 'B5', '57']} answer={0}>
+<CheckQuestion id="xtime-57" number={2} question="What is xtime(57)?" options={['AE', 'AF', 'B5', '57']} answer={0}>
   `57` has no top bit set, so xtime is a plain left shift: `0101 0111 → 1010 1110 = AE` (FIPS 197, §4.2.1).
 </CheckQuestion>
 
 <CheckQuestion
+  id="mixcolumns-diffusion"
   number={3}
   question="A column with exactly one non-zero byte enters MixColumns. How many output bytes are non-zero?"
   options={['1', '2', '3', '4']}

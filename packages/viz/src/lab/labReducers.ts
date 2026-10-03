@@ -1,9 +1,9 @@
-import type { FacetKey, NodeRef, TraceBundle } from '@cryventure/core';
+import { INITIAL_STEP_INDEX, type FacetKey, type NodeRef, type TraceBundle } from '@cryventure/core';
 import { distinctOps, opAt, stateFacetOf, stateSteps } from './stateSteps.ts';
 import { timelineLength } from './timeline.ts';
 
-/** Sentinel step before the first event: the initial state. */
-export const INITIAL_STEP = -1;
+/** Sentinel step before the first event: the initial state (core's step −1). */
+export const INITIAL_STEP = INITIAL_STEP_INDEX;
 export const SPEEDS = [0.5, 1, 2, 4] as const;
 export const DEFAULT_SPEED = 1;
 

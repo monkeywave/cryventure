@@ -34,6 +34,10 @@ describe('recordEndian', () => {
   const recording = recordEndian(VALUE);
   const { steps } = recording.facet;
 
+  it('narrates the initial state: the integer that is about to be laid out', () => {
+    expect(recording.facet.initialNarration).toEqual({ key: 'plugin.endian.step.initial', params: { value: '0a0b0c0d', bits: 32 } });
+  });
+
   it('records split, 4 big-endian stores, 4 little-endian stores, compare', () => {
     expect(steps.map((step) => step.op)).toEqual(['split', ...Array<string>(4).fill('storeBig'), ...Array<string>(4).fill('storeLittle'), 'compare']);
   });

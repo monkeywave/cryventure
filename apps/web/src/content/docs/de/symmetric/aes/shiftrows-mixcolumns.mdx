@@ -16,7 +16,7 @@ refs:
   - FIPS 197, Abschnitt 5.1.2 (ShiftRows, Abbildung 8)
   - FIPS 197, Abschnitt 5.1.3 (MixColumns, Gleichung 5.6)
   - FIPS 197, Anhang B (Cipher Example, Runde 1)
-sourceHash: sha256:9342bdf1ab391d9ca3986e6762e061cb3a6ccd749c2c24254e64fea599a789f9
+sourceHash: sha256:bc6eac35b77986040552ce3ebf0419926ab9bc40c067d06f4b07fca7ca166817
 translation:
   status: ai-reviewed
   reviewedAt: '2026-10-02'
@@ -124,15 +124,16 @@ Lab-Schalter für dieses Experiment folgt in einem späteren Meilenstein.
 
 ## Teste dich selbst
 
-<CheckQuestion number={1} question="Um wie viele Positionen rotiert ShiftRows die Zeile 3?" options={['0', '1', '2', '3']} answer={3}>
+<CheckQuestion id="shiftrows-row-3" number={1} question="Um wie viele Positionen rotiert ShiftRows die Zeile 3?" options={['0', '1', '2', '3']} answer={3}>
   Zeile `r` wird um `r` Positionen nach links rotiert (beim 128-Bit-Block von AES).
 </CheckQuestion>
 
-<CheckQuestion number={2} question="Was ist xtime(57)?" options={['AE', 'AF', 'B5', '57']} answer={0}>
+<CheckQuestion id="xtime-57" number={2} question="Was ist xtime(57)?" options={['AE', 'AF', 'B5', '57']} answer={0}>
   Bei `57` ist das oberste Bit nicht gesetzt, also ist xtime eine reine Linksverschiebung: `0101 0111 → 1010 1110 = AE` (FIPS 197, §4.2.1).
 </CheckQuestion>
 
 <CheckQuestion
+  id="mixcolumns-diffusion"
   number={3}
   question="Eine Spalte mit genau einem von null verschiedenen Byte geht in MixColumns ein. Wie viele Ausgabebytes sind ungleich null?"
   options={['1', '2', '3', '4']}

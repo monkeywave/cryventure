@@ -21,7 +21,7 @@ refs:
   - FIPS 180-4, Abschnitt 3.1 (Big-Endian-Konvention)
   - RFC 8439, Abschnitt 2.3 (ChaCha20-Zustand, Little-Endian-Wörter)
   - Rijmen, Bosselaers, Barreto, rijndael-alg-fst.c v3.0 (GETU32 / PUTU32)
-sourceHash: sha256:21e5639d24306936a7ae36a480c36d8c2d623e6136b64dde7ee1d144c159870a
+sourceHash: sha256:69694e04e6da283a186d15d2140a9acb4ab2e26d9803e8e296f52b2fdb13402e
 translation:
   status: ai-reviewed
   reviewedAt: '2026-10-02'
@@ -146,11 +146,12 @@ Host-Bytereihenfolge abgelegt ist. Such nach beiden Bytereihenfolgen.
 
 ## Teste dich selbst
 
-<CheckQuestion number={1} question="Das u32 0x12345678 liegt als Little-Endian an Adresse a. Welches Byte steht an a + 0?" options={['12', '34', '56', '78']} answer={3}>
+<CheckQuestion id="le-byte-at-offset-0" number={1} question="Das u32 0x12345678 liegt als Little-Endian an Adresse a. Welches Byte steht an a + 0?" options={['12', '34', '56', '78']} answer={3}>
   Little-Endian legt das niedrigstwertige Byte zuerst ab, und das ist `78`.
 </CheckQuestion>
 
 <CheckQuestion
+  id="network-byte-order"
   number={2}
   question="Was ist die Netzwerk-Bytereihenfolge?"
   options={['Little-Endian', 'Big-Endian', 'Die des sendenden Hosts', 'Bitweise umgedreht']}
@@ -160,6 +161,7 @@ Host-Bytereihenfolge abgelegt ist. Such nach beiden Bytereihenfolgen.
 </CheckQuestion>
 
 <CheckQuestion
+  id="round-key-word-bytes"
   number={3}
   question="Ein x86-Speicherabbild der Rundenschlüssel aus rijndael-alg-fst beginnt mit 16 15 7e 2b. Welche Schlüsselbytes enthält dieses Wort?"
   options={['16 15 7e 2b', '2b 7e 15 16', '7e 2b 16 15', '61 51 e7 b2']}

@@ -10,6 +10,12 @@ describe('currentNarrationRef', () => {
   it('hints at the initial state before the first step', () => {
     expect(currentNarrationRef({ facet: ready, step: INITIAL_STEP })).toEqual({ key: NARRATION_KEYS.initial });
   });
+  it("shows the producer's initial narration (step −1) when it has one", () => {
+    const withInitial: NarrationFacet = { ...facet, entries: [{ step: INITIAL_STEP, ref: { key: 'plugin.x.initial', params: { a: '{57}' } } }, ...facet.entries] };
+    const data = { status: 'ready', data: withInitial } as const;
+    expect(currentNarrationRef({ facet: data, step: INITIAL_STEP })).toEqual({ key: 'plugin.x.initial', params: { a: '{57}' } });
+    expect(currentNarrationRef({ facet: data, step: 0 })).toEqual({ key: 'step.zero' });
+  });
 
   it('narrates the current step', () => {
     expect(currentNarrationRef({ facet: ready, step: 0 })).toEqual({ key: 'step.zero' });

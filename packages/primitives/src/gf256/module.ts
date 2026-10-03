@@ -1,4 +1,4 @@
-import { narrationFromState, parseHexOrThrow, runPrimitive, valueRef, type RunOptions, type RunResult, type ValuesFacet } from '@cryventure/core';
+import { INITIAL_STEP_INDEX, narrationFromState, parseHexOrThrow, runPrimitive, valueRef, type RunOptions, type RunResult, type ValuesFacet } from '@cryventure/core';
 import { recordGinv } from './ginv.ts';
 import { recordGmul } from './gmul.ts';
 import { gf256Manifest, type Gf256Params } from './manifest.ts';
@@ -18,8 +18,10 @@ function record(op: Gf256Params['op'], a: number, b: number): { recorder: Gf256R
   return recordGinv(a);
 }
 
+/** The operands exist from the initial state on (step −1); the result after the last step. */
 function buildValues(op: Gf256Params['op'], a: number, b: number, result: number, lastStep: number): ValuesFacet {
-  const operands = op === 'gmul' ? [valueRef(NS, 'a', 'public', [a], 0), valueRef(NS, 'b', 'public', [b], 0)] : [valueRef(NS, 'a', 'public', [a], 0)];
+  const operand = (name: 'a' | 'b', byte: number) => valueRef(NS, name, 'public', [byte], INITIAL_STEP_INDEX);
+  const operands = op === 'gmul' ? [operand('a', a), operand('b', b)] : [operand('a', a)];
   return { kind: 'values', schemaVersion: 1, values: [...operands, valueRef(NS, 'result', 'state', [result], lastStep)] };
 }
 

@@ -25,6 +25,7 @@
   "plugin.endian.opShort.storeBig": "Big-Endian",
   "plugin.endian.opShort.storeLittle": "Little-Endian",
   "plugin.endian.opShort.compare": "Vergleich",
+  "plugin.endian.step.initial": "Die {{bits}}-Bit-Ganzzahl 0x{{value}} kommt gleich zweimal in den Speicher: einmal als Big-Endian, einmal als Little-Endian. Beide Speicherzeilen sind noch leer. Geh einen Schritt weiter und sieh dir an, wie die Bytes verteilt werden.",
   "plugin.endian.step.split": "0x{{value}} ist eine {{bits}}-Bit-Ganzzahl und braucht daher {{count}} Byte. Geschrieben steht das höchstwertige Byte (MSB) {{msb}} vorne und das niedrigstwertige Byte (LSB) {{lsb}} hinten. Der Speicher kennt aber kein „links“ oder „rechts“, nur Adressen – welches Byte kommt also an die niedrigste Adresse?",
   "plugin.endian.step.storeBigFirst": "Big-Endian: Das „große Ende“ kommt zuerst. Adresse +{{address}} erhält das höchstwertige Byte {{byte}} (Bits {{high}}–{{low}}).",
   "plugin.endian.step.storeBigMiddle": "Big-Endian: Adresse +{{address}} erhält das nächste Byte in Schreibreihenfolge, {{byte}} (Bits {{high}}–{{low}}).",

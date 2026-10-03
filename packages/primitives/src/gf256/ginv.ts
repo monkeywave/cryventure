@@ -2,26 +2,25 @@ import { braceHex, GINV_EXPONENT, ginvSteps, ginvStepTerms, highlight, i18nRef, 
 import { gf256Recorder, NS, term, write, type Gf256Recorder } from './trace.ts';
 
 /**
- * a⁻¹ = a²⁵⁴ by square-and-multiply (core's `ginvSteps`). Steps: load at the root scope, then one
- * scope [exponent bit] per bit 6…0 of 254 after its leading bit (a square, followed by a multiply
- * when that bit is set), then `result`. For a = {00} the powers are all zero and skipped, as in
- * aes-sbox: load and result narrate the convention 0⁻¹ := 0 instead.
+ * a⁻¹ = a²⁵⁴ by square-and-multiply (core's `ginvSteps`). The initial state holds a and the power
+ * a¹ = a. Steps: one scope [exponent bit] per bit 6…0 of 254 after its leading bit (a square,
+ * followed by a multiply when that bit is set), then `result`. For a = {00} the powers are all zero
+ * and skipped, as in aes-sbox: the initial narration and result narrate the convention 0⁻¹ := 0 instead.
  */
 export function recordGinv(a: number): { recorder: Gf256Recorder; result: number } {
   const explained = ginvSteps(a);
   const { input, result } = explained;
   const zero = input === 0;
-  const recorder = gf256Recorder(['a', 'power', 'result'], 'exponentBit', 'part');
   const hexA = braceHex(input);
-
-  recorder.step(
+  const recorder = gf256Recorder(
+    ['a', 'power', 'result'],
     {
-      op: 'load',
-      writes: [write('a', input), write('power', input)],
-      highlights: [highlight('a', 'write'), highlight('power', 'write')],
+      values: { a: input, power: input },
       narration: i18nRef(`${NS}.step.ginv.${zero ? 'loadZero' : 'load'}`, { a: hexA }),
+      math: { formula: i18nRef(`${NS}.formula.ginvLoad`), terms: [term('a', input, 8, 'operand'), term('power', input, 8, 'intermediate', { label: powerLabel(1) })] },
     },
-    { formula: i18nRef(`${NS}.formula.ginvLoad`), terms: [term('a', input, 8, 'operand'), term('power', input, 8, 'intermediate', { label: powerLabel(1) })] },
+    'exponentBit',
+    'part',
   );
   if (!zero) recordPowers(recorder, explained.steps, input);
 

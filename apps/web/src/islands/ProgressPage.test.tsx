@@ -5,16 +5,20 @@ import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import en from '../i18n/en/quiz.json' with { type: 'json' };
 import de from '../i18n/de/quiz.json' with { type: 'json' };
-import { emptyProgress, exportProgress, getProgress, replaceProgress, type ProgressV1 } from '../progress/index.ts';
+import { emptyProgress, exportProgress, getProgress, replaceProgress, type Progress } from '../progress/index.ts';
 import ProgressPage from './ProgressPage.tsx';
 
+function questions(...ids: string[]) {
+  return ids.map((id, index) => ({ id, number: index + 1 }));
+}
+
 const LESSONS = [
-  { key: 'symmetric/aes', title: 'AES at a glance', href: '/en/symmetric/aes/', questionCount: 3 },
-  { key: 'symmetric/aes/subbytes-sbox', title: 'SubBytes and the S-box', href: '/en/symmetric/aes/subbytes-sbox/', questionCount: 3 },
+  { key: 'symmetric/aes', title: 'AES at a glance', href: '/en/symmetric/aes/', questions: questions('aes192-rounds', 'input-byte-5-position', 'final-round-omits') },
+  { key: 'symmetric/aes/subbytes-sbox', title: 'SubBytes and the S-box', href: '/en/symmetric/aes/subbytes-sbox/', questions: questions('sbox-of-00', 'sbox-fixed-points', 'sbox-nonlinearity') },
 ];
 
 const answer = (correct: boolean) => ({ solved: correct, lastAnswer: 0 });
-const SAMPLE: ProgressV1 = { version: 1, lens: 'story', lessons: { 'symmetric/aes': { quiz: { 1: answer(true), 2: answer(true), 3: answer(false) } } } };
+const SAMPLE: Progress = { version: 2, lens: 'story', lessons: { 'symmetric/aes': { quiz: { 'aes192-rounds': answer(true), 'input-byte-5-position': answer(true), 'final-round-omits': answer(false) } } } };
 
 const renderPage = (messages: Record<string, string> = en, locale = 'en') => render(<ProgressPage lessons={LESSONS} messages={messages} locale={locale} />);
 const lessonItem = (title: string) => screen.getByRole('link', { name: title }).closest('li') as HTMLElement;
@@ -32,6 +36,12 @@ describe('ProgressPage lesson list', () => {
     expect(lessonItem('AES at a glance').textContent).toContain('2 of 3 answered correctly');
     expect(lessonItem('SubBytes and the S-box').textContent).toContain('Not started yet');
     expect(screen.getByRole('link', { name: 'AES at a glance' }).getAttribute('href')).toBe('/en/symmetric/aes/');
+  });
+
+  it('scores answers migrated from v1 by their question number', () => {
+    act(() => replaceProgress({ version: 2, lessons: { 'symmetric/aes/subbytes-sbox': { quiz: { 'sbox-of-00': answer(true) }, legacyQuiz: { '2': answer(true), '3': answer(false) } } } }));
+    renderPage();
+    expect(lessonItem('SubBytes and the S-box').textContent).toContain('2 of 3 answered correctly');
   });
 
   it('renders German', () => {
@@ -108,7 +118,7 @@ describe('ProgressPage reset', () => {
     expect(document.activeElement).toBe(within(dialog).getByRole('button', { name: 'Yes, reset' }));
     await userEvent.click(within(dialog).getByRole('button', { name: 'Yes, reset' }));
     expect(confirm).not.toHaveBeenCalled();
-    expect(getProgress()).toEqual({ version: 1, lens: 'story', lessons: {} });
+    expect(getProgress()).toEqual({ version: 2, lens: 'story', lessons: {} });
     expect(screen.getByText('Progress reset.')).toBeTruthy();
     expect(lessonItem('AES at a glance').textContent).toContain('Not started yet');
   });

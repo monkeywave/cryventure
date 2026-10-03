@@ -20,7 +20,7 @@ refs:
   - Nyberg, Differentially uniform mappings for cryptography, EUROCRYPT 1993
   - Jakobsen & Knudsen, The interpolation attack on block ciphers, FSE 1997
   - Canright, A very compact S-box for AES, CHES 2005
-sourceHash: sha256:b9f3b7bee836c5c73d1f8995ff138bb392a0e704fc8f3672e048b363cad1367e
+sourceHash: sha256:d83b86cee39d8bb86336f04614d1130dc7f449518a7da76c2587bded3d50a10e
 translation:
   status: ai-reviewed
   reviewedAt: '2026-10-02'
@@ -150,17 +150,18 @@ Ein späterer Playground lässt dich S-Boxen austauschen und den Angriff selbst 
 
 ## Teste dich selbst
 
-<CheckQuestion number={1} question="Was ist S({01})?" options={['{01}', '{63}', '{7c}', '{8d}']} answer={2}>
+<CheckQuestion id="sbox-of-01" number={1} question="Was ist S({01})?" options={['{01}', '{63}', '{7c}', '{8d}']} answer={2}>
   `{01}` ist sein eigenes Inverses. Die affine Matrix macht aus `{01}` den Wert `{1f}`, und
   `{1f} ⊕ {63} = {7c}` (FIPS 197, Abbildung 7, Zeile 0, Spalte 1).
 </CheckQuestion>
 
-<CheckQuestion number={2} question="Was liefert die inverse S-Box für {63}?" options={['{00}', '{01}', '{63}', '{9c}']} answer={0}>
+<CheckQuestion id="inverse-sbox-of-63" number={2} question="Was liefert die inverse S-Box für {63}?" options={['{00}', '{01}', '{63}', '{9c}']} answer={0}>
   `{63} ⊕ {63} = {00}`, A⁻¹ lässt `{00}` unverändert, und `{00}⁻¹ = {00}` per Konvention. Also ist
   S⁻¹(`{63}`) = `{00}`, passend zu S(`{00}`) = `{63}` (FIPS 197, §5.3.2).
 </CheckQuestion>
 
 <CheckQuestion
+  id="differential-uniformity"
   number={3}
   question="Fixiere eine von null verschiedene Eingangsdifferenz Δ. Für höchstens wie viele der 256 Eingaben x nimmt S(x) ⊕ S(x ⊕ Δ) denselben Wert an?"
   options={['1', '2', '4', '256']}

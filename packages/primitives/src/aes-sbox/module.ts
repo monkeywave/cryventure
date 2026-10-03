@@ -1,6 +1,7 @@
 import {
   AFFINE_CONSTANT,
   i18nRef,
+  INITIAL_STEP_INDEX,
   narrationFromState,
   parseHexOrThrow,
   runPrimitive,
@@ -21,8 +22,8 @@ const SBOX_SIDE = 16;
 function buildValues(x: number, derivation: SboxDerivation): ValuesFacet {
   const lastStep = derivation.state.steps.length - 1;
   const values = [
-    valueRef(NS, 'input', 'plaintext', [x], 0),
-    valueRef(NS, 'constant', 'constant', [AFFINE_CONSTANT], 0),
+    valueRef(NS, 'input', 'plaintext', [x], INITIAL_STEP_INDEX),
+    valueRef(NS, 'constant', 'constant', [AFFINE_CONSTANT], INITIAL_STEP_INDEX),
     valueRef(NS, 'inverse', 'state', [derivation.inverse], derivation.inverseStep),
     valueRef(NS, 'sbox', 'ciphertext', [derivation.sbox], lastStep),
   ];

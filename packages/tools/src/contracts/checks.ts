@@ -4,6 +4,8 @@ import {
   elemBytes,
   extractParams,
   getFacet,
+  INITIAL_STEP_INDEX,
+  narrationAt,
   resolveMessageKey,
   regionSize,
   stateAt,
@@ -57,11 +59,29 @@ function uniqueRefs(refs: readonly I18nRef[]): I18nRef[] {
   return [...new Map(refs.map((ref) => [JSON.stringify(ref), ref])).values()];
 }
 
-/** Every narration ref a bundle emits: narration facet entries plus per-step state narration. */
+/** Every narration ref a bundle emits: narration facet entries plus the state facet's initial and per-step narration. */
 export function emittedNarration(bundle: TraceBundle): I18nRef[] {
   const narration = getFacet<NarrationFacet>(bundle, 'narration')?.entries.map((entry) => entry.ref) ?? [];
-  const steps = getFacet<AnyStateFacet>(bundle, 'state')?.steps.map((step) => step.narration) ?? [];
-  return uniqueRefs([...narration, ...steps]);
+  const state = getFacet<AnyStateFacet>(bundle, 'state');
+  const initial = state?.initialNarration === undefined ? [] : [state.initialNarration];
+  const steps = state?.steps.map((step) => step.narration) ?? [];
+  return uniqueRefs([...narration, ...initial, ...steps]);
+}
+
+/**
+ * The narration facet's step −1 entry must be the state facet's `initialNarration` (both present
+ * and equal, or both absent), as `narrationFromState` emits it. Bundles without either facet pass.
+ */
+export function initialNarrationProblems(bundle: TraceBundle): string[] {
+  const narration = getFacet<NarrationFacet>(bundle, 'narration');
+  const state = getFacet<AnyStateFacet>(bundle, 'state');
+  if (narration === undefined || state === undefined) return [];
+  const expected = state.initialNarration;
+  const actual = narrationAt(narration, INITIAL_STEP_INDEX);
+  if (JSON.stringify(expected) === JSON.stringify(actual)) return [];
+  if (actual === undefined) return [`narration step -1 is missing, but the state facet has initialNarration "${expected!.key}"`];
+  if (expected === undefined) return [`narration step -1 is "${actual.key}", but the state facet has no initialNarration`];
+  return [`narration step -1 ${JSON.stringify(actual)} differs from the state facet's initialNarration ${JSON.stringify(expected)}`];
 }
 
 /** Label keys of a state facet's scope levels: each level's template plus its optional next/prev labels. */
@@ -156,9 +176,17 @@ export function jsonRoundTrip<T>(value: T): unknown {
   return JSON.parse(JSON.stringify(value)) as unknown;
 }
 
-/** Math steps that point past the state facet (`stepCount` state steps): views could never show them. */
-export function mathStepRangeProblems(facet: MathFacet, stepCount: number): string[] {
-  return facet.steps.filter(({ step }) => step >= stepCount).map(({ step }) => `math step ${step} has no state step (0..${stepCount - 1})`);
+/**
+ * Math steps outside the state facet's steps −1..n−1 (views could never show them), and a step −1
+ * math entry on a state facet without an `initialNarration` (the initial state must be narrated).
+ */
+export function mathStepRangeProblems(facet: MathFacet, state: Pick<AnyStateFacet, 'steps' | 'initialNarration'>): string[] {
+  const last = state.steps.length - 1;
+  return facet.steps.flatMap(({ step }) => {
+    if (step < INITIAL_STEP_INDEX || step > last) return [`math step ${step} has no state step (${INITIAL_STEP_INDEX}..${last})`];
+    if (step === INITIAL_STEP_INDEX && state.initialNarration === undefined) return [`math step ${step} (initial state) has no initialNarration on the state facet`];
+    return [];
+  });
 }
 
 /**

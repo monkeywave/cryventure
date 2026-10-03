@@ -112,11 +112,12 @@ export interface EndianRecording {
   littleEndian: number[];
 }
 
-/** Records: split the value into bytes, store big-endian, store little-endian, compare at address +0. */
+/** Records (after an initial narration of the integer): split it into bytes, store big-endian, store little-endian, compare at address +0. */
 export function recordEndian(value: number[]): EndianRecording {
   const length = value.length;
   const regions = endianRegions(length);
-  const tracer: EndianTracer = new RecordingTracer<EndianRegion, EndianOp>(regions, zeroSnapshot(regions));
+  const initialNarration = i18nRef(`${NS}.step.initial`, { value: toHex(value), bits: length * BITS_PER_BYTE });
+  const tracer: EndianTracer = new RecordingTracer<EndianRegion, EndianOp>(regions, zeroSnapshot(regions), { initialNarration });
   tracer.enter();
   split(tracer, value);
   store(tracer, 'storeBig', value, (address) => address);

@@ -15,7 +15,7 @@ refs:
   - FIPS 197, Abschnitt 5.2 (Key Expansion, Abbildung 11)
   - FIPS 197, Anhang A.1 (Expansion eines 128-Bit-Schlüssels)
   - FIPS 197, Anhang A.3 (Expansion eines 256-Bit-Schlüssels)
-sourceHash: sha256:09dc944eeedfd1ca2fb975e1240e842da0ee26112f9abf40a057a24572228e1d
+sourceHash: sha256:7fe4c1227f44832e872cbff4884c7c5c22cb6477acf76f2297b3465d9bcaabbd
 translation:
   status: ai-reviewed
   reviewedAt: '2026-10-02'
@@ -123,15 +123,16 @@ für dieses Experiment folgt in einem späteren Meilenstein.
 
 ## Teste dich selbst
 
-<CheckQuestion number={1} question="Wie viele 32-Bit-Wörter erzeugt die Schlüsselexpansion von AES-256?" options={['44', '52', '60', '64']} answer={2}>
+<CheckQuestion id="aes256-key-words" number={1} question="Wie viele 32-Bit-Wörter erzeugt die Schlüsselexpansion von AES-256?" options={['44', '52', '60', '64']} answer={2}>
   `4·(Nr + 1) = 4·15 = 60` Wörter, also 240 Byte.
 </CheckQuestion>
 
-<CheckQuestion number={2} question="Was ist Rcon[10]?" options={['00', '1b', '36', '6c']} answer={2}>
+<CheckQuestion id="rcon-10" number={2} question="Was ist Rcon[10]?" options={['00', '1b', '36', '6c']} answer={2}>
   `x⁹ mod 0x11B = 36`: Die Folge lautet `01 02 04 08 10 20 40 80 1b 36`.
 </CheckQuestion>
 
 <CheckQuestion
+  id="aes256-extra-step"
   number={3}
   question="Welchen Schritt fügt nur AES-256 der Schlüsselexpansion hinzu?"
   options={['Ein zusätzliches RotWord', 'Ein zusätzliches SubWord bei i mod 8 = 4', 'Ein zweites Rcon', 'Ein zusätzliches MixColumns']}

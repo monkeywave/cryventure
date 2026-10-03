@@ -37,4 +37,16 @@ describe('PairedRecorder', () => {
       [2, 'plugin.x.f3'],
     ]);
   });
+
+  it('records an initial narration and a step −1 math entry before step 0', () => {
+    const recorder = new PairedRecorder<Region, { op: 'w' }>(regions, { a: [7] }, levels, { narration: i18nRef('plugin.x.initial', { a: 7 }), math: math('plugin.x.fInit') });
+    expect(recorder.stepCount).toBe(0);
+    write(recorder, 1, false);
+    expect(recorder.stepCount).toBe(1);
+    expect(recorder.stateFacet().initialNarration).toEqual(i18nRef('plugin.x.initial', { a: 7 }));
+    expect(recorder.mathFacet().steps.map((step) => [step.step, step.formula.key])).toEqual([
+      [-1, 'plugin.x.fInit'],
+      [0, 'plugin.x.f1'],
+    ]);
+  });
 });

@@ -1,4 +1,4 @@
-import { getFacet, SBOX, toHex, validateMathFacet, validateTableFacet, type MathFacet, type TableFacet, type TraceBundle, type ValuesFacet } from '@cryventure/core';
+import { getFacet, SBOX, toHex, validateMathFacet, validateTableFacet, type MathFacet, type NarrationFacet, type TableFacet, type TraceBundle, type ValuesFacet } from '@cryventure/core';
 import { describe, expect, it } from 'vitest';
 import { AES_SBOX_PRESETS, aesSboxManifest, readByteHex, validateAesSboxParams } from './manifest.ts';
 import { buildSboxTable, run } from './module.ts';
@@ -51,6 +51,14 @@ describe('aes-sbox facets', () => {
     expect(validateTableFacet(table)).toEqual([]);
     expect(table).toMatchObject({ rows: 16, cols: 16, selected: 0x53, selectParam: 'byteHex' });
     expect(table).not.toHaveProperty('marks');
+  });
+
+  it('narrates the initial state (x and the constant exist from step −1 on)', () => {
+    const trace = traceOf('53');
+    const narration = getFacet<NarrationFacet>(trace, 'narration')!;
+    expect(narration.entries[0]).toEqual({ step: -1, ref: { key: `${NS}.step.load`, params: { x: '{53}' } } });
+    const values = getFacet<ValuesFacet>(trace, 'values')!.values;
+    expect(values.filter((value) => value.createdAt === -1).map((value) => value.labelKey)).toEqual([`${NS}.value.input`, `${NS}.value.constant`]);
   });
 
   it('labels the constant {63} with the constant role and the inverse once it is final', () => {

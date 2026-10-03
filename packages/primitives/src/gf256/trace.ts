@@ -5,11 +5,12 @@ import {
   PairedRecorder,
   scopeLevels,
   singleCellRegion,
-  zeroSnapshot,
   type I18nRef,
+  type InitialContent,
   type MathTerm,
   type MathTermOptions,
   type MathTermRole,
+  type Snapshot,
   type StateFacet,
 } from '@cryventure/core';
 import type { Gf256StepOp } from './manifest.ts';
@@ -17,6 +18,7 @@ import type { Gf256StepOp } from './manifest.ts';
 /**
  * Shared trace vocabulary of the gf256 producer: one-element regions, term builders and a recorder
  * (core's `PairedRecorder`) that emits each state step together with its math step at the same index.
+ * The operands are not a step: they are in the initial state, narrated at step −1 (docs/M3.md §0a).
  */
 export type Gf256Region = 'a' | 'b' | 'shifted' | 'addend' | 'acc' | 'power' | 'result';
 export type Gf256Op = { op: Gf256StepOp };
@@ -25,14 +27,21 @@ export type Gf256Recorder = PairedRecorder<Gf256Region, Gf256Op>;
 
 export const NS = 'plugin.gf256';
 
+/** The operands of a run, as the initial state holds them (step −1), with their narration and math. */
+export interface Gf256Initial extends InitialContent {
+  values: Partial<Record<Gf256Region, number>>;
+}
+
 /**
- * A recorder over one-element `regions` with scope levels `<ns>.scope.<level>`. Every region starts
- * blank (its initial 0 is a placeholder until a step writes it); `shifted` is u16 because it holds
- * the unreduced 9-bit value.
+ * A recorder over one-element `regions` with scope levels `<ns>.scope.<level>`. Regions listed in
+ * `initial.values` start with that value; every other region starts blank (its initial 0 is a
+ * placeholder until a step writes it). `shifted` is u16 because it holds the unreduced 9-bit value.
  */
-export function gf256Recorder(regions: readonly Gf256Region[], ...levels: string[]): Gf256Recorder {
-  const specs = regions.map((id) => singleCellRegion(NS, id, { elem: id === 'shifted' ? 'u16' : 'u8' }));
-  return new PairedRecorder<Gf256Region, Gf256Op>(specs, zeroSnapshot(specs), scopeLevels(NS, ...levels));
+export function gf256Recorder(regions: readonly Gf256Region[], initial: Gf256Initial, ...levels: string[]): Gf256Recorder {
+  const { values, ...content } = initial;
+  const specs = regions.map((id) => singleCellRegion(NS, id, { elem: id === 'shifted' ? 'u16' : 'u8', blank: values[id] === undefined }));
+  const snapshot = Object.fromEntries(regions.map((id) => [id, [values[id] ?? 0]])) as unknown as Snapshot<Gf256Region>;
+  return new PairedRecorder<Gf256Region, Gf256Op>(specs, snapshot, scopeLevels(NS, ...levels), content);
 }
 
 export function write(region: Gf256Region, value: number) {

@@ -93,6 +93,12 @@ export interface StateFacet<R extends string, Op extends { op: string }> {
   schemaVersion: 1;
   regions: RegionSpec<R>[];
   initial: Snapshot<R>;
+  /**
+   * Optional narration of `initial` (step −1, before step 0), e.g. "a = {57} and b = {83} are
+   * loaded". `narrationFromState` emits it as the narration entry at step −1; without it the player
+   * shows its generic initial-state hint. Additive, schemaVersion stays 1 (docs/M3.md §0a).
+   */
+  initialNarration?: I18nRef;
   steps: StateStep<R, Op>[];
   keyframes: Keyframe<R>[];
   truncated?: boolean;

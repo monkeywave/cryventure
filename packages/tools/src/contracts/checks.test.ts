@@ -1,4 +1,4 @@
-import { narrationFromState, parseHexOfLength, RecordingTracer, type MathFacet, type PrimitiveManifest, type RegionSpec, type TableFacet, type TraceBundle } from '@cryventure/core';
+import { narrationFromState, parseHexOfLength, RecordingTracer, type AnyStateFacet, type I18nRef, type MathFacet, type NarrationFacet, type PrimitiveManifest, type RegionSpec, type TableFacet, type TraceBundle } from '@cryventure/core';
 import { describe, expect, it } from 'vitest';
 import {
   derivationGroupRefs,
@@ -7,6 +7,7 @@ import {
   keysOutsideNamespace,
   manifestLabelKeys,
   mathFacetRefs,
+  initialNarrationProblems,
   mathStepRangeProblems,
   missingFacetKinds,
   missingKeys,
@@ -69,6 +70,12 @@ describe('emittedNarration / runtimeLabelKeys / missingFacetKinds', () => {
 
   it('lists declared kinds without a facet', () => {
     expect(missingFacetKinds(['state', 'memory'], bundle())).toEqual(['memory']);
+  });
+
+  it('includes the state facet\'s initial narration', () => {
+    const base = bundle();
+    const state = { ...(base.facets['state@default'] as AnyStateFacet), initialNarration: { key: 'plugin.x.initial', params: { a: '01' } } };
+    expect(emittedNarration({ ...base, facets: { ...base.facets, 'state@default': state } })).toContainEqual({ key: 'plugin.x.initial', params: { a: '01' } });
   });
 
   it('tolerates bundles without facets', () => {
@@ -177,10 +184,25 @@ describe('mathStepRangeProblems', () => {
     steps: steps.map((step) => ({ step, formula: { key: 'plugin.x.f' }, terms: [] })),
   });
 
-  it('accepts math steps that point at state steps', () => expect(mathStepRangeProblems(math([0, 2]), 3)).toEqual([]));
+  const steps = (count: number) => ({ steps: new Array(count).fill(undefined) });
+  const narrated = { key: 'plugin.x.initial' };
 
-  it('reports math steps beyond the last state step', () => {
-    expect(mathStepRangeProblems(math([0, 3, 4]), 3)).toEqual(['math step 3 has no state step (0..2)', 'math step 4 has no state step (0..2)']);
+  it('accepts math steps that point at state steps', () => expect(mathStepRangeProblems(math([0, 2]), steps(3))).toEqual([]));
+
+  it('accepts a step −1 math entry when the state facet narrates its initial state', () => {
+    expect(mathStepRangeProblems(math([-1, 0]), { ...steps(1), initialNarration: narrated })).toEqual([]);
+  });
+
+  it('reports a step −1 math entry without an initial narration', () => {
+    expect(mathStepRangeProblems(math([-1, 0]), steps(1))).toEqual(['math step -1 (initial state) has no initialNarration on the state facet']);
+  });
+
+  it('reports math steps beyond the last state step or before the initial state', () => {
+    expect(mathStepRangeProblems(math([-2, 0, 3, 4]), steps(3))).toEqual([
+      'math step -2 has no state step (-1..2)',
+      'math step 3 has no state step (-1..2)',
+      'math step 4 has no state step (-1..2)',
+    ]);
   });
 });
 
@@ -214,5 +236,30 @@ describe('tableSelectParamProblems', () => {
 
   it('reports a selected index that does not round-trip through validate as hex', () => {
     expect(tableSelectParamProblems(table('byteHex', 0x153), manifest, manifest.defaults)).toEqual(['table: selected 339 as byteHex "153" does not round-trip through validate']);
+  });
+});
+
+describe('initialNarrationProblems', () => {
+  const withInitial = (narration: NarrationFacet | undefined, initialNarration?: I18nRef): TraceBundle => {
+    const base = bundle();
+    const state = { ...(base.facets['state@default'] as AnyStateFacet), ...(initialNarration === undefined ? {} : { initialNarration }) };
+    const facets: TraceBundle['facets'] = { 'state@default': state, ...(narration === undefined ? {} : { 'narration@default': narration }) };
+    return { ...base, facets };
+  };
+  const initial = { key: 'plugin.x.initial' };
+
+  it('accepts a narration facet derived from the state facet, with or without an initial narration', () => {
+    const state = (b: TraceBundle) => b.facets['state@default'] as AnyStateFacet;
+    const narrated = withInitial(undefined, initial);
+    expect(initialNarrationProblems(withInitial(narrationFromState(state(narrated)), initial))).toEqual([]);
+    expect(initialNarrationProblems(bundle())).toEqual([]);
+    expect(initialNarrationProblems(withInitial(undefined, initial))).toEqual([]);
+  });
+
+  it('reports a narration facet whose step −1 entry disagrees with the initial narration', () => {
+    const plain = narrationFromState(bundle().facets['state@default'] as AnyStateFacet);
+    expect(initialNarrationProblems(withInitial(plain, initial))).toEqual(['narration step -1 is missing, but the state facet has initialNarration "plugin.x.initial"']);
+    const extra: NarrationFacet = { ...plain, entries: [{ step: -1, ref: initial }, ...plain.entries] };
+    expect(initialNarrationProblems(withInitial(extra))).toEqual(['narration step -1 is "plugin.x.initial", but the state facet has no initialNarration']);
   });
 });

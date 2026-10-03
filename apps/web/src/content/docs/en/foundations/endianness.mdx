@@ -135,11 +135,12 @@ miss a key schedule stored as host-endian words. Search for both byte orders.
 
 ## Check yourself
 
-<CheckQuestion number={1} question="The u32 0x12345678 is stored little-endian at address a. Which byte is at a + 0?" options={['12', '34', '56', '78']} answer={3}>
+<CheckQuestion id="le-byte-at-offset-0" number={1} question="The u32 0x12345678 is stored little-endian at address a. Which byte is at a + 0?" options={['12', '34', '56', '78']} answer={3}>
   Little-endian stores the least significant byte first, and that is `78`.
 </CheckQuestion>
 
 <CheckQuestion
+  id="network-byte-order"
   number={2}
   question="What is network byte order?"
   options={['Little-endian', 'Big-endian', 'Whatever the sending host uses', 'Bit-reversed']}
@@ -149,6 +150,7 @@ miss a key schedule stored as host-endian words. Search for both byte orders.
 </CheckQuestion>
 
 <CheckQuestion
+  id="round-key-word-bytes"
   number={3}
   question="An x86 dump of rijndael-alg-fst round keys starts with 16 15 7e 2b. Which key bytes does this word hold?"
   options={['16 15 7e 2b', '2b 7e 15 16', '7e 2b 16 15', '61 51 e7 b2']}

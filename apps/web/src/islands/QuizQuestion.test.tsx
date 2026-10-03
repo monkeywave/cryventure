@@ -12,7 +12,7 @@ import QuizQuestion, { type QuizQuestionProps } from './QuizQuestion.tsx';
 const LESSON = 'symmetric/aes';
 
 function props(overrides: Partial<QuizQuestionProps> = {}): QuizQuestionProps {
-  return { lessonKey: LESSON, number: 2, question: 'How many rounds does AES-128 use?', options: ['8', '10', '12', '14'], answer: 1, messages: en, locale: 'en', ...overrides };
+  return { lessonKey: LESSON, questionId: 'aes128-rounds', number: 2, question: 'How many rounds does AES-128 use?', options: ['8', '10', '12', '14'], answer: 1, messages: en, locale: 'en', ...overrides };
 }
 
 function renderQuiz(overrides: Partial<QuizQuestionProps> = {}) {
@@ -51,7 +51,7 @@ describe('QuizQuestion', () => {
     await userEvent.click(button('Check'));
     expect(feedback().textContent).toContain('Not quite');
     expect(option(/^C.*wrong/).checked).toBe(true);
-    expect(getProgress().lessons[LESSON]?.quiz['2']).toEqual({ solved: false, lastAnswer: 2 });
+    expect(getProgress().lessons[LESSON]?.quiz['aes128-rounds']).toEqual({ solved: false, lastAnswer: 2 });
     await userEvent.click(button('Try again'));
     expect(screen.getAllByRole('radio').some((radio) => (radio as HTMLInputElement).checked)).toBe(false);
     expect(feedback().textContent).toBe('');
@@ -66,7 +66,7 @@ describe('QuizQuestion', () => {
     expect(feedback().textContent).toContain('Correct!');
     expect(screen.getByText('Answer: B')).toBeTruthy();
     expect(screen.getByText('Ten rounds for a 128-bit key.')).toBeTruthy();
-    expect(getProgress().lessons[LESSON]?.quiz['2']).toEqual({ solved: true, lastAnswer: 1 });
+    expect(getProgress().lessons[LESSON]?.quiz['aes128-rounds']).toEqual({ solved: true, lastAnswer: 1 });
   });
 
   it('shows the answer on request without recording an attempt', async () => {
@@ -83,17 +83,17 @@ describe('QuizQuestion', () => {
     await userEvent.click(button('Show answer'));
     await userEvent.click(option(/^B/));
     await userEvent.click(button('Check'));
-    expect(getProgress().lessons[LESSON]?.quiz['2']).toEqual({ solved: false, lastAnswer: 1 });
+    expect(getProgress().lessons[LESSON]?.quiz['aes128-rounds']).toEqual({ solved: false, lastAnswer: 1 });
   });
 
   it('keeps a question solved earlier solved when it is checked again after "Show answer"', async () => {
-    act(() => replaceProgress({ version: 1, lessons: { [LESSON]: { quiz: { 2: { solved: true, lastAnswer: 1 } } } } }));
+    act(() => replaceProgress({ version: 2, lessons: { [LESSON]: { quiz: { 'aes128-rounds': { solved: true, lastAnswer: 1 } } } } }));
     renderQuiz();
     await userEvent.click(button('Try again'));
     await userEvent.click(button('Show answer'));
     await userEvent.click(option(/^B/));
     await userEvent.click(button('Check'));
-    expect(getProgress().lessons[LESSON]?.quiz['2']).toEqual({ solved: true, lastAnswer: 1 });
+    expect(getProgress().lessons[LESSON]?.quiz['aes128-rounds']).toEqual({ solved: true, lastAnswer: 1 });
   });
 
   it('works with the keyboard alone', async () => {
@@ -108,7 +108,7 @@ describe('QuizQuestion', () => {
   });
 
   it('restores an earlier answer from progress', () => {
-    act(() => replaceProgress({ version: 1, lessons: { [LESSON]: { quiz: { 2: { solved: true, lastAnswer: 1 } } } } }));
+    act(() => replaceProgress({ version: 2, lessons: { [LESSON]: { quiz: { 'aes128-rounds': { solved: true, lastAnswer: 1 } } } } }));
     renderQuiz();
     expect(option(/^B/).checked).toBe(true);
     expect(feedback().textContent).toContain('Correct!');
@@ -116,24 +116,45 @@ describe('QuizQuestion', () => {
   });
 
   it('shows a tampered entry as wrong when its last answer is wrong', () => {
-    act(() => replaceProgress({ version: 1, lessons: { [LESSON]: { quiz: { 2: { solved: true, lastAnswer: 3 } } } } }));
+    act(() => replaceProgress({ version: 2, lessons: { [LESSON]: { quiz: { 'aes128-rounds': { solved: true, lastAnswer: 3 } } } } }));
     renderQuiz();
     expect(feedback().textContent).toContain('Not quite');
   });
 
   it('treats an out-of-range stored answer as unanswered', () => {
-    act(() => replaceProgress({ version: 1, lessons: { [LESSON]: { quiz: { 2: { solved: true, lastAnswer: 9 } } } } }));
+    act(() => replaceProgress({ version: 2, lessons: { [LESSON]: { quiz: { 'aes128-rounds': { solved: true, lastAnswer: 9 } } } } }));
     renderQuiz();
     expect(screen.getAllByRole('radio').some((radio) => (radio as HTMLInputElement).checked)).toBe(false);
     expect(button('Check')).toBeTruthy();
   });
 
   it('keeps other questions and lessons apart', async () => {
-    renderQuiz({ lessonKey: 'other/lesson', number: 1 });
+    renderQuiz({ lessonKey: 'other/lesson', questionId: 'other-question', number: 1 });
     await userEvent.click(option(/^B/));
     await userEvent.click(button('Check'));
     expect(Object.keys(getProgress().lessons)).toEqual(['other/lesson']);
-    expect(getProgress().lessons['other/lesson']?.quiz['1']?.solved).toBe(true);
+    expect(getProgress().lessons['other/lesson']?.quiz).toEqual({ 'other-question': { solved: true, lastAnswer: 1 } });
+  });
+
+  it('restores a v1 answer recorded under the question number', () => {
+    act(() => replaceProgress({ version: 2, lessons: { [LESSON]: { quiz: {}, legacyQuiz: { '2': { solved: true, lastAnswer: 1 } } } } }));
+    renderQuiz();
+    expect(option(/^B/).checked).toBe(true);
+    expect(feedback().textContent).toContain('Correct!');
+  });
+
+  it('moves a v1 answer to the question id when the question is answered again', async () => {
+    act(() => replaceProgress({ version: 2, lessons: { [LESSON]: { quiz: {}, legacyQuiz: { '2': { solved: true, lastAnswer: 1 } } } } }));
+    renderQuiz();
+    await userEvent.click(button('Try again'));
+    await userEvent.click(option(/^C/));
+    await userEvent.click(button('Check'));
+    expect(getProgress().lessons[LESSON]).toEqual({ quiz: { 'aes128-rounds': { solved: true, lastAnswer: 2 } } });
+  });
+
+  it('exposes the question id on the form', () => {
+    const { container } = renderQuiz();
+    expect(container.querySelector('form')?.dataset.questionId).toBe('aes128-rounds');
   });
 
   it('renders German', async () => {

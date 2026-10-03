@@ -1,20 +1,15 @@
 import { AES_POLYNOMIAL, braceHex, highlight, i18nRef, xtimeSteps } from '@cryventure/core';
-import { gf256Recorder, NS, term, write, type Gf256Recorder } from './trace.ts';
+import { gf256Recorder, NS, term, write, type Gf256Initial, type Gf256Recorder } from './trace.ts';
 
 /**
- * xtime(a) = a·x in three steps (scope [step]): load a, shift left into 9 bits, then reduce
- * (⊕ {11b} iff bit 8 is set). Math comes from core's `xtimeSteps`.
+ * xtime(a) = a·x in two steps (scope [step]) after the initial state holds a: shift left into 9
+ * bits, then reduce (⊕ {11b} iff bit 8 is set). Math comes from core's `xtimeSteps`.
  */
 export function recordXtime(a: number): { recorder: Gf256Recorder; result: number } {
   const { input, shifted, carry, result } = xtimeSteps(a);
   const reduced = carry === 1;
-  const recorder = gf256Recorder(['a', 'shifted', 'result'], 'step');
   const hex = { a: braceHex(input), result: braceHex(result) };
-
-  recorder.scopedStep(
-    { op: 'load', writes: [write('a', input)], highlights: [highlight('a', 'write')], narration: i18nRef(`${NS}.step.xtime.load`, { a: hex.a }) },
-    { formula: i18nRef(`${NS}.formula.xtimeLoad`), terms: [term('a', input, 8, 'operand', { bits: [7] })] },
-  );
+  const recorder = gf256Recorder(['a', 'shifted', 'result'], xtimeInitial(input), 'step');
 
   recorder.scopedStep(
     {
@@ -45,4 +40,13 @@ export function recordXtime(a: number): { recorder: Gf256Recorder; result: numbe
     { formula: i18nRef(`${NS}.formula.${reduced ? 'reduce' : 'noReduce'}`), terms: reduceTerms },
   );
   return { recorder, result };
+}
+
+/** The initial state holds a; its math marks bit 7, the one a shift would carry out. */
+function xtimeInitial(a: number): Gf256Initial {
+  return {
+    values: { a },
+    narration: i18nRef(`${NS}.step.xtime.load`, { a: braceHex(a) }),
+    math: { formula: i18nRef(`${NS}.formula.xtimeLoad`), terms: [term('a', a, 8, 'operand', { bits: [7] })] },
+  };
 }

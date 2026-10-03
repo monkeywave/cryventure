@@ -141,17 +141,18 @@ yourself.
 
 ## Check yourself
 
-<CheckQuestion number={1} question="What is S({01})?" options={['{01}', '{63}', '{7c}', '{8d}']} answer={2}>
+<CheckQuestion id="sbox-of-01" number={1} question="What is S({01})?" options={['{01}', '{63}', '{7c}', '{8d}']} answer={2}>
   `{01}` is its own inverse. The affine matrix turns `{01}` into `{1f}`, and `{1f} ⊕ {63} = {7c}`
   (FIPS 197, Figure 7, row 0, column 1).
 </CheckQuestion>
 
-<CheckQuestion number={2} question="What does the inverse S-box return for {63}?" options={['{00}', '{01}', '{63}', '{9c}']} answer={0}>
+<CheckQuestion id="inverse-sbox-of-63" number={2} question="What does the inverse S-box return for {63}?" options={['{00}', '{01}', '{63}', '{9c}']} answer={0}>
   `{63} ⊕ {63} = {00}`, A⁻¹ keeps `{00}`, and `{00}⁻¹ = {00}` by convention. So S⁻¹(`{63}`) = `{00}`,
   matching S(`{00}`) = `{63}` (FIPS 197, §5.3.2).
 </CheckQuestion>
 
 <CheckQuestion
+  id="differential-uniformity"
   number={3}
   question="Fix a non-zero input difference Δ. For at most how many of the 256 inputs x does S(x) ⊕ S(x ⊕ Δ) take the same value?"
   options={['1', '2', '4', '256']}

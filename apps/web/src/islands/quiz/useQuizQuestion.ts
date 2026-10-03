@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { recordQuizAnswer, useProgress } from '../../progress/index.ts';
+import { recordQuizAnswer, resolveQuizAnswer, useProgress, type QuizQuestionRef } from '../../progress/index.ts';
 import { isOptionIndex, questionStatus, type QuestionStatus } from '../../quiz/quizModel.ts';
 
 export interface QuizQuestionState {
@@ -21,10 +21,11 @@ export interface QuizQuestionState {
 /**
  * One check question backed by progress. The stored answer is shown until the learner changes the
  * selection or retries; checking records the answer (correct or not) in progress, but an answer checked
- * after "Show answer" never marks the question solved (one solved earlier stays solved).
+ * after "Show answer" never marks the question solved (one solved earlier stays solved). The stored answer
+ * is found by id, else by the v1 question number (`resolveQuizAnswer`); recording moves it to the id.
  */
-export function useQuizQuestion(lessonKey: string, questionNumber: number, answer: number, optionCount: number): QuizQuestionState {
-  const stored = useProgress((progress) => progress.lessons[lessonKey]?.quiz[String(questionNumber)]);
+export function useQuizQuestion(lessonKey: string, question: QuizQuestionRef, answer: number, optionCount: number): QuizQuestionState {
+  const stored = useProgress((progress) => resolveQuizAnswer(progress.lessons[lessonKey], question));
   const [draft, setDraft] = useState<{ selected: number | undefined } | undefined>(undefined);
   const [revealed, setRevealed] = useState(false);
   const [needsSelection, setNeedsSelection] = useState(false);
@@ -41,7 +42,7 @@ export function useQuizQuestion(lessonKey: string, questionNumber: number, answe
   const check = (): void => {
     if (selected === undefined) return setNeedsSelection(true);
     // A correct answer only counts as solved when the learner found it without "Show answer".
-    recordQuizAnswer(lessonKey, questionNumber, selected, selected === answer && !revealed);
+    recordQuizAnswer(lessonKey, question, selected, selected === answer && !revealed);
     setDraft(undefined);
   };
   const retry = (): void => {

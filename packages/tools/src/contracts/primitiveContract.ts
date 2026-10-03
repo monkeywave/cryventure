@@ -20,6 +20,7 @@ import { derivationProblems, stepChoreographyProblems } from './choreographyChec
 import {
   derivationGroupRefs,
   emittedNarration,
+  initialNarrationProblems,
   jsonRoundTrip,
   keysOutsideNamespace,
   manifestLabelKeys,
@@ -107,7 +108,8 @@ function runSuite<P>(manifest: PrimitiveManifest<P>, catalogs: LocaleCatalogs, t
   it('declares region layouts whose words fit their regions', () => {
     expect(regionLayoutProblems(getFacet<AnyStateFacet>(bundle, 'state')?.regions ?? [])).toEqual([]);
   });
-  it('narrates with keys and {{params}} present in EN and DE', () => expect(refProblems(emittedNarration(bundle), catalogs)).toEqual([]));
+  it('narrates (initial narration included) with keys and {{params}} present in EN and DE', () => expect(refProblems(emittedNarration(bundle), catalogs)).toEqual([]));
+  it('narrates the initial state (step −1) exactly as the state facet declares it', () => expect(initialNarrationProblems(bundle)).toEqual([]));
   it('replays consistently (keyframes and stateAt)', () => {
     const state = getFacet<AnyStateFacet>(bundle, 'state');
     expect(state === undefined ? [] : replayProblems(state)).toEqual([]);
@@ -138,10 +140,10 @@ function optionalRunChecks<P>(manifest: PrimitiveManifest<P>, catalogs: LocaleCa
 }
 
 function mathCrossChecks(bundle: () => TraceBundle): void {
-  it('aligns every math step with a state step', () => {
+  it('aligns every math step with a state step or the narrated initial state (step −1)', () => {
     const math = getFacet<MathFacet>(bundle(), 'math');
-    const stepCount = getFacet<AnyStateFacet>(bundle(), 'state')?.steps.length ?? 0;
-    expect(math === undefined ? [] : mathStepRangeProblems(math, stepCount)).toEqual([]);
+    const state = getFacet<AnyStateFacet>(bundle(), 'state') ?? { steps: [] };
+    expect(math === undefined ? [] : mathStepRangeProblems(math, state)).toEqual([]);
   });
 }
 

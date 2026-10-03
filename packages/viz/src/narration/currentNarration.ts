@@ -16,12 +16,13 @@ export interface NarrationInput {
 }
 
 /**
- * What the lab narrates right now: a hint at the initial state, the beat's (story) or step's
- * narration, or a fallback when the lab has no narration or the step has none.
+ * What the lab narrates right now: at the initial state the producer's initial narration (step −1)
+ * or else a generic hint, then the beat's (story) or step's narration, or a fallback when the lab
+ * has no narration or the step has none.
  */
 export function currentNarrationRef({ facet, step, beatNarration }: NarrationInput): I18nRef {
   if (facet.status === 'missing') return { key: NARRATION_KEYS.missing };
-  if (step === INITIAL_STEP) return { key: NARRATION_KEYS.initial };
-  const ref = beatNarration ?? (facet.data === undefined ? undefined : narrationAt(facet.data, step));
-  return ref ?? { key: NARRATION_KEYS.none };
+  const recorded = facet.data === undefined ? undefined : narrationAt(facet.data, step);
+  if (step === INITIAL_STEP) return recorded ?? { key: NARRATION_KEYS.initial };
+  return beatNarration ?? recorded ?? { key: NARRATION_KEYS.none };
 }

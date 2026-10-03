@@ -20,9 +20,10 @@ describe('endian run', () => {
     expect(toHex(output['littleEndian'] ?? [])).toBe(littleEndianHex);
   });
 
-  it('narrates split, one store per byte and layout, and the comparison', () => {
+  it('narrates the initial state, split, one store per byte and layout, and the comparison', () => {
     const entries = getFacet<NarrationFacet>(traceOf({ valueHex: '0a0b0c0d', width: 'u32' }), 'narration')?.entries ?? [];
-    expect(entries).toHaveLength(1 + 4 + 4 + 1);
+    expect(entries).toHaveLength(1 + 1 + 4 + 4 + 1);
+    expect(entries[0]).toEqual({ step: -1, ref: { key: `${NS}.step.initial`, params: { value: '0a0b0c0d', bits: 32 } } });
   });
 
   it('returns the validation error for bad params', () => {

@@ -71,11 +71,14 @@ describe('gf256 run equals core arithmetic', () => {
 });
 
 describe('gf256 trace structure', () => {
-  it('xtime: load, shift, reduce in scopes [0], [1], [2]; math marks the carry and the modulus', () => {
+  it('xtime: a in the initial state, then shift, reduce in scopes [0], [1]; math marks the carry and the modulus', () => {
     const bundle = trace({ op: 'xtime', aHex: 'ae', bHex: '00' });
-    expect(ops(bundle)).toEqual(['load', 'shift', 'reduce']);
-    expect(state(bundle).steps.map((step) => step.scope)).toEqual([[0], [1], [2]]);
-    const reduce = math(bundle).steps[2]!;
+    expect(ops(bundle)).toEqual(['shift', 'reduce']);
+    expect(state(bundle).initial['a']).toEqual([0xae]);
+    expect(state(bundle).initialNarration).toEqual({ key: `${NS}.step.xtime.load`, params: { a: '{ae}' } });
+    expect(state(bundle).steps.map((step) => step.scope)).toEqual([[0], [1]]);
+    expect(mathStepAt(math(bundle), -1)?.formula).toEqual({ key: `${NS}.formula.xtimeLoad` });
+    const reduce = mathStepAt(math(bundle), 1)!;
     expect(reduce.terms.map((t) => [t.id, t.value, t.width])).toEqual([
       ['shifted', 0x15c, 9],
       ['carry', 1, 1],
@@ -92,15 +95,17 @@ describe('gf256 trace structure', () => {
   });
 
   it('xtime without carry has no modulus term', () => {
-    const terms = math(trace({ op: 'xtime', aHex: '57', bHex: '00' })).steps[2]!.terms;
+    const terms = mathStepAt(math(trace({ op: 'xtime', aHex: '57', bHex: '00' })), 1)!.terms;
     expect(terms.map((t) => t.id)).toEqual(['shifted', 'carry', 'result']);
   });
 
-  it('gmul: load, then [bit, part] scopes (xtime for bits ≥ 1, add or skip), then result', () => {
+  it('gmul: a, b, a • x⁰ and acc = {00} in the initial state, then [bit, part] scopes (xtime for bits ≥ 1, add or skip), then result', () => {
     const bundle = trace({ op: 'gmul', aHex: '57', bHex: '83' });
-    expect(ops(bundle)).toEqual(['load', 'add', ...Array.from({ length: 7 }, (_, i) => ['xtime', i === 0 || i === 6 ? 'add' : 'skip']).flat(), 'result']);
+    expect(ops(bundle)).toEqual(['add', ...Array.from({ length: 7 }, (_, i) => ['xtime', i === 0 || i === 6 ? 'add' : 'skip']).flat(), 'result']);
+    expect(state(bundle).initial).toEqual({ a: [0x57], b: [0x83], addend: [0x57], acc: [0] });
+    expect(state(bundle).initialNarration).toEqual({ key: `${NS}.step.gmul.load`, params: { a: '{57}', b: '{83}' } });
     const scopes = state(bundle).steps.map((step) => step.scope);
-    expect(scopes.slice(0, 4)).toEqual([[], [0, 0], [1, 0], [1, 1]]);
+    expect(scopes.slice(0, 3)).toEqual([[0, 0], [1, 0], [1, 1]]);
     expect(scopes.at(-1)).toEqual([]);
   });
 
@@ -127,21 +132,27 @@ describe('gf256 trace structure', () => {
 
   it('ginv of {00} skips the all-zero powers and narrates the convention (like aes-sbox)', () => {
     const bundle = trace({ op: 'ginv', aHex: '00', bHex: '00' });
-    expect(state(bundle).steps.map((step) => step.op)).toEqual(['load', 'result']);
-    const narration = getFacet<NarrationFacet>(bundle, 'narration')!.entries.map((entry) => entry.ref);
-    expect(narration).toEqual([{ key: `${NS}.step.ginv.loadZero`, params: { a: '{00}' } }, { key: `${NS}.step.ginv.resultZero` }]);
+    expect(state(bundle).steps.map((step) => step.op)).toEqual(['result']);
+    const narration = getFacet<NarrationFacet>(bundle, 'narration')!.entries;
+    expect(narration).toEqual([
+      { step: -1, ref: { key: `${NS}.step.ginv.loadZero`, params: { a: '{00}' } } },
+      { step: 0, ref: { key: `${NS}.step.ginv.resultZero` } },
+    ]);
   });
 
-  it.each(GF256_PRESETS.map((preset) => [preset.id, preset.params] as const))('%s: one valid math step per state step', (_id, params) => {
+  it.each(GF256_PRESETS.map((preset) => [preset.id, preset.params] as const))('%s: one valid math step for the initial state and per state step', (_id, params) => {
     const bundle = trace(params);
     expect(validateMathFacet(math(bundle))).toEqual([]);
-    expect(math(bundle).steps.map((step) => step.step)).toEqual(state(bundle).steps.map((_, index) => index));
+    expect(math(bundle).steps.map((step) => step.step)).toEqual([-1, ...state(bundle).steps.map((_, index) => index)]);
+    expect(getFacet<NarrationFacet>(bundle, 'narration')!.entries[0]?.step).toBe(-1);
     expect(mathStepAt(math(bundle), state(bundle).steps.length - 1)?.terms.some((t) => t.op === 'result')).toBe(true);
   });
 
-  it('lists b as a value only for gmul', () => {
-    const names = (params: Gf256Params) => getFacet<ValuesFacet>(trace(params), 'values')!.values.map((value) => value.labelKey);
+  it('lists b as a value only for gmul; the operands exist from the initial state on', () => {
+    const values = (params: Gf256Params) => getFacet<ValuesFacet>(trace(params), 'values')!.values;
+    const names = (params: Gf256Params) => values(params).map((value) => value.labelKey);
     expect(names({ op: 'gmul', aHex: '57', bHex: '83' })).toEqual([`${NS}.value.a`, `${NS}.value.b`, `${NS}.value.result`]);
+    expect(values({ op: 'gmul', aHex: '57', bHex: '83' }).map((value) => value.createdAt)).toEqual([-1, -1, 15]);
     expect(names({ op: 'xtime', aHex: '57', bHex: '83' })).toEqual([`${NS}.value.a`, `${NS}.value.result`]);
   });
 });
@@ -179,9 +190,12 @@ describe('gf256Manifest', () => {
 });
 
 describe('gf256 blank regions', () => {
-  it('declares every one-byte region blank until a step writes it', () => {
-    const facet = state(trace({ op: 'gmul', aHex: '57', bHex: '83' }));
-    expect(facet.regions.every((region) => region.initial === 'blank')).toBe(true);
-    expect([...unwrittenAt(facet, -1).values()].every((indices) => indices.size === 1)).toBe(true);
+  it('declares only the regions without an initial value blank until a step writes them', () => {
+    const blankIds = (params: Gf256Params) => state(trace(params)).regions.filter((region) => region.initial === 'blank').map((region) => region.id);
+    expect(blankIds({ op: 'gmul', aHex: '57', bHex: '83' })).toEqual([]);
+    expect(blankIds({ op: 'xtime', aHex: '57', bHex: '00' })).toEqual(['shifted', 'result']);
+    expect(blankIds({ op: 'ginv', aHex: '53', bHex: '00' })).toEqual(['result']);
+    const ginvFacet = state(trace({ op: 'ginv', aHex: '53', bHex: '00' }));
+    expect([...unwrittenAt(ginvFacet, -1).keys()]).toEqual(['result']);
   });
 });

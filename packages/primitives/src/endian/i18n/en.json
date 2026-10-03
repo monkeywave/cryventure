@@ -25,6 +25,7 @@
   "plugin.endian.opShort.storeBig": "Big-endian",
   "plugin.endian.opShort.storeLittle": "Little-endian",
   "plugin.endian.opShort.compare": "Compare",
+  "plugin.endian.step.initial": "The {{bits}}-bit integer 0x{{value}} is about to be stored in memory twice: once big-endian, once little-endian. Both memory rows are still empty. Step forward to see how the bytes are placed.",
   "plugin.endian.step.split": "0x{{value}} is a {{bits}}-bit integer, so it needs {{count}} bytes. Written down, the most significant byte (MSB) {{msb}} comes first and the least significant byte (LSB) {{lsb}} last. Memory has no \"left\" or \"right\", only addresses – so which byte goes to the lowest address?",
   "plugin.endian.step.storeBigFirst": "Big-endian: the big end comes first. Address +{{address}} gets the most significant byte {{byte}} (bits {{high}}–{{low}}).",
   "plugin.endian.step.storeBigMiddle": "Big-endian: address +{{address}} gets the next byte in written order, {{byte}} (bits {{high}}–{{low}}).",

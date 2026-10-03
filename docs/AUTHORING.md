@@ -143,7 +143,7 @@ Import them with relative paths from `apps/web/src/components/`.
 | `lesson/KeyFacts.astro` + `lesson/KeyFact.astro` | `label`, `value`, `kind?` | A row of fact tiles |
 | `lesson/StateGrid.astro` | `cells` (16, column-major), `caption`, `kind?` | A 4×4 state table, `cells[r + 4c] = s[r,c]` |
 | `lesson/RoundFlow.astro` | `input`, `output`, `stages[{title, ops[{label, kind}]}]`, `caption` | Round-structure diagram |
-| `lesson/CheckQuestion.astro` | `number`, `question`, `options[]`, `answer` (0-based); slot = explanation | Interactive multiple-choice question, see below |
+| `lesson/CheckQuestion.astro` | `id` (required, kebab-case), `number`, `question`, `options[]`, `answer` (0-based); slot = explanation | Interactive multiple-choice question, see below |
 | `lesson/ComingSoon.astro` | none | "Interactive views coming soon" note |
 | `lesson/Lens.astro` | `level` or `only` (`story`, `engineer`, `cryptographer`); slot = content | Lens-dependent content, see below |
 
@@ -161,11 +161,25 @@ Never hard-code UI words inside a component.
 Readers pick an option and press Check; they get "Correct!" or "Not quite", may retry, and see the
 answer and your explanation (the slot) once they get it right.
 
+- **Every question has a stable `id`** (docs/M3.md §0b): `<CheckQuestion id="ecb-penguin" number={1} …>`.
+  - The id is required, kebab-case and starts with a letter (`aes192-rounds`, `rcon-10`). It names
+    what the question asks, and is a string literal (not an expression).
+  - It is unique within the lesson, and identical in EN and DE.
+  - **It never changes** once published: progress is stored under it. To replace a question with a
+    different one, give the new question a new id.
+  - `number` is display-only. Renumbering, reordering, inserting or removing questions is fine.
+  - A missing or non-kebab id, or a duplicate id in one lesson, fails the build (the progress page
+    reads every lesson's `{ id, number }` list from the MDX source). A unit test also checks that EN
+    and DE use the same ids.
 - **Progress is per lesson key.** The key is the page slug without base and locale
-  (`symmetric/aes/subbytes-sbox`), and each answer is stored under the question's `number` in
-  localStorage under `cv.progress.v1`. EN and DE pages therefore share progress: keep the same
-  `number`s and the same `answer` index in both languages, and do not renumber questions on a live
-  page (stored answers would attach to the wrong question).
+  (`symmetric/aes/subbytes-sbox`), and each answer is stored under the question's id in localStorage
+  under `cv.progress.v1` (the slot name; the record inside is schema version 2 and is migrated on
+  read). EN and DE pages therefore share progress: keep the same ids and the same `answer` index in
+  both languages.
+- **Answers from before ids** (schema v1, keyed by number) live in `legacyQuiz` and are still shown
+  for the question with that `number` until the reader answers it again; then they move to the id.
+  After a renumbering, such an old answer may show on a different question. This is accepted, and
+  it never affects answers stored under ids.
 - **Without JavaScript** the server output is still a readable question with the answer and
   explanation in a `<details>` element.
 - **Progress page.** `/<lang>/progress/` (sidebar entry "Your progress" / "Dein Fortschritt") lists
@@ -184,7 +198,7 @@ current row and column). Layouts as used in the lessons:
 |---|---|
 | `foundations/xor` | `producerId="xor" presetId="hello" layout="state:65\|narration:35"` |
 | `foundations/endianness` | `producerId="endian" presetId="classic" layout="state:65\|narration:35"` |
-| `foundations/gf256` | `producerId="gf256" presetId="fips197-mul" startAt="op:load" layout="math:50\|state:20\|narration:30"` (also `presetId="inverse"`) |
+| `foundations/gf256` | `producerId="gf256" presetId="fips197-mul" layout="math:50\|state:20\|narration:30"` (also `presetId="inverse"`) |
 | `symmetric/aes/sbox-derivation` | `producerId="aes-sbox" presetId="fips-53" startAt="op:result" layout="lookup-table:45\|math:35\|narration:20"` |
 
 ### Lens blocks

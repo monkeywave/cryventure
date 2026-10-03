@@ -1,9 +1,9 @@
 // @vitest-environment jsdom
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { emptyProgress, type ProgressV1 } from './schema.ts';
+import { emptyProgress, type Progress } from './schema.ts';
 import { loadProgress, parseStoredProgress, PROGRESS_STORAGE_KEY, saveProgress } from './storage.ts';
 
-const progress: ProgressV1 = { version: 1, lens: 'story', lessons: { a: { quiz: { '1': { solved: true, lastAnswer: 0 } } } } };
+const progress: Progress = { version: 2, lens: 'story', lessons: { a: { quiz: { 'aes-rounds': { solved: true, lastAnswer: 0 } } } } };
 
 afterEach(() => {
   vi.restoreAllMocks();
@@ -18,9 +18,9 @@ describe('parseStoredProgress', () => {
     expect(parseStoredProgress('"text"')).toEqual(emptyProgress());
   });
 
-  it('reads a record stored by the first v1 release (correct/attempts, no solved)', () => {
+  it('reads a record stored by the first v1 release (correct/attempts, no solved) into legacyQuiz', () => {
     const stored = JSON.stringify({ version: 1, lens: 'story', lessons: { a: { quiz: { '1': { correct: true, attempts: 2, lastAnswer: 0 } } } } });
-    expect(parseStoredProgress(stored)).toEqual(progress);
+    expect(parseStoredProgress(stored)).toEqual({ version: 2, lens: 'story', lessons: { a: { quiz: {}, legacyQuiz: { '1': { solved: true, lastAnswer: 0 } } } } });
   });
 });
 

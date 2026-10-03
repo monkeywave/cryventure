@@ -15,7 +15,7 @@ refs:
   - FIPS 197, Abschnitt 4.2 (Multiplikation in GF(2^8))
   - FIPS 197, Abschnitt 5.1.1 (SubBytes, Gleichung 5.1, Abbildung 7)
   - FIPS 197, Anhang C.1 (Testvektoren AES-128)
-sourceHash: sha256:300fcded79c89c29abd1c4ec6bc49defc872acfc84024ac27157bcb2b3b62b67
+sourceHash: sha256:b903a32dd0e371ac7a0a8577c4ed19164ad1807cb35fb58349c1ba6074f866b3
 translation:
   status: ai-reviewed
   reviewedAt: '2026-10-02'
@@ -127,15 +127,16 @@ identische Abbildung aus und sieh zu, wie lineare Angriffe gelingen.
 
 ## Teste dich selbst
 
-<CheckQuestion number={1} question="Was ist S(00)?" options={['00', '01', '63', '7C']} answer={2}>
+<CheckQuestion id="sbox-of-00" number={1} question="Was ist S(00)?" options={['00', '01', '63', '7C']} answer={2}>
   `00` hat kein Inverses und wird auf `00` abgebildet; die affine Abbildung von `00` ist einfach die Konstante `63`.
 </CheckQuestion>
 
-<CheckQuestion number={2} question="Wie viele Fixpunkte hat die AES-S-Box?" options={['0', '1', '2', '16']} answer={0}>
+<CheckQuestion id="sbox-fixed-points" number={2} question="Wie viele Fixpunkte hat die AES-S-Box?" options={['0', '1', '2', '16']} answer={0}>
   Keinen. Die Konstante `0x63` wurde so gewählt, dass `S(a) ≠ a` für jedes Byte `a` gilt.
 </CheckQuestion>
 
 <CheckQuestion
+  id="sbox-nonlinearity"
   number={3}
   question="Welcher Teil der S-Box sorgt für die Nichtlinearität?"
   options={['Das XOR mit 0x63', 'Das Inverse in GF(2⁸)', 'Die Bitrotationen', 'Der Tabellenzugriff selbst']}

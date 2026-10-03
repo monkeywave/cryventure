@@ -1,3 +1,4 @@
+import type { I18nRef } from './i18n.ts';
 import {
   applyWrites,
   regionSize,
@@ -58,6 +59,8 @@ export interface RecordingTracerOptions {
   keyframeInterval?: number;
   /** Stop recording after this many steps and mark the facet `truncated`. */
   maxSteps?: number;
+  /** Narration of the initial snapshot (step −1), stored as `StateFacet.initialNarration`. */
+  initialNarration?: I18nRef;
 }
 
 export const DEFAULT_KEYFRAME_INTERVAL = 32;
@@ -85,6 +88,7 @@ export class RecordingTracer<R extends string, Op extends { op: string }> implem
   private readonly maxSteps: number;
   private current: Snapshot<R>;
   private truncated = false;
+  private readonly initialNarration: I18nRef | undefined;
 
   constructor(
     private readonly regions: RegionSpec<R>[],
@@ -97,6 +101,7 @@ export class RecordingTracer<R extends string, Op extends { op: string }> implem
       throw new RangeError('RecordingTracer: keyframeInterval must be a positive integer');
     }
     this.maxSteps = options.maxSteps ?? Number.POSITIVE_INFINITY;
+    this.initialNarration = options.initialNarration;
     this.current = initial;
   }
 
@@ -125,6 +130,7 @@ export class RecordingTracer<R extends string, Op extends { op: string }> implem
       schemaVersion: 1,
       regions: [...this.regions],
       initial: this.initial,
+      ...(this.initialNarration === undefined ? {} : { initialNarration: this.initialNarration }),
       steps: [...this.steps],
       keyframes: [...this.keyframes],
     };

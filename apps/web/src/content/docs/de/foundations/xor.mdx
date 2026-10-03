@@ -16,7 +16,7 @@ refs:
   - Benson (2001), The Venona Story, NSA Center for Cryptologic History
   - FIPS 197, Abschnitt 5.1.4 (AddRoundKey)
   - FIPS 197, Anhang C.1 (Testvektoren AES-128)
-sourceHash: sha256:26aa72da6ef1a96445973fc50ce99817f8a9375ae41270b4d7c6b0dd002f62d2
+sourceHash: sha256:c9793537ffe66468f56653adccbe1e217df5f647f38dd1cef8035521d81481bd
 translation:
   status: ai-reviewed
   reviewedAt: '2026-10-02'
@@ -151,11 +151,12 @@ US-Analysten im Venona-Projekt Tausende Nachrichten lesen (Benson 2001).
 
 ## Teste dich selbst
 
-<CheckQuestion number={1} question="Was ergibt 0x5A ⊕ 0xFF?" options={['0x00', '0x5A', '0xA5', '0xFF']} answer={2}>
+<CheckQuestion id="xor-with-ff" number={1} question="Was ergibt 0x5A ⊕ 0xFF?" options={['0x00', '0x5A', '0xA5', '0xFF']} answer={2}>
   XOR mit `FF` kippt jedes Bit: Aus `0101 1010` wird `1010 0101` = `A5`.
 </CheckQuestion>
 
 <CheckQuestion
+  id="two-time-pad"
   number={2}
   question="Zwei Nachrichten wurden mit demselben Pad verschlüsselt. Was liefert c₁ ⊕ c₂ dem Angreifer?"
   options={['Den Schlüssel k', 'm₁ ⊕ m₂', 'Nichts Brauchbares', 'Direkt m₁']}
@@ -165,6 +166,7 @@ US-Analysten im Venona-Projekt Tausende Nachrichten lesen (Benson 2001).
 </CheckQuestion>
 
 <CheckQuestion
+  id="otp-possible-plaintexts"
   number={3}
   question="Ein One-Time-Pad mit echt zufälligem Schlüssel hat das Geheimtextbyte 0x3C erzeugt. Welche Klartextbytes sind möglich?"
   options={['Nur 0x3C', 'Nur druckbare ASCII-Zeichen', 'Die Hälfte aller Bytes', 'Alle 256 Bytes – der Geheimtext ändert ihre Wahrscheinlichkeit nicht']}

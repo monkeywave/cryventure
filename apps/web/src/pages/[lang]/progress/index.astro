@@ -10,7 +10,8 @@ import { loadMessages, pickPrefix, supportedLocales, toLocale } from '../../../i
 import ProgressPage from '../../../islands/ProgressPage.tsx';
 import { withBase } from '../../../lib/withBase';
 import { lessonKeyFromPath } from '../../../progress/index.ts';
-import { countCheckQuestions, type QuizLesson } from '../../../quiz/quizModel.ts';
+import { extractCheckQuestions } from '../../../quiz/checkQuestionSource.ts';
+import type { QuizLesson } from '../../../quiz/quizModel.ts';
 
 export function getStaticPaths() {
   return supportedLocales.map((lang) => ({ params: { lang } }));
@@ -22,14 +23,17 @@ const messages = pickPrefix(loadMessages(locale, ['quiz']), 'quiz.progress.');
 /** Reading order: by folder, then by the sidebar order inside it (index pages come first). */
 const readingOrder = (key: string, order: number | undefined): [string, number] => [key.split('/').slice(0, -1).join('/'), order ?? Number.MAX_SAFE_INTEGER];
 
-const docs = await getCollection('docs', (entry) => entry.id.startsWith(`${locale}/`) && countCheckQuestions(entry.body) > 0);
+// Each lesson's { id, number } list comes from its MDX source; a missing, non-kebab or duplicate id throws here and fails the build.
+const docs = await getCollection('docs', (entry) => entry.id.startsWith(`${locale}/`));
 const lessons: QuizLesson[] = docs
   .map((entry) => {
     const key = lessonKeyFromPath(`/${entry.id}/`, '/');
-    return { key, title: entry.data.title, href: withBase(`${locale}/${key}/`), questionCount: countCheckQuestions(entry.body), order: readingOrder(key, entry.data.sidebar.order) };
+    const questions = extractCheckQuestions(entry.body, entry.filePath ?? entry.id);
+    return { key, title: entry.data.title, href: withBase(`${locale}/${key}/`), questions, order: readingOrder(key, entry.data.sidebar.order) };
   })
+  .filter((lesson) => lesson.questions.length > 0)
   .sort((a, b) => a.order[0].localeCompare(b.order[0]) || a.order[1] - b.order[1] || a.key.localeCompare(b.key))
-  .map(({ key, title, href, questionCount }) => ({ key, title, href, questionCount }));
+  .map(({ key, title, href, questions }) => ({ key, title, href, questions }));
 ---
 
 <StarlightPage frontmatter={{ title: messages['quiz.progress.title'] ?? '', description: messages['quiz.progress.description'] }}>

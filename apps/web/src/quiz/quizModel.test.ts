@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { emptyProgress, type ProgressV1 } from '../progress/index.ts';
-import { countCheckQuestions, lessonScore, lessonsWithProgress, optionLetter, questionStatus } from './quizModel.ts';
+import { emptyProgress, type Progress } from '../progress/index.ts';
+import { lessonScore, lessonsWithProgress, optionLetter, questionStatus } from './quizModel.ts';
 
 const answer = (solved: boolean) => ({ solved, lastAnswer: 0 });
 
@@ -29,48 +29,51 @@ describe('questionStatus', () => {
   });
 });
 
+const QUESTIONS = [
+  { id: 'aes192-rounds', number: 1 },
+  { id: 'input-byte-5-position', number: 2 },
+  { id: 'final-round-omits', number: 3 },
+];
+
 describe('lessonScore', () => {
   it('counts solved and answered questions against the lesson total', () => {
-    expect(lessonScore({ quiz: { 1: answer(true), 2: answer(false) } }, 3)).toEqual({ correct: 1, answered: 2, total: 3 });
+    expect(lessonScore({ quiz: { 'aes192-rounds': answer(true), 'input-byte-5-position': answer(false) } }, QUESTIONS)).toEqual({ correct: 1, answered: 2, total: 3 });
   });
 
   it('keeps the point of a question solved earlier even if the latest attempt was wrong', () => {
     const retriedWrong = { solved: true, lastAnswer: 3 };
-    expect(lessonScore({ quiz: { 1: retriedWrong } }, 2).correct).toBe(1);
+    expect(lessonScore({ quiz: { 'aes192-rounds': retriedWrong } }, QUESTIONS).correct).toBe(1);
   });
 
   it('is zero for a lesson without progress', () => {
-    expect(lessonScore(undefined, 3)).toEqual({ correct: 0, answered: 0, total: 3 });
+    expect(lessonScore(undefined, QUESTIONS)).toEqual({ correct: 0, answered: 0, total: 3 });
   });
 
   it('ignores answers to questions the lesson no longer has', () => {
-    expect(lessonScore({ quiz: { 1: answer(true), 2: answer(true), 5: answer(false) } }, 1)).toEqual({ correct: 1, answered: 1, total: 1 });
+    expect(lessonScore({ quiz: { 'aes192-rounds': answer(true), removed: answer(true) } }, QUESTIONS.slice(0, 1))).toEqual({ correct: 1, answered: 1, total: 1 });
+  });
+
+  it('counts v1 answers recorded under the question number, unless the id has an answer', () => {
+    const lesson = { quiz: { 'final-round-omits': answer(false) }, legacyQuiz: { '1': answer(true), '3': answer(true) } };
+    expect(lessonScore(lesson, QUESTIONS)).toEqual({ correct: 1, answered: 2, total: 3 });
   });
 });
 
 describe('lessonsWithProgress', () => {
-  const known = [{ key: 'symmetric/aes', title: 'AES', href: '/en/symmetric/aes/', questionCount: 3 }];
+  const known = [{ key: 'symmetric/aes', title: 'AES', href: '/en/symmetric/aes/', questions: QUESTIONS }];
 
   it('keeps known lessons and appends unknown ones with results', () => {
-    const progress: ProgressV1 = {
+    const progress: Progress = {
       ...emptyProgress(),
-      lessons: { 'symmetric/aes': { quiz: {} }, 'future/lesson': { quiz: { 1: answer(true) } }, 'empty/lesson': { quiz: {} } },
+      lessons: { 'symmetric/aes': { quiz: {} }, 'future/lesson': { quiz: { 'new-question': answer(true) } }, 'empty/lesson': { quiz: {} } },
     };
-    expect(lessonsWithProgress(known, progress)).toEqual([...known, { key: 'future/lesson', title: 'future/lesson', questionCount: 1 }]);
+    expect(lessonsWithProgress(known, progress)).toEqual([...known, { key: 'future/lesson', title: 'future/lesson', questions: [{ id: 'new-question', number: 0 }] }]);
   });
-});
 
-describe('lessonsWithProgress question count', () => {
-  it('uses the highest answered question number for unknown lessons, so their score counts every answer', () => {
-    const progress: ProgressV1 = { ...emptyProgress(), lessons: { 'future/lesson': { quiz: { 3: answer(true) } } } };
-    expect(lessonsWithProgress([], progress)[0]?.questionCount).toBe(3);
-  });
-});
-
-describe('countCheckQuestions', () => {
-  it('counts CheckQuestion elements, not imports', () => {
-    const source = "import CheckQuestion from './CheckQuestion.astro';\n<CheckQuestion number={1} />\n<CheckQuestion\n number={2}>x</CheckQuestion>";
-    expect(countCheckQuestions(source)).toBe(2);
-    expect(countCheckQuestions(undefined)).toBe(0);
+  it('lists every recorded answer of an unknown lesson, legacy ones included, so its score counts them all', () => {
+    const progress: Progress = { ...emptyProgress(), lessons: { 'future/lesson': { quiz: { a: answer(true) }, legacyQuiz: { '3': answer(false) } } } };
+    const [lesson] = lessonsWithProgress([], progress);
+    expect(lesson?.questions).toHaveLength(2);
+    expect(lessonScore(progress.lessons['future/lesson'], lesson?.questions ?? [])).toEqual({ correct: 1, answered: 2, total: 2 });
   });
 });

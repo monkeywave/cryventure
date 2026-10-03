@@ -1,16 +1,16 @@
-import { narrationFromState, parseHexToArray, runPrimitive, valueRef, type RunOptions, type RunResult, type ValuesFacet } from '@cryventure/core';
+import { INITIAL_STEP_INDEX, narrationFromState, parseHexToArray, runPrimitive, valueRef, type RunOptions, type RunResult, type ValuesFacet } from '@cryventure/core';
 import { xorManifest, type XorParams } from './manifest.ts';
 import { recordXor, type XorRecording } from './xorTrace.ts';
 
 /** XOR producer: result = message ⊕ key, then result ⊕ key = message again (XOR is its own inverse). */
 const NS = 'plugin.xor';
 
-/** Message and key appear when loaded (steps 0 and 1); the result after the last XOR step; the recovered message last. */
+/** Message and key exist from the initial state on (step −1); the result after the last XOR step; the recovered message last. */
 export function buildXorValues(message: number[], key: number[], { facet, result, recovered }: XorRecording): ValuesFacet {
   const lastStep = facet.steps.length - 1;
   const values = [
-    valueRef(NS, 'message', 'plaintext', message, 0),
-    valueRef(NS, 'key', 'key', key, 1),
+    valueRef(NS, 'message', 'plaintext', message, INITIAL_STEP_INDEX),
+    valueRef(NS, 'key', 'key', key, INITIAL_STEP_INDEX),
     valueRef(NS, 'result', 'ciphertext', result, lastStep - 1),
     valueRef(NS, 'recovered', 'plaintext', recovered, lastStep),
   ];

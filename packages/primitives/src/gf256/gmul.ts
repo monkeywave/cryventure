@@ -2,26 +2,25 @@ import { AES_POLYNOMIAL, braceHex, gmulSteps, highlight, i18nRef, type GmulBitSt
 import { gf256Recorder, NS, setBits, term, write, type Gf256Recorder } from './trace.ts';
 
 /**
- * a • b by shift-and-add over the bits of b (core's `gmulSteps`). Steps: load at the root scope,
- * then per bit i of b a scope [i] holding `xtime` (a·xⁱ from a·xⁱ⁻¹, for i ≥ 1) and `add`/`skip`,
- * then `result` at the root scope.
+ * a • b by shift-and-add over the bits of b (core's `gmulSteps`). The initial state holds a, b, the
+ * addend a·x⁰ = a and the accumulator {00}. Steps: per bit i of b a scope [i] holding `xtime`
+ * (a·xⁱ from a·xⁱ⁻¹, for i ≥ 1) and `add`/`skip`, then `result` at the root scope.
  */
 export function recordGmul(a: number, b: number): { recorder: Gf256Recorder; result: number } {
   const explained = gmulSteps(a, b);
-  const recorder = gf256Recorder(['a', 'b', 'addend', 'acc'], 'bit', 'part');
   const hex = { a: braceHex(explained.a), b: braceHex(explained.b) };
-
-  recorder.step(
+  const recorder = gf256Recorder(
+    ['a', 'b', 'addend', 'acc'],
     {
-      op: 'load',
-      writes: [write('a', explained.a), write('b', explained.b), write('addend', explained.a), write('acc', 0)],
-      highlights: [highlight('a', 'write'), highlight('b', 'write')],
+      values: { a: explained.a, b: explained.b, addend: explained.a, acc: 0 },
       narration: i18nRef(`${NS}.step.gmul.load`, hex),
+      math: {
+        formula: i18nRef(`${NS}.formula.gmulLoad`),
+        terms: [term('a', explained.a, 8, 'operand'), term('b', explained.b, 8, 'operand', { bits: setBits(explained.b) })],
+      },
     },
-    {
-      formula: i18nRef(`${NS}.formula.gmulLoad`),
-      terms: [term('a', explained.a, 8, 'operand'), term('b', explained.b, 8, 'operand', { bits: setBits(explained.b) })],
-    },
+    'bit',
+    'part',
   );
 
   let previous: GmulBitStep | undefined;

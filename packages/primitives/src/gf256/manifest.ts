@@ -44,7 +44,7 @@ export const GF256_PARAM_FIELDS: ParamField[] = [
 ];
 
 /** Every op the module records (`StateStep.op`). */
-export const GF256_OP_NAMES = ['load', 'shift', 'reduce', 'xtime', 'add', 'skip', 'square', 'multiply', 'result'] as const;
+export const GF256_OP_NAMES = ['shift', 'reduce', 'xtime', 'add', 'skip', 'square', 'multiply', 'result'] as const;
 export type Gf256StepOp = (typeof GF256_OP_NAMES)[number];
 
 export const GF256_OPS = opLabels(NS, GF256_OP_NAMES);

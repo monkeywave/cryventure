@@ -141,11 +141,12 @@ project (Benson 2001).
 
 ## Check yourself
 
-<CheckQuestion number={1} question="What is 0x5A ⊕ 0xFF?" options={['0x00', '0x5A', '0xA5', '0xFF']} answer={2}>
+<CheckQuestion id="xor-with-ff" number={1} question="What is 0x5A ⊕ 0xFF?" options={['0x00', '0x5A', '0xA5', '0xFF']} answer={2}>
   XOR with `FF` flips every bit: `0101 1010` becomes `1010 0101` = `A5`.
 </CheckQuestion>
 
 <CheckQuestion
+  id="two-time-pad"
   number={2}
   question="Two messages were encrypted with the same pad. What does c₁ ⊕ c₂ give the attacker?"
   options={['The key k', 'm₁ ⊕ m₂', 'Nothing useful', 'm₁ directly']}
@@ -155,6 +156,7 @@ project (Benson 2001).
 </CheckQuestion>
 
 <CheckQuestion
+  id="otp-possible-plaintexts"
   number={3}
   question="A one-time pad with a truly random key produced the ciphertext byte 0x3C. Which plaintext bytes are possible?"
   options={['Only 0x3C', 'Only printable ASCII characters', 'Half of all bytes', 'All 256 bytes — the ciphertext does not change their odds']}

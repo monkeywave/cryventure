@@ -18,9 +18,10 @@ describe('xor run', () => {
     expect(toHex(traceOf({ messageHex, keyHex }).output['result'] ?? [])).toBe(resultHex);
   });
 
-  it('narrates every step: two loads, one XOR per byte, one decrypt', () => {
+  it('narrates the initial state (message and key), then one XOR per byte and one decrypt', () => {
     const entries = getFacet<NarrationFacet>(traceOf(PARAMS), 'narration')?.entries ?? [];
-    expect(entries).toHaveLength(2 + 5 + 1);
+    expect(entries.map((entry) => entry.step)).toEqual([-1, 0, 1, 2, 3, 4, 5]);
+    expect(entries[0]?.ref).toEqual({ key: `${NS}.step.initial`, params: { count: 5 } });
   });
 
   it('echoes the normalised params', () => {
@@ -38,10 +39,10 @@ describe('buildXorValues', () => {
     const key = [0x01, 0x02];
     const values = buildXorValues(message, key, recordXor(message, key)).values;
     expect(values.map(({ id, role, bytes, createdAt }) => ({ id, role, bytes, createdAt }))).toEqual([
-      { id: 'message', role: 'plaintext', bytes: message, createdAt: 0 },
-      { id: 'key', role: 'key', bytes: key, createdAt: 1 },
-      { id: 'result', role: 'ciphertext', bytes: [0x69, 0x6b], createdAt: 3 },
-      { id: 'recovered', role: 'plaintext', bytes: message, createdAt: 4 },
+      { id: 'message', role: 'plaintext', bytes: message, createdAt: -1 },
+      { id: 'key', role: 'key', bytes: key, createdAt: -1 },
+      { id: 'result', role: 'ciphertext', bytes: [0x69, 0x6b], createdAt: 1 },
+      { id: 'recovered', role: 'plaintext', bytes: message, createdAt: 2 },
     ]);
   });
 

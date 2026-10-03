@@ -71,6 +71,16 @@ minimal `import.meta.glob` typing lives once in `types/import-meta.d.ts` and is 
   op labels: there is no key-naming convention, and an op without an entry is shown by its raw name
   (and the scope path keeps the level's template). The keys may be named freely; the scaffold uses
   `plugin.<id>.op.<op>` / `plugin.<id>.opShort.<op>`.
+- **Initial state, not a load step** (docs/M3.md §0a): the inputs a run starts from belong in the
+  state facet's `initial` snapshot, not in a "load" op. Narrate them with
+  `StateFacet.initialNarration` (optional, additive), e.g.
+  `new RecordingTracer(regions, initial, { initialNarration: i18nRef('plugin.my-cipher.step.initial', { count }) })`.
+  `narrationFromState` then emits it as the entry at step −1, and the player and narration view
+  show it at the initial state (without it they show the generic `ui.narration.initial`). With
+  `PairedRecorder`, pass `{ narration, math }` as its fourth argument to also get a step −1 math
+  entry. Values present from the start use `createdAt: INITIAL_STEP_INDEX` (−1). The contract kit
+  checks the key and its `{{params}}` in EN and DE, that the narration facet's step −1 entry matches,
+  and that a step −1 math entry has an initial narration.
 - **`outputs`** (optional, additive) labels the entries of `TraceBundle.output` in the lab's output
   panel: `outputs: { ciphertext: { labelKey: 'plugin.my-cipher.output.ciphertext' } }`.
 - Core helpers for hex params: `parseHexOfLength(input, [16, 24, 32], { invalidType, wrongLength })`

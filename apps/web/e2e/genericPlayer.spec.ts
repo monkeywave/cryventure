@@ -9,8 +9,8 @@ const XOR = { path: 'en/foundations/xor/', labId: 'xor-otp' } as const;
 const xorEn: Record<string, string> = xorEnJson;
 const uiEn: Record<string, string> = uiEnJson;
 
-/** Preset "hello": 68656c6c6f ⊕ 2b7e151628. Steps: load message, load key, 5 × XOR byte, decrypt. */
-const HELLO = { result: '431b797a47', resultGrouped: '431b797a 47', stepCount: 8, firstXorStep: 2 } as const;
+/** Preset "hello": 68656c6c6f ⊕ 2b7e151628. Message and key are the initial state; steps: 5 × XOR byte, decrypt. */
+const HELLO = { message: '68656c6c6f', result: '431b797a47', resultGrouped: '431b797a 47', stepCount: 6 } as const;
 const ZERO_KEY = { key: '0000000000', result: '68656c6c6f', resultGrouped: '68656c6c 6f' } as const;
 
 async function openXorLab(page: Page, hash = ''): Promise<Locator> {
@@ -31,22 +31,24 @@ test.describe('generic player on the XOR lab', () => {
     await expectStep(lab, 1);
     await next.focus();
     await page.keyboard.press('ArrowRight');
-    await expectStep(lab, HELLO.firstXorStep);
-    expect((await stateHex(lab, 'result')).slice(0, 2)).toBe(HELLO.result.slice(0, 2));
+    await expectStep(lab, 2);
+    expect((await stateHex(lab, 'result')).slice(0, 6)).toBe(HELLO.result.slice(0, 6));
     await page.keyboard.press('ArrowLeft');
-    await expectStep(lab, HELLO.firstXorStep - 1);
+    await expectStep(lab, 1);
     await labButton(lab, 'ui.player.prev').click();
     await expectStep(lab, 0);
+    expect(await stateHex(lab, 'result')).toBe(`${HELLO.result.slice(0, 2)}${'··'.repeat(4)}`);
   });
 
   test('scrubbing the timeline jumps to exact states', async ({ page }) => {
     const lab = await openXorLab(page);
     await seekTo(lab, HELLO.stepCount - 2);
     expect(await stateHex(lab, 'result')).toBe(HELLO.result);
-    await seekTo(lab, HELLO.firstXorStep);
+    await seekTo(lab, 0);
     expect(await stateHex(lab, 'result')).toBe(`${HELLO.result.slice(0, 2)}${'··'.repeat(4)}`);
     await seekTo(lab, -1);
-    expect(await stateHex(lab, 'message')).toBe('··'.repeat(5));
+    expect(await stateHex(lab, 'message')).toBe(HELLO.message);
+    expect(await stateHex(lab, 'result')).toBe('··'.repeat(5));
   });
 
   test('Home and End jump to the initial state and the last step', async ({ page }) => {
@@ -54,18 +56,18 @@ test.describe('generic player on the XOR lab', () => {
     await labButton(lab, 'ui.player.mode.story').focus();
     await page.keyboard.press('End');
     await expectStep(lab, HELLO.stepCount - 1);
-    expect(await stateHex(lab, 'recovered')).toBe('68656c6c6f');
+    expect(await stateHex(lab, 'recovered')).toBe(HELLO.message);
     await page.keyboard.press('Home');
     await expectStep(lab, -1);
   });
 
   test('a deep link restores the step, also after reload', async ({ page }) => {
-    const lab = await openXorLab(page, `#lab=${XOR.labId}&s=3&v=1`);
-    await expectStep(lab, 3);
-    await seekTo(lab, 5);
-    await expect(page).toHaveURL(new RegExp(`#lab=${XOR.labId}&p=[\\w-]+&s=5&v=1$`));
+    const lab = await openXorLab(page, `#lab=${XOR.labId}&s=2&v=1`);
+    await expectStep(lab, 2);
+    await seekTo(lab, 3);
+    await expect(page).toHaveURL(new RegExp(`#lab=${XOR.labId}&p=[\\w-]+&s=3&v=1$`));
     await page.reload();
-    await expectStep(lab, 5);
+    await expectStep(lab, 3);
     await expect.poll(() => stateHex(lab, 'result')).toBe(`${HELLO.result.slice(0, 8)}··`);
   });
 

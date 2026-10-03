@@ -115,15 +115,16 @@ above 2⁻³. Try a later lab: swap in an affine or identity S-box and watch lin
 
 ## Check yourself
 
-<CheckQuestion number={1} question="What is S(00)?" options={['00', '01', '63', '7C']} answer={2}>
+<CheckQuestion id="sbox-of-00" number={1} question="What is S(00)?" options={['00', '01', '63', '7C']} answer={2}>
   `00` has no inverse and is mapped to `00`; the affine map of `00` is just the constant `63`.
 </CheckQuestion>
 
-<CheckQuestion number={2} question="How many fixed points does the AES S-box have?" options={['0', '1', '2', '16']} answer={0}>
+<CheckQuestion id="sbox-fixed-points" number={2} question="How many fixed points does the AES S-box have?" options={['0', '1', '2', '16']} answer={0}>
   None. The constant `0x63` was chosen so that `S(a) ≠ a` for every byte `a`.
 </CheckQuestion>
 
 <CheckQuestion
+  id="sbox-nonlinearity"
   number={3}
   question="Which part of the S-box provides the non-linearity?"
   options={['The XOR with 0x63', 'The inverse in GF(2⁸)', 'The bit rotations', 'The table lookup itself']}

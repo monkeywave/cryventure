@@ -14,7 +14,7 @@ refs:
   - Intel, Advanced Encryption Standard (AES) New Instructions Set, White Paper (Gueron)
   - Arm Architecture Reference Manual, AESE / AESMC
   - OpenSSL, include/openssl/aes.h (struct aes_key_st)
-sourceHash: sha256:654e79ea51b044305687a47d51fc68f7a5062299bfccb8295084d86f26936658
+sourceHash: sha256:144520c1b61c900a22b228ac4dbe109aaa5dc24b9b001355950cf7a2c97d75da
 translation:
   status: ai-reviewed
   reviewedAt: '2026-10-02'
@@ -99,6 +99,7 @@ und einen vereinfachten Cache-Timing-Angriff auf eine T-Tabellen-Implementierung
 ## Teste dich selbst
 
 <CheckQuestion
+  id="armv8-aese-round-key"
   number={1}
   question="Wann verknüpft der ARMv8-Befehl AESE den Rundenschlüssel?"
   options={['Vor ShiftRows und SubBytes', 'Nach MixColumns', 'Nur nach SubBytes', 'Gar nicht; das macht AESMC']}
@@ -108,6 +109,7 @@ und einen vereinfachten Cache-Timing-Angriff auf eine T-Tabellen-Implementierung
 </CheckQuestion>
 
 <CheckQuestion
+  id="openssl-rd-key-size"
   number={2}
   question="Wie groß ist das Array rd_key in der OpenSSL-Struktur AES_KEY?"
   options={['176 Byte', '208 Byte', '240 Byte', '256 Byte']}

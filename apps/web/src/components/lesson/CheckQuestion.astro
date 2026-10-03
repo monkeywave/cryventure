@@ -7,9 +7,15 @@
 import '../../styles/quiz.css';
 import { loadMessages, pickPrefix, toLocale } from '../../i18n/loadMessages';
 import QuizQuestion from '../../islands/QuizQuestion.tsx';
-import { lessonKeyFromPath } from '../../progress/index.ts';
+import { isQuestionId, lessonKeyFromPath } from '../../progress/index.ts';
 
 interface Props {
+  /**
+   * Required stable id: kebab-case, unique per lesson, identical in EN and DE, never changed once
+   * published (progress is keyed by it; docs/M3.md §0b). Duplicates fail the build on the progress page.
+   */
+  id: string;
+  /** Display-only; renumbering is fine. */
   number: number;
   question: string;
   options: string[];
@@ -17,14 +23,17 @@ interface Props {
   answer: number;
 }
 
-const { number, question, options, answer } = Astro.props;
+const { id, number, question, options, answer } = Astro.props;
+if (!isQuestionId(id)) {
+  throw new Error(`<CheckQuestion number={${number}}> on ${Astro.url.pathname} needs id="…" in kebab-case starting with a letter (got ${JSON.stringify(id)})`);
+}
 const locale = toLocale(Astro.currentLocale);
 const messages = pickPrefix(loadMessages(locale, ['quiz']), 'quiz.question.');
 const lessonKey = lessonKeyFromPath(Astro.url.pathname, import.meta.env.BASE_URL);
 ---
 
 <div class="cv-check-host not-content">
-  <QuizQuestion client:visible lessonKey={lessonKey} number={number} question={question} options={options} answer={answer} messages={messages} locale={locale}>
+  <QuizQuestion client:visible lessonKey={lessonKey} questionId={id} number={number} question={question} options={options} answer={answer} messages={messages} locale={locale}>
     <slot />
   </QuizQuestion>
 </div>

@@ -21,7 +21,7 @@ export const AES_SBOX_PRESETS: Preset<AesSboxParams>[] = [
 /** Inputs for the generic param panel (label/hint keys must exist in EN and DE; the contract kit checks). */
 export const AES_SBOX_PARAM_FIELDS: ParamField[] = [{ name: 'byteHex', kind: 'hex', labelKey: `${NS}.param.byte`, hintKey: `${NS}.param.byteHint` }];
 
-export const AES_SBOX_OP_NAMES = ['load', 'square', 'multiply', 'inverse', 'affineBit', 'result'] as const;
+export const AES_SBOX_OP_NAMES = ['square', 'multiply', 'inverse', 'affineBit', 'result'] as const;
 export type AesSboxOpName = (typeof AES_SBOX_OP_NAMES)[number];
 
 /** Labels of every op the module records (`StateStep.op`); the player and debugger show them. */

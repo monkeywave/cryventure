@@ -9,14 +9,12 @@ import { gmulMath, mathBundle, mathLabels } from './testFixture.ts';
 
 const english = { ...loadViewMessages('en'), ...mathLabels.en };
 
-/** Renders the view with the playhead on the first step (the store starts before it, at -1). */
+/** Renders the view at the initial state (the store starts at step −1, where the fixture's load equation lives). */
 function render(lens: Lens = 'engineer', math: MathFacet = gmulMath, messages = english) {
-  const result = renderLab(<MathView labId="fixture" lens={lens} />, {
+  return renderLab(<MathView labId="fixture" lens={lens} />, {
     bundle: mathBundle(math),
     messages,
   });
-  act(() => result.store.getState().seek(0));
-  return result;
 }
 
 const row = (id: string) => document.querySelector<HTMLElement>(`[data-term="${id}"]`)!;
@@ -30,7 +28,7 @@ const formula = () => document.querySelector('.cv-math__formula')?.textContent;
 describe('MathView', () => {
   it('shows the formula and a semantic table of terms at the playhead', () => {
     const { store } = render();
-    act(() => store.getState().seek(1));
+    act(() => store.getState().seek(0));
     expect(formula()).toBe('b bit 0 = 1: acc ← acc ⊕ a • x⁰');
     const table = screen.getByRole('table', { name: english['view.math.terms'] });
     expect(
@@ -49,7 +47,7 @@ describe('MathView', () => {
 
   it('labels each bit MSB → LSB and marks emphasised bits with a non-colour cue', () => {
     const { store } = render();
-    act(() => store.getState().seek(1));
+    act(() => store.getState().seek(0));
     expect(bitLabels('b')).toEqual([
       'bit 7 = 1',
       'bit 6 = 0',
@@ -66,15 +64,15 @@ describe('MathView', () => {
   it('follows the playhead and keeps the latest equation between math steps', () => {
     const { store } = render('engineer', {
       ...gmulMath,
-      steps: gmulMath.steps.filter((mathStep) => mathStep.step !== 5),
+      steps: gmulMath.steps.filter((mathStep) => mathStep.step !== 4),
     });
-    act(() => store.getState().seek(4));
+    act(() => store.getState().seek(3));
     expect(formula()).toBe('a • x² = (a • x²⁻¹ ≪ 1) ⊕ {11b}');
     expect(bitLabels('shifted')[0]).toBe('carry bit 8 = 1, highlighted');
     expect(row('shifted').querySelector('[data-carry]')).not.toBeNull();
     expect(row('modulus').textContent).toContain('0x11b');
     expect(row('modulus').querySelector('[data-carry]')).toBeNull();
-    act(() => store.getState().seek(5));
+    act(() => store.getState().seek(4));
     expect(formula()).toBe('a • x² = (a • x²⁻¹ ≪ 1) ⊕ {11b}');
     act(() => store.getState().seek(gmulMath.steps.at(-1)!.step));
     expect(row('result').textContent).toContain('0xc1');
@@ -100,12 +98,19 @@ describe('MathView', () => {
     expect(document.querySelector('.cv-math__bit')).not.toBeNull();
   });
 
-  it('previews the first equation, muted, under a start hint before the first step', () => {
+  it('renders a step −1 equation at the initial state like any other, without the start hint', () => {
     const { store } = render();
-    act(() => store.getState().seek(-1));
+    expect(store.getState().step).toBe(-1);
+    expect(formula()).toBe(english['plugin.gf256.formula.gmulLoad']);
+    expect(screen.getByRole('table')).toBeTruthy();
+    expect(document.querySelector('[data-upcoming]')).toBeNull();
+    expect(screen.queryByText(english['view.math.notYet']!)).toBeNull();
+  });
+
+  it('previews the first equation, muted, under a start hint when the facet has no step −1 entry', () => {
+    const { store } = render('engineer', { ...gmulMath, steps: gmulMath.steps.filter((mathStep) => mathStep.step >= 0) });
     const preview = document.querySelector<HTMLElement>('[data-upcoming]')!;
     expect(within(preview).getByText(english['view.math.upcoming']!)).toBeTruthy();
-    expect(within(preview).getByText(english['plugin.gf256.formula.gmulLoad']!)).toBeTruthy();
     expect(within(preview).getByRole('table')).toBeTruthy();
     expect(screen.queryByText(english['view.math.notYet']!)).toBeNull();
     act(() => store.getState().seek(0));
@@ -169,7 +174,7 @@ describe('MathView', () => {
     });
     expect(screen.getByRole('columnheader', { name: 'Polynom' })).toBeTruthy();
     expect(screen.getByText(/Der endliche Körper GF\(2⁸\)/)).toBeTruthy();
-    act(() => store.getState().seek(1));
+    act(() => store.getState().seek(0));
     expect(row('addend').textContent).toContain('XOR-verknüpfen');
   });
 

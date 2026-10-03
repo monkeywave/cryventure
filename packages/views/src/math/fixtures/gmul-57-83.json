@@ -10,8 +10,7 @@
         "shape": [1],
         "layout": {
           "kind": "grid"
-        },
-        "initial": "blank"
+        }
       },
       {
         "id": "b",
@@ -20,8 +19,7 @@
         "shape": [1],
         "layout": {
           "kind": "grid"
-        },
-        "initial": "blank"
+        }
       },
       {
         "id": "addend",
@@ -30,8 +28,7 @@
         "shape": [1],
         "layout": {
           "kind": "grid"
-        },
-        "initial": "blank"
+        }
       },
       {
         "id": "acc",
@@ -40,62 +37,23 @@
         "shape": [1],
         "layout": {
           "kind": "grid"
-        },
-        "initial": "blank"
+        }
       }
     ],
     "initial": {
-      "a": [0],
-      "b": [0],
-      "addend": [0],
+      "a": [87],
+      "b": [131],
+      "addend": [87],
       "acc": [0]
     },
+    "initialNarration": {
+      "key": "plugin.gf256.step.gmul.load",
+      "params": {
+        "a": "{57}",
+        "b": "{83}"
+      }
+    },
     "steps": [
-      {
-        "op": "load",
-        "writes": [
-          {
-            "region": "a",
-            "offset": 0,
-            "values": [87]
-          },
-          {
-            "region": "b",
-            "offset": 0,
-            "values": [131]
-          },
-          {
-            "region": "addend",
-            "offset": 0,
-            "values": [87]
-          },
-          {
-            "region": "acc",
-            "offset": 0,
-            "values": [0]
-          }
-        ],
-        "highlights": [
-          {
-            "region": "a",
-            "indices": [0],
-            "kind": "write"
-          },
-          {
-            "region": "b",
-            "indices": [0],
-            "kind": "write"
-          }
-        ],
-        "narration": {
-          "key": "plugin.gf256.step.gmul.load",
-          "params": {
-            "a": "{57}",
-            "b": "{83}"
-          }
-        },
-        "scope": []
-      },
       {
         "op": "add",
         "writes": [
@@ -550,7 +508,7 @@
     },
     "steps": [
       {
-        "step": 0,
+        "step": -1,
         "formula": {
           "key": "plugin.gf256.formula.gmulLoad"
         },
@@ -577,7 +535,7 @@
         ]
       },
       {
-        "step": 1,
+        "step": 0,
         "formula": {
           "key": "plugin.gf256.formula.add",
           "params": {
@@ -629,7 +587,7 @@
         ]
       },
       {
-        "step": 2,
+        "step": 1,
         "formula": {
           "key": "plugin.gf256.formula.xtimeShift",
           "params": {
@@ -677,7 +635,7 @@
         ]
       },
       {
-        "step": 3,
+        "step": 2,
         "formula": {
           "key": "plugin.gf256.formula.add",
           "params": {
@@ -729,7 +687,7 @@
         ]
       },
       {
-        "step": 4,
+        "step": 3,
         "formula": {
           "key": "plugin.gf256.formula.xtimeReduce",
           "params": {
@@ -788,7 +746,7 @@
         ]
       },
       {
-        "step": 5,
+        "step": 4,
         "formula": {
           "key": "plugin.gf256.formula.skip",
           "params": {
@@ -818,7 +776,7 @@
         ]
       },
       {
-        "step": 6,
+        "step": 5,
         "formula": {
           "key": "plugin.gf256.formula.xtimeShift",
           "params": {
@@ -866,7 +824,7 @@
         ]
       },
       {
-        "step": 7,
+        "step": 6,
         "formula": {
           "key": "plugin.gf256.formula.skip",
           "params": {
@@ -896,7 +854,7 @@
         ]
       },
       {
-        "step": 8,
+        "step": 7,
         "formula": {
           "key": "plugin.gf256.formula.xtimeReduce",
           "params": {
@@ -955,7 +913,7 @@
         ]
       },
       {
-        "step": 9,
+        "step": 8,
         "formula": {
           "key": "plugin.gf256.formula.skip",
           "params": {
@@ -985,7 +943,7 @@
         ]
       },
       {
-        "step": 10,
+        "step": 9,
         "formula": {
           "key": "plugin.gf256.formula.xtimeShift",
           "params": {
@@ -1033,7 +991,7 @@
         ]
       },
       {
-        "step": 11,
+        "step": 10,
         "formula": {
           "key": "plugin.gf256.formula.skip",
           "params": {
@@ -1063,7 +1021,7 @@
         ]
       },
       {
-        "step": 12,
+        "step": 11,
         "formula": {
           "key": "plugin.gf256.formula.xtimeShift",
           "params": {
@@ -1111,7 +1069,7 @@
         ]
       },
       {
-        "step": 13,
+        "step": 12,
         "formula": {
           "key": "plugin.gf256.formula.skip",
           "params": {
@@ -1141,7 +1099,7 @@
         ]
       },
       {
-        "step": 14,
+        "step": 13,
         "formula": {
           "key": "plugin.gf256.formula.xtimeShift",
           "params": {
@@ -1189,7 +1147,7 @@
         ]
       },
       {
-        "step": 15,
+        "step": 14,
         "formula": {
           "key": "plugin.gf256.formula.add",
           "params": {
@@ -1241,7 +1199,7 @@
         ]
       },
       {
-        "step": 16,
+        "step": 15,
         "formula": {
           "key": "plugin.gf256.formula.gmulResult"
         },

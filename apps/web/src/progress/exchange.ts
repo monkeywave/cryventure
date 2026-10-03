@@ -1,13 +1,13 @@
 import { isSupportedVersion, migrate } from './migrations.ts';
-import type { ProgressV1 } from './schema.ts';
+import type { Progress } from './schema.ts';
 
 export const EXCHANGE_FORMAT = 'cryventure-progress';
 
 export type ImportError = 'invalid-json' | 'wrong-format' | 'unsupported-version';
-export type ImportResult = { ok: true; progress: ProgressV1 } | { ok: false; error: ImportError };
+export type ImportResult = { ok: true; progress: Progress } | { ok: false; error: ImportError };
 
 /** Pretty JSON of the progress, tagged with the exchange `format` marker. */
-export function exportProgress(progress: ProgressV1): string {
+export function exportProgress(progress: Progress): string {
   return `${JSON.stringify({ format: EXCHANGE_FORMAT, ...progress }, null, 2)}\n`;
 }
 

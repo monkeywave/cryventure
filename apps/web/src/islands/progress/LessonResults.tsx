@@ -1,15 +1,15 @@
 import { useT } from '@cryventure/viz';
-import { useProgress, type ProgressV1 } from '../../progress/index.ts';
+import { useProgress, type Progress } from '../../progress/index.ts';
 import { lessonScore, lessonsWithProgress, type QuizLesson } from '../../quiz/quizModel.ts';
 
 /** The whole record: a reference held by the store, so `useProgress` stays stable between changes. */
-const wholeProgress = (progress: ProgressV1): ProgressV1 => progress;
+const wholeProgress = (progress: Progress): Progress => progress;
 
 const COMPLETE_GLYPH = '✓ ';
 
-function LessonScoreText({ lesson, progress }: { lesson: QuizLesson; progress: ProgressV1 }) {
+function LessonScoreText({ lesson, progress }: { lesson: QuizLesson; progress: Progress }) {
   const t = useT();
-  const score = lessonScore(progress.lessons[lesson.key], lesson.questionCount);
+  const score = lessonScore(progress.lessons[lesson.key], lesson.questions);
   if (score.answered === 0) return <span className="cv-progress__score">{t('quiz.progress.lesson.notStarted')}</span>;
   return (
     <span className="cv-progress__score" data-complete={score.correct === score.total}>

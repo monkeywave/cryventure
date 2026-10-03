@@ -12,7 +12,7 @@ describe('xorRows', () => {
 });
 
 describe('xorRegions', () => {
-  it('declares four flat u8 rows of the message length, all zero initially', () => {
+  it('declares four flat u8 rows of the message length', () => {
     expect(xorRegions(3).map((region) => [region.id, region.shape])).toEqual([
       ['message', [3]],
       ['key', [3]],
@@ -29,12 +29,14 @@ describe('recordXor', () => {
   const recording = recordXor(message, key);
   const { steps } = recording.facet;
 
-  it('records load, load, one xorByte per byte, decrypt', () => {
-    expect(steps.map((step) => step.op)).toEqual(['loadMessage', 'loadKey', 'xorByte', 'xorByte', 'xorByte', 'decrypt']);
+  it('starts with message and key in the initial state, then one xorByte per byte, decrypt', () => {
+    expect(recording.facet.initial).toMatchObject({ message, key });
+    expect(recording.facet.initialNarration).toEqual({ key: 'plugin.xor.step.initial', params: { count: 3 } });
+    expect(steps.map((step) => step.op)).toEqual(['xorByte', 'xorByte', 'xorByte', 'decrypt']);
   });
 
   it('writes one result byte per XOR step, highlighted as xor', () => {
-    const second = steps[3];
+    const second = steps[1];
     expect(second?.writes).toEqual([{ region: 'result', offset: 1, values: [0x99] }]);
     expect(second?.highlights).toContainEqual({ region: 'result', indices: [1], kind: 'xor' });
     expect(second?.narration).toEqual({ key: 'plugin.xor.step.xorByte', params: { index: 1, message: '69', key: 'f0', result: '99' } });
@@ -49,11 +51,11 @@ describe('recordXor', () => {
 });
 
 describe('xor blank regions', () => {
-  it('starts every row as not yet written and fills result byte by byte', () => {
+  it('starts result and recovered as not yet written (message and key are given) and fills result byte by byte', () => {
     const { facet } = recordXor([0x68, 0x65], [0x2b, 0x7e]);
-    expect(facet.regions.every((region) => region.initial === 'blank')).toBe(true);
+    expect(facet.regions.filter((region) => region.initial === 'blank').map((region) => region.id)).toEqual(['result', 'recovered']);
     expect([...(unwrittenAt(facet, -1).get('result') ?? [])]).toEqual([0, 1]);
-    expect([...(unwrittenAt(facet, 2).get('result') ?? [])]).toEqual([1]);
+    expect([...(unwrittenAt(facet, 0).get('result') ?? [])]).toEqual([1]);
     const last = unwrittenAt(facet, facet.steps.length - 1);
     expect([...last.values()].every((indices) => indices.size === 0)).toBe(true);
   });

@@ -114,15 +114,16 @@ slide attacks feed on. A lab switch for this experiment follows in a later miles
 
 ## Check yourself
 
-<CheckQuestion number={1} question="How many 32-bit words does AES-256 key expansion produce?" options={['44', '52', '60', '64']} answer={2}>
+<CheckQuestion id="aes256-key-words" number={1} question="How many 32-bit words does AES-256 key expansion produce?" options={['44', '52', '60', '64']} answer={2}>
   `4·(Nr + 1) = 4·15 = 60` words, i.e. 240 bytes.
 </CheckQuestion>
 
-<CheckQuestion number={2} question="What is Rcon[10]?" options={['00', '1b', '36', '6c']} answer={2}>
+<CheckQuestion id="rcon-10" number={2} question="What is Rcon[10]?" options={['00', '1b', '36', '6c']} answer={2}>
   `x⁹ mod 0x11B = 36`: the sequence is `01 02 04 08 10 20 40 80 1b 36`.
 </CheckQuestion>
 
 <CheckQuestion
+  id="aes256-extra-step"
   number={3}
   question="Which step does only AES-256 add to the key expansion?"
   options={['An extra RotWord', 'An extra SubWord at i mod 8 = 4', 'A second Rcon', 'An extra MixColumns']}
