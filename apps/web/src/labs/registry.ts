@@ -25,8 +25,9 @@ export interface LabRegistries {
 export const defaultRegistries: LabRegistries = { producers: producerRegistry, views: viewRegistry, derivers: deriverManifests };
 
 /**
- * Views a producer can feed before any run (SSR poster, preloading): its declared facets plus one
- * deriver hop. `appliesTo` needs a bundle, so this may offer views a given run cannot feed.
+ * Views a producer can feed before any run: its declared facets plus one hop through `derivers`.
+ * `appliesTo` needs a bundle, so with every deriver this is a superset; `labMessages` narrows the
+ * derivers by a sample run (`sampleDerivers.ts`), and `startLab` preloads per bundle (`viewsForBundle`).
  */
 export function viewsForProducer(
   producer: Pick<PrimitiveManifest, 'facets'>,

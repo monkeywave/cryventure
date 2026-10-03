@@ -4,7 +4,7 @@
 > `docs/EXTENDING.md` / `docs/AUTHORING.md` as needed. Continue with **Next up** below.
 > Update this file at the end of every milestone or significant change.
 
-_Last updated: 2026-10-03 (M3 complete + /simplify + /code-review)._
+_Last updated: 2026-10-03 (M4 complete + /simplify + /code-review)._
 
 ## Where things live
 
@@ -30,7 +30,8 @@ _Last updated: 2026-10-03 (M3 complete + /simplify + /code-review)._
 | M1 follow-ups                                            | ✅ done | mobile caption + sticky player, inline derivation chain, contrast tokens, German AI review, plurals, translation freshness check |
 | M2 Foundations + S-box                                   | ✅ done | GF(2⁸)/S-box plugins, math + table facets, foundations lessons, quiz + progress, lens, prologue (see `docs/M2.md`)                |
 | M3 Modes I (ECB/CBC/CTR, penguin, PWA)                   | ✅ done | ports + mode primitives, mode-chain/wire views, PenguinLab, PWA, modes lessons (see `docs/M3.md`); attack labs deferred           |
-| M4 GCM + Memory & Hardware (ISA/memory derivers + views) | ⏭ next  | proves "views as plugins"                                                                                                        |
+| M4 GCM + Memory & Hardware (ISA/memory derivers + views) | ✅ done | ghash/gcm, derivers isa-x86/isa-armv8/memory, views instructions/registers/memory/field, CSP; **no core diff** after wave 1 (see `docs/M4.md`) |
+| M5 Hash I (proposed, see Next up)                        | ⏭ next  | first Phase 2a milestone                                                                                                          |
 | Phases 2–10                                              | ☐       | see `docs/PLAN.md` §6                                                                                                            |
 
 ## What M2 delivered
@@ -80,25 +81,46 @@ _Last updated: 2026-10-03 (M3 complete + /simplify + /code-review)._
   "Why CBC is being retired" section (BEAST, Lucky Thirteen and POODLE by name per RFC 7457; TLS 1.3 is
   AEAD-only). CTR ends with the counter-uniqueness rule.
 
-## Next up — M4 (from `docs/PLAN.md` §7)
+## What M4 delivered
 
-Deliverables:
-1. `primitives/{ghash,gcm}` over the `BlockCipher` port: GCM spec vectors (SP 800-38D) and Wycheproof.
-   The lessons are `modes/{gcm,ghash}`.
-2. **Extensibility proof:** `derivers/isa-x86`, `derivers/isa-armv8` and `derivers/memory`, plus views
-   `instructions`, `registers` and `memory`, as plugins only. Core gains only facet schemas. Includes the
-   deriver-aware `viewsFor`.
-3. Lessons `aes/{memory-abi,aes-ni}`, precomputed asm JSON, the fly-through animation and the hero lab.
-4. CSP: a meta tag on Pages and real headers in Docker. `THIRD_PARTY_NOTICES.md`, a11y and visual gates.
+- **No-core-diff proof:** core changed only in wave 1 (`e109460`: facet schemas `align`, `instructions`,
+  `registers`, `memory`, `field`, GCM chain/wire kinds; GCM reference `core/math/gf128`, `core/modes/gcm`,
+  `inc32` + optional `increment` on `ctrXor`). `git diff e109460 -- packages/core` stayed empty through
+  derivers, views, lessons, reviews, `/simplify` and `/code-review`.
+- **GCM:** primitives `ghash` (block and bit detail, `field` facet) and `gcm` (port `BlockCipher`, J0 rule
+  for any IV length, inc32, GMAC, truncated tags, decrypt releases nothing on FAIL: a `candidate` region and
+  withheld chain nodes). Conformance: McGrew–Viega TC 1–18 both directions, 244 filtered Wycheproof cases
+  (all 16-byte tags), noble oracles for gcm and ghash.
+- **Derivers (`packages/derivers`, plugins only):**
+  - `isa-x86` / `isa-armv8`: real clang 23.1.0 `-O2` listings (`pnpm asm:generate`), `align` spans per
+    `docs/M4.md` §1e, register values read from the trace. FIPS 197 App. C round states for C.1–C.3.
+  - `memory`: `AES_KEY` as impl × triple from OpenSSL 3.5.9 (`data/SOURCES.md`): c-ref host-endian
+    words, aesni `rounds` = 9/11/13, armv8 raw bytes. Layouts via `pnpm layouts:generate`.
+  - Shared variant ids across kinds (`x86_64-aesni`, `x86_64-c-ref`, `aarch64-armv8-ce`, `aarch64-c-ref`).
+- **Runtime:** lazy, memoised derivation in viz (`useFacet`, `useVariantChoice`, lab-wide variant
+  preference, `<Lab variant>`); deriver-aware view lists in apps/web; `TabbedViews` tracks tabs by id.
+- **Views:** `instructions`, `registers` (lane switch, MSB-first toggle), `memory` (target/impl pickers,
+  u32 word toggle, field overlay, linked round keys), `field` (GF(2¹²⁸) terms); GCM styles in mode-chain and
+  wire.
+- **Contract kit:** `deriverContract` (goldens required, align/valueRef/i18n checks, memory lifetimes),
+  derived facets in view fixtures, snapshot freshness tests + `pnpm fixtures:update`, `pnpm cv new deriver`.
+- **Content (EN+DE, ai-reviewed):** `symmetric/modes/{ghash,gcm}`, `symmetric/aes/{memory-abi,aes-ni}`, the
+  `memory-and-hardware` overview, the FlyThrough (Kamerafahrt) island, and the home hero lab. AES regions
+  start blank (`··`) before the `input` op.
+- **Deploy/security:** CSP from one source (`apps/web/src/security/csp.ts`): hashed meta on Pages, generated
+  nginx header in Docker (`frame-ancestors 'none'`, no `'unsafe-inline'` in `script-src`), e2e violation
+  listener, Docker subpath CI job. `pnpm licenses:check` in CI; `THIRD_PARTY_NOTICES.md` updated.
 
-Design questions to settle first (write `docs/M4.md` before coding):
-- **Deriver contract in practice:** lazy derivation, memoisation per bundle, and facet variants
-  (`memory@x86_64-linux-gnu`). Also where the timeline goes when a facet has its own steps (`align`).
-- **GCM:** whether the GHASH multiply gets a `math` facet (128-bit terms exceed the 32-bit
-  `MathTerm.width`), and how GCM composes CTR (reuse `core/modes/ctr` with the 32-bit `inc32`).
-- **Attack labs (GCM nonce reuse is planned in PLAN):** in M3 the safety classifier repeatedly stopped
-  attempts at attack-lab producers. **Confirm with the user before planning any attack lab**, and
-  default to conceptual and historical treatment in prose.
+## Next up — M5 (proposal: Hash I, PLAN §6 Phase 2a)
+
+Write `docs/M5.md` first. Suggested scope:
+1. `primitives/sha2` (SHA-224/256/384/512, SHA-512/t) with FIPS 180-4 + NIST intermediate values and noble
+   oracles; a `compression` view or reuse of `state`/`math`; "why these constants" (√/∛ of primes,
+   SHA-384 IV, SHA-512/t IV generation).
+2. A `Hash` port in core (the first core change since M4, additive), so HMAC/HKDF can compose later.
+3. A second ISA deriver family (SHA-NI / ARMv8 SHA2) — proves the deriver contract generalises beyond AES.
+4. Lessons `hash/{index,sha256,sha512}` EN then DE; quizzes; T11 security-notions intro if time allows.
+5. Before planning any attack lab (length extension), ask the user (see Deviations).
 
 ## Deviations from the plan (decided)
 
@@ -109,6 +131,15 @@ Design questions to settle first (write `docs/M4.md` before coding):
 - **M3 attack labs deferred (user decision 2026-10-03):** the CBC bit-flip, CTR keystream-reuse and
   padding-oracle labs and the padding-oracle lesson are not built. The CBC and CTR lessons cover the
   weaknesses conceptually and historically.
+- **M4 core budget:** besides facet schemas, core got the GCM reference math (`gf128`, `gcm`, `inc32`)
+  in wave 1, following the M3 precedent and the "reuse core/modes/ctr with inc32" goal; nothing after.
+  `gcmJ0(h, iv)` takes no cipher/key (J0 needs neither). gcm keeps local copies of core-private helpers
+  (`lengthBlock`, `tagsMatch`) because core is frozen.
+- **M4 attack labs not planned:** GCM nonce reuse is conceptual/historical prose only (user rule).
+- **Timeline stays on the state facet;** derived facets have own steps with `align` spans (M4.md §1e).
+- **Visual gate = named Playwright screenshots,** not pixel baselines (macOS vs CI Linux rendering).
+- **Triples:** x86_64-linux-gnu and aarch64-linux-gnu only; riscv64/Windows and the LLP64 probe deferred.
+- **Snapshot fixtures** (views/derivers tests can't import producers) are guarded by freshness tests.
 - **Zoom params live in the manifest** (`blockLabParams`), not on the `BlockCipher` port.
 - **German term:** "mode of operation" = „Betriebsmodus“ (plural „Betriebsmodi“) per GLOSSARY.
 - **Full AES and axe a11y checks** landed already in M0/M1 (pulled forward).
@@ -130,8 +161,8 @@ Design questions to settle first (write `docs/M4.md` before coding):
 - Key-schedule words of one round key share one `valueRef` (`r/roundKey`); per-word ValueRefs needed
   for word-precise linked brushing across views.
 - `view.state.region.summary` would need `count` for plural forms if 1-byte regions ever appear.
-- Docker image can't be built locally on this machine (Docker Desktop proxy times out on Docker Hub);
-  CI builds and smoke-tests it on every push.
+- Docker: local image builds worked again during M4 (CSP header checked against a real container);
+  CI still builds and smoke-tests it on every push, now also with `CV_BASE=/cryventure/`.
 - `astro preview` needs `--ignore-lock` when driven by agents (already in Playwright config).
 
 ### Deferred
@@ -147,8 +178,17 @@ Design questions to settle first (write `docs/M4.md` before coding):
   - `runOptionsFor` in tools still defaults to the real registry, because `modeViewFixture` uses it.
   - The precache holds both locales (5.5 MB, 200 files at M3 end; budget 25 MB). Consider per-locale or runtime caching for unvisited pages.
   - After the `cv.lens` change, the lens flashes the default once on the first load after upgrading.
-- **M4:** deriver-aware `viewsFor` in `apps/web/src/labs/registry.ts`; facet-agnostic timeline
-  (today tied to the `state` facet). The core deriver contract (`defineDeriver`) is kept for this.
+- **From M4:**
+  - Facet-agnostic timeline (still tied to the `state` facet); deep-linked facet variants.
+  - Static deriver applicability (producer capabilities in the manifest) and an async `derive` so ISA
+    derivers can lazy-load only the listing for the run's key size — both need core changes.
+  - Worker graphs duplicate primitive modules in the precache (~15 KB each); no producer uses
+    `runIn: 'worker'` yet — prune when one does.
+  - Tests may not import producers, so views/derivers use snapshot fixtures; consider a test-only ESLint
+    exception instead.
+  - LLP64 probe struct, riscv64/Windows triples, zeroization/lifetimes (Phase 8), PCLMULQDQ GHASH (Phase 4).
+  - German open questions M4 items in `docs/translation-review-2026-10.md` (e.g. Lane vs. Spur, „das Tag“).
+  - Home page on phones has no menu button (splash template); check whether that predates M4.
 - The `key-schedule` view now renders any `derivation` facet generically — consider renaming it to
   `derivation` when HKDF/TLS key schedules arrive.
 - `selection.valueRefId` is published by the key-schedule view but not yet consumed (linked brushing);
@@ -169,8 +209,6 @@ Design questions to settle first (write `docs/M4.md` before coding):
   - One quiz island per lesson instead of one per question.
 - `StateRegions` passes `step={facet.steps[step]}` to every `RegionPanel`, so memoised panels still re-render each
   step (stable `unwrittenAt` Sets are in place; pass only per-region data to finish this).
-- Add the M3 terms (Zählermodus, Zählerblock, Anfangszählerblock, Schlüsselstrom, formbar) to
-  `docs/GLOSSARY.md`.
 - Unused keys `lesson.check.reveal` / `lesson.check.answer` in `lesson.json` (left in place).
 
 ## Quality gates (all must be green before committing)

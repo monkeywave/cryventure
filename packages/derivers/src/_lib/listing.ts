@@ -40,18 +40,23 @@ export interface MemOperand {
   offset: number;
 }
 
-const INTEL_MEM = /\[\s*(\w+)\s*(?:([+-])\s*(\d+)\s*)?\]/;
-const ARM_MEM = /\[\s*(\w+)\s*(?:,\s*#(-?\d+)\s*)?\]/;
+/** A decimal or `0x` hex magnitude, as compilers and disassemblers print offsets. */
+const NUMBER = String.raw`0x[0-9a-f]+|\d+`;
+const INTEL_MEM = new RegExp(String.raw`\[\s*(\w+)\s*(?:([+-])\s*(${NUMBER})\s*)?\]`, 'i');
+const ARM_MEM = new RegExp(String.raw`\[\s*(\w+)\s*(?:,\s*#\s*(-?)(${NUMBER})\s*)?\]`, 'i');
 
-/** Parses `[rdx]`, `xmmword ptr [rdx + 16]`, `[x2]` or `[x2, #32]`; `undefined` for a non-memory operand. */
+function signedOffset(sign: string | undefined, magnitude: string | undefined): number {
+  const value = Number(magnitude ?? 0);
+  return sign === '-' ? -value : value;
+}
+
+/**
+ * Parses `[rdx]`, `xmmword ptr [rdx + 16]`, `[x2]`, `[x2, #32]` or `[x2, #0x20]`; `undefined` for a
+ * non-memory operand. The one memory-operand parser: the listing generator (`@cryventure/tools`) uses it too.
+ */
 export function parseMemOperand(operand: string): MemOperand | undefined {
-  const intel = INTEL_MEM.exec(operand);
-  if (intel?.[1] !== undefined) {
-    const magnitude = Number(intel[3] ?? 0);
-    return { base: intel[1], offset: intel[2] === '-' ? -magnitude : magnitude };
-  }
-  const arm = ARM_MEM.exec(operand);
-  return arm?.[1] === undefined ? undefined : { base: arm[1], offset: Number(arm[2] ?? 0) };
+  const match = INTEL_MEM.exec(operand) ?? ARM_MEM.exec(operand);
+  return match?.[1] === undefined ? undefined : { base: match[1], offset: signedOffset(match[2], match[3]) };
 }
 
 /** The listing for Nr rounds; throws when the deriver ships none. */

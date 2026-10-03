@@ -256,6 +256,26 @@ describe('MemoryView', () => {
     expect(store.getState().selection.valueRefId).toBe('10/roundKey');
   });
 
+  it('clears the published round key when the pointer leaves or focus moves away', () => {
+    const { store } = render();
+    fireEvent.mouseEnter(unitAt('key', 20));
+    expect(store.getState().selection.valueRefId).toBe('1/roundKey');
+    fireEvent.mouseLeave(unitAt('key', 20));
+    expect(store.getState().selection.valueRefId).toBeNull();
+    act(() => unitAt('key', 170).focus());
+    expect(store.getState().selection.valueRefId).toBe('10/roundKey');
+    act(() => unitAt('key', 170).blur());
+    expect(store.getState().selection.valueRefId).toBeNull();
+  });
+
+  it('leaves a selection another view made meanwhile when the pointer leaves', () => {
+    const { store } = render();
+    fireEvent.mouseEnter(unitAt('key', 20));
+    act(() => store.getState().select('2/roundKey'));
+    fireEvent.mouseLeave(unitAt('key', 20));
+    expect(store.getState().selection.valueRefId).toBe('2/roundKey');
+  });
+
   it('moves focus with roving tabindex inside the grid (bytes and words)', async () => {
     const user = userEvent.setup();
     render();

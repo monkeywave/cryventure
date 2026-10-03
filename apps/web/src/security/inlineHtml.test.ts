@@ -66,6 +66,42 @@ describe('inlineStyleBodies', () => {
   it('includes styles inside inline SVG', () => {
     expect(inlineStyleBodies(PAGE)).toEqual(['p{color:red}', '.s{}']);
   });
+
+  it('keeps an HTML <style> body raw: entities are not decoded in raw text', () => {
+    expect(inlineStyleBodies('<style>a&gt;b{}</style>')).toEqual(['a&gt;b{}']);
+    expect(inlineStyleBodies('<svg/><style>a&gt;b{}</style>')).toEqual(['a&gt;b{}']);
+    expect(inlineStyleBodies('<svg></svg><style>a&gt;b{}</style>')).toEqual(['a&gt;b{}']);
+  });
+
+  // In SVG/MathML the parser decodes entities and CDATA (and parses tags) before the browser hashes
+  // the text, so the raw body would hash differently: the build must refuse it, not emit a bad hash.
+  it('refuses an SVG <style> with an entity (the browser hashes the decoded text)', () => {
+    expect(() => inlineStyleBodies('<svg><style>a&gt;b{}</style></svg>')).toThrow(/inline <style> inside <svg>/);
+  });
+
+  it('refuses an SVG <style> with a CDATA section', () => {
+    expect(() => inlineStyleBodies('<svg><g><style><![CDATA[a>b{}]]></style></g></svg>')).toThrow(
+      /inline <style> inside <svg>/,
+    );
+  });
+
+  it('refuses a MathML <style> with an entity too', () => {
+    expect(() => inlineStyleBodies('<MATH><style>a&amp;b{}</style></MATH>')).toThrow(/inside <math>/);
+  });
+});
+
+describe('inlineScriptBodies in foreign content', () => {
+  it('refuses an SVG <script> whose text the parser would decode', () => {
+    expect(() => inlineScriptBodies('<svg><script>a&amp;&amp;b()</script></svg>')).toThrow(
+      /inline <script> inside <svg>/,
+    );
+  });
+
+  it('ignores "<svg" inside a script or comment when deciding the context', () => {
+    expect(inlineStyleBodies('<script>"<svg>"</script><!-- <svg> --><style>a&gt;b{}</style>')).toEqual([
+      'a&gt;b{}',
+    ]);
+  });
 });
 
 describe('collectInlineHashes / mergeInlineHashes', () => {

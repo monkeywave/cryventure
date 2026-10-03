@@ -1,3 +1,4 @@
+import { parseMemOperand } from '@cryventure/derivers/listing';
 import { describe, expect, it } from 'vitest';
 import {
   annotateListing,
@@ -29,6 +30,10 @@ describe('parseMemoryOperand', () => {
     expect(parseMemoryOperand('[x2, #32]')).toEqual({ base: 'x2', offset: 32 });
     expect(parseMemoryOperand('[x2, #0x20]')).toEqual({ base: 'x2', offset: 32 });
     expect(parseMemoryOperand('xmm0')).toBeUndefined();
+  });
+
+  it('is the derivers parser, so the generator and the ISA derivers cannot drift', () => {
+    expect(parseMemoryOperand).toBe(parseMemOperand);
   });
 });
 

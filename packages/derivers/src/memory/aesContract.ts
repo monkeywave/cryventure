@@ -1,19 +1,10 @@
 import { bytesEqual, type TraceBundle, type ValuesFacet } from '@cryventure/core';
-import {
-  aesStateFacet,
-  aesValuesFacet,
-  locateAesOps,
-  opStep,
-  requiredSubkeyId,
-  roundKeyBytesAt,
-  stateBytesAt,
-  subkeyValueIds,
-  valueIdByRole,
-} from '../_lib/aesTrace.ts';
+import { opStep, requiredSubkeyId, roundKeyBytesAt, stateBytesAt } from '../_lib/aesTrace.ts';
+import { traceContext } from '../_lib/traceContext.ts';
 
 /**
  * The few facts the memory deriver reads from the AES producer's published facet contract
- * (docs/M4.md §1b), through the same reader as the ISA derivers (`_lib/aesTrace`, one rule for
+ * (docs/M4.md §1b), through the same cached reader as the ISA derivers (`_lib/traceContext`, one rule for
  * ops, rounds and subkey → round): ops `input`/`keyExpansion`/`output`, regions `state` and `w`,
  * and the `values` facet's `subkey`/`key`/`plaintext`/`ciphertext` entries. Never the producer's
  * code. A broken contract throws, so a renamed op or region fails the contract kit.
@@ -43,13 +34,10 @@ function assertSubkeysMatchSchedule(values: ValuesFacet, roundKeys: AesRun['roun
   }
 }
 
-/** Reads one AES op-detail encryption from its state and values facets. */
+/** Reads one AES op-detail encryption from the bundle's shared trace context (`_lib/traceContext`). */
 export function readAesRun(bundle: TraceBundle): AesRun {
-  const state = aesStateFacet(bundle);
-  const values = aesValuesFacet(bundle);
-  const ops = locateAesOps(state);
-  const steps = { input: opStep(ops, 'input', 0), keyExpansion: opStep(ops, 'keyExpansion', 0), output: opStep(ops, 'output', ops.rounds) };
-  const subkeys = subkeyValueIds(values);
+  const { facet: state, values, ops, subkeys, keyScheduleStep, keyId, plaintextId, ciphertextId } = traceContext(bundle);
+  const steps = { input: opStep(ops, 'input', 0), keyExpansion: keyScheduleStep, output: opStep(ops, 'output', ops.rounds) };
   const roundKeys = Array.from({ length: ops.rounds + 1 }, (_, round) => ({
     valueId: requiredSubkeyId(subkeys, round),
     bytes: roundKeyBytesAt(state, steps.keyExpansion, round),
@@ -62,10 +50,6 @@ export function readAesRun(bundle: TraceBundle): AesRun {
     roundKeys,
     plaintext: stateBytesAt(state, steps.input),
     ciphertext: stateBytesAt(state, steps.output),
-    valueIds: {
-      key: valueIdByRole(values, 'key'),
-      plaintext: valueIdByRole(values, 'plaintext'),
-      ciphertext: valueIdByRole(values, 'ciphertext'),
-    },
+    valueIds: { key: keyId, plaintext: plaintextId, ciphertext: ciphertextId },
   };
 }

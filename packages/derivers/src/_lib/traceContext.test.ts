@@ -7,6 +7,7 @@ describe('traceContext', () => {
     const context = traceContext(aesFixtureBundle('fips197-c1'));
     expect(context.ops.rounds).toBe(10);
     expect(context.subkeys.size).toBe(11);
+    expect(context.keyId).toBe('key');
     expect(context.plaintextId).toBeDefined();
     expect(context.ciphertextId).toBeDefined();
     expect(context.keyScheduleStep).toBeGreaterThanOrEqual(0);

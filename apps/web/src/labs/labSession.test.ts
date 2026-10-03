@@ -1,14 +1,14 @@
 import { describe, expect, it, vi } from 'vitest';
 import type { ChoreographyModule, DeriverManifest, PrimitiveManifest, TraceBundle } from '@cryventure/core';
 import { ecbManifest } from '@cryventure/primitives/ecb';
-import { stateSteps } from '@cryventure/viz';
+import { stateSteps, type ReactViewManifest } from '@cryventure/viz';
 import { encodeJsonBase64Url } from './base64url.ts';
 import { readLabLink } from './deepLink.ts';
-import { loadChoreographyModule, preloadViews, requestLabParams, rerunLab, runProducer, startLab, type ReadySession, type StartLabOptions } from './labSession.ts';
+import { loadChoreographyModule, preloadViews, requestLabParams, rerunLab, runProducer, sameViewsOr, startLab, type ReadySession, type StartLabOptions } from './labSession.ts';
 import { parseStartAt } from './startAt.ts';
 import { createLabRunner } from './labRunner.ts';
 import { toyComposite, toyProducers } from './testProducers.ts';
-import { buildRegistry, producerRegistry } from './registry.ts';
+import { buildRegistry, defaultRegistries, producerRegistry } from './registry.ts';
 
 const C1 = { keyHex: '000102030405060708090a0b0c0d0e0f', plaintextHex: '00112233445566778899aabbccddeeff', detail: 'op' };
 const C1_CIPHERTEXT = [0x69, 0xc4, 0xe0, 0xd8, 0x6a, 0x7b, 0x04, 0x30, 0xd8, 0xcd, 0xb7, 0x80, 0x70, 0xb4, 0xc5, 0x5a];
@@ -88,6 +88,37 @@ describe('startLab', () => {
     expect(started.sort()).toEqual(['choreography', 'producer', 'view']);
     release();
     expect(await pending).toEqual({ status: 'error', error: { key: 'x' } });
+  });
+
+  describe('preloads only the views the run can feed', () => {
+    const DERIVED_ONLY = ['instructions', 'memory', 'registers'];
+    /** The app's registries with every view's chunk load counted. */
+    function countingRegistries() {
+      const loaded = new Set<string>();
+      const views = defaultRegistries.views.list().map((view) => ({
+        ...view,
+        load: () => {
+          loaded.add(view.id);
+          return view.load();
+        },
+      }));
+      const registries = { ...defaultRegistries, views: buildRegistry('views', views) };
+      return { loaded, registries };
+    }
+
+    it('skips derived views no deriver applies to (ctr)', async () => {
+      const { loaded, registries } = countingRegistries();
+      const session = await startLab({ producerId: 'ctr', link: { status: 'absent' }, registries });
+      expect(session.status).toBe('ready');
+      expect(DERIVED_ONLY.filter((id) => loaded.has(id))).toEqual([]);
+      expect(loaded.size).toBeGreaterThan(0);
+    });
+
+    it('loads the derived views of an applicable deriver (aes at op detail)', async () => {
+      const { loaded, registries } = countingRegistries();
+      await startLab({ producerId: 'aes', presetId: 'fips197-c1', link: { status: 'absent' }, registries });
+      expect(DERIVED_ONLY.filter((id) => loaded.has(id))).toEqual(DERIVED_ONLY);
+    });
   });
 
   it('runs the FIPS 197 C.1 preset and starts at the initial state', async () => {
@@ -398,5 +429,22 @@ describe('startLab / rerunLab view list with derivers', () => {
     const changed = await rerunLab(same.session, { ...C1, detail: 'round' });
     if (!changed.ok) throw new Error('expected ok');
     expect(changed.session.views).not.toBe(session.views);
+  });
+});
+
+describe('sameViewsOr', () => {
+  const view = (id: string) => ({ id }) as unknown as ReactViewManifest;
+
+  it('keeps the previous array when the ids and their order are unchanged', () => {
+    const previous = [view('state'), view('narration')];
+    expect(sameViewsOr(previous, [view('state'), view('narration')])).toBe(previous);
+    const none: ReactViewManifest[] = [];
+    expect(sameViewsOr(none, [])).toBe(none);
+  });
+
+  it('takes the next array when a view is added, removed or reordered', () => {
+    const previous = [view('state'), view('narration')];
+    for (const next of [[view('state'), view('narration'), view('memory')], [view('state')], [view('narration'), view('state')], [view('state'), view('memory')]])
+      expect(sameViewsOr(previous, next)).toBe(next);
   });
 });

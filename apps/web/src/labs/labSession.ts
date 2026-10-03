@@ -1,4 +1,4 @@
-import { getFacet, type ChoreographyModule, type DeriverManifest, type I18nRef, type PrimitiveManifest, type Registry, type TraceBundle } from '@cryventure/core';
+import { getFacet, viewsFor, type ChoreographyModule, type DeriverManifest, type I18nRef, type PrimitiveManifest, type Registry, type TraceBundle } from '@cryventure/core';
 import { createLabStore, stateSteps, type AnyStateFacet, type BlockLabHrefBuilder, type LabHrefBuilder, type LabMode, type LabStore, type ReactViewManifest } from '@cryventure/viz';
 import type { LabLinkRead } from './deepLink.ts';
 import { createLabRunner, type LabRunner } from './labRunner.ts';
@@ -70,7 +70,9 @@ export async function preloadViews(views: readonly Pick<ReactViewManifest, 'load
 
 /**
  * manifest → start params (link / preset / defaults) → run (ports prepared, main thread or worker) → store in `mode`, seeked to the start step.
- * The producer module, its choreography and the views load in parallel, not one after another.
+ * The producer module, its choreography and the views its declared facets feed load in parallel; the
+ * views only a deriver feeds load after the run, and only when a deriver applies to it
+ * (`viewsForBundle`: `appliesTo` needs the bundle), so a lab never fetches views it cannot show.
  */
 export async function startLab({ producerId, presetId, link, startAt, mode, variant, registries, runner: givenRunner, labHref, blockLabHref }: StartLabOptions): Promise<SettledLabSession> {
   const resolved = resolveLab(producerId, registries);
@@ -81,13 +83,14 @@ export async function startLab({ producerId, presetId, link, startAt, mode, vari
   const [{ start, result }, choreography] = await Promise.all([
     runStartParams(runner, producer, resolveStartParams(producer, link, presetId), presetId),
     loadChoreographyModule(producer),
-    preloadViews(resolved.lab.views),
+    preloadViews(viewsFor(viewCatalog.list(), producer.facets, [])),
   ]);
   if (!result.ok) return { status: 'error', error: result.error };
+  const views = viewsForBundle(result.trace, viewCatalog, derivers);
+  await preloadViews(views);
   const store = createLabStore(result.trace, { labHref, blockLabHref, preferredVariant: variant });
   if (mode !== undefined) store.getState().setMode(mode);
   store.getState().seek(initialStep(start.step, startAt, stateSteps(result.trace)));
-  const views = viewsForBundle(result.trace, viewCatalog, derivers);
   return { status: 'ready', producer, views, viewCatalog, derivers, store, params: start.params, notice: start.notice, choreography, runner };
 }
 

@@ -6,7 +6,8 @@
   "description": "CryVenture deriver plugins (ISA listings, memory layout, ...). Each folder exports one manifest.ts. Deterministic.",
   "exports": {
     ".": "./src/index.ts",
-    "./messages": "./src/messages.ts"
+    "./messages": "./src/messages.ts",
+    "./listing": "./src/_lib/listing.ts"
   },
   "scripts": {
     "typecheck": "tsc --noEmit -p ."

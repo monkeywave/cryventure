@@ -5,7 +5,8 @@ import { loadPrimitiveMessages } from '@cryventure/primitives/messages';
 import { loadViewMessages } from '@cryventure/views/messages';
 import { loadVizMessages } from '@cryventure/viz/messages';
 import { loadMessages, pickPrefix, toLocale } from '../i18n/loadMessages.ts';
-import { deriversForFacets, producerRegistry, viewsForProducer } from './registry.ts';
+import { deriversForFacets, producerRegistry, viewRegistry, viewsForProducer } from './registry.ts';
+import { sampleApplicableDerivers } from './sampleDerivers.ts';
 
 /**
  * Server-side only: assembles the exact message table one lab island needs for one locale,
@@ -22,16 +23,26 @@ export const APP_LAB_PREFIX = 'ui.lab.';
  */
 export type LabMessagesProducer = Pick<PrimitiveManifest, 'id' | 'i18nNamespace' | 'facets' | 'paramFields' | 'defaults'>;
 
-/** The `view.<id>.*` messages of the views this producer can feed, directly or via a deriver (`viewsForProducer`). */
-function offeredViewMessages(locale: string, producer: LabMessagesProducer): Messages {
-  const all = loadViewMessages(locale);
-  return Object.assign({}, ...viewsForProducer(producer).map((view) => pickPrefix(all, `view.${view.id}.`)));
+/**
+ * The derivers this lab can use: those applicable to a sample run of the producer
+ * (`sampleApplicableDerivers`), or, for a producer outside the registry, every deriver its declared
+ * facets can feed (`deriversForFacets`).
+ */
+function offeredDerivers(producer: LabMessagesProducer) {
+  return deriversForFacets(producer.facets, sampleApplicableDerivers(producer.id));
 }
 
-/** The `deriver.<id>.*` messages of the derivers this producer can feed. */
+/** The `view.<id>.*` messages of the views this producer can feed, directly or via an offered deriver. */
+function offeredViewMessages(locale: string, producer: LabMessagesProducer): Messages {
+  const all = loadViewMessages(locale);
+  const views = viewsForProducer(producer, viewRegistry, offeredDerivers(producer));
+  return Object.assign({}, ...views.map((view) => pickPrefix(all, `view.${view.id}.`)));
+}
+
+/** The `deriver.<id>.*` messages of the offered derivers. */
 function offeredDeriverMessages(locale: string, producer: LabMessagesProducer): Messages {
   const all = loadDeriverMessages(locale);
-  return Object.assign({}, ...deriversForFacets(producer.facets).map((deriver) => pickPrefix(all, `deriver.${deriver.id}.`)));
+  return Object.assign({}, ...offeredDerivers(producer).map((deriver) => pickPrefix(all, `deriver.${deriver.id}.`)));
 }
 
 /** A producer's own `i18nNamespace` messages. */

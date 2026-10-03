@@ -43,7 +43,8 @@ function stackAllocation(id: string, addr: string, size: number, align = BUFFER_
  */
 function keyAllocation(run: AesRun, target: TargetData, impl: ImplSpec, addr: string): Allocation & { layout: StructLayout } {
   const layout = bindLayout(aesKeyLayoutFor(target.triple), impl);
-  const refs = run.roundKeys.map(({ valueId }, round) => ({ offset: round * ROUND_KEY_BYTES, size: ROUND_KEY_BYTES, valueRef: valueId }));
+  const rdKey = requireField(layout, 'rd_key');
+  const refs = run.roundKeys.map(({ valueId }, round) => ({ offset: rdKey.offset + round * ROUND_KEY_BYTES, size: ROUND_KEY_BYTES, valueRef: valueId }));
   return withValueRef({ ...stackAllocation('key', addr, layout.size, layout.align), layout, refs }, run.valueIds.key);
 }
 

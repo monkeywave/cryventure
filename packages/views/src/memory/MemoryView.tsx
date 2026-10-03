@@ -5,7 +5,7 @@ import {
   type MemoryFacet,
   type TargetSpec,
 } from '@cryventure/core';
-import { ViewStatus, useLab, useLabActions, useT, useVariantChoice, useVariantFacets, type ViewProps } from '@cryventure/viz';
+import { ViewStatus, useLab, useT, useVariantChoice, useVariantFacets, type ViewProps } from '@cryventure/viz';
 import {
   BYTES_PER_ROW,
   UNWRITTEN_TEXT,
@@ -32,6 +32,7 @@ import {
   type Segment,
   type VariantChoice,
 } from './memoryModel.ts';
+import { useSelectionPreview } from '../_lib/useSelectionPreview.ts';
 import { useUnitNavigation } from './useUnitNavigation.ts';
 import './memory.css';
 
@@ -262,13 +263,16 @@ interface UnitCellProps extends UnitFlags {
   tabbable: boolean;
   onFocusUnit: (row: number, col: number) => void;
   onPreviewRef: (ref: number | undefined) => void;
+  onReleaseRef: (ref: number | undefined) => void;
 }
 
 const UnitCell = memo(function UnitCell(props: UnitCellProps) {
-  const { unit, address, row, col, tabbable, written, linked, onFocusUnit, onPreviewRef } = props;
+  const { unit, address, row, col, tabbable, written, linked } = props;
+  const { onFocusUnit, onPreviewRef, onReleaseRef } = props;
   const label = useUnitLabel(unit, address, props);
   const { role } = unit;
   const preview = () => onPreviewRef(role.ref);
+  const release = () => onReleaseRef(role.ref);
   return (
     <div
       role="gridcell"
@@ -292,6 +296,8 @@ const UnitCell = memo(function UnitCell(props: UnitCellProps) {
         preview();
       }}
       onMouseEnter={preview}
+      onBlur={release}
+      onMouseLeave={release}
     >
       <span aria-hidden="true">{unit.value === undefined ? UNWRITTEN_TEXT : unitText(unit)}</span>
       {written && (
@@ -371,6 +377,16 @@ function refStartingIn(
   return index === -1 ? undefined : index;
 }
 
+/** Runs `action` with the ValueRef of an allocation's ref range, if the unit lies in one. */
+function withRefValue(
+  allocation: Allocation,
+  ref: number | undefined,
+  action: (valueRef: string) => void,
+): void {
+  const valueRef = ref === undefined ? undefined : allocation.refs?.[ref]?.valueRef;
+  if (valueRef !== undefined) action(valueRef);
+}
+
 interface GridProps {
   allocation: Allocation;
   rows: readonly MemoryUnit[][];
@@ -378,9 +394,11 @@ interface GridProps {
   linked: ReadonlySet<number>;
   refLabels: boolean;
   onPreviewRef: (ref: number | undefined) => void;
+  onReleaseRef: (ref: number | undefined) => void;
 }
 
-function HexGrid({ allocation, rows, written, linked, refLabels, onPreviewRef }: GridProps) {
+function HexGrid(props: GridProps) {
+  const { allocation, rows, written, linked, refLabels, onPreviewRef, onReleaseRef } = props;
   const t = useT();
   const rowLengths = useMemo(() => rows.map((row) => row.length), [rows]);
   const { gridRef, onKeyDown, isActive, setActive } = useUnitNavigation(rowLengths);
@@ -404,7 +422,7 @@ function HexGrid({ allocation, rows, written, linked, refLabels, onPreviewRef }:
         <RulerRow />
         {rows.map((row, rowIndex) => {
           const start = row[0]?.offset ?? 0;
-          const refIndex = refLabels ? refStartingIn(allocation, start, start + 16) : undefined;
+          const refIndex = refLabels ? refStartingIn(allocation, start, start + BYTES_PER_ROW) : undefined;
           return (
             <div key={start} role="row" className="cv-memory__row">
               <RowHeader address={addressAt(allocation.addr, start)} refIndex={refIndex} />
@@ -423,6 +441,7 @@ function HexGrid({ allocation, rows, written, linked, refLabels, onPreviewRef }:
                     linked={unitTouches(unit, linked)}
                     onFocusUnit={onFocusUnit}
                     onPreviewRef={onPreviewRef}
+                    onReleaseRef={onReleaseRef}
                   />
                 </Fragment>
               ))}
@@ -445,7 +464,6 @@ interface AllocationProps {
   endian: TargetSpec['endian'];
   words: boolean;
   lens: Lens;
-  onSelectValue: (valueRef: string) => void;
 }
 
 const AllocationPanel = memo(function AllocationPanel({
@@ -456,7 +474,6 @@ const AllocationPanel = memo(function AllocationPanel({
   endian,
   words,
   lens,
-  onSelectValue,
 }: AllocationProps) {
   const t = useT();
   const roles = useMemo(() => byteRoles(allocation), [allocation]);
@@ -464,12 +481,14 @@ const AllocationPanel = memo(function AllocationPanel({
     () => memoryRows(contents, roles, endian, words),
     [contents, roles, endian, words],
   );
+  const { preview, release } = useSelectionPreview();
   const onPreviewRef = useCallback(
-    (ref: number | undefined) => {
-      const valueRef = ref === undefined ? undefined : allocation.refs?.[ref]?.valueRef;
-      if (valueRef !== undefined) onSelectValue(valueRef);
-    },
-    [allocation, onSelectValue],
+    (ref: number | undefined) => withRefValue(allocation, ref, preview),
+    [allocation, preview],
+  );
+  const onReleaseRef = useCallback(
+    (ref: number | undefined) => withRefValue(allocation, ref, release),
+    [allocation, release],
   );
   return (
     <figure
@@ -502,6 +521,7 @@ const AllocationPanel = memo(function AllocationPanel({
         linked={linked}
         refLabels={lens === 'cryptographer'}
         onPreviewRef={onPreviewRef}
+        onReleaseRef={onReleaseRef}
       />
     </figure>
   );
@@ -579,7 +599,6 @@ function Memory({ variants, facet, chooseVariant, lens }: MemoryProps) {
   const [words, setWords] = useState(false);
   const step = useLab((state) => state.step);
   const valueRefId = useLab((state) => state.selection.valueRefId);
-  const { select } = useLabActions();
   const choose = useCallback(
     (choice: VariantChoice) => {
       const picked = resolveChoice(variants, choice);
@@ -621,7 +640,6 @@ function Memory({ variants, facet, chooseVariant, lens }: MemoryProps) {
               endian={facet.target.endian}
               words={words}
               lens={lens}
-              onSelectValue={select}
             />
           ),
         )}

@@ -27,6 +27,13 @@ describe('parseMemOperand', () => {
     expect(parseMemOperand('[x2, #32]')).toEqual({ base: 'x2', offset: 32 });
   });
 
+  it('parses hex offsets, as llvm-objdump may print them', () => {
+    expect(parseMemOperand('[x2, #0x20]')).toEqual({ base: 'x2', offset: 32 });
+    expect(parseMemOperand('[x2, #-0x10]')).toEqual({ base: 'x2', offset: -16 });
+    expect(parseMemOperand('xmmword ptr [rdx + 0xa0]')).toEqual({ base: 'rdx', offset: 160 });
+    expect(parseMemOperand('[rbp - 0x10]')).toEqual({ base: 'rbp', offset: -16 });
+  });
+
   it('is undefined for registers', () => {
     expect([parseMemOperand('xmm0'), parseMemOperand('v1.16b'), parseMemOperand('q0')]).toEqual([
       undefined,

@@ -1,6 +1,6 @@
 import { memo, useCallback, useEffect, useMemo, useRef, type ReactNode } from 'react';
 import type { I18nRef, Instruction, InstructionsFacet, Lens, ValuesFacet } from '@cryventure/core';
-import { ViewStatus, useFacet, useLab, useLabStore, useT, type ViewProps } from '@cryventure/viz';
+import { ViewStatus, useFacet, useLab, useT, type ViewProps } from '@cryventure/viz';
 import {
   listingProgress,
   operandValueRefs,
@@ -8,6 +8,7 @@ import {
   type RowStatus,
 } from './instructionsModel.ts';
 import { VariantPicker, useVariantChoice } from '../_lib/VariantPicker.tsx';
+import { useSelectionPreview } from '../_lib/useSelectionPreview.ts';
 import './instructions.css';
 
 /**
@@ -53,11 +54,9 @@ function useValueLabel(): (id: string) => string {
 
 /** Hover/focus publishes the operand's ValueRef; leaving clears it unless another view changed it meanwhile. */
 function useOperandSelection(valueRef: string) {
-  const store = useLabStore();
-  const enter = useCallback(() => store.getState().select(valueRef), [store, valueRef]);
-  const leave = useCallback(() => {
-    if (store.getState().selection.valueRefId === valueRef) store.getState().select(null);
-  }, [store, valueRef]);
+  const { preview, release } = useSelectionPreview();
+  const enter = useCallback(() => preview(valueRef), [preview, valueRef]);
+  const leave = useCallback(() => release(valueRef), [release, valueRef]);
   return {
     onMouseEnter: enter,
     onFocus: enter,

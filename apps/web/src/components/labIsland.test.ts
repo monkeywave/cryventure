@@ -14,6 +14,19 @@ describe('labIsland', () => {
     expect(hasPrefix(props.messages, 'deriver.memory.')).toBe(true);
   });
 
+  it('ships no derived-view or deriver messages to a lab no deriver applies to (ctr)', () => {
+    const { props } = labIsland({ labId: 'ctr', producerId: 'ctr' }, 'en');
+    expect(hasPrefix(props.messages, 'view.state.')).toBe(true);
+    for (const prefix of ['view.memory.', 'view.instructions.', 'view.registers.', 'deriver.'])
+      expect(hasPrefix(props.messages, prefix), prefix).toBe(false);
+  });
+
+  it('ships them to the aes lab, whose op-detail runs the derivers apply to', () => {
+    const { props } = labIsland({ labId: 'aes', producerId: 'aes' }, 'en');
+    for (const prefix of ['view.memory.', 'view.instructions.', 'view.registers.', 'deriver.memory.', 'deriver.isa-x86.'])
+      expect(hasPrefix(props.messages, prefix), prefix).toBe(true);
+  });
+
   it('keeps only the layout views\' messages (and adds extra ones) for layoutViewsOnly', () => {
     const all = labIsland(HERO, 'en').props.messages;
     const { props } = labIsland(HERO, 'en', { layoutViewsOnly: true, extraMessages: { 'ui.hero.heading': 'Hi' } });

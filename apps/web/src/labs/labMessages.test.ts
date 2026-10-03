@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { extractParams } from '@cryventure/core';
 import { loadCoreMessages } from '@cryventure/core/messages';
-import { producerRegistry, viewsForProducer } from './registry.ts';
+import { producerRegistry, viewRegistry, viewsForProducer } from './registry.ts';
+import { deriversApplicableToAny, sampleBundles } from './sampleDerivers.ts';
 import { labMessages } from './labMessages.ts';
 
 const AES = producerRegistry.require('aes');
@@ -31,14 +32,17 @@ describe('labMessages', () => {
     }
   });
 
-  it("ships only the view catalogs of the views the producer's facets can feed", () => {
+  it("ships only the view catalogs of the views a sample run of the producer can feed", async () => {
     const viewNamespaces = (messages: Record<string, string>) => new Set(Object.keys(messages).filter((key) => key.startsWith('view.')).map((key) => key.split('.')[1]));
     for (const producerId of ['xor', 'aes']) {
       const producer = producerRegistry.require(producerId);
-      const offered = viewsForProducer(producer).map((view) => view.id);
+      const derivers = deriversApplicableToAny(await sampleBundles(producer));
+      const offered = viewsForProducer(producer, viewRegistry, derivers).map((view) => view.id);
       expect([...viewNamespaces(labMessages('en', producer))].sort()).toEqual([...offered].sort());
     }
-    expect(viewNamespaces(labMessages('en', producerRegistry.require('xor')))).not.toContain('key-schedule');
+    const xorViews = viewNamespaces(labMessages('en', producerRegistry.require('xor')));
+    for (const hidden of ['key-schedule', 'memory', 'instructions', 'registers']) expect(xorViews).not.toContain(hidden);
+    expect(viewNamespaces(labMessages('en', AES))).toContain('memory');
   });
 
   it('resolves the locale and keeps EN/DE key parity with matching params', () => {

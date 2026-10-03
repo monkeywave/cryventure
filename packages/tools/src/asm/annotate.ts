@@ -6,6 +6,7 @@
  * `eor state, kNr` (finalXor) and to record the `keyIndex` each AES instruction consumes, even
  * when the compiler swaps operands (clang emits `aese vKey, vState` on AArch64).
  */
+import { parseMemOperand } from '@cryventure/derivers/listing';
 import type { ParsedInstruction } from './parse.ts';
 
 export type InstructionRole =
@@ -77,20 +78,11 @@ function isMemory(operand: string | undefined): boolean {
   return operand !== undefined && operand.includes('[');
 }
 
-interface MemoryOperand {
-  base: string;
-  offset: number;
-}
-
-/** Parses `xmmword ptr [rdx + 16]`, `[rdx]`, `[x2, #32]`, `[x2, #0x20]`. */
-export function parseMemoryOperand(operand: string): MemoryOperand | undefined {
-  const match = /\[\s*([a-z0-9]+)\s*(?:(?:\+|,)\s*#?\s*(-?(?:0x[0-9a-f]+|\d+)))?\s*\]/i.exec(
-    operand,
-  );
-  if (match === null) return undefined;
-  const offsetText = match[2];
-  return { base: match[1] ?? '', offset: offsetText === undefined ? 0 : Number(offsetText) };
-}
+/**
+ * The derivers' memory-operand parser (`[rdx + 16]`, `[x2, #0x20]`, …), so the generator and the ISA
+ * derivers that read its listings share one rule.
+ */
+export const parseMemoryOperand = parseMemOperand;
 
 /** Canonical vector register name: `q1`/`v1.16b` → `v1`, `xmm1` stays. */
 export function canonicalRegister(operand: string): string {

@@ -1,5 +1,6 @@
 import { getFacet, type StateFacet, type TraceBundle, type ValuesFacet } from '@cryventure/core';
 import { describe, expect, it } from 'vitest';
+import { traceContext } from '../_lib/traceContext.ts';
 import { readAesRun } from './aesContract.ts';
 import { AES_BUNDLES, aes128Bundle } from './testBundles.ts';
 
@@ -32,6 +33,16 @@ describe('readAesRun', () => {
       Array.from({ length: 11 }, (_, round) => `${round}/roundKey`),
     );
     expect(run.valueIds.plaintext).toBe('plaintext');
+  });
+
+  it('reads through the shared, cached trace context of the ISA derivers (one reader per bundle)', () => {
+    const bundle = aes128Bundle();
+    const context = traceContext(bundle);
+    valuesOf(bundle).values = valuesOf(bundle).values.filter((value) => value.role === 'subkey');
+    const run = readAesRun(bundle);
+    expect(run.valueIds).toEqual({ key: context.keyId, plaintext: context.plaintextId, ciphertext: context.ciphertextId });
+    expect(run.valueIds).toEqual({ key: 'key', plaintext: 'plaintext', ciphertext: 'ciphertext' });
+    expect(run.steps.keyExpansion).toBe(context.keyScheduleStep);
   });
 
   it('leaves value ids undefined when the values facet lacks them', () => {
