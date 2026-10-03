@@ -2,7 +2,7 @@ import type { I18nRef } from '../i18n.ts';
 
 /** Chain facet: block-mode dataflow, one lane per block (docs/M3.md §6). */
 
-export type ChainNodeKind = 'input' | 'iv' | 'counter' | 'xor' | 'cipher' | 'keystream' | 'output' | 'pad';
+export type ChainNodeKind = 'input' | 'iv' | 'counter' | 'xor' | 'cipher' | 'keystream' | 'output' | 'pad' | 'hash' | 'tag' | 'aad' | 'length';
 
 export interface ChainNode {
   /** Stable, e.g. `b2.xor`. */

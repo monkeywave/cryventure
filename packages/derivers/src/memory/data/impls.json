@@ -1,0 +1,189 @@
+[
+  {
+    "id": "c-ref",
+    "triples": ["x86_64-linux-gnu", "aarch64-linux-gnu"],
+    "rdKeyEncoding": "host-endian-u32",
+    "rounds": { "128": 10, "192": 12, "256": 14 },
+    "source": {
+      "lib": "OpenSSL",
+      "version": "openssl-3.5.9",
+      "path": "crypto/aes/aes_core.c",
+      "line": 3045
+    },
+    "notes": [
+      {
+        "claim": "Portable table-based AES_set_encrypt_key (compiled when neither OPENSSL_AES_CONST_TIME nor AES_ASM is defined).",
+        "path": "crypto/aes/aes_core.c",
+        "line": 3045
+      },
+      {
+        "claim": "key->rounds = 10 for 128-bit keys.",
+        "path": "crypto/aes/aes_core.c",
+        "line": 3061
+      },
+      {
+        "claim": "key->rounds = 12 for 192-bit keys.",
+        "path": "crypto/aes/aes_core.c",
+        "line": 3063
+      },
+      {
+        "claim": "key->rounds = 14 for 256-bit keys.",
+        "path": "crypto/aes/aes_core.c",
+        "line": 3065
+      },
+      {
+        "claim": "rk[0] = GETU32(userKey): the first key bytes become one big-endian-read u32 word stored natively, so on little-endian hosts each 4-byte word appears byte-reversed in RAM.",
+        "path": "crypto/aes/aes_core.c",
+        "line": 3067
+      },
+      {
+        "claim": "Non-MSVC GETU32(pt) = pt[0]<<24 ^ pt[1]<<16 ^ pt[2]<<8 ^ pt[3] (big-endian read).",
+        "path": "crypto/aes/aes_local.h",
+        "line": 26
+      },
+      {
+        "claim": "u32 is unsigned int unless AES_LONG is defined.",
+        "path": "crypto/aes/aes_local.h",
+        "line": 40
+      },
+      {
+        "claim": "The AES_ASM build of aes_core.c has an identical AES_set_encrypt_key (same rounds, same GETU32 words).",
+        "path": "crypto/aes/aes_core.c",
+        "line": 3485
+      },
+      {
+        "claim": "aarch64 asm builds compile aes_core.c without AES_ASM, so line 3045 is the C fallback there.",
+        "path": "crypto/aes/build.info",
+        "line": 34
+      },
+      {
+        "claim": "x86_64 asm builds do not compile aes_core.c (AES_set_encrypt_key comes from aes-x86_64.pl); the c-ref model on x86_64 corresponds to a no-asm build.",
+        "path": "crypto/aes/build.info",
+        "line": 10
+      },
+      {
+        "claim": "Opt-in OPENSSL_AES_CONST_TIME variant stores the schedule through a u64 pointer with a different word layout; it is not modelled.",
+        "path": "crypto/aes/aes_core.c",
+        "line": 53
+      }
+    ]
+  },
+  {
+    "id": "aesni",
+    "triples": ["x86_64-linux-gnu"],
+    "rdKeyEncoding": "raw-bytes",
+    "rounds": { "128": 9, "192": 11, "256": 13 },
+    "source": {
+      "lib": "OpenSSL",
+      "version": "openssl-3.5.9",
+      "path": "crypto/aes/asm/aesni-x86_64.pl",
+      "line": 4371
+    },
+    "notes": [
+      {
+        "claim": "__aesni_set_encrypt_key entry (aliased as aesni_set_encrypt_key).",
+        "path": "crypto/aes/asm/aesni-x86_64.pl",
+        "line": 4371
+      },
+      {
+        "claim": "$bits is the 32-bit register (%esi on SysV) so the rounds store writes 4 bytes.",
+        "path": "crypto/aes/asm/aesni-x86_64.pl",
+        "line": 4293
+      },
+      {
+        "claim": "movups ($inp),%xmm0 loads the user key as raw bytes.",
+        "path": "crypto/aes/asm/aesni-x86_64.pl",
+        "line": 4382
+      },
+      {
+        "claim": "$movkey %xmm0,($key): round key 0 is stored as raw bytes (movups), i.e. byte-identical to the key.",
+        "path": "crypto/aes/asm/aesni-x86_64.pl",
+        "line": 4398
+      },
+      {
+        "claim": "mov $9,$bits for 128-bit keys (comment: 10 rounds).",
+        "path": "crypto/aes/asm/aesni-x86_64.pl",
+        "line": 4394
+      },
+      {
+        "claim": "mov $bits,80(%rax) stores it at 240(key).",
+        "path": "crypto/aes/asm/aesni-x86_64.pl",
+        "line": 4420
+      },
+      {
+        "claim": "mov $11,$bits for 192-bit keys.",
+        "path": "crypto/aes/asm/aesni-x86_64.pl",
+        "line": 4494
+      },
+      {
+        "claim": "mov $13,$bits for 256-bit keys.",
+        "path": "crypto/aes/asm/aesni-x86_64.pl",
+        "line": 4564
+      },
+      {
+        "claim": "Readers use key->rounds at 240(key) directly as the aesenc loop count (one aesenc per decrement, then aesenclast).",
+        "path": "crypto/aes/asm/aesni-x86_64.pl",
+        "line": 282
+      }
+    ]
+  },
+  {
+    "id": "armv8",
+    "triples": ["aarch64-linux-gnu"],
+    "rdKeyEncoding": "raw-bytes",
+    "rounds": { "128": 10, "192": 12, "256": 14 },
+    "source": {
+      "lib": "OpenSSL",
+      "version": "openssl-3.5.9",
+      "path": "crypto/aes/asm/aesv8-armx.pl",
+      "line": 127
+    },
+    "notes": [
+      {
+        "claim": "aes_v8_set_encrypt_key entry (${prefix} = aes_v8).",
+        "path": "crypto/aes/asm/aesv8-armx.pl",
+        "line": 127
+      },
+      {
+        "claim": "vld1.8 {$in0},[$inp] loads the user key as bytes.",
+        "path": "crypto/aes/asm/aesv8-armx.pl",
+        "line": 162
+      },
+      {
+        "claim": "vst1.32 {$in0},[$out] stores round keys from the same vector; on little-endian the lanes keep the byte order, so rd_key holds raw bytes.",
+        "path": "crypto/aes/asm/aesv8-armx.pl",
+        "line": 174
+      },
+      {
+        "claim": "mov $rounds,#10 for 128-bit keys.",
+        "path": "crypto/aes/asm/aesv8-armx.pl",
+        "line": 219
+      },
+      {
+        "claim": "mov $rounds,#12 for 192-bit keys.",
+        "path": "crypto/aes/asm/aesv8-armx.pl",
+        "line": 258
+      },
+      {
+        "claim": "mov $rounds,#14 for 256-bit keys.",
+        "path": "crypto/aes/asm/aesv8-armx.pl",
+        "line": 266
+      },
+      {
+        "claim": "str $rounds,[$out] with $out advanced to key+240 ($rounds is w12, 4 bytes).",
+        "path": "crypto/aes/asm/aesv8-armx.pl",
+        "line": 301
+      },
+      {
+        "claim": "Readers load the rounds field from [key,#240].",
+        "path": "crypto/aes/asm/aesv8-armx.pl",
+        "line": 385
+      },
+      {
+        "claim": "HWAES_set_encrypt_key maps to aes_v8_set_encrypt_key on ARMv8 builds.",
+        "path": "include/crypto/aes_platform.h",
+        "line": 106
+      }
+    ]
+  }
+]

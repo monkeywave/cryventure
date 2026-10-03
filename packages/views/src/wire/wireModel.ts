@@ -40,6 +40,7 @@ export const ROLE_GLYPHS: Readonly<Record<WireRole, string>> = {
   plaintext: '◇',
   padding: '░',
   tag: '✓',
+  aad: '⊡',
 };
 
 function flipMaskBytes(facet: WireFacet): number[] {

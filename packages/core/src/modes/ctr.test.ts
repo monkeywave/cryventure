@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { parseHexOrThrow, toHex, xorBytes } from '../bytes.ts';
-import { ctrXor, incrementCounter } from './ctr.ts';
+import { ctrXor, inc32, incrementCounter } from './ctr.ts';
 import { nobleAes, toyCipher } from './testCiphers.ts';
 import { SP800_38A } from './sp80038a.testdata.ts';
 
@@ -59,5 +59,53 @@ describe('CTR known answers (SP 800-38A F.5.1/F.5.2, AES-128)', () => {
   });
   it('F.5.2 decrypt', () => {
     expect(toHex(ctrXor(nobleAes, key, counter, parseHexOrThrow(SP800_38A.ctr128)))).toBe(SP800_38A.plaintext);
+  });
+});
+
+describe('inc32 (SP 800-38D §6.2)', () => {
+  it('adds one to the low 32 bits', () => {
+    expect(toHex(inc32(parseHexOrThrow('cafebabefacedbaddecaf88800000001')))).toBe(
+      'cafebabefacedbaddecaf88800000002',
+    );
+  });
+  it('carries within the low 32 bits', () => {
+    expect(toHex(inc32(parseHexOrThrow('000000000000000000000000000000ff')))).toBe(
+      '00000000000000000000000000000100',
+    );
+  });
+  it('wraps …ffffffff to …00000000 and leaves the upper 96 bits unchanged', () => {
+    expect(toHex(inc32(parseHexOrThrow('0123456789abcdef01234567ffffffff')))).toBe(
+      '0123456789abcdef0123456700000000',
+    );
+    expect(toHex(inc32(new Uint8Array(16).fill(0xff)))).toBe('ffffffffffffffffffffffff00000000');
+  });
+  it('returns a new array and does not mutate its input', () => {
+    const block = parseHexOrThrow('000000000000000000000000ffffffff');
+    expect(inc32(block)).not.toBe(block);
+    expect(toHex(block)).toBe('000000000000000000000000ffffffff');
+  });
+  it('throws RangeError for a block shorter than 4 bytes', () => {
+    expect(() => inc32(new Uint8Array(3))).toThrow(RangeError);
+  });
+});
+
+describe('ctrXor with inc32 (GCTR)', () => {
+  const key = parseHexOrThrow(SP800_38A.key128);
+  it('uses inc32 for the next counter, so the low 32 bits wrap without carrying', () => {
+    const counter = parseHexOrThrow('000102030405060708090a0bffffffff');
+    const next = parseHexOrThrow('000102030405060708090a0b00000000');
+    const expected = [...nobleAes.encryptBlock(key, counter), ...nobleAes.encryptBlock(key, next)];
+    expect(toHex(ctrXor(nobleAes, key, counter, new Uint8Array(32), inc32))).toBe(toHex(expected));
+  });
+  it('differs from the default whole-block increment exactly when the low 32 bits wrap', () => {
+    const counter = parseHexOrThrow('000102030405060708090a0bffffffff');
+    const data = new Uint8Array(32);
+    expect(toHex(ctrXor(nobleAes, key, counter, data, inc32))).not.toBe(
+      toHex(ctrXor(nobleAes, key, counter, data)),
+    );
+    const noWrap = parseHexOrThrow('000102030405060708090a0b00000001');
+    expect(toHex(ctrXor(nobleAes, key, noWrap, data, inc32))).toBe(
+      toHex(ctrXor(nobleAes, key, noWrap, data)),
+    );
   });
 });

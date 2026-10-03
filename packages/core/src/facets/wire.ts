@@ -3,7 +3,7 @@ import { isIndex } from './validation.ts';
 
 /** Wire facet: bytes as they travel (docs/M3.md §6). */
 
-export type WireRole = 'iv' | 'nonce' | 'ciphertext' | 'padding' | 'tag' | 'plaintext';
+export type WireRole = 'iv' | 'nonce' | 'ciphertext' | 'padding' | 'tag' | 'plaintext' | 'aad';
 
 export interface WireSegment {
   id: string;

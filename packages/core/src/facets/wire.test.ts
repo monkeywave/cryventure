@@ -24,6 +24,9 @@ describe('wireIssues', () => {
     });
     expect(wireIssues(facet, 3)).toEqual([]);
   });
+  it('accepts an aad segment', () => {
+    expect(wireIssues(wire({ segments: [segment('aad', 'aad', 4), segment('c0', 'ciphertext', 2), segment('tag', 'tag', 16)] }), 1)).toEqual([]);
+  });
   it('rejects duplicate segment ids', () => {
     expect(wireIssues(wire({ segments: [segment('a', 'iv', 1), segment('a', 'tag', 1)] }), 1)).toEqual(['wire: duplicate segment id "a"']);
   });

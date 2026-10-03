@@ -12,6 +12,7 @@
   },
   "dependencies": {
     "@cryventure/core": "workspace:*",
+    "@cryventure/derivers": "workspace:*",
     "@cryventure/primitives": "workspace:*",
     "@cryventure/views": "workspace:*",
     "@cryventure/viz": "workspace:*"

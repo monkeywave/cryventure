@@ -80,6 +80,32 @@ const pluginIsolationPolicies = [
 ];
 
 /**
+ * `packages/<family>/src/_lib/` holds code the plugins of one package share (it has no manifest, so
+ * the discovery glob skips it). Only that package's plugins (and `_lib` itself) may import it, and
+ * `_lib` may import `@cryventure/core` only. Manifests still import core only (see manifestPolicies).
+ */
+const pluginLibPolicies = PLUGIN_FAMILIES.flatMap((family) => [
+  {
+    to: { element: { type: 'plugin-lib', path: `packages/${family}/**` } },
+    disallow: { dependency: { kind: '*' } },
+    message: `packages/${family}/src/_lib is shared by the ${family} plugins only ({{dependency.source}}).`,
+  },
+  {
+    from: { element: { types: ['plugin', 'plugin-lib'], path: `packages/${family}/**` } },
+    to: { element: { type: 'plugin-lib', path: `packages/${family}/**` } },
+    allow: { dependency: { kind: '*' } },
+  },
+]).concat([
+  {
+    from: { element: { type: 'plugin-lib' } },
+    disallow: { dependency: { kind: '*' } },
+    message: '_lib may import only @cryventure/core and its own files (got {{dependency.source}}).',
+  },
+  { from: { element: { type: 'plugin-lib' } }, allow: { to: { module: { source: workspaceSource('core') } } } },
+  { from: { element: { type: 'plugin-lib' } }, allow: { dependency: { relationship: { to: 'internal' } } } },
+]);
+
+/**
  * A plugin's manifest.ts is loaded eagerly by the registry, so it must stay tiny: it may import
  * `@cryventure/core` only. The implementation is reached via `load: () => import('./module.ts')`,
  * a dynamic import into its own folder that keeps the implementation out of the eager bundle.
@@ -116,6 +142,8 @@ const boundariesConfig = {
       // Test-only helpers shared by a package's plugin tests: packages/<pkg>/src/testing/ (not a plugin;
       // listed first because the first matching element wins).
       { type: 'test-support', pattern: 'packages/*/src/testing', partialMatch: false },
+      // Shared plugin code: packages/<family>/src/_lib/ (listed before `plugin`, whose pattern also matches it).
+      { type: 'plugin-lib', pattern: 'packages/*/src/_lib', capture: ['family'], partialMatch: false },
       // A plugin folder: packages/<family>/src/<id>/ (the package's own src/index.ts is not a plugin).
       ...PLUGIN_FAMILIES.map((family) => ({
         type: 'plugin',
@@ -134,7 +162,7 @@ const boundariesConfig = {
         default: 'allow',
         checkAllOrigins: true,
         checkInternals: true,
-        policies: [...pluginIsolationPolicies, ...layerPolicies(), ...manifestPolicies],
+        policies: [...pluginIsolationPolicies, ...layerPolicies(), ...pluginLibPolicies, ...manifestPolicies],
       },
     ],
   },
@@ -175,7 +203,7 @@ const appImportPolicies = [
 ];
 
 const DETERMINISM_MESSAGE =
-  'core and primitives must be deterministic (traces are replayed and compared). Pass randomness/time in as a parameter.';
+  'core, primitives and derivers must be deterministic (traces are replayed and compared). Pass randomness/time in as a parameter.';
 
 export default tseslint.config(
   {
@@ -229,7 +257,7 @@ export default tseslint.config(
     },
   },
   {
-    files: ['packages/core/src/**/*.ts', 'packages/primitives/src/**/*.ts'],
+    files: ['packages/core/src/**/*.ts', 'packages/primitives/src/**/*.ts', 'packages/derivers/src/**/*.ts'],
     rules: {
       'no-restricted-syntax': [
         'error',

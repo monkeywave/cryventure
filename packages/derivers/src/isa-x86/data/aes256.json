@@ -1,0 +1,253 @@
+{
+  "compiler": "Homebrew clang version 23.1.0",
+  "flags": "-target x86_64-linux-gnu -O2 -maes -masm=intel -ffreestanding -S",
+  "triple": "x86_64-linux-gnu",
+  "function": "aes_encrypt_block_256",
+  "source": "void aes_encrypt_block_256(const uint8_t *in, uint8_t *out, const AES_KEY *key) {\n    const __m128i *rk = (const __m128i *)key->rd_key;\n    __m128i s = _mm_loadu_si128((const __m128i *)in);\n    s = _mm_xor_si128(s, _mm_loadu_si128(rk + 0));\n    s = _mm_aesenc_si128(s, _mm_loadu_si128(rk + 1));\n    s = _mm_aesenc_si128(s, _mm_loadu_si128(rk + 2));\n    s = _mm_aesenc_si128(s, _mm_loadu_si128(rk + 3));\n    s = _mm_aesenc_si128(s, _mm_loadu_si128(rk + 4));\n    s = _mm_aesenc_si128(s, _mm_loadu_si128(rk + 5));\n    s = _mm_aesenc_si128(s, _mm_loadu_si128(rk + 6));\n    s = _mm_aesenc_si128(s, _mm_loadu_si128(rk + 7));\n    s = _mm_aesenc_si128(s, _mm_loadu_si128(rk + 8));\n    s = _mm_aesenc_si128(s, _mm_loadu_si128(rk + 9));\n    s = _mm_aesenc_si128(s, _mm_loadu_si128(rk + 10));\n    s = _mm_aesenc_si128(s, _mm_loadu_si128(rk + 11));\n    s = _mm_aesenc_si128(s, _mm_loadu_si128(rk + 12));\n    s = _mm_aesenc_si128(s, _mm_loadu_si128(rk + 13));\n    s = _mm_aesenclast_si128(s, _mm_loadu_si128(rk + 14));\n    _mm_storeu_si128((__m128i *)out, s);\n}",
+  "compilerExplorerUrl": "https://godbolt.org/clientstate/eyJzZXNzaW9ucyI6W3siaWQiOjEsImxhbmd1YWdlIjoiYyIsInNvdXJjZSI6Ii8qXG4gKiBBRVMtTkkgYmxvY2sgZW5jcnlwdGlvbiAoeDg2LTY0KSwgY29tcGlsZWQgYnkgcGFja2FnZXMvdG9vbHMvc3JjL2FzbS9nZW5lcmF0ZS50cy5cbiAqIFJvdW5kIGtleXMgYXJlIHJlYWQgZnJvbSBrZXktPnJkX2tleSBhcyAxNi1ieXRlIHZlY3RvcnMgaW4gcmF3IGJ5dGUgb3JkZXIuXG4gKi9cbiNpbmNsdWRlIDxzdGRpbnQuaD5cbiNpbmNsdWRlIDx3bW1pbnRyaW4uaD5cblxuLyogVW5yb2xsZWQsIHN0cmFpZ2h0LWxpbmUgY29kZTogZWFjaCBmdW5jdGlvbiBoYXMgYSBmaXhlZCByb3VuZCBjb3VudCBOciAoMTAvMTIvMTQpLiAqL1xudHlwZWRlZiBzdHJ1Y3QgYWVzX2tleV9zdCB7XG4gICAgdW5zaWduZWQgaW50IHJkX2tleVs2MF07XG4gICAgaW50IHJvdW5kcztcbn0gQUVTX0tFWTtcblxudm9pZCBhZXNfZW5jcnlwdF9ibG9ja18yNTYoY29uc3QgdWludDhfdCAqaW4sIHVpbnQ4X3QgKm91dCwgY29uc3QgQUVTX0tFWSAqa2V5KSB7XG4gICAgY29uc3QgX19tMTI4aSAqcmsgPSAoY29uc3QgX19tMTI4aSAqKWtleS0-cmRfa2V5O1xuICAgIF9fbTEyOGkgcyA9IF9tbV9sb2FkdV9zaTEyOCgoY29uc3QgX19tMTI4aSAqKWluKTtcbiAgICBzID0gX21tX3hvcl9zaTEyOChzLCBfbW1fbG9hZHVfc2kxMjgocmsgKyAwKSk7XG4gICAgcyA9IF9tbV9hZXNlbmNfc2kxMjgocywgX21tX2xvYWR1X3NpMTI4KHJrICsgMSkpO1xuICAgIHMgPSBfbW1fYWVzZW5jX3NpMTI4KHMsIF9tbV9sb2FkdV9zaTEyOChyayArIDIpKTtcbiAgICBzID0gX21tX2Flc2VuY19zaTEyOChzLCBfbW1fbG9hZHVfc2kxMjgocmsgKyAzKSk7XG4gICAgcyA9IF9tbV9hZXNlbmNfc2kxMjgocywgX21tX2xvYWR1X3NpMTI4KHJrICsgNCkpO1xuICAgIHMgPSBfbW1fYWVzZW5jX3NpMTI4KHMsIF9tbV9sb2FkdV9zaTEyOChyayArIDUpKTtcbiAgICBzID0gX21tX2Flc2VuY19zaTEyOChzLCBfbW1fbG9hZHVfc2kxMjgocmsgKyA2KSk7XG4gICAgcyA9IF9tbV9hZXNlbmNfc2kxMjgocywgX21tX2xvYWR1X3NpMTI4KHJrICsgNykpO1xuICAgIHMgPSBfbW1fYWVzZW5jX3NpMTI4KHMsIF9tbV9sb2FkdV9zaTEyOChyayArIDgpKTtcbiAgICBzID0gX21tX2Flc2VuY19zaTEyOChzLCBfbW1fbG9hZHVfc2kxMjgocmsgKyA5KSk7XG4gICAgcyA9IF9tbV9hZXNlbmNfc2kxMjgocywgX21tX2xvYWR1X3NpMTI4KHJrICsgMTApKTtcbiAgICBzID0gX21tX2Flc2VuY19zaTEyOChzLCBfbW1fbG9hZHVfc2kxMjgocmsgKyAxMSkpO1xuICAgIHMgPSBfbW1fYWVzZW5jX3NpMTI4KHMsIF9tbV9sb2FkdV9zaTEyOChyayArIDEyKSk7XG4gICAgcyA9IF9tbV9hZXNlbmNfc2kxMjgocywgX21tX2xvYWR1X3NpMTI4KHJrICsgMTMpKTtcbiAgICBzID0gX21tX2Flc2VuY2xhc3Rfc2kxMjgocywgX21tX2xvYWR1X3NpMTI4KHJrICsgMTQpKTtcbiAgICBfbW1fc3RvcmV1X3NpMTI4KChfX20xMjhpICopb3V0LCBzKTtcbn1cbiIsImNvbXBpbGVycyI6W3siaWQiOiJjY2xhbmdfdHJ1bmsiLCJvcHRpb25zIjoiLU8yIC1tYWVzIC1tYXNtPWludGVsIC1mZnJlZXN0YW5kaW5nIn1dfV19",
+  "instructions": [
+    {
+      "address": "0x120",
+      "mnemonic": "movdqu",
+      "operands": ["xmm1", "xmmword ptr [rdi]"],
+      "role": "loadState"
+    },
+    {
+      "address": "0x124",
+      "mnemonic": "movdqu",
+      "operands": ["xmm0", "xmmword ptr [rdx]"],
+      "role": "loadKey",
+      "keyIndex": 0
+    },
+    {
+      "address": "0x128",
+      "mnemonic": "pxor",
+      "operands": ["xmm0", "xmm1"],
+      "role": "ark0",
+      "round": 0,
+      "keyIndex": 0
+    },
+    {
+      "address": "0x12c",
+      "mnemonic": "movdqu",
+      "operands": ["xmm1", "xmmword ptr [rdx + 16]"],
+      "role": "loadKey",
+      "keyIndex": 1
+    },
+    {
+      "address": "0x131",
+      "mnemonic": "aesenc",
+      "operands": ["xmm0", "xmm1"],
+      "role": "round",
+      "round": 1,
+      "keyIndex": 1
+    },
+    {
+      "address": "0x136",
+      "mnemonic": "movdqu",
+      "operands": ["xmm1", "xmmword ptr [rdx + 32]"],
+      "role": "loadKey",
+      "keyIndex": 2
+    },
+    {
+      "address": "0x13b",
+      "mnemonic": "aesenc",
+      "operands": ["xmm0", "xmm1"],
+      "role": "round",
+      "round": 2,
+      "keyIndex": 2
+    },
+    {
+      "address": "0x140",
+      "mnemonic": "movdqu",
+      "operands": ["xmm1", "xmmword ptr [rdx + 48]"],
+      "role": "loadKey",
+      "keyIndex": 3
+    },
+    {
+      "address": "0x145",
+      "mnemonic": "aesenc",
+      "operands": ["xmm0", "xmm1"],
+      "role": "round",
+      "round": 3,
+      "keyIndex": 3
+    },
+    {
+      "address": "0x14a",
+      "mnemonic": "movdqu",
+      "operands": ["xmm1", "xmmword ptr [rdx + 64]"],
+      "role": "loadKey",
+      "keyIndex": 4
+    },
+    {
+      "address": "0x14f",
+      "mnemonic": "aesenc",
+      "operands": ["xmm0", "xmm1"],
+      "role": "round",
+      "round": 4,
+      "keyIndex": 4
+    },
+    {
+      "address": "0x154",
+      "mnemonic": "movdqu",
+      "operands": ["xmm1", "xmmword ptr [rdx + 80]"],
+      "role": "loadKey",
+      "keyIndex": 5
+    },
+    {
+      "address": "0x159",
+      "mnemonic": "aesenc",
+      "operands": ["xmm0", "xmm1"],
+      "role": "round",
+      "round": 5,
+      "keyIndex": 5
+    },
+    {
+      "address": "0x15e",
+      "mnemonic": "movdqu",
+      "operands": ["xmm1", "xmmword ptr [rdx + 96]"],
+      "role": "loadKey",
+      "keyIndex": 6
+    },
+    {
+      "address": "0x163",
+      "mnemonic": "aesenc",
+      "operands": ["xmm0", "xmm1"],
+      "role": "round",
+      "round": 6,
+      "keyIndex": 6
+    },
+    {
+      "address": "0x168",
+      "mnemonic": "movdqu",
+      "operands": ["xmm1", "xmmword ptr [rdx + 112]"],
+      "role": "loadKey",
+      "keyIndex": 7
+    },
+    {
+      "address": "0x16d",
+      "mnemonic": "aesenc",
+      "operands": ["xmm0", "xmm1"],
+      "role": "round",
+      "round": 7,
+      "keyIndex": 7
+    },
+    {
+      "address": "0x172",
+      "mnemonic": "movdqu",
+      "operands": ["xmm1", "xmmword ptr [rdx + 128]"],
+      "role": "loadKey",
+      "keyIndex": 8
+    },
+    {
+      "address": "0x17a",
+      "mnemonic": "aesenc",
+      "operands": ["xmm0", "xmm1"],
+      "role": "round",
+      "round": 8,
+      "keyIndex": 8
+    },
+    {
+      "address": "0x17f",
+      "mnemonic": "movdqu",
+      "operands": ["xmm1", "xmmword ptr [rdx + 144]"],
+      "role": "loadKey",
+      "keyIndex": 9
+    },
+    {
+      "address": "0x187",
+      "mnemonic": "aesenc",
+      "operands": ["xmm0", "xmm1"],
+      "role": "round",
+      "round": 9,
+      "keyIndex": 9
+    },
+    {
+      "address": "0x18c",
+      "mnemonic": "movdqu",
+      "operands": ["xmm1", "xmmword ptr [rdx + 160]"],
+      "role": "loadKey",
+      "keyIndex": 10
+    },
+    {
+      "address": "0x194",
+      "mnemonic": "aesenc",
+      "operands": ["xmm0", "xmm1"],
+      "role": "round",
+      "round": 10,
+      "keyIndex": 10
+    },
+    {
+      "address": "0x199",
+      "mnemonic": "movdqu",
+      "operands": ["xmm1", "xmmword ptr [rdx + 176]"],
+      "role": "loadKey",
+      "keyIndex": 11
+    },
+    {
+      "address": "0x1a1",
+      "mnemonic": "aesenc",
+      "operands": ["xmm0", "xmm1"],
+      "role": "round",
+      "round": 11,
+      "keyIndex": 11
+    },
+    {
+      "address": "0x1a6",
+      "mnemonic": "movdqu",
+      "operands": ["xmm1", "xmmword ptr [rdx + 192]"],
+      "role": "loadKey",
+      "keyIndex": 12
+    },
+    {
+      "address": "0x1ae",
+      "mnemonic": "aesenc",
+      "operands": ["xmm0", "xmm1"],
+      "role": "round",
+      "round": 12,
+      "keyIndex": 12
+    },
+    {
+      "address": "0x1b3",
+      "mnemonic": "movdqu",
+      "operands": ["xmm1", "xmmword ptr [rdx + 208]"],
+      "role": "loadKey",
+      "keyIndex": 13
+    },
+    {
+      "address": "0x1bb",
+      "mnemonic": "aesenc",
+      "operands": ["xmm0", "xmm1"],
+      "role": "round",
+      "round": 13,
+      "keyIndex": 13
+    },
+    {
+      "address": "0x1c0",
+      "mnemonic": "movdqu",
+      "operands": ["xmm1", "xmmword ptr [rdx + 224]"],
+      "role": "loadKey",
+      "keyIndex": 14
+    },
+    {
+      "address": "0x1c8",
+      "mnemonic": "aesenclast",
+      "operands": ["xmm0", "xmm1"],
+      "role": "lastRound",
+      "round": 14,
+      "keyIndex": 14
+    },
+    {
+      "address": "0x1cd",
+      "mnemonic": "movdqu",
+      "operands": ["xmmword ptr [rsi]", "xmm0"],
+      "role": "store"
+    },
+    {
+      "address": "0x1d1",
+      "mnemonic": "ret",
+      "operands": [],
+      "role": "other"
+    }
+  ]
+}

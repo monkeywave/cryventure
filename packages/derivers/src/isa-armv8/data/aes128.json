@@ -1,0 +1,221 @@
+{
+  "compiler": "Homebrew clang version 23.1.0",
+  "flags": "-target aarch64-linux-gnu -march=armv8-a+crypto -O2 -ffreestanding -S",
+  "triple": "aarch64-linux-gnu",
+  "function": "aes_encrypt_block_128",
+  "source": "void aes_encrypt_block_128(const uint8_t *in, uint8_t *out, const AES_KEY *key) {\n    const uint8_t *rk = (const uint8_t *)key->rd_key;\n    uint8x16_t s = vld1q_u8(in);\n    s = vaesmcq_u8(vaeseq_u8(s, vld1q_u8(rk + 0 * 16)));\n    s = vaesmcq_u8(vaeseq_u8(s, vld1q_u8(rk + 1 * 16)));\n    s = vaesmcq_u8(vaeseq_u8(s, vld1q_u8(rk + 2 * 16)));\n    s = vaesmcq_u8(vaeseq_u8(s, vld1q_u8(rk + 3 * 16)));\n    s = vaesmcq_u8(vaeseq_u8(s, vld1q_u8(rk + 4 * 16)));\n    s = vaesmcq_u8(vaeseq_u8(s, vld1q_u8(rk + 5 * 16)));\n    s = vaesmcq_u8(vaeseq_u8(s, vld1q_u8(rk + 6 * 16)));\n    s = vaesmcq_u8(vaeseq_u8(s, vld1q_u8(rk + 7 * 16)));\n    s = vaesmcq_u8(vaeseq_u8(s, vld1q_u8(rk + 8 * 16)));\n    s = vaeseq_u8(s, vld1q_u8(rk + 9 * 16));\n    s = veorq_u8(s, vld1q_u8(rk + 10 * 16));\n    vst1q_u8(out, s);\n}",
+  "compilerExplorerUrl": "https://godbolt.org/clientstate/eyJzZXNzaW9ucyI6W3siaWQiOjEsImxhbmd1YWdlIjoiYyIsInNvdXJjZSI6Ii8qXG4gKiBBUk12OCBDcnlwdG8gRXh0ZW5zaW9ucyBibG9jayBlbmNyeXB0aW9uIChBQXJjaDY0KSwgY29tcGlsZWQgYnkgcGFja2FnZXMvdG9vbHMvc3JjL2FzbS9nZW5lcmF0ZS50cy5cbiAqIFJvdW5kIGtleXMgYXJlIHJlYWQgZnJvbSBrZXktPnJkX2tleSBhcyAxNi1ieXRlIHZlY3RvcnMgaW4gcmF3IGJ5dGUgb3JkZXIuXG4gKiBhZXNlKHMsIGspID0gU3ViQnl0ZXMoU2hpZnRSb3dzKHMgXiBrKSk7IGFlc21jID0gTWl4Q29sdW1ucy5cbiAqL1xuI2luY2x1ZGUgPHN0ZGludC5oPlxuI2luY2x1ZGUgPGFybV9uZW9uLmg-XG5cbi8qIFVucm9sbGVkLCBzdHJhaWdodC1saW5lIGNvZGU6IGVhY2ggZnVuY3Rpb24gaGFzIGEgZml4ZWQgcm91bmQgY291bnQgTnIgKDEwLzEyLzE0KS4gKi9cbnR5cGVkZWYgc3RydWN0IGFlc19rZXlfc3Qge1xuICAgIHVuc2lnbmVkIGludCByZF9rZXlbNjBdO1xuICAgIGludCByb3VuZHM7XG59IEFFU19LRVk7XG5cbnZvaWQgYWVzX2VuY3J5cHRfYmxvY2tfMTI4KGNvbnN0IHVpbnQ4X3QgKmluLCB1aW50OF90ICpvdXQsIGNvbnN0IEFFU19LRVkgKmtleSkge1xuICAgIGNvbnN0IHVpbnQ4X3QgKnJrID0gKGNvbnN0IHVpbnQ4X3QgKilrZXktPnJkX2tleTtcbiAgICB1aW50OHgxNl90IHMgPSB2bGQxcV91OChpbik7XG4gICAgcyA9IHZhZXNtY3FfdTgodmFlc2VxX3U4KHMsIHZsZDFxX3U4KHJrICsgMCAqIDE2KSkpO1xuICAgIHMgPSB2YWVzbWNxX3U4KHZhZXNlcV91OChzLCB2bGQxcV91OChyayArIDEgKiAxNikpKTtcbiAgICBzID0gdmFlc21jcV91OCh2YWVzZXFfdTgocywgdmxkMXFfdTgocmsgKyAyICogMTYpKSk7XG4gICAgcyA9IHZhZXNtY3FfdTgodmFlc2VxX3U4KHMsIHZsZDFxX3U4KHJrICsgMyAqIDE2KSkpO1xuICAgIHMgPSB2YWVzbWNxX3U4KHZhZXNlcV91OChzLCB2bGQxcV91OChyayArIDQgKiAxNikpKTtcbiAgICBzID0gdmFlc21jcV91OCh2YWVzZXFfdTgocywgdmxkMXFfdTgocmsgKyA1ICogMTYpKSk7XG4gICAgcyA9IHZhZXNtY3FfdTgodmFlc2VxX3U4KHMsIHZsZDFxX3U4KHJrICsgNiAqIDE2KSkpO1xuICAgIHMgPSB2YWVzbWNxX3U4KHZhZXNlcV91OChzLCB2bGQxcV91OChyayArIDcgKiAxNikpKTtcbiAgICBzID0gdmFlc21jcV91OCh2YWVzZXFfdTgocywgdmxkMXFfdTgocmsgKyA4ICogMTYpKSk7XG4gICAgcyA9IHZhZXNlcV91OChzLCB2bGQxcV91OChyayArIDkgKiAxNikpO1xuICAgIHMgPSB2ZW9ycV91OChzLCB2bGQxcV91OChyayArIDEwICogMTYpKTtcbiAgICB2c3QxcV91OChvdXQsIHMpO1xufVxuIiwiY29tcGlsZXJzIjpbeyJpZCI6ImFybXY4LWNjbGFuZy10cnVuayIsIm9wdGlvbnMiOiItbWFyY2g9YXJtdjgtYStjcnlwdG8gLU8yIC1mZnJlZXN0YW5kaW5nIn1dfV19",
+  "instructions": [
+    {
+      "address": "0x0",
+      "mnemonic": "ldp",
+      "operands": ["q1", "q2", "[x2]"],
+      "role": "loadKey",
+      "keyIndex": 0
+    },
+    {
+      "address": "0x4",
+      "mnemonic": "ldr",
+      "operands": ["q0", "[x0]"],
+      "role": "loadState"
+    },
+    {
+      "address": "0x8",
+      "mnemonic": "aese",
+      "operands": ["v1.16b", "v0.16b"],
+      "role": "round",
+      "round": 1,
+      "keyIndex": 0
+    },
+    {
+      "address": "0xc",
+      "mnemonic": "aesmc",
+      "operands": ["v1.16b", "v1.16b"],
+      "role": "aesmc",
+      "round": 1
+    },
+    {
+      "address": "0x10",
+      "mnemonic": "aese",
+      "operands": ["v2.16b", "v1.16b"],
+      "role": "round",
+      "round": 2,
+      "keyIndex": 1
+    },
+    {
+      "address": "0x14",
+      "mnemonic": "aesmc",
+      "operands": ["v2.16b", "v2.16b"],
+      "role": "aesmc",
+      "round": 2
+    },
+    {
+      "address": "0x18",
+      "mnemonic": "ldp",
+      "operands": ["q0", "q1", "[x2, #32]"],
+      "role": "loadKey",
+      "keyIndex": 2
+    },
+    {
+      "address": "0x1c",
+      "mnemonic": "aese",
+      "operands": ["v0.16b", "v2.16b"],
+      "role": "round",
+      "round": 3,
+      "keyIndex": 2
+    },
+    {
+      "address": "0x20",
+      "mnemonic": "aesmc",
+      "operands": ["v0.16b", "v0.16b"],
+      "role": "aesmc",
+      "round": 3
+    },
+    {
+      "address": "0x24",
+      "mnemonic": "aese",
+      "operands": ["v1.16b", "v0.16b"],
+      "role": "round",
+      "round": 4,
+      "keyIndex": 3
+    },
+    {
+      "address": "0x28",
+      "mnemonic": "aesmc",
+      "operands": ["v1.16b", "v1.16b"],
+      "role": "aesmc",
+      "round": 4
+    },
+    {
+      "address": "0x2c",
+      "mnemonic": "ldp",
+      "operands": ["q0", "q2", "[x2, #64]"],
+      "role": "loadKey",
+      "keyIndex": 4
+    },
+    {
+      "address": "0x30",
+      "mnemonic": "aese",
+      "operands": ["v0.16b", "v1.16b"],
+      "role": "round",
+      "round": 5,
+      "keyIndex": 4
+    },
+    {
+      "address": "0x34",
+      "mnemonic": "aesmc",
+      "operands": ["v0.16b", "v0.16b"],
+      "role": "aesmc",
+      "round": 5
+    },
+    {
+      "address": "0x38",
+      "mnemonic": "aese",
+      "operands": ["v2.16b", "v0.16b"],
+      "role": "round",
+      "round": 6,
+      "keyIndex": 5
+    },
+    {
+      "address": "0x3c",
+      "mnemonic": "aesmc",
+      "operands": ["v2.16b", "v2.16b"],
+      "role": "aesmc",
+      "round": 6
+    },
+    {
+      "address": "0x40",
+      "mnemonic": "ldp",
+      "operands": ["q0", "q1", "[x2, #96]"],
+      "role": "loadKey",
+      "keyIndex": 6
+    },
+    {
+      "address": "0x44",
+      "mnemonic": "aese",
+      "operands": ["v0.16b", "v2.16b"],
+      "role": "round",
+      "round": 7,
+      "keyIndex": 6
+    },
+    {
+      "address": "0x48",
+      "mnemonic": "aesmc",
+      "operands": ["v0.16b", "v0.16b"],
+      "role": "aesmc",
+      "round": 7
+    },
+    {
+      "address": "0x4c",
+      "mnemonic": "aese",
+      "operands": ["v1.16b", "v0.16b"],
+      "role": "round",
+      "round": 8,
+      "keyIndex": 7
+    },
+    {
+      "address": "0x50",
+      "mnemonic": "aesmc",
+      "operands": ["v1.16b", "v1.16b"],
+      "role": "aesmc",
+      "round": 8
+    },
+    {
+      "address": "0x54",
+      "mnemonic": "ldp",
+      "operands": ["q0", "q2", "[x2, #128]"],
+      "role": "loadKey",
+      "keyIndex": 8
+    },
+    {
+      "address": "0x58",
+      "mnemonic": "aese",
+      "operands": ["v0.16b", "v1.16b"],
+      "role": "round",
+      "round": 9,
+      "keyIndex": 8
+    },
+    {
+      "address": "0x5c",
+      "mnemonic": "aesmc",
+      "operands": ["v0.16b", "v0.16b"],
+      "role": "aesmc",
+      "round": 9
+    },
+    {
+      "address": "0x60",
+      "mnemonic": "aese",
+      "operands": ["v2.16b", "v0.16b"],
+      "role": "lastRound",
+      "round": 10,
+      "keyIndex": 9
+    },
+    {
+      "address": "0x64",
+      "mnemonic": "ldr",
+      "operands": ["q0", "[x2, #160]"],
+      "role": "loadKey",
+      "keyIndex": 10
+    },
+    {
+      "address": "0x68",
+      "mnemonic": "eor",
+      "operands": ["v0.16b", "v0.16b", "v2.16b"],
+      "role": "finalXor",
+      "round": 10,
+      "keyIndex": 10
+    },
+    {
+      "address": "0x6c",
+      "mnemonic": "str",
+      "operands": ["q0", "[x1]"],
+      "role": "store"
+    },
+    {
+      "address": "0x70",
+      "mnemonic": "ret",
+      "operands": [],
+      "role": "other"
+    }
+  ]
+}

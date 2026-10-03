@@ -1,0 +1,17 @@
+{
+  "name": "@cryventure/derivers",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "CryVenture deriver plugins (ISA listings, memory layout, ...). Each folder exports one manifest.ts. Deterministic.",
+  "exports": {
+    ".": "./src/index.ts",
+    "./messages": "./src/messages.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit -p ."
+  },
+  "dependencies": {
+    "@cryventure/core": "workspace:*"
+  }
+}

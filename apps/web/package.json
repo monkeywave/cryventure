@@ -17,6 +17,7 @@
     "@astrojs/starlight": "^0.42.5",
     "@astrojs/starlight-tailwind": "^5.0.0",
     "@cryventure/core": "workspace:*",
+    "@cryventure/derivers": "workspace:*",
     "@cryventure/primitives": "workspace:*",
     "@cryventure/views": "workspace:*",
     "@cryventure/viz": "workspace:*",

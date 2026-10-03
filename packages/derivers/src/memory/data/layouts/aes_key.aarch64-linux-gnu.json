@@ -1,0 +1,40 @@
+{
+  "name": "aes_key_st",
+  "triple": "aarch64-linux-gnu",
+  "size": 244,
+  "align": 4,
+  "source": {
+    "lib": "OpenSSL",
+    "version": "openssl-3.5.9",
+    "path": "include/openssl/aes.h",
+    "line": 36
+  },
+  "compiler": {
+    "version": "Homebrew clang version 23.1.0",
+    "args": [
+      "-target",
+      "aarch64-linux-gnu",
+      "-Xclang",
+      "-fdump-record-layouts",
+      "-fsyntax-only",
+      "-x",
+      "c"
+    ]
+  },
+  "fields": [
+    {
+      "name": "rd_key",
+      "offset": 0,
+      "size": 240,
+      "type": "unsigned int[60]",
+      "count": 60,
+      "elemSize": 4
+    },
+    {
+      "name": "rounds",
+      "offset": 240,
+      "size": 4,
+      "type": "int"
+    }
+  ]
+}

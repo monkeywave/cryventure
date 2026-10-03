@@ -38,6 +38,11 @@ const ROLE_BY_KIND: Readonly<Record<ChainNodeKind, NodeRole | 'in' | 'out'>> = {
   keystream: 'state',
   xor: 'state',
   pad: 'padding',
+  // GCM (docs/M4.md §3f); dedicated styles arrive with the GCM view work.
+  hash: 'state',
+  length: 'state',
+  aad: 'plaintext',
+  tag: 'ciphertext',
 };
 
 export function nodeRole(node: ChainNode, direction: ChainFacet['direction']): NodeRole {

@@ -1,0 +1,28 @@
+[
+  {
+    "triple": "x86_64-linux-gnu",
+    "dataModel": "LP64",
+    "ptrSize": 8,
+    "endian": "little",
+    "stack": {
+      "provenance": "modeled",
+      "frameBase": "0x7ffc5e3a1000",
+      "growsDown": true,
+      "frameAlign": 16,
+      "note": "Deterministic, illustrative address in the usual Linux x86_64 user-stack range (0x7ffc…, below the 47-bit canonical limit). Not recorded from a real process; ASLR randomises it at run time."
+    }
+  },
+  {
+    "triple": "aarch64-linux-gnu",
+    "dataModel": "LP64",
+    "ptrSize": 8,
+    "endian": "little",
+    "stack": {
+      "provenance": "modeled",
+      "frameBase": "0xffffd2c4f000",
+      "growsDown": true,
+      "frameAlign": 16,
+      "note": "Deterministic, illustrative address in the usual Linux aarch64 user-stack range (0xffff…, top of a 48-bit VA space). Not recorded from a real process; ASLR randomises it at run time."
+    }
+  }
+]

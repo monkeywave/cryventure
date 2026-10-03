@@ -40,6 +40,11 @@ describe('chainIssues', () => {
   it('accepts a well-formed chain', () => {
     expect(chainIssues(chain(), 3)).toEqual([]);
   });
+  it('accepts the GCM node kinds (hash, tag, aad, length)', () => {
+    const facet = chain();
+    const gcm = [node('aad', -1, -1, 'aad'), node('len', -1, -1, 'length'), node('ghash', 0, 1, 'hash'), node('tag', 0, 2, 'tag')];
+    expect(chainIssues({ ...facet, nodes: [...facet.nodes, ...gcm] }, 3)).toEqual([]);
+  });
   it('rejects duplicate node ids', () => {
     const facet = chain();
     expect(chainIssues({ ...facet, nodes: [...facet.nodes, node('iv', -1, -1, 'iv')] }, 3)).toEqual(['chain: duplicate node id "iv"']);
