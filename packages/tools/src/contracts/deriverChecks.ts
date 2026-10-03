@@ -3,7 +3,9 @@ import {
   assertManifestBasics,
   availableFacetKinds,
   getFacet,
+  isHexAddress,
   parseFacetKey,
+  parseHexAddress,
   validateFieldFacet,
   validateInstructionsFacet,
   validateMathFacet,
@@ -73,7 +75,7 @@ export const FACET_VALIDATORS: Readonly<Partial<Record<FacetKind, FacetValidator
 
 /** Lowercase hex address as a bigint, or undefined for anything else. */
 function hexAddress(text: unknown): bigint | undefined {
-  return typeof text === 'string' && /^0x[0-9a-f]+$/.test(text) ? BigInt(text) : undefined;
+  return typeof text === 'string' && isHexAddress(text) ? parseHexAddress(text) : undefined;
 }
 
 /** The allocation whose address range contains `addr` (undefined for malformed addresses). */

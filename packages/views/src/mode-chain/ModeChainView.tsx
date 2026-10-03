@@ -2,10 +2,10 @@ import { memo, useEffect, useMemo, useRef, useState, type KeyboardEvent, type Re
 import { m, useReducedMotion } from 'motion/react';
 import { chainActiveNodesAt, type ChainFacet, type ChainNode, type Lens, type Translate } from '@cryventure/core';
 import { ViewStatus, useFacet, useLab, useLabActions, useLabLayout, useT, type ViewProps } from '@cryventure/viz';
-import { centredScrollLeft, fittedHeight, laneSpanOf, laneStartScrollLeft, layoutChain, neighbour, spanOf, type ChainLayout, type EdgePath, type LayoutMetrics, type NodeBox, type Span } from './chainLayout.ts';
+import { centredScrollLeft, fittedHeight, hasDeepLane, laneSpanOf, laneStartScrollLeft, layoutChain, neighbour, spanOf, type ChainLayout, type EdgePath, type LayoutMetrics, type NodeBox, type Span } from './chainLayout.ts';
+import { ROLE_GLYPHS } from '../_lib/roleGlyphs.ts';
 import {
   abbreviatedHex,
-  GCM_ROLE_GLYPHS,
   gcmRolesOf,
   groupLetter,
   groupsChangeStep,
@@ -131,7 +131,7 @@ const NodeView = memo(function NodeView(props: NodeViewProps) {
     >
       <span className="cv-chain__label" aria-hidden="true">
         {status === 'current' && <span className="cv-chain__glyph">{CURRENT_GLYPH}</span>}
-        {isGcmRole(role) && <span className="cv-chain__role-glyph">{GCM_ROLE_GLYPHS[role]}</span>}
+        {isGcmRole(role) && <span className="cv-chain__role-glyph">{ROLE_GLYPHS[role]}</span>}
         <Label text={label} blockIndices={lens === 'cryptographer'} />
         {same !== undefined && (
           <span className="cv-chain__same">
@@ -277,8 +277,8 @@ function useCurrentLaneInView(layout: ChainLayout, step: number, laneStart: bool
 }
 
 /**
- * The canvas height for what the scroller shows: with `fit` (GCM, whose GHASH lane runs far deeper
- * than the block lanes) only as tall as the lanes in view need, re-measured on scroll and resize;
+ * The canvas height for what the scroller shows: with `fit` (`hasDeepLane`, e.g. GCM, whose GHASH
+ * lane runs far deeper than the block lanes) only as tall as the lanes in view need, re-measured on scroll and resize;
  * otherwise (and before the first measurement) the full layout height.
  */
 function useFittedHeight(scrollerRef: RefObject<HTMLDivElement | null>, layout: ChainLayout, fit: boolean): number {
@@ -365,7 +365,7 @@ function Legend({ hasSame, roles }: { hasSame: boolean; roles: readonly GcmRole[
       {roles.map((role) => (
         <span key={role} data-role={role}>
           <span className="cv-chain__role-glyph" aria-hidden="true">
-            {GCM_ROLE_GLYPHS[role]}
+            {ROLE_GLYPHS[role]}
           </span>
           {t(`view.mode-chain.role.${role}`)}
         </span>
@@ -398,8 +398,9 @@ function ModeChain({ facet, lens }: { facet: ChainFacet; lens: Lens }) {
   const groups = useMemo(() => sameGroups(facet, chainActiveNodesAt(facet, groupsStep)), [facet, groupsStep]);
   const { canvasRef, tabbableId, focusedId, setFocusedId, onKeyDown } = useRovingFocus(layout);
   const hash = useMemo(() => hashLanes(facet), [facet]);
-  const scrollerRef = useCurrentLaneInView(layout, step, hash.size > 0);
-  const canvasHeight = useFittedHeight(scrollerRef, layout, hash.size > 0);
+  const deepLane = useMemo(() => hasDeepLane(layout), [layout]);
+  const scrollerRef = useCurrentLaneInView(layout, step, deepLane);
+  const canvasHeight = useFittedHeight(scrollerRef, layout, deepLane);
   const roles = useMemo(() => gcmRolesOf(facet), [facet]);
   const { sources, sameNames } = useNodeRelations(facet, groups, hash);
   const blockLanes = layout.lanes.filter(({ lane }) => lane >= 0 && !hash.has(lane)).length;
@@ -410,7 +411,7 @@ function ModeChain({ facet, lens }: { facet: ChainFacet; lens: Lens }) {
           <Label text={t(facet.formula)} blockIndices={false} />
         </p>
       )}
-      <div ref={scrollerRef} className="cv-chain__scroll cv-scroll-shadow" data-fitted={hash.size > 0 ? '' : undefined}>
+      <div ref={scrollerRef} className="cv-chain__scroll cv-scroll-shadow" data-fitted={deepLane ? '' : undefined}>
         <div
           ref={canvasRef}
           role="group"

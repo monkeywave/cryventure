@@ -1,6 +1,7 @@
 import type { RegistersFacet } from '@cryventure/core';
 import { describe, expect, it } from 'vitest';
-import { aesDerivedFacets } from './aesFixture.ts';
+import { isaFixture } from '../testing/isaFixture.ts';
+import fixture from './fixtures/aesC1.json';
 import {
   displayOrder,
   inFlightAt,
@@ -9,6 +10,8 @@ import {
   sharedLanes,
   writtenAt,
 } from './registerModel.ts';
+
+const { derivedFacets: aesDerivedFacets } = isaFixture(fixture);
 
 const x86 = aesDerivedFacets['registers@x86_64-aesni'] as RegistersFacet;
 const PLAINTEXT = [

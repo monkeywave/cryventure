@@ -1,4 +1,4 @@
-import type { AnyStateFacet, TraceBundle, ValuesFacet } from '@cryventure/core';
+import { toHex, type AnyStateFacet, type TraceBundle, type ValuesFacet } from '@cryventure/core';
 import { describe, expect, it } from 'vitest';
 import {
   aesStateFacet,
@@ -11,7 +11,6 @@ import {
   valueIdByRole,
 } from './aesTrace.ts';
 import { aesFixtureBundle } from './fixtures/aesBundles.ts';
-import { toHex } from './fixtures/fips197AppC.ts';
 
 const c1 = () => aesFixtureBundle('fips197-c1');
 const stateOf = (bundle: TraceBundle) => bundle.facets['state@default'] as AnyStateFacet;

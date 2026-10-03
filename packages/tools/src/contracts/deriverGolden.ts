@@ -70,8 +70,3 @@ export function writeGoldenFile(path: string, fixture: GoldenFixture): void {
   mkdirSync(dirname(path), { recursive: true });
   writeFileSync(path, goldenJson(fixture));
 }
-
-/** Whether this run regenerates golden files instead of comparing them. */
-export function isGoldenUpdate(env: Record<string, string | undefined> = process.env): boolean {
-  return env[GOLDEN_UPDATE_ENV] === '1';
-}

@@ -26,7 +26,7 @@ export interface LabProps {
   mode?: LabMode;
   /** Initial lab-wide preferred facet variant, e.g. `x86_64-aesni`; the reader's pick overrides it. */
   variant?: string;
-  /** Only the namespaces this lab needs, in the page's locale (assembled by `Lab.astro`). */
+  /** Only the namespaces this lab needs, in the page's locale (assembled by `components/labIsland.ts`). */
   messages: Messages;
   /** Page locale (e.g. `de`), used for plural forms and links to standalone labs. */
   locale?: string;
@@ -37,9 +37,9 @@ export interface LabProps {
    * text field (`hero/HeroLab.tsx`). They may use `useLabActions().requestParams` to re-run the lab.
    */
   toolbar?: ComponentType<LabToolbarProps>;
-  /** `"all"` (default): every view the bundle can feed; `"layout-only"`: only the views `layout` names. */
+  /** `"all"` (default): every view the bundle can feed; `"layout-only"`: only the views `layout` names (set by `hero/HeroLab.tsx`). */
   views?: LabViewsOption;
-  /** Shows the generic inputs panel (default `true`); the home hero hides it so its text field is the only input. */
+  /** Shows the generic inputs panel (default `true`); `hero/HeroLab.tsx` hides it so its text field is the only input. */
   paramPanel?: boolean;
 }
 

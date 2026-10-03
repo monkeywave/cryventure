@@ -1,9 +1,5 @@
-import {
-  RecordingTracer,
-  type MemoryFacet,
-  type Messages,
-  type TraceBundle,
-} from '@cryventure/core';
+import type { MemoryFacet, Messages, TraceBundle } from '@cryventure/core';
+import { tickBundle } from '../testing/tickBundle.ts';
 import fixture from './fixtures/aes128-memory.json';
 
 /**
@@ -14,10 +10,10 @@ import fixture from './fixtures/aes128-memory.json';
 export const memoryFacets = fixture.facets as unknown as Record<string, MemoryFacet>;
 export const memoryStepCount = fixture.stepCount;
 
-export const X86_CREF = 'memory@x86_64-linux-gnu+c-ref';
-export const X86_AESNI = 'memory@x86_64-linux-gnu+aesni';
-export const ARM_CREF = 'memory@aarch64-linux-gnu+c-ref';
-export const ARM_ARMV8 = 'memory@aarch64-linux-gnu+armv8';
+export const X86_CREF = 'memory@x86_64-c-ref';
+export const X86_AESNI = 'memory@x86_64-aesni';
+export const ARM_CREF = 'memory@aarch64-c-ref';
+export const ARM_ARMV8 = 'memory@aarch64-armv8-ce';
 
 /** State step of `AES_set_encrypt_key` (the key writes) and of the output write. */
 export const KEY_STEP = memoryFacets[X86_CREF]!.writes[1]!.align.last;
@@ -30,20 +26,7 @@ export function memoryFacet(key: string): MemoryFacet {
 
 /** A bundle with the derived memory facets (as bundle facets) and an empty-write state facet so the playhead can move. */
 export function memoryBundle(facets: Record<string, MemoryFacet> = memoryFacets): TraceBundle {
-  const tracer = new RecordingTracer<'s', { op: 'tick' }>(
-    [{ id: 's', labelKey: 'fixture.region.s', elem: 'u8', shape: [1] }],
-    { s: [0] },
-  );
-  for (let i = 0; i < memoryStepCount; i++)
-    tracer.step({ op: 'tick', writes: [], highlights: [], narration: { key: 'fixture.tick' } });
-  return {
-    schemaVersion: 1,
-    producer: { kind: 'primitive', id: 'aes', apiVersion: 1 },
-    provenance: 'modeled',
-    params: {},
-    facets: { 'state@default': tracer.toFacet(), ...JSON.parse(JSON.stringify(facets)) },
-    output: {},
-  };
+  return tickBundle('aes', memoryStepCount, JSON.parse(JSON.stringify(facets)));
 }
 
 /** Deriver labels the view renders (normally from the memory deriver's catalog). */

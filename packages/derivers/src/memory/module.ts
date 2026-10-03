@@ -1,4 +1,4 @@
-import type { DeriverModule, FacetKey, TraceBundle } from '@cryventure/core';
+import type { FacetKey, TraceBundle } from '@cryventure/core';
 import { readAesRun } from './aesContract.ts';
 import { memoryFacets } from './memoryFacet.ts';
 
@@ -6,7 +6,3 @@ import { memoryFacets } from './memoryFacet.ts';
 export function derive(bundle: TraceBundle): Partial<Record<FacetKey, unknown>> {
   return memoryFacets(readAesRun(bundle));
 }
-
-const memoryModule: DeriverModule = { derive };
-
-export default memoryModule;

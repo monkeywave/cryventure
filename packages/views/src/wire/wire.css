@@ -140,22 +140,22 @@
   font-weight: 700;
 }
 
-/* Not sent yet: dashed, dimmed through colour tokens (never opacity), value withheld (as in mode-chain). */
+/* Not sent yet: dashed, dimmed through colour tokens (never opacity), value withheld (as in mode-chain).
+   The dim border replaces the role colour through `--cv-wire-role` (this rule follows the role rules at
+   the same specificity), so the segment rule and its byte boxes both pick it up. */
 .cv-wire__segment[data-pending] {
+  --cv-wire-role: var(--cv-cell-dim-border, GrayText);
   border-inline-start-style: dashed;
-  border-inline-start-color: var(--cv-cell-dim-border, GrayText);
 }
 
 .cv-wire__segment[data-pending] .cv-wire__glyph {
   color: var(--cv-cell-dim-fg, GrayText);
 }
 
-.cv-wire__segment[data-pending] .cv-wire__byte,
-.cv-wire__segment[data-pending][data-role] .cv-wire__byte {
+.cv-wire__segment[data-pending] .cv-wire__byte {
   color: var(--cv-cell-dim-fg, GrayText);
   background: var(--cv-cell-dim-bg, Canvas);
   border-style: dashed;
-  border-color: var(--cv-cell-dim-border, GrayText);
 }
 
 .cv-wire__legend [data-pending] {

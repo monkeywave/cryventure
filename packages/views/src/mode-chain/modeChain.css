@@ -23,7 +23,7 @@
   overscroll-behavior-inline: contain;
 }
 
-/* Fitted height (GCM): the canvas is only as tall as the lanes in view, so the deeper lanes out of
+/* Fitted height (a deep lane, e.g. GCM's GHASH chain): the canvas is only as tall as the lanes in view, so the deeper lanes out of
    view are clipped vertically instead of adding a vertical scrollbar. */
 .cv-chain__scroll[data-fitted] {
   overflow-y: hidden;

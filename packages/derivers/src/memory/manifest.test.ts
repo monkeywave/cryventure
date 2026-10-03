@@ -24,15 +24,9 @@ describe('memory deriver applicability', () => {
     expect(manifest.appliesTo!(bundle)).toBe(false);
   });
 
-  it('rejects a bundle without a state facet', () => {
+  it('rejects round detail (params.detail)', () => {
     const bundle = aes128Bundle();
-    delete bundle.facets['state@default'];
-    expect(manifest.appliesTo!(bundle)).toBe(false);
-  });
-
-  it('rejects round detail (whole-round steps)', () => {
-    const bundle = aes128Bundle();
-    (bundle.facets['state@default'] as { steps: { op: string }[] }).steps[2]!.op = 'round';
+    bundle.params = { ...(bundle.params as object), detail: 'round' };
     expect(manifest.appliesTo!(bundle)).toBe(false);
   });
 });

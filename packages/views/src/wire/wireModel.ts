@@ -1,4 +1,4 @@
-import { byteToHex, hexDigits, parseHex, toHex, type WireFacet, type WireRole, type WireSegment } from '@cryventure/core';
+import { byteToHex, hexDigits, parseHex, toHex, type WireFacet, type WireSegment } from '@cryventure/core';
 
 /** Pure helpers of the wire view: segment placement, rows of 16/8/4, highlight change steps and the flip mask. */
 
@@ -31,20 +31,6 @@ export interface PlacedSegment {
   hex: string;
   flippedCount: number;
 }
-
-/**
- * Non-colour cue per role (PLAN §3: dice for nonce/IV randomness). Decorative only. GCM: ✓ the tag
- * that authenticates, ◇✓ AAD (sent in the clear like plaintext ◇, but authenticated), as in mode-chain.
- */
-export const ROLE_GLYPHS: Readonly<Record<WireRole, string>> = {
-  iv: '⚄',
-  nonce: '⚄',
-  ciphertext: '◆',
-  plaintext: '◇',
-  padding: '░',
-  tag: '✓',
-  aad: '◇✓',
-};
 
 function flipMaskBytes(facet: WireFacet): number[] {
   if (facet.flip === undefined) return [];

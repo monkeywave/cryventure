@@ -1,4 +1,3 @@
-import type { AnyStateFacet } from '@cryventure/core';
 import { describe, expect, it } from 'vitest';
 import { aesFixtureBundle } from '../_lib/fixtures/aesBundles.ts';
 import manifest from './manifest.ts';
@@ -16,7 +15,7 @@ describe('isa-x86 manifest', () => {
 
   it('applies to AES op-detail bundles only', () => {
     const merged = aesFixtureBundle('fips197-c1');
-    (merged.facets['state@default'] as AnyStateFacet).steps[3]!.op = 'round';
+    merged.params = { ...(merged.params as object), detail: 'round' };
     const bundles = [
       aesFixtureBundle('fips197-c1'),
       merged,
@@ -24,7 +23,7 @@ describe('isa-x86 manifest', () => {
         ...aesFixtureBundle('fips197-c2'),
         producer: { kind: 'primitive' as const, id: 'xor', apiVersion: 1 },
       },
-      { ...aesFixtureBundle('fips197-c3'), facets: {} },
+      { ...aesFixtureBundle('fips197-c3'), params: {} },
     ];
     expect(bundles.map((bundle) => manifest.appliesTo!(bundle))).toEqual([
       true,

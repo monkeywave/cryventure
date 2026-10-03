@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
-import { centredScrollLeft, chainRows, edgePathData, fittedHeight, GEOMETRY, gutterX, laneSpanOf, laneStartScrollLeft, layoutChain, type LayoutMetrics, type NodeBox } from './chainLayout.ts';
-import { GCM_ROLE_GLYPHS, gcmRolesOf, hashLanes, isGcmRole, nodeRole } from './chainModel.ts';
+import { centredScrollLeft, chainRows, edgePathData, fittedHeight, GEOMETRY, gutterX, hasDeepLane, laneSpanOf, laneStartScrollLeft, layoutChain, type LayoutMetrics, type NodeBox } from './chainLayout.ts';
+import { ROLE_GLYPHS } from '../_lib/roleGlyphs.ts';
+import { gcmRolesOf, hashLanes, isGcmRole, nodeRole } from './chainModel.ts';
 import { gcmChainCase } from './gcmFixture.ts';
 import { modeCase } from '../testing/modeFixture.ts';
 
@@ -18,7 +19,7 @@ describe('GCM node roles', () => {
   });
 
   it('pairs each GCM role with a glyph (⊗ for the GF multiply)', () => {
-    expect(GCM_ROLE_GLYPHS).toEqual({ tag: '✓', aad: '◇✓', hash: '⊗', length: '‖' });
+    expect([ROLE_GLYPHS.tag, ROLE_GLYPHS.aad, ROLE_GLYPHS.hash, ROLE_GLYPHS.length]).toEqual(['✓', '◇✓', '⊗', '‖']);
     expect(isGcmRole('hash')).toBe(true);
     expect(isGcmRole('plaintext')).toBe(false);
   });
@@ -122,5 +123,19 @@ describe('GCM lane scrolling and fitted height', () => {
     expect(ctrBottom).toBeLessThan(layout.height - 300);
     expect(fittedHeight(layout, { left: lane(5).x - 100, right: lane(5).x + 380 })).toBe(layout.height);
     expect(fittedHeight(layout, { left: -500, right: -10 })).toBe(layout.height);
+  });
+});
+
+describe('hasDeepLane', () => {
+  const metrics: LayoutMetrics = { nodeWidth: 100, hexLines: () => 2, hasLink: () => false };
+
+  it('finds the GHASH lane of GCM far deeper than the block lanes', () => {
+    expect(hasDeepLane(layoutChain(gcmChainCase('gcm/mcgrew-viega-tc4').chain, metrics))).toBe(true);
+    expect(hasDeepLane(layoutChain(gcmChainCase('gcm/decrypt-forged').chain, metrics))).toBe(true);
+  });
+
+  it('keeps ECB, CBC and CTR (lanes of about equal depth) unfitted', () => {
+    for (const id of ['ecb/repeated-blocks', 'ecb/repeated-blocks-decrypt', 'cbc/repeated-blocks', 'ctr/short-message'] as const)
+      expect(hasDeepLane(layoutChain(modeCase(id).chain, metrics)), id).toBe(false);
   });
 });

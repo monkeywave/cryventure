@@ -6,7 +6,10 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { createFixtureBundle, renderLab } from '@cryventure/viz/testing';
 import { loadViewMessages } from '../messages.ts';
 import InstructionsView from './InstructionsView.tsx';
-import { aesBundle, aesDerivedFacets, aesLabels } from './aesFixture.ts';
+import { isaFixture } from '../testing/isaFixture.ts';
+import fixture from './fixtures/aesC1.json';
+
+const { bundle: aesBundle, derivedFacets: aesDerivedFacets, labels: aesLabels } = isaFixture(fixture);
 
 const messagesIn = (locale: Locale) => ({ ...loadViewMessages(locale), ...aesLabels[locale] });
 

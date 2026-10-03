@@ -10,19 +10,20 @@ import {
   implIdOf,
   implOptions,
   intFieldValue,
+  linkedByAllocation,
   linkedOffsets,
   memoryRows,
+  memoryTimeline,
   moveUnitFocus,
   numericKind,
   readWord,
   resolveChoice,
   rulerLabels,
   segmentsOf,
+  targetOptions,
   toInt32,
-  tripleOptions,
   unitText,
   unitTouches,
-  writtenAtStep,
   writtenCount,
   type MemoryUnit,
   type MemoryVariant,
@@ -72,8 +73,8 @@ const padded: Allocation = {
 };
 
 describe('variant pickers', () => {
-  it('lists each triple once, in variant order', () => {
-    expect(tripleOptions(variants)).toEqual(['x86_64-linux-gnu', 'aarch64-linux-gnu']);
+  it('lists each target once, in variant order', () => {
+    expect(targetOptions(variants).map((target) => target.triple)).toEqual(['x86_64-linux-gnu', 'aarch64-linux-gnu']);
   });
 
   it('offers only the implementations that exist for a triple', () => {
@@ -296,6 +297,8 @@ describe('addresses', () => {
   });
 });
 
+const writtenAtStep = (facet: MemoryFacet, p: number) => memoryTimeline(facet).writtenAt(p);
+
 describe('time and selection', () => {
   it('flags the bytes written at the playhead only', () => {
     const facet = memoryFacets[X86_CREF]!;
@@ -319,6 +322,29 @@ describe('time and selection', () => {
     expect(writtenAtStep(facet, 1).size).toBe(0);
     expect([...writtenAtStep(facet, 3).get('in')!]).toEqual([0, 1]);
     expect([...writtenAtStep(facet, 4).get('in')!]).toEqual([0, 1]);
+  });
+
+  it('replays the contents as core memoryAt does, at every step', () => {
+    const facet = memoryFacets[X86_CREF]!;
+    const timeline = memoryTimeline(facet);
+    for (const p of [-1, 0, KEY_STEP - 1, KEY_STEP, KEY_STEP + 1, OUTPUT_STEP, OUTPUT_STEP + 5])
+      expect(timeline.contentsAt(p)).toEqual(memoryAt(facet, p));
+  });
+
+  it('keeps the same arrays and sets for allocations a step leaves unchanged', () => {
+    const timeline = memoryTimeline(memoryFacets[X86_CREF]!);
+    expect(timeline.contentsAt(KEY_STEP + 1).get('key')).toBe(timeline.contentsAt(KEY_STEP).get('key'));
+    expect(timeline.contentsAt(OUTPUT_STEP).get('key')).toBe(timeline.contentsAt(KEY_STEP).get('key'));
+    expect(timeline.contentsAt(OUTPUT_STEP).get('out')).not.toBe(timeline.contentsAt(KEY_STEP).get('out'));
+    expect(timeline.writtenAt(KEY_STEP).get('key')).toBe(timeline.writtenAt(KEY_STEP).get('key'));
+  });
+
+  it('links per allocation only where the selected value is', () => {
+    const facet = memoryFacets[X86_CREF]!;
+    const linked = linkedByAllocation(facet.allocations, '3/roundKey');
+    expect([...linked.keys()]).toEqual(['key']);
+    expect(linked.get('key')).toEqual(linkedOffsets(keyOf(facet), '3/roundKey'));
+    expect(linkedByAllocation(facet.allocations, null).size).toBe(0);
   });
 
   it('links the ref ranges of a selected value, or the whole allocation carrying it', () => {

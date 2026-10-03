@@ -1,4 +1,5 @@
-import { RecordingTracer, type ChainFacet, type Locale, type Messages, type TraceBundle, type WireFacet } from '@cryventure/core';
+import type { ChainFacet, Locale, Messages, TraceBundle, WireFacet } from '@cryventure/core';
+import { fixtureCase, tickBundle } from './tickBundle.ts';
 import fixture from './modes.json';
 
 /**
@@ -16,8 +17,7 @@ interface ModeCase {
 }
 
 export function modeCase(id: ModeCaseId): ModeCase {
-  const found = fixture.cases.find((candidate) => `${candidate.producer}/${candidate.preset}` === id);
-  if (found === undefined) throw new Error(`no mode fixture ${id}`);
+  const found = fixtureCase(fixture.cases, id);
   // JSON imports widen string unions (`kind`, `mode`, `role` …), hence the casts through `unknown`.
   return {
     producer: found.producer,
@@ -30,16 +30,7 @@ export function modeCase(id: ModeCaseId): ModeCase {
 /** A bundle with the case's chain and wire facets plus an empty-write state facet so the playhead can move. */
 export function modeBundle(id: ModeCaseId): TraceBundle {
   const { producer, stepCount, chain, wire } = modeCase(id);
-  const tracer = new RecordingTracer<'s', { op: 'tick' }>([{ id: 's', labelKey: 'fixture.region.s', elem: 'u8', shape: [1] }], { s: [0] });
-  for (let i = 0; i < stepCount; i++) tracer.step({ op: 'tick', writes: [], highlights: [], narration: { key: 'fixture.tick' } });
-  return {
-    schemaVersion: 1,
-    producer: { kind: 'primitive', id: producer, apiVersion: 1 },
-    provenance: 'modeled',
-    params: {},
-    facets: { 'state@default': tracer.toFacet(), 'chain@default': chain, 'wire@default': wire },
-    output: {},
-  };
+  return tickBundle(producer, stepCount, { 'chain@default': chain, 'wire@default': wire });
 }
 
 /** Producer labels the views render (the ecb/cbc/ctr catalog entries). */

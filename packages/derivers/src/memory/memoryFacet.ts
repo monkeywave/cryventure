@@ -17,9 +17,9 @@ const BUFFER_ALIGN = 16;
 const ROUND_KEY_BYTES = 16;
 const INITIAL_STEP = -1;
 
-/** Facet variant of one target + impl, e.g. `x86_64-linux-gnu+c-ref`. */
-export function memoryVariant(triple: string, implId: string): string {
-  return `${triple}+${implId}`;
+/** Facet variant of one target + impl, shared with the ISA derivers, e.g. `x86_64-aesni`. */
+export function memoryVariant(target: Pick<TargetData, 'isa'>, impl: Pick<ImplSpec, 'extension'>): string {
+  return `${target.isa}-${impl.extension}`;
 }
 
 /** Label key of a variant, e.g. `deriver.memory.variant.x86_64-linux-gnu.c-ref`. */
@@ -105,5 +105,5 @@ export function buildMemoryFacet(run: AesRun, target: TargetData, impl: ImplSpec
 
 /** Every memory variant of one AES run, x86_64 first (`memory@<triple>+<impl>`). */
 export function memoryFacets(run: AesRun): Partial<Record<FacetKey, MemoryFacet>> {
-  return Object.fromEntries(targetImplPairs().map(({ target, impl }) => [facetKey('memory', memoryVariant(target.triple, impl.id)), buildMemoryFacet(run, target, impl)]));
+  return Object.fromEntries(targetImplPairs().map(({ target, impl }) => [facetKey('memory', memoryVariant(target, impl)), buildMemoryFacet(run, target, impl)]));
 }

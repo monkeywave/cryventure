@@ -1,4 +1,4 @@
-import type { TraceBundle, ValuesFacet } from '@cryventure/core';
+import { bytesEqual, type TraceBundle, type ValuesFacet } from '@cryventure/core';
 import {
   aesStateFacet,
   aesValuesFacet,
@@ -34,15 +34,11 @@ export interface AesRun {
   valueIds: { key?: string; plaintext?: string; ciphertext?: string };
 }
 
-function sameBytes(a: readonly number[], b: readonly number[]): boolean {
-  return a.length === b.length && a.every((byte, index) => byte === b[index]);
-}
-
 /** Each subkey value must hold the bytes of its round key in `w` after keyExpansion. */
 function assertSubkeysMatchSchedule(values: ValuesFacet, roundKeys: AesRun['roundKeys']): void {
   const byId = new Map(values.values.map((value) => [value.id, value.bytes]));
   for (const { valueId, bytes } of roundKeys) {
-    if (!sameBytes(byId.get(valueId) ?? [], bytes))
+    if (!bytesEqual(byId.get(valueId) ?? [], bytes))
       throw new Error(`AES trace contract: region "w" after keyExpansion does not match the subkey values (${valueId})`);
   }
 }

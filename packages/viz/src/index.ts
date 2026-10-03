@@ -12,7 +12,7 @@ export { LabRoot, type LabRootProps } from './lab/LabRoot.tsx';
 export { LabLayoutProvider, useLabLayout, type LabLayout, type LabLayoutProviderProps } from './lab/LabLayout.tsx';
 export { facetData, useFacet, useFacetVariants, useVariantFacets, type FacetResult } from './lab/useFacet.ts';
 export { useVariantChoice, type FacetVariantChoice } from './lab/useVariantChoice.ts';
-export { deriveOnce, derivationCandidates, isDeriverApplicable, type DerivedFacets } from './lab/derive.ts';
+export { deriveOnce, derivationCandidates, hasDeriverInputs, isDeriverApplicable, type DerivedFacets } from './lab/derive.ts';
 // choreography
 export { useActiveBeat, useChoreography, useFocusBeat, useStepProgress } from './choreography/ChoreographyContext.tsx';
 export { focusIn, tracksForRegion } from './choreography/nodeTracks.ts';

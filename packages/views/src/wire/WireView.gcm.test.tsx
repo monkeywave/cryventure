@@ -5,7 +5,7 @@ import { renderLab } from '@cryventure/viz/testing';
 import { loadViewMessages } from '../messages.ts';
 import WireView from './WireView.tsx';
 import { gcmWireBundle, gcmWireCase, gcmWireLabels, type GcmWireCaseId } from './gcmFixture.ts';
-import { ROLE_GLYPHS } from './wireModel.ts';
+import { ROLE_GLYPHS } from '../_lib/roleGlyphs.ts';
 
 const messagesIn = (locale: Locale) => ({ ...loadViewMessages(locale), ...gcmWireLabels[locale] });
 

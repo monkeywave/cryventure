@@ -318,6 +318,22 @@ export function laneStartScrollLeft(span: Span, viewportWidth: number, contentWi
   return Math.max(0, Math.min(span.left, contentWidth - viewportWidth));
 }
 
+/** How much deeper than the typical lane a lane must run to count as deep (GCM's GHASH chain runs ~1.8×). */
+const DEEP_LANE_RATIO = 1.5;
+
+/**
+ * Whether one lane runs far deeper than the typical (median) lane, e.g. GCM's GHASH chain beside its
+ * block lanes. Such a diagram fits its height to the lanes in view (`fittedHeight`) and scrolls the
+ * current lane to its start; lanes of (nearly) equal depth keep the full height and centred scrolling.
+ */
+export function hasDeepLane(layout: Pick<ChainLayout, 'boxes' | 'lanes'>): boolean {
+  const depths = layout.lanes.map((_, column) => Math.max(0, ...layout.boxes.filter((box) => box.column === column).map((box) => box.y + box.height)));
+  if (depths.length < 2) return false;
+  const sorted = [...depths].sort((a, b) => a - b);
+  const typical = sorted[Math.floor(sorted.length / 2)]!;
+  return sorted.at(-1)! > typical * DEEP_LANE_RATIO;
+}
+
 /**
  * Canvas height that fits the nodes of the lanes overlapping the visible range `view` (canvas px),
  * so a deep lane out of view (GCM's GHASH chain) leaves no empty band under the shallow ones; the

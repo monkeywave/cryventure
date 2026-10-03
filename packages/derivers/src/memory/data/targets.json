@@ -1,6 +1,7 @@
 [
   {
     "triple": "x86_64-linux-gnu",
+    "isa": "x86_64",
     "dataModel": "LP64",
     "ptrSize": 8,
     "endian": "little",
@@ -14,6 +15,7 @@
   },
   {
     "triple": "aarch64-linux-gnu",
+    "isa": "aarch64",
     "dataModel": "LP64",
     "ptrSize": 8,
     "endian": "little",

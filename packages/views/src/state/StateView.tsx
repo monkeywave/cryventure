@@ -18,7 +18,7 @@ import {
 } from '@cryventure/viz';
 import { currentWords } from './currentWords.ts';
 import { RegionDisclosure } from './RegionDisclosure.tsx';
-import { isCollapsibleRegion, regionHighlights, regionLayout } from './regionLayout.ts';
+import { isCollapsibleRegion, regionDensity, regionHighlights, regionLayout } from './regionLayout.ts';
 import { WatchHint, WatchPanel } from './WatchPanel.tsx';
 import { wordHeaders } from './wordHeaders.ts';
 import './state.css';
@@ -55,7 +55,7 @@ const RegionPanel = memo(function RegionPanel({ region, values, step, motion, be
   const focus = useMemo(() => focusIn(beat, region.id), [beat, region.id]);
   const onSelectCell = useCallback((index: number) => onSelect({ region: region.id, index }), [onSelect, region.id]);
   return (
-    <figure className={words === undefined ? 'cv-region' : 'cv-region cv-region--words'} data-region={region.id}>
+    <figure className={words === undefined ? 'cv-region' : 'cv-region cv-region--words'} data-region={region.id} data-density={regionDensity(layout)}>
       <figcaption className={captionHidden ? 'cv-region__title cv-visually-hidden' : 'cv-region__title'}>{label}</figcaption>
       <ByteGrid
         values={values}

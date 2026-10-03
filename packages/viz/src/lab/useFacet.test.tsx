@@ -4,6 +4,7 @@ import { describe, expect, it, vi } from 'vitest';
 import type { DeriverManifest, TraceBundle } from '@cryventure/core';
 import { createFixtureBundle } from '../testing/fixtureBundle.ts';
 import { createLabStore, type LabStore } from './createLabStore.ts';
+import { deriveOnce } from './derive.ts';
 import { LabProvider } from './LabContext.tsx';
 import { defaultVariant, facetVariants, lookupFacet, useFacet, useFacetVariants } from './useFacet.ts';
 
@@ -70,7 +71,7 @@ describe('useFacet', () => {
     const store = createLabStore(createFixtureBundle());
     const { result, rerender } = renderHook(() => useFacet<{ n: number }>('math'), { wrapper: wrapperFor(store) });
     expect(result.current.status).toBe('missing');
-    store.getState().setDerivedFacet('math@default', { n: 1 });
+    act(() => store.getState().setDerivedFacets(store.getState().bundle!, { 'math@default': { n: 1 } }));
     rerender();
     expect(result.current).toEqual({ status: 'ready', data: { n: 1 } });
   });
@@ -263,12 +264,13 @@ describe('variant order follows the derivers, not completion order', () => {
     expect(writes).toHaveBeenCalledTimes(2);
   });
 
-  it('orders derived variants by the given derivers in facetVariants', () => {
+  it('orders derived variants by the deriver whose result holds them in facetVariants, unknown ones last', async () => {
     const bundle = createFixtureBundle();
-    const { manifests } = isaDerivers();
-    const derived = { 'demo@x86': 1, 'demo@arm': 2, 'demo@other': 3 };
-    const owners = { 'demo@x86': 'isa-x86', 'demo@arm': 'isa-arm' };
-    expect(facetVariants(bundle, derived, 'demo', manifests, (key) => owners[key as keyof typeof owners])).toEqual(['arm', 'x86', 'other']);
+    const { arm, x86, manifests } = isaDerivers();
+    x86.release();
+    arm.release();
+    const derived = { ...(await deriveOnce(bundle, x86.manifest)), 'demo@other': 3, ...(await deriveOnce(bundle, arm.manifest)) };
+    expect(facetVariants(bundle, derived, 'demo', manifests)).toEqual(['arm', 'x86', 'other']);
   });
 });
 

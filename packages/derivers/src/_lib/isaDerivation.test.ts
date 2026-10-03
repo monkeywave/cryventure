@@ -1,7 +1,6 @@
-import type { AnyStateFacet } from '@cryventure/core';
+import { toHex, type AnyStateFacet } from '@cryventure/core';
 import { describe, expect, it } from 'vitest';
 import { aesFixtureBundle } from './fixtures/aesBundles.ts';
-import { toHex } from './fixtures/fips197AppC.ts';
 import {
   isaFacetProblems,
   isaFacets,

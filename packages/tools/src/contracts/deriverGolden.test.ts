@@ -3,7 +3,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { REPO_ROOT } from '../fs/repoRoot.ts';
-import { GOLDEN_UPDATE_ENV, goldenDir, goldenJson, isGoldenUpdate, readGoldenFiles, writeGoldenFile } from './deriverGolden.ts';
+import { GOLDEN_UPDATE_ENV, goldenDir, goldenJson, readGoldenFiles, writeGoldenFile } from './deriverGolden.ts';
 
 let dir = '';
 beforeEach(() => {
@@ -43,9 +43,8 @@ describe('goldenJson / writeGoldenFile', () => {
   });
 });
 
-describe('isGoldenUpdate', () => {
-  it('reads the env flag', () => {
-    expect(isGoldenUpdate({ [GOLDEN_UPDATE_ENV]: '1' })).toBe(true);
-    expect(isGoldenUpdate({})).toBe(false);
+describe('GOLDEN_UPDATE_ENV', () => {
+  it('is the flag pnpm golden:update sets', () => {
+    expect(GOLDEN_UPDATE_ENV).toBe('CV_GOLDEN_UPDATE');
   });
 });

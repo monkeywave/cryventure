@@ -1,9 +1,10 @@
+import { allIndices } from '@cryventure/core';
 import { toHex, useT } from '@cryventure/viz';
 import { CELL_HEIGHT, CELL_WIDTH, type FlyGeometry } from './flyGeometry.ts';
 import { BLOCK_BYTES, WORD_BYTES, flyThroughFrame, type FlyRole, type FlyTarget, type FlyToken } from './flyThroughModel.ts';
 import type { FlyView } from './useFlyThrough.ts';
 
-const SLOTS = Array.from({ length: BLOCK_BYTES }, (_, index) => index);
+const SLOTS = allIndices(BLOCK_BYTES);
 const GROUPS = [0, 1, 2, 3];
 const INDEX_GAP = 6;
 const GROUP_LABEL_GAP = 14;

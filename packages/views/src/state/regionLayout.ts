@@ -75,6 +75,14 @@ export function regionLayout(region: RegionSpec<string>): RegionLayout {
   return { kind: 'matrix', shape: [rows, cols], order: region.order ?? 'row-major' };
 }
 
+/** How tightly a region's grid is drawn: `compact` for stacked grids wider than any matrix (e.g. a mode lab's 16-byte blocks). */
+export type RegionDensity = 'compact' | 'regular';
+
+/** `compact` for stacked (non-`words`) grids of more than `MATRIX_MAX_DIM` columns; the 4×4 AES state stays `regular`. */
+export function regionDensity(layout: Pick<RegionLayout, 'shape' | 'words'>): RegionDensity {
+  return layout.words === undefined && layout.shape[1] > MATRIX_MAX_DIM ? 'compact' : 'regular';
+}
+
 /** The current step's highlights for one region (none at the initial state). */
 export function regionHighlights(step: Pick<StateStep<string, { op: string }>, 'highlights'> | undefined, regionId: string): GridHighlight[] {
   return (step?.highlights ?? []).filter((highlight: Highlight<string>) => highlight.region === regionId);

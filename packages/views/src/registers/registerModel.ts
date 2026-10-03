@@ -1,4 +1,4 @@
-import type { RegisterFileSpec, RegistersFacet } from '@cryventure/core';
+import { allIndices, toHex, type RegisterFileSpec, type RegistersFacet } from '@cryventure/core';
 
 /**
  * Pure model of the registers view: byte display order (memory order vs register notation, PLAN's
@@ -34,7 +34,7 @@ export function displayOrder(
   byteOrder: RegisterFileSpec['byteOrder'],
   view: ByteOrderView,
 ): number[] {
-  const memory = Array.from({ length: byteCount }, (_, index) => index);
+  const memory = allIndices(byteCount);
   return view === 'msbFirst' && byteOrder === 'little' ? memory.reverse() : memory;
 }
 
@@ -44,8 +44,6 @@ export interface Lane {
   /** The lane's value as a number, most significant hex digit first. */
   hex: string;
 }
-
-const hexByte = (byte: number) => byte.toString(16).padStart(2, '0');
 
 /** The register's lanes of `laneBits`, in display order, each read as a number in the file's byte order. */
 export function laneValues(
@@ -59,7 +57,7 @@ export function laneValues(
   const lanes = Array.from({ length: count }, (_, index) => {
     const slice = bytes.slice(index * laneBytes, (index + 1) * laneBytes);
     const msbFirst = byteOrder === 'little' ? [...slice].reverse() : slice;
-    return { index, hex: msbFirst.map(hexByte).join('') };
+    return { index, hex: toHex(msbFirst) };
   });
   return view === 'msbFirst' && byteOrder === 'little' ? lanes.reverse() : lanes;
 }

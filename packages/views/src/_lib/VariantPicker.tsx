@@ -1,17 +1,11 @@
 import { useId, useMemo } from 'react';
 import type { FacetKind, I18nRef } from '@cryventure/core';
-import {
-  useFacet,
-  useT,
-  useVariantFacets,
-  useVariantChoice as useLabVariantChoice,
-  type FacetResult,
-} from '@cryventure/viz';
+import { useT, useVariantFacets, useVariantChoice as useLabVariantChoice, type FacetResult } from '@cryventure/viz';
 
 /**
  * Facet variants (docs/M4.md §1f) as a picker built from the data: each variant's `label`, never the
  * variant string. The choice is lab-wide (viz `useVariantChoice`): picking `x86_64-aesni` here
- * switches every view with that variant; a kind without it keeps its first preferred or default one. Shared by the views through `_lib` (plugins never
+ * switches every view with that variant id; a kind without it keeps its earlier preference or default. Shared by the views through `_lib` (plugins never
  * import each other); each view passes its own translated `label` and `className`.
  */
 export interface VariantOption {
@@ -32,9 +26,8 @@ export interface VariantChoice<T> {
 }
 
 export function useVariantChoice<T>(kind: FacetKind): VariantChoice<T> {
-  const { variants, current, choose } = useLabVariantChoice(kind);
+  const { variants, current, facet, choose } = useLabVariantChoice<T>(kind);
   const options = useVariantOptions(kind, variants);
-  const facet = useFacet<T>(kind, current);
   return { facet, options, chosen: current, choose };
 }
 

@@ -1,6 +1,7 @@
+import { toHex } from '@cryventure/core';
 import { describe, expect, it } from 'vitest';
 import { AES_FIXTURE_PRESETS, aesFixtureBundle } from '../_lib/fixtures/aesBundles.ts';
-import { FIPS197_APPENDIX_C, toHex } from '../_lib/fixtures/fips197AppC.ts';
+import { FIPS197_APPENDIX_C } from '../_lib/fixtures/fips197AppC.ts';
 import {
   aesInstructionsNeverCurrent,
   isaFacetProblems,

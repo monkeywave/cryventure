@@ -1,5 +1,7 @@
 import {
   formatHexAddress,
+  hexDigits,
+  memoryAt,
   parseHexAddress,
   type Allocation,
   type I18nRef,
@@ -47,11 +49,6 @@ export function implIdOf(facet: MemoryFacet): string {
 /** The choice that picks `facet`. */
 export function choiceOf(facet: MemoryFacet): VariantChoice {
   return { triple: facet.target.triple, implId: implIdOf(facet) };
-}
-
-/** Distinct target triples, in variant order. */
-export function tripleOptions(variants: readonly MemoryVariant[]): string[] {
-  return targetOptions(variants).map((target) => target.triple);
 }
 
 /** One target per triple, in variant order: the triple with the data model and byte order its picker option names. */
@@ -264,7 +261,7 @@ export function memoryRows(
 export function unitText(unit: MemoryUnit): string {
   if (unit.value === undefined) return UNWRITTEN_TEXT;
   if (unit.kind === 'int') return String(unit.value);
-  return unit.value.toString(16).padStart(unit.size * 2, '0');
+  return hexDigits(unit.value, unit.size * 2);
 }
 
 /** Value of an `int` field (e.g. `rounds`), or `undefined` while unwritten. */
@@ -286,34 +283,114 @@ export function addressAt(base: string, offset: number): string {
 
 /** Column ruler of a hex row: `+0` … `+f`. */
 export function rulerLabels(): string[] {
-  return Array.from({ length: BYTES_PER_ROW }, (_, column) => `+${column.toString(16)}`);
+  return Array.from({ length: BYTES_PER_ROW }, (_, column) => `+${hexDigits(column, 1)}`);
 }
 
 /* ---------- Time and selection ---------- */
 
-/** Per allocation, the offsets written by the writes current at playhead `p` (`first ≤ p ≤ last`). */
-export function writtenAtStep(facet: MemoryFacet, p: number): Map<string, Set<number>> {
-  const result = new Map<string, Set<number>>();
-  const ranges = facet.allocations.map((allocation) => ({
-    id: allocation.id,
-    start: parseHexAddress(allocation.addr),
-    size: allocation.size,
-  }));
-  for (const write of facet.writes) {
-    if (write.align.first > p || p > write.align.last) continue;
+/** Bytes of each allocation at one playhead (`undefined` = never written), as core `memoryAt` returns them. */
+export type MemoryContents = ReadonlyMap<string, readonly (number | undefined)[]>;
+/** Per allocation, the offsets written by the writes current at one playhead. */
+export type WrittenOffsets = ReadonlyMap<string, ReadonlySet<number>>;
+
+/** A write placed once per facet: the allocation it lands in, its first offset there and its span. */
+interface PlacedWrite {
+  allocationId: string;
+  offset: number;
+  length: number;
+  first: number;
+  last: number;
+}
+
+/** Every write inside one allocation, placed (addresses parsed) once; writes outside every allocation are skipped. */
+function placeWrites(facet: MemoryFacet): PlacedWrite[] {
+  const ranges = facet.allocations.map((allocation) => {
+    const start = parseHexAddress(allocation.addr);
+    return { id: allocation.id, start, end: start + BigInt(allocation.size) };
+  });
+  return facet.writes.flatMap((write) => {
     const start = parseHexAddress(write.addr);
-    const range = ranges.find(
-      (candidate) =>
-        candidate.start <= start &&
-        start + BigInt(write.bytes.length) <= candidate.start + BigInt(candidate.size),
-    );
-    if (range === undefined) continue;
-    const offsets = result.get(range.id) ?? new Set<number>();
-    const first = Number(start - range.start);
-    write.bytes.forEach((_, index) => offsets.add(first + index));
-    result.set(range.id, offsets);
+    const range = ranges.find((candidate) => candidate.start <= start && start + BigInt(write.bytes.length) <= candidate.end);
+    if (range === undefined) return [];
+    const { first, last } = write.align;
+    return [{ allocationId: range.id, offset: Number(start - range.start), length: write.bytes.length, first, last }];
+  });
+}
+
+function writtenAt(writes: readonly PlacedWrite[], p: number): Map<string, Set<number>> {
+  const result = new Map<string, Set<number>>();
+  for (const write of writes) {
+    if (write.first > p || p > write.last) continue;
+    const offsets = result.get(write.allocationId) ?? new Set<number>();
+    for (let index = 0; index < write.length; index++) offsets.add(write.offset + index);
+    result.set(write.allocationId, offsets);
   }
   return result;
+}
+
+function sameSequence<T>(a: Iterable<T>, b: Iterable<T>): boolean {
+  const left = [...a];
+  const right = [...b];
+  return left.length === right.length && left.every((value, index) => value === right[index]);
+}
+
+/**
+ * Per-allocation values that change only at `boundaries`: computed once per boundary (plus once
+ * before the first) and looked up by binary search. An allocation's value that equals the previous
+ * snapshot's keeps its identity, so memoised panels of unchanged allocations skip re-rendering.
+ */
+function stepSnapshots<V>(
+  boundaries: readonly number[],
+  compute: (p: number) => Map<string, V>,
+  same: (a: V, b: V) => boolean,
+): (p: number) => ReadonlyMap<string, V> {
+  const steps = [Number.NEGATIVE_INFINITY, ...[...new Set(boundaries)].sort((a, b) => a - b)];
+  const snapshots: Map<string, V>[] = [];
+  for (const step of steps) {
+    const next = compute(step);
+    const previous = snapshots.at(-1);
+    for (const [id, value] of next) {
+      const kept = previous?.get(id);
+      if (kept !== undefined && same(kept, value)) next.set(id, kept);
+    }
+    snapshots.push(next);
+  }
+  return (p) => {
+    let low = 0;
+    for (let high = steps.length - 1; low < high;) {
+      const middle = Math.ceil((low + high) / 2);
+      if (steps[middle]! <= p) low = middle;
+      else high = middle - 1;
+    }
+    return snapshots[low]!;
+  };
+}
+
+/** The memory of one facet over time, indexed once: contents (core `memoryAt`) and written offsets per playhead. */
+export interface MemoryTimeline {
+  contentsAt: (p: number) => MemoryContents;
+  /** Offsets written by the writes current at `p` (`first ≤ p ≤ last`). */
+  writtenAt: (p: number) => WrittenOffsets;
+}
+
+/**
+ * Indexes a facet once (addresses parsed, snapshots built at the steps where something changes):
+ * stepping the playhead is then a lookup, and unchanged allocations keep the same arrays and sets.
+ */
+export function memoryTimeline(facet: MemoryFacet): MemoryTimeline {
+  const writes = placeWrites(facet);
+  return {
+    contentsAt: stepSnapshots<readonly (number | undefined)[]>(
+      facet.writes.map((write) => write.align.last),
+      (p) => memoryAt(facet, p),
+      sameSequence,
+    ),
+    writtenAt: stepSnapshots<ReadonlySet<number>>(
+      writes.flatMap((write) => [write.first, write.last + 1]),
+      (p) => writtenAt(writes, p),
+      sameSequence,
+    ),
+  };
 }
 
 /** Offsets linked to the selected value: the matching ref ranges, or the whole allocation when it carries the value. */
@@ -329,6 +406,19 @@ export function linkedOffsets(allocation: Allocation, valueRefId: string | null)
     for (let index = offset; index < offset + size; index++) linked.add(index);
   }
   return linked;
+}
+
+/** Linked offsets per allocation (`linkedOffsets`), only for the allocations the selected value touches. */
+export function linkedByAllocation(
+  allocations: readonly Allocation[],
+  valueRefId: string | null,
+): Map<string, ReadonlySet<number>> {
+  const result = new Map<string, ReadonlySet<number>>();
+  for (const allocation of allocations) {
+    const linked = linkedOffsets(allocation, valueRefId);
+    if (linked.size > 0) result.set(allocation.id, linked);
+  }
+  return result;
 }
 
 /** Whether any byte of a unit is in `offsets`. */

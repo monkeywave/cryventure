@@ -87,30 +87,42 @@ interface RegisterRows {
 
 type RegisterStatus = 'written' | 'inFlight' | 'unchanged' | 'unwritten';
 
-function registerStatus(
-  name: string,
-  contents: number[] | undefined,
-  written: Set<string>,
-  inFlight: Set<string>,
-): RegisterStatus {
+/** The registers at the playhead: contents (core `registersAt`) plus which are written now or in flight. */
+interface PlayheadRegisters {
+  contents: ReadonlyMap<string, number[] | undefined>;
+  written: ReadonlySet<string>;
+  inFlight: ReadonlySet<string>;
+}
+
+/** Replays the facet once per step; the grid rows and the lane table both read the result. */
+function usePlayheadRegisters(facet: RegistersFacet): PlayheadRegisters {
+  const step = useLab((state) => state.step);
+  return useMemo(
+    () => ({
+      contents: registersAt(facet, step),
+      written: writtenAt(facet, step),
+      inFlight: inFlightAt(facet, step),
+    }),
+    [facet, step],
+  );
+}
+
+function registerStatus(name: string, { contents, written, inFlight }: PlayheadRegisters): RegisterStatus {
   if (written.has(name)) return 'written';
   if (inFlight.has(name)) return 'inFlight';
-  return contents === undefined ? 'unwritten' : 'unchanged';
+  return contents.get(name) === undefined ? 'unwritten' : 'unchanged';
 }
 
 /** Flat grid values (rows = registers, cells in display order) with unwritten cells, write highlights and row headers. */
-function useRegisterRows(facet: RegistersFacet, view: ByteOrderView): RegisterRows {
+function useRegisterRows(facet: RegistersFacet, playhead: PlayheadRegisters, view: ByteOrderView): RegisterRows {
   const t = useT();
-  const step = useLab((state) => state.step);
   return useMemo(() => {
     const cols = registerFileBytes(facet.file);
     const order = displayOrder(cols, facet.file.byteOrder, view);
-    const contents = registersAt(facet, step);
-    const [written, inFlight] = [writtenAt(facet, step), inFlightAt(facet, step)];
     const rows: RegisterRows = { values: [], unwritten: new Set(), highlights: [], headers: [] };
     facet.file.registers.forEach((spec, row) => {
-      const bytes = contents.get(spec.name);
-      const status = registerStatus(spec.name, bytes, written, inFlight);
+      const bytes = playhead.contents.get(spec.name);
+      const status = registerStatus(spec.name, playhead);
       order.forEach((byteIndex, col) => {
         const value = bytes?.[byteIndex];
         rows.values.push(value ?? 0);
@@ -126,7 +138,7 @@ function useRegisterRows(facet: RegistersFacet, view: ByteOrderView): RegisterRo
       });
     });
     return rows;
-  }, [facet, view, step, t]);
+  }, [facet, playhead, view, t]);
 }
 
 function useColumnHeaders(facet: RegistersFacet, view: ByteOrderView): GridRowHeader[] {
@@ -143,15 +155,14 @@ function useColumnHeaders(facet: RegistersFacet, view: ByteOrderView): GridRowHe
 
 interface LaneTableProps {
   facet: RegistersFacet;
+  contents: PlayheadRegisters['contents'];
   laneBits: number;
   view: ByteOrderView;
 }
 
 /** The lane values (numbers, MSB first within each lane) of every register, in display order. */
-function LaneTable({ facet, laneBits, view }: LaneTableProps) {
+function LaneTable({ facet, contents, laneBits, view }: LaneTableProps) {
   const t = useT();
-  const step = useLab((state) => state.step);
-  const contents = registersAt(facet, step);
   const cols = registerFileBytes(facet.file);
   const header = laneValues(new Array<number>(cols).fill(0), laneBits, facet.file.byteOrder, view);
   return (
@@ -201,7 +212,8 @@ function Registers({ facet, picker }: RegistersProps) {
   const [laneChoice, setLaneBits] = useState(lanes[0] ?? 8);
   const laneBits = lanes.includes(laneChoice) ? laneChoice : (lanes[0] ?? 8);
   const [view, setView] = useState<ByteOrderView>('memory');
-  const rows = useRegisterRows(facet, view);
+  const playhead = usePlayheadRegisters(facet);
+  const rows = useRegisterRows(facet, playhead, view);
   const columnHeaders = useColumnHeaders(facet, view);
   const cols = registerFileBytes(facet.file);
   return (
@@ -242,7 +254,7 @@ function Registers({ facet, picker }: RegistersProps) {
         highlights={rows.highlights}
         unwritten={rows.unwritten}
       />
-      {laneBits > 8 && <LaneTable facet={facet} laneBits={laneBits} view={view} />}
+      {laneBits > 8 && <LaneTable facet={facet} contents={playhead.contents} laneBits={laneBits} view={view} />}
       <p className="cv-registers__legend">
         <span data-written="">{t('view.registers.legendWritten')}</span>
         <span>{t('view.registers.legendInFlight', { glyph: IN_FLIGHT_GLYPH })}</span>

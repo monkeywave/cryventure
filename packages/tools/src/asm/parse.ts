@@ -3,6 +3,8 @@
  * Dev-only: used by `generate.ts` to turn a compiled AES function into an instruction list.
  */
 
+import { formatHexAddress } from '@cryventure/core';
+
 /** Assembly dialect: decides the line-comment marker (`#` is an immediate prefix on AArch64). */
 export type AsmSyntax = 'intel' | 'arm';
 
@@ -113,7 +115,7 @@ export function parseObjdumpFunction(
 
 /** Formats a byte offset as the listing's `address` (`0x` + hex). */
 export function formatAddress(offset: number): string {
-  return `0x${offset.toString(16)}`;
+  return formatHexAddress(BigInt(offset));
 }
 
 const PADDING_MNEMONICS = new Set(['nop', 'int3', 'udf']);

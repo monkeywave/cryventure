@@ -1,7 +1,7 @@
 import { memoryAt, validateMemoryFacet, type MemoryFacet } from '@cryventure/core';
 import { describe, expect, it } from 'vitest';
 import { readAesRun } from './aesContract.ts';
-import { IMPLS, TARGETS } from './data.ts';
+import { IMPLS, TARGETS, targetImplPairs } from './data.ts';
 import { buildMemoryFacet, implLabelKey, memoryFacets, memoryVariant, variantLabelKey } from './memoryFacet.ts';
 import { aes128Bundle } from './testBundles.ts';
 
@@ -13,7 +13,7 @@ const allocation = (memory: MemoryFacet, id: string) => memory.allocations.find(
 
 describe('naming helpers', () => {
   it('builds variants and label keys from the data ids', () => {
-    expect(memoryVariant('x86_64-linux-gnu', 'c-ref')).toBe('x86_64-linux-gnu+c-ref');
+    expect(targetImplPairs().map(({ target, impl }) => memoryVariant(target, impl))).toEqual(['x86_64-c-ref', 'x86_64-aesni', 'aarch64-c-ref', 'aarch64-armv8-ce']);
     expect(variantLabelKey('aarch64-linux-gnu', 'armv8')).toBe('deriver.memory.variant.aarch64-linux-gnu.armv8');
     expect(implLabelKey('aesni')).toBe('deriver.memory.impl.aesni');
   });
@@ -86,10 +86,10 @@ describe('memoryFacets', () => {
   it('returns the four variants, x86_64 first, each valid', () => {
     const facets = memoryFacets(run);
     expect(Object.keys(facets)).toEqual([
-      'memory@x86_64-linux-gnu+c-ref',
-      'memory@x86_64-linux-gnu+aesni',
-      'memory@aarch64-linux-gnu+c-ref',
-      'memory@aarch64-linux-gnu+armv8',
+      'memory@x86_64-c-ref',
+      'memory@x86_64-aesni',
+      'memory@aarch64-c-ref',
+      'memory@aarch64-armv8-ce',
     ]);
     for (const memory of Object.values(facets)) expect(validateMemoryFacet(memory!)).toEqual([]);
   });

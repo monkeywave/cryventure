@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { RegionSpec } from '@cryventure/core';
-import { COLLAPSIBLE_ABOVE_ELEMENTS, isCollapsibleRegion, isMatrixRegion, regionByteSize, regionHighlights, regionLayout } from './regionLayout.ts';
+import { COLLAPSIBLE_ABOVE_ELEMENTS, isCollapsibleRegion, isMatrixRegion, regionByteSize, regionDensity, regionHighlights, regionLayout } from './regionLayout.ts';
 
 const region = (shape: number[], order?: RegionSpec<string>['order'], layout?: RegionSpec<string>['layout']): RegionSpec<string> => ({ id: 'r', labelKey: 'k', elem: 'u8', shape, order, layout });
 
@@ -81,5 +81,14 @@ describe('regionByteSize', () => {
     expect(regionByteSize(region([44, 4]))).toBe(176);
     expect(regionByteSize({ shape: [60], elem: 'u32' })).toBe(240);
     expect(regionByteSize({ shape: [3], elem: 'u64' })).toBe(24);
+  });
+});
+
+describe('regionDensity', () => {
+  it('draws stacked grids wider than a matrix compact, matrices and word rows regular', () => {
+    expect(regionDensity({ shape: [4, 16] })).toBe('compact');
+    expect(regionDensity({ shape: [4, 4] })).toBe('regular');
+    expect(regionDensity({ shape: [1, 8] })).toBe('regular');
+    expect(regionDensity({ shape: [44, 16], words: { elemsPerWord: 16, wordsPerLine: 1, labelPrefix: 'w' } })).toBe('regular');
   });
 });

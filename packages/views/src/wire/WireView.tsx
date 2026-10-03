@@ -1,7 +1,8 @@
 import { memo, useCallback, useMemo, useState, type CSSProperties, type RefCallback } from 'react';
 import { isWireSegmentAvailable, wireActiveOffsetsAt, wireTotalLength, type Lens, type WireFacet } from '@cryventure/core';
 import { ViewStatus, useFacet, useLab, useT, useWidthObserver, type ViewProps } from '@cryventure/viz';
-import { BYTES_PER_ROW, countActive, fitBytesPerRow, offsetLabel, placeSegments, ROLE_GLYPHS, wireChangeStep, type PlacedSegment } from './wireModel.ts';
+import { ROLE_GLYPHS } from '../_lib/roleGlyphs.ts';
+import { BYTES_PER_ROW, countActive, fitBytesPerRow, offsetLabel, placeSegments, wireChangeStep, type PlacedSegment } from './wireModel.ts';
 import './wire.css';
 
 /**

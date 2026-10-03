@@ -54,3 +54,7 @@ Every claim below was checked against **OpenSSL tag `openssl-3.5.9`** (commit
 LP64, `ptrSize` 8 and little-endian are standard for both Linux ABIs. The `stack.frameBase`
 addresses (`0x7ffc5e3a1000` on x86_64, `0xffffd2c4f000` on aarch64) are **modeled**. They are
 chosen to look like typical user-stack ranges and are not recorded from a real process.
+
+The facet variant of a (target, impl) pair is `<target.isa>-<impl.extension>` (e.g. `x86_64-aesni`,
+`aarch64-armv8-ce`), the same ids the ISA derivers use, so views can pair them. These are naming
+fields, not sourced facts.

@@ -81,6 +81,7 @@ describe('startLab', () => {
     const registries = {
       producers: { get: () => producer },
       views: { list: () => [view] },
+      derivers: [],
     } as unknown as StartLabOptions['registries'];
     const pending = startLab({ producerId: 'p', link: { status: 'absent' }, registries });
     await Promise.resolve();
@@ -158,7 +159,7 @@ describe('startLab', () => {
       validate: (params: unknown) => ({ ok: true, value: params }),
       load: async () => ({ run: () => ({ ok: false, error: { key: 'x' } }) }),
     } as unknown as PrimitiveManifest;
-    const registries = { producers: { get: () => producer }, views: { list: () => [] } } as unknown as StartLabOptions['registries'];
+    const registries = { producers: { get: () => producer }, views: { list: () => [] }, derivers: [] } as unknown as StartLabOptions['registries'];
     const link = readLabLink(`lab=p&p=${encodeJsonBase64Url({ n: 1 })}&v=1`, 'p');
     expect(await startLab({ producerId: 'p', link, registries })).toEqual({ status: 'error', error: { key: 'x' } });
   });
@@ -182,7 +183,7 @@ describe('startLab', () => {
           },
         }),
       } as unknown as PrimitiveManifest;
-      const registries = { producers: { get: () => producer }, views: { list: () => [] } } as unknown as StartLabOptions['registries'];
+      const registries = { producers: { get: () => producer }, views: { list: () => [] }, derivers: [] } as unknown as StartLabOptions['registries'];
       return { runs, registries };
     }
 
@@ -327,7 +328,7 @@ describe('requestLabParams', () => {
 });
 
 describe('startLab / rerunLab with ports and a runner', () => {
-  const registries = { producers: toyProducers, views: { list: () => [] } } as unknown as StartLabOptions['registries'];
+  const registries = { producers: toyProducers, views: { list: () => [] }, derivers: [] } as unknown as StartLabOptions['registries'];
   const toyStart = (extra: Partial<StartLabOptions> = {}) => startLab({ producerId: 'toy-mode', link: { status: 'absent' }, registries, ...extra });
 
   it('prepares the ports of the start params against the given producers', async () => {

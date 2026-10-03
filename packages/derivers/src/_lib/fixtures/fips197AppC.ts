@@ -107,8 +107,3 @@ export const FIPS197_APPENDIX_C: Record<AesFixturePreset, AppendixCVector> = {
     ciphertext: '8ea2b7ca516745bfeafc49904b496089',
   },
 };
-
-/** Lowercase hex of `bytes`, for comparing against the vectors. */
-export function toHex(bytes: readonly number[] | undefined): string {
-  return (bytes ?? []).map((byte) => byte.toString(16).padStart(2, '0')).join('');
-}

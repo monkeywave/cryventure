@@ -1,17 +1,29 @@
 ---
 /**
- * The home page's hero lab (docs/M4.md §8): the generic AES lab in story mode with the
- * "Type your own text" field (`<Lab textInput />`), the FIPS 197 C.1 key, and links onward. Only the
- * layout's views (state + narration) and no generic inputs panel: the text field is the only input.
+ * The home page's hero lab (docs/M4.md §8): the AES lab in story mode with the "Type your own text"
+ * field (`islands/hero/HeroLab.tsx`), the FIPS 197 C.1 key, and links onward. Only the layout's views
+ * (state + narration) and no generic inputs panel: the text field is the only input.
  * Never autoplays. Usage: `<HeroLab />` in `{en,de}/index.mdx`.
  */
-import { createTranslator } from '@cryventure/core';
+// LabHost first: its lab styles (viz.css, lab.css) come before the island's in the page CSS.
+import LabHost from './LabHost.astro';
+import { createTranslator, paramFieldsOf } from '@cryventure/core';
 import { loadMessages, pickPrefix, toLocale } from '../i18n/loadMessages';
+import HeroLabIsland from '../islands/hero/HeroLab.tsx';
 import { withBase } from '../lib/withBase';
-import Lab from './Lab.astro';
+import { labIsland } from './labIsland';
+import LabPoster from './LabPoster.astro';
 
 const locale = toLocale(Astro.currentLocale);
-const t = createTranslator(pickPrefix(loadMessages(locale, ['hero']), 'ui.hero.'), { locale });
+const heroMessages = pickPrefix(loadMessages(locale, ['hero']), 'ui.hero.');
+const t = createTranslator(heroMessages, { locale });
+const { producer, props } = labIsland(
+  { labId: 'hero', producerId: 'aes', presetId: 'fips197-c1', layout: 'state:65|narration:35', mode: 'story' },
+  locale,
+  { tag: 'HeroLab', layoutViewsOnly: true, extraMessages: heroMessages },
+);
+// The text field becomes a 16-byte `plaintextHex` (`hero/heroText.ts`).
+if (!paramFieldsOf(producer).some((field) => field.name === 'plaintextHex')) throw new Error('<HeroLab>: the hero producer needs a plaintextHex param');
 const links = [
   { href: withBase(`${locale}/foundations/prologue/`), label: t('ui.hero.startAdventure'), primary: true },
   { href: withBase(`${locale}/symmetric/aes/`), label: t('ui.hero.aesLesson'), primary: false },
@@ -21,7 +33,11 @@ const links = [
 <section class="cv-hero-lab not-content" aria-labelledby="cv-hero-lab-heading">
   <h2 id="cv-hero-lab-heading" class="cv-hero-lab__heading">{t('ui.hero.heading')}</h2>
   <p class="cv-hero-lab__intro">{t('ui.hero.intro')}</p>
-  <Lab labId="hero" producerId="aes" presetId="fips197-c1" layout="state:65|narration:35" mode="story" views="layout-only" paramPanel={false} textInput />
+  <LabHost lang={locale}>
+    <HeroLabIsland client:visible {...props}>
+      <LabPoster producer={producer} presetId={props.presetId} messages={props.messages} lang={locale} />
+    </HeroLabIsland>
+  </LabHost>
   <nav class="cv-hero-lab__links">
     {
       links.map((link) => (

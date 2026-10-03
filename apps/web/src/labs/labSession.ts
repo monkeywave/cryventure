@@ -1,10 +1,9 @@
 import { getFacet, type ChoreographyModule, type DeriverManifest, type I18nRef, type PrimitiveManifest, type Registry, type TraceBundle } from '@cryventure/core';
-import { deriverManifests } from '@cryventure/derivers';
 import { createLabStore, stateSteps, type AnyStateFacet, type BlockLabHrefBuilder, type LabHrefBuilder, type LabMode, type LabStore, type ReactViewManifest } from '@cryventure/viz';
 import type { LabLinkRead } from './deepLink.ts';
 import { createLabRunner, type LabRunner } from './labRunner.ts';
 import { mergeParams } from './paramFields.ts';
-import { producerRegistry, resolveLab, viewRegistry, viewsForBundle, type LabRegistries } from './registry.ts';
+import { defaultRegistries, resolveLab, viewsForBundle, type LabRegistries } from './registry.ts';
 import { initialStep, type StartAt } from './startAt.ts';
 import { presetParams, resolveStartParams, type StartParams } from './startParams.ts';
 import { mapStepAcrossTraces } from './stepMapping.ts';
@@ -77,9 +76,8 @@ export async function startLab({ producerId, presetId, link, startAt, mode, vari
   const resolved = resolveLab(producerId, registries);
   if (!resolved.ok) return { status: 'error', error: resolved.error };
   const producer = resolved.lab.producer as PrimitiveManifest<LabParams>;
-  const viewCatalog = registries?.views ?? viewRegistry;
-  const derivers = registries?.derivers ?? deriverManifests;
-  const runner = givenRunner ?? createLabRunner({ producers: registries?.producers ?? producerRegistry });
+  const { producers, views: viewCatalog, derivers } = registries ?? defaultRegistries;
+  const runner = givenRunner ?? createLabRunner({ producers });
   const [{ start, result }, choreography] = await Promise.all([
     runStartParams(runner, producer, resolveStartParams(producer, link, presetId), presetId),
     loadChoreographyModule(producer),

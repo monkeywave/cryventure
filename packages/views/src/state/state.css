@@ -62,29 +62,30 @@
  * Compact wide grids (9+ columns, e.g. a mode lab's 16-byte blocks): tighter cells and a shorter
  * offset column, sized to the panel so all 16 bytes fit a half-width split (≈ 440px) at 12px; below
  * the readable floor (11px on phones, 12px on wider screens) the grid scrolls inside the panel with
- * viz's edge fade. Narrow grids (the 4×4 AES state) keep their full size.
+ * viz's edge fade. Narrow grids (the 4×4 AES state) keep their full size. StateView sets
+ * `data-density` from the region's layout (`regionDensity`).
  */
-.cv-stack .cv-grid:not(.cv-grid--wrap):has(> .cv-grid__row > :nth-child(10)) {
+.cv-stack [data-density='compact'] .cv-grid {
   --cv-state-min-font: 0.6875rem;
   --cv-cell-pitch: calc(1.8em + 2px);
   font-size: clamp(var(--cv-state-min-font), calc((100cqi - 2.75rem) / 33), 1rem);
 }
 
-.cv-stack .cv-grid:not(.cv-grid--wrap):has(> .cv-grid__row > :nth-child(10)) :is(.cv-cell, .cv-grid__colhead) {
+.cv-stack [data-density='compact'] .cv-grid :is(.cv-cell, .cv-grid__colhead) {
   min-width: 1.8em;
 }
 
-.cv-stack .cv-grid:not(.cv-grid--wrap):has(> .cv-grid__row > :nth-child(10)) .cv-cell {
+.cv-stack [data-density='compact'] .cv-grid .cv-cell {
   height: 1.8em;
 }
 
-.cv-stack .cv-grid:not(.cv-grid--wrap):has(> .cv-grid__row > :nth-child(10)) .cv-grid__offset {
+.cv-stack [data-density='compact'] .cv-grid .cv-grid__offset {
   min-width: 3.6em;
   padding-inline-end: 0.4em;
 }
 
 @media (min-width: 48rem) {
-  .cv-stack .cv-grid:not(.cv-grid--wrap):has(> .cv-grid__row > :nth-child(10)) {
+  .cv-stack [data-density='compact'] .cv-grid {
     --cv-state-min-font: 0.75rem;
   }
 }

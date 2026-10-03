@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import type { DeriverManifest, TraceBundle } from '@cryventure/core';
 import { createFixtureBundle } from '../testing/fixtureBundle.ts';
-import { derivationCandidates, derivationStatus, deriveOnce, isDeriverApplicable } from './derive.ts';
+import { derivationCandidates, derivationStatus, deriveOnce, hasDeriverInputs, isDeriverApplicable } from './derive.ts';
 
 function demoDeriver(overrides: Partial<DeriverManifest> = {}, derive: (bundle: TraceBundle) => Record<string, unknown> = () => ({ 'demo@a': 1 })): DeriverManifest {
   return { kind: 'deriver', id: 'demo', apiVersion: 1, from: ['state'], provides: ['demo'], load: async () => ({ derive }), ...overrides };
@@ -67,6 +67,13 @@ describe('isDeriverApplicable', () => {
   it('honours appliesTo', () => {
     expect(isDeriverApplicable(demoDeriver({ appliesTo: () => false }), bundle)).toBe(false);
     expect(isDeriverApplicable(demoDeriver({ appliesTo: (candidate) => candidate.producer.id === 'fixture' }), bundle)).toBe(true);
+  });
+});
+
+describe('hasDeriverInputs', () => {
+  it('checks from ⊆ the given kinds only, ignoring appliesTo (no bundle)', () => {
+    expect(hasDeriverInputs(demoDeriver({ from: ['state'], appliesTo: () => false }), ['state', 'narration'])).toBe(true);
+    expect(hasDeriverInputs(demoDeriver({ from: ['state', 'memory'] }), ['state'])).toBe(false);
   });
 });
 

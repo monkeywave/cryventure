@@ -1,6 +1,7 @@
 [
   {
     "id": "c-ref",
+    "extension": "c-ref",
     "triples": ["x86_64-linux-gnu", "aarch64-linux-gnu"],
     "rdKeyEncoding": "host-endian-u32",
     "rounds": { "128": 10, "192": 12, "256": 14 },
@@ -70,6 +71,7 @@
   },
   {
     "id": "aesni",
+    "extension": "aesni",
     "triples": ["x86_64-linux-gnu"],
     "rdKeyEncoding": "raw-bytes",
     "rounds": { "128": 9, "192": 11, "256": 13 },
@@ -129,6 +131,7 @@
   },
   {
     "id": "armv8",
+    "extension": "armv8-ce",
     "triples": ["aarch64-linux-gnu"],
     "rdKeyEncoding": "raw-bytes",
     "rounds": { "128": 10, "192": 12, "256": 14 },

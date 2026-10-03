@@ -1,12 +1,11 @@
 import { Fragment, memo, useCallback, useId, useMemo, useState } from 'react';
 import {
-  memoryAt,
   type Allocation,
   type Lens,
   type MemoryFacet,
   type TargetSpec,
 } from '@cryventure/core';
-import { ViewStatus, useLab, useLabActions, useT, type ViewProps } from '@cryventure/viz';
+import { ViewStatus, useLab, useLabActions, useT, useVariantChoice, useVariantFacets, type ViewProps } from '@cryventure/viz';
 import {
   BYTES_PER_ROW,
   UNWRITTEN_TEXT,
@@ -17,15 +16,15 @@ import {
   hasPadding,
   implOptions,
   intFieldValue,
-  linkedOffsets,
+  linkedByAllocation,
   memoryRows,
+  memoryTimeline,
   resolveChoice,
   rulerLabels,
   segmentsOf,
   targetOptions,
   unitText,
   unitTouches,
-  writtenAtStep,
   writtenCount,
   type ByteRole,
   type MemoryUnit,
@@ -33,7 +32,6 @@ import {
   type Segment,
   type VariantChoice,
 } from './memoryModel.ts';
-import { useMemoryVariants } from './useMemoryVariants.ts';
 import { useUnitNavigation } from './useUnitNavigation.ts';
 import './memory.css';
 
@@ -51,6 +49,7 @@ const STATUS_KEYS = { loading: 'view.memory.loading', missing: 'view.memory.miss
 
 const WRITTEN_GLYPH = '✎';
 const NO_OFFSETS: ReadonlySet<number> = new Set();
+const NO_BYTES: readonly (number | undefined)[] = [];
 /** Address spaces with a translated name; any other space goes through `view.memory.space.other`. */
 const KNOWN_SPACES = new Set(['stack', 'heap', 'data', 'rodata']);
 
@@ -441,22 +440,19 @@ interface AllocationProps {
   allocation: Allocation;
   contents: readonly (number | undefined)[];
   written: ReadonlySet<number>;
-  valueRefId: string | null;
+  /** Offsets linked to the lab selection (`NO_OFFSETS` for allocations it does not touch). */
+  linked: ReadonlySet<number>;
   endian: TargetSpec['endian'];
   words: boolean;
   lens: Lens;
   onSelectValue: (valueRef: string) => void;
 }
 
-function useLinked(allocation: Allocation, valueRefId: string | null): ReadonlySet<number> {
-  return useMemo(() => linkedOffsets(allocation, valueRefId), [allocation, valueRefId]);
-}
-
 const AllocationPanel = memo(function AllocationPanel({
   allocation,
   contents,
   written,
-  valueRefId,
+  linked,
   endian,
   words,
   lens,
@@ -468,7 +464,6 @@ const AllocationPanel = memo(function AllocationPanel({
     () => memoryRows(contents, roles, endian, words),
     [contents, roles, endian, words],
   );
-  const linked = useLinked(allocation, valueRefId);
   const onPreviewRef = useCallback(
     (ref: number | undefined) => {
       const valueRef = ref === undefined ? undefined : allocation.refs?.[ref]?.valueRef;
@@ -527,10 +522,9 @@ function writtenState(count: number, size: number): 'none' | 'some' | 'all' {
 const AllocationBlock = memo(function AllocationBlock({
   allocation,
   contents,
-  valueRefId,
-}: Pick<AllocationProps, 'allocation' | 'contents' | 'valueRefId'>) {
+  linked,
+}: Pick<AllocationProps, 'allocation' | 'contents' | 'linked'>) {
   const t = useT();
-  const linked = useLinked(allocation, valueRefId);
   const segments = segmentsOf(allocation);
   const plain = allocation.layout === undefined;
   return (
@@ -570,37 +564,33 @@ const AllocationBlock = memo(function AllocationBlock({
 
 /* ---------- The view ---------- */
 
-/** The picker choice is lab-wide (`preferVariant`); `current` (useFacet's pick) already follows it. */
-function useSelectedVariant(variants: readonly MemoryVariant[], current: MemoryFacet) {
-  const { preferVariant } = useLabActions();
-  const choose = useCallback(
-    (choice: VariantChoice) => {
-      const picked = resolveChoice(variants, choice);
-      if (picked !== undefined) preferVariant(picked.variant);
-    },
-    [variants, preferVariant],
-  );
-  return [current, choose] as const;
+interface MemoryProps {
+  /** Every memory variant with data (the pickers are built from their facet metadata). */
+  variants: readonly MemoryVariant[];
+  /** The variant shown: the lab-wide choice. */
+  facet: MemoryFacet;
+  /** Records a variant as the lab-wide choice (viz `useVariantChoice`). */
+  chooseVariant: (variant: string) => void;
+  lens: Lens;
 }
 
-function Memory({
-  variants,
-  current,
-  lens,
-}: {
-  variants: readonly MemoryVariant[];
-  current: MemoryFacet;
-  lens: Lens;
-}) {
+function Memory({ variants, facet, chooseVariant, lens }: MemoryProps) {
   const t = useT();
-  const [facet, choose] = useSelectedVariant(variants, current);
   const [words, setWords] = useState(false);
   const step = useLab((state) => state.step);
   const valueRefId = useLab((state) => state.selection.valueRefId);
   const { select } = useLabActions();
-  const contents = useMemo(() => memoryAt(facet, step), [facet, step]);
-  const written = useMemo(() => writtenAtStep(facet, step), [facet, step]);
-  const onSelectValue = useCallback((valueRef: string) => select(valueRef), [select]);
+  const choose = useCallback(
+    (choice: VariantChoice) => {
+      const picked = resolveChoice(variants, choice);
+      if (picked !== undefined) chooseVariant(picked.variant);
+    },
+    [variants, chooseVariant],
+  );
+  const timeline = useMemo(() => memoryTimeline(facet), [facet]);
+  const contents = timeline.contentsAt(step);
+  const written = timeline.writtenAt(step);
+  const linked = useMemo(() => linkedByAllocation(facet.allocations, valueRefId), [facet, valueRefId]);
   const story = lens === 'story';
   return (
     <section className="cv-view cv-memory" aria-label={t('view.memory.title')} data-lens={lens}>
@@ -618,20 +608,20 @@ function Memory({
             <AllocationBlock
               key={allocation.id}
               allocation={allocation}
-              contents={contents.get(allocation.id) ?? []}
-              valueRefId={valueRefId}
+              contents={contents.get(allocation.id) ?? NO_BYTES}
+              linked={linked.get(allocation.id) ?? NO_OFFSETS}
             />
           ) : (
             <AllocationPanel
               key={allocation.id}
               allocation={allocation}
-              contents={contents.get(allocation.id) ?? []}
+              contents={contents.get(allocation.id) ?? NO_BYTES}
               written={written.get(allocation.id) ?? NO_OFFSETS}
-              valueRefId={valueRefId}
+              linked={linked.get(allocation.id) ?? NO_OFFSETS}
               endian={facet.target.endian}
               words={words}
               lens={lens}
-              onSelectValue={onSelectValue}
+              onSelectValue={select}
             />
           ),
         )}
@@ -649,9 +639,19 @@ function Memory({
   );
 }
 
+/** Every memory variant that has data, in variant order (bundle first, then derived). */
+function useVariantsWithData(names: readonly string[]): MemoryVariant[] {
+  const entries = useVariantFacets<MemoryFacet>('memory', names);
+  return useMemo(
+    () => entries.flatMap(({ variant, data }) => (data === undefined ? [] : [{ variant, facet: data }])),
+    [entries],
+  );
+}
+
 /** The modeled memory of one AES run: allocations, struct layout and the bytes at the playhead. */
 export default function MemoryView({ lens }: ViewProps) {
-  const memory = useMemoryVariants();
-  if (memory.status !== 'ready') return <ViewStatus status={memory.status} keys={STATUS_KEYS} />;
-  return <Memory variants={memory.variants} current={memory.current} lens={lens} />;
+  const { variants: names, facet, choose } = useVariantChoice<MemoryFacet>('memory');
+  const variants = useVariantsWithData(names);
+  if (facet.status !== 'ready') return <ViewStatus status={facet.status} keys={STATUS_KEYS} />;
+  return <Memory variants={variants} facet={facet.data} chooseVariant={choose} lens={lens} />;
 }

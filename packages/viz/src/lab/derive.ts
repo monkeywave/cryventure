@@ -69,11 +69,18 @@ export function derivationResult(bundle: TraceBundle, deriverId: string): Derive
   return derivations.get(bundle)?.get(deriverId)?.result;
 }
 
-/** Whether the deriver can run on the bundle: `from` ⊆ the bundle's kinds and `appliesTo` (default true). */
-export function isDeriverApplicable(deriver: DeriverManifest, bundle: TraceBundle, kinds: readonly FacetKind[] = availableFacetKinds(bundle)): boolean {
+/**
+ * Whether `kinds` cover the deriver's inputs (`from` ⊆ `kinds`): the part of `isDeriverApplicable`
+ * that needs no bundle, e.g. for a producer's declared facets before any run.
+ */
+export function hasDeriverInputs(deriver: DeriverManifest, kinds: readonly FacetKind[]): boolean {
   const available = new Set(kinds);
-  if (!deriver.from.every((kind) => available.has(kind))) return false;
-  return deriver.appliesTo?.(bundle) ?? true;
+  return deriver.from.every((kind) => available.has(kind));
+}
+
+/** Whether the deriver can run on the bundle: `from` ⊆ the bundle's kinds (`hasDeriverInputs`) and `appliesTo` (default true). */
+export function isDeriverApplicable(deriver: DeriverManifest, bundle: TraceBundle, kinds: readonly FacetKind[] = availableFacetKinds(bundle)): boolean {
+  return hasDeriverInputs(deriver, kinds) && (deriver.appliesTo?.(bundle) ?? true);
 }
 
 /** The derivers that could provide `kind` for `bundle`, in the given order. */

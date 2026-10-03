@@ -1,7 +1,7 @@
 import { availableFacetKinds, i18nRef, viewsFor, type DeriverManifest, type FacetKind, type I18nRef, type PrimitiveManifest, type Registry, type TraceBundle } from '@cryventure/core';
 import { deriverManifests } from '@cryventure/derivers';
 import { viewManifests } from '@cryventure/views';
-import type { ReactViewManifest } from '@cryventure/viz';
+import { hasDeriverInputs, isDeriverApplicable, type ReactViewManifest } from '@cryventure/viz';
 import { buildRegistry, producerRegistry } from './producers.ts';
 
 export { buildRegistry, producerRegistry };
@@ -18,16 +18,11 @@ export type ResolveLabResult = { ok: true; lab: ResolvedLab } | { ok: false; err
 export interface LabRegistries {
   producers: Registry<PrimitiveManifest>;
   views: Registry<ReactViewManifest>;
-  /** Derivers that can feed views (default: every registered deriver plugin). */
-  derivers?: readonly DeriverManifest[];
+  /** Derivers that can feed views (the app's default: every registered deriver plugin). */
+  derivers: readonly DeriverManifest[];
 }
 
-const defaultRegistries: LabRegistries = { producers: producerRegistry, views: viewRegistry, derivers: deriverManifests };
-
-/** Views offered for a set of facet kinds (no derivers registered yet in M0). */
-export function viewsForFacets(facets: readonly FacetKind[], views: Registry<ReactViewManifest> = viewRegistry): ReactViewManifest[] {
-  return viewsFor(views.list(), facets);
-}
+export const defaultRegistries: LabRegistries = { producers: producerRegistry, views: viewRegistry, derivers: deriverManifests };
 
 /**
  * Views a producer can feed before any run (SSR poster, preloading): its declared facets plus one
@@ -42,32 +37,26 @@ export function viewsForProducer(
 }
 
 /**
- * The derivers whose inputs `facets` cover (`from` ⊆ `facets`), ignoring `appliesTo` (it needs a
- * bundle). The one place the app checks a deriver's inputs: `labMessages` (declared facets) and
- * `applicableDerivers` (a bundle's facets) both go through it.
+ * The derivers whose inputs a producer's declared `facets` cover, before any run (viz
+ * `hasDeriverInputs`, the bundle-free half of `isDeriverApplicable`; `appliesTo` needs a bundle).
  */
 export function deriversForFacets(facets: readonly FacetKind[], derivers: readonly DeriverManifest[] = deriverManifests): DeriverManifest[] {
-  const available = new Set(facets);
-  return derivers.filter((deriver) => deriver.from.every((kind) => available.has(kind)));
+  return derivers.filter((deriver) => hasDeriverInputs(deriver, facets));
 }
 
-/** The derivers that can run on this bundle (`from` ⊆ its facet kinds and `appliesTo`). */
-export function applicableDerivers(bundle: TraceBundle, derivers: readonly DeriverManifest[] = deriverManifests): DeriverManifest[] {
-  return deriversForFacets(availableFacetKinds(bundle), derivers).filter((deriver) => deriver.appliesTo?.(bundle) ?? true);
-}
-
-/** Views this run's bundle can feed: its facet kinds plus the applicable derivers' (recomputed after every run). */
+/** Views this run's bundle can feed: its facet kinds plus the derivers applicable to it (viz `isDeriverApplicable`; recomputed after every run). */
 export function viewsForBundle(
   bundle: TraceBundle,
   views: Registry<ReactViewManifest> = viewRegistry,
   derivers: readonly DeriverManifest[] = deriverManifests,
 ): ReactViewManifest[] {
-  return viewsFor(views.list(), availableFacetKinds(bundle), applicableDerivers(bundle, derivers));
+  const kinds = availableFacetKinds(bundle);
+  return viewsFor(views.list(), kinds, derivers.filter((deriver) => isDeriverApplicable(deriver, bundle, kinds)));
 }
 
 /** Looks up a producer and the views it can feed; unknown ids yield an i18n error. */
 export function resolveLab(producerId: string, registries: LabRegistries = defaultRegistries): ResolveLabResult {
   const producer = registries.producers.get(producerId);
   if (producer === undefined) return { ok: false, error: i18nRef('ui.lab.error.unknownProducer', { id: producerId }) };
-  return { ok: true, lab: { producer, views: viewsForProducer(producer, registries.views, registries.derivers ?? deriverManifests) } };
+  return { ok: true, lab: { producer, views: viewsForProducer(producer, registries.views, registries.derivers) } };
 }

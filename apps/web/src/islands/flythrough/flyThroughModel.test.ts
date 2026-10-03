@@ -5,6 +5,7 @@ import {
   FLY_IMPLS,
   FLY_TARGETS,
   captionKey,
+  clampBeat,
   flyData,
   flyThroughFrame,
   matrixCell,
@@ -51,6 +52,14 @@ describe('ramOffset / ramBytes', () => {
         const offsets = new Set(Array.from({ length: 16 }, (_, i) => ramOffset(i, impl, target)));
         expect(offsets.size).toBe(16);
       }
+  });
+});
+
+describe('clampBeat', () => {
+  it('clamps an index to the three beats', () => {
+    expect(clampBeat(-1)).toBe(0);
+    expect(clampBeat(1)).toBe(1);
+    expect(clampBeat(7)).toBe(2);
   });
 });
 

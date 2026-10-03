@@ -43,7 +43,7 @@ describe('createLabStore', () => {
     const store = createLabStore(createFixtureBundle());
     store.getState().setSpeed(100);
     store.getState().select('0/key');
-    store.getState().setDerivedFacet('instructions@x86', { ok: true });
+    store.getState().setDerivedFacets(store.getState().bundle!, { 'instructions@x86': { ok: true } });
     expect(store.getState()).toMatchObject({ speed: 4, selection: { valueRefId: '0/key' }, derivedFacets: { 'instructions@x86': { ok: true } } });
   });
 
@@ -157,10 +157,10 @@ describe('createLabStore', () => {
 });
 
 describe('createLabStore setDerivedFacets', () => {
-  it('adds a batch of facets for the current bundle and keeps setDerivedFacet working', () => {
+  it('adds batches of facets for the current bundle, keeping earlier ones', () => {
     const bundle = createFixtureBundle();
     const store = createLabStore(bundle);
-    store.getState().setDerivedFacet('demo@a', 1);
+    store.getState().setDerivedFacets(bundle, { 'demo@a': 1 });
     store.getState().setDerivedFacets(bundle, { 'demo@b': 2, 'demo@c': 3 });
     expect(store.getState().derivedFacets).toEqual({ 'demo@a': 1, 'demo@b': 2, 'demo@c': 3 });
   });
@@ -188,19 +188,18 @@ describe('createLabStore setDerivedFacets', () => {
   });
 });
 
-describe('createLabStore setDerivedFacets per deriver', () => {
-  it('writes once per (bundle, deriver) and again after a new bundle', () => {
+describe('createLabStore setDerivedFacets across bundles', () => {
+  it('writes for whichever bundle is current, again after a new bundle', () => {
     const bundle = createFixtureBundle();
     const store = createLabStore(bundle);
-    store.getState().setDerivedFacets(bundle, { 'demo@a': 1 }, 'isa');
-    store.getState().setDerivedFacets(bundle, { 'demo@a': 2 }, 'isa');
-    expect(store.getState().derivedFacets).toEqual({ 'demo@a': 1 });
+    store.getState().setDerivedFacets(bundle, { 'demo@a': 1 });
     const next = createFixtureBundle();
     store.getState().setBundle(next);
-    store.getState().setDerivedFacets(next, { 'demo@a': 3 }, 'isa');
+    expect(store.getState().derivedFacets).toEqual({});
+    store.getState().setDerivedFacets(next, { 'demo@a': 3 });
     expect(store.getState().derivedFacets).toEqual({ 'demo@a': 3 });
     store.getState().setBundle(bundle);
-    store.getState().setDerivedFacets(bundle, { 'demo@a': 1 }, 'isa');
+    store.getState().setDerivedFacets(bundle, { 'demo@a': 1 });
     expect(store.getState().derivedFacets).toEqual({ 'demo@a': 1 });
   });
 });

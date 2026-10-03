@@ -105,7 +105,10 @@ export function HeroTextField({ params }: LabToolbarProps) {
   );
 }
 
-/** The generic lab island plus the hero's text field: same runtime, same params, one extra toolbar. */
-export default function HeroLab(props: Omit<LabProps, 'toolbar'>) {
-  return <Lab {...props} toolbar={HeroTextField} />;
+/**
+ * The home hero's island (`components/HeroLab.astro`): the generic lab with the text field as its
+ * toolbar, only the layout's views and no generic inputs panel. Same runtime, same params.
+ */
+export default function HeroLab(props: Omit<LabProps, 'toolbar' | 'views' | 'paramPanel'>) {
+  return <Lab {...props} toolbar={HeroTextField} views="layout-only" paramPanel={false} />;
 }

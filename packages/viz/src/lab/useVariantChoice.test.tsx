@@ -4,7 +4,7 @@ import { describe, expect, it } from 'vitest';
 import { createFixtureBundle } from '../testing/fixtureBundle.ts';
 import { createLabStore, type LabStore } from './createLabStore.ts';
 import { LabProvider } from './LabContext.tsx';
-import { preferredVariant, useFacet } from './useFacet.ts';
+import { settledVariant, useFacet } from './useFacet.ts';
 import { useVariantChoice } from './useVariantChoice.ts';
 
 const wrapperFor = (store: LabStore) =>
@@ -12,117 +12,89 @@ const wrapperFor = (store: LabStore) =>
     return <LabProvider store={store}>{children}</LabProvider>;
   };
 
-/** Instructions and registers share variant names; memory has its own. */
+/** Real-world ids: one id per implementation, shared across kinds; memory also has the ISA-less `c-ref`s. */
 function isaStore(options: Parameters<typeof createLabStore>[1] = {}) {
   const store = createLabStore(createFixtureBundle(), options);
   store.getState().setDerivedFacets(store.getState().bundle!, {
-    'instructions@arm': 'arm listing',
-    'instructions@x86': 'x86 listing',
-    'registers@arm': 'arm registers',
-    'registers@x86': 'x86 registers',
-    'memory@arm+ref': 'arm memory',
-    'memory@x86+ref': 'x86 memory',
+    'instructions@aarch64-armv8-ce': 'arm listing',
+    'instructions@x86_64-aesni': 'x86 listing',
+    'registers@aarch64-armv8-ce': 'arm registers',
+    'registers@x86_64-aesni': 'x86 registers',
+    'memory@aarch64-armv8-ce': 'arm memory',
+    'memory@aarch64-c-ref': 'arm c-ref memory',
+    'memory@x86_64-aesni': 'x86 memory',
+    'memory@x86_64-c-ref': 'x86 c-ref memory',
   });
   return store;
 }
 
-function useTwoViews() {
+function useThreeViews() {
   return {
-    instructions: useVariantChoice('instructions'),
-    registers: useVariantChoice('registers'),
-    memory: useVariantChoice('memory'),
+    instructions: useVariantChoice<string>('instructions'),
+    registers: useVariantChoice<string>('registers'),
+    memory: useVariantChoice<string>('memory'),
   };
 }
 
 describe('useVariantChoice', () => {
-  it('lists the variants and shows the first one without a preference', () => {
-    const { result } = renderHook(useTwoViews, { wrapper: wrapperFor(isaStore()) });
-    expect(result.current.instructions.variants).toEqual(['arm', 'x86']);
-    expect(result.current.instructions.current).toBe('arm');
-    expect(result.current.registers.current).toBe('arm');
+  it('lists the variants and shows the first one, with its facet, without a preference', () => {
+    const { result } = renderHook(useThreeViews, { wrapper: wrapperFor(isaStore()) });
+    expect(result.current.instructions.variants).toEqual(['aarch64-armv8-ce', 'x86_64-aesni']);
+    expect(result.current.instructions.current).toBe('aarch64-armv8-ce');
+    expect(result.current.instructions.facet).toEqual({ status: 'ready', data: 'arm listing' });
+    expect(result.current.registers.current).toBe('aarch64-armv8-ce');
   });
 
-  it('choosing in one view switches every view with that variant, and others to the closest name', () => {
-    const { result } = renderHook(useTwoViews, { wrapper: wrapperFor(isaStore()) });
-    act(() => result.current.instructions.choose('x86'));
-    expect(result.current.instructions.current).toBe('x86');
-    expect(result.current.registers.current).toBe('x86');
-    expect(result.current.memory.current).toBe('x86+ref');
+  it('choosing in one view switches every view sharing the variant id, memory included', () => {
+    const { result } = renderHook(useThreeViews, { wrapper: wrapperFor(isaStore()) });
+    act(() => result.current.instructions.choose('x86_64-aesni'));
+    expect(result.current.instructions.current).toBe('x86_64-aesni');
+    expect(result.current.registers.facet).toEqual({ status: 'ready', data: 'x86 registers' });
+    expect(result.current.memory.facet).toEqual({ status: 'ready', data: 'x86 memory' });
   });
 
-  it('keeps earlier preferences for kinds the latest choice does not name', () => {
-    const { result } = renderHook(useTwoViews, { wrapper: wrapperFor(isaStore()) });
-    act(() => result.current.instructions.choose('x86'));
-    act(() => result.current.memory.choose('x86+ref'));
-    expect(result.current.registers.current).toBe('x86');
-    expect(result.current.memory.current).toBe('x86+ref');
+  it('a memory-only c-ref choice keeps the ISA views on their earlier preference', () => {
+    const { result } = renderHook(useThreeViews, { wrapper: wrapperFor(isaStore()) });
+    act(() => result.current.instructions.choose('x86_64-aesni'));
+    act(() => result.current.memory.choose('x86_64-c-ref'));
+    expect(result.current.registers.current).toBe('x86_64-aesni');
+    expect(result.current.memory.current).toBe('x86_64-c-ref');
   });
 
   it('makes useFacet without a variant follow the preference', () => {
     const store = isaStore();
     const { result } = renderHook(() => ({ choice: useVariantChoice('instructions'), registers: useFacet('registers') }), { wrapper: wrapperFor(store) });
     expect(result.current.registers).toEqual({ status: 'ready', data: 'arm registers' });
-    act(() => result.current.choice.choose('x86'));
+    act(() => result.current.choice.choose('x86_64-aesni'));
     expect(result.current.registers).toEqual({ status: 'ready', data: 'x86 registers' });
   });
 
-  it('starts from the host\'s preferred variant and keeps it across a re-run', async () => {
-    const store = isaStore({ preferredVariant: 'x86' });
-    const { result } = renderHook(useTwoViews, { wrapper: wrapperFor(store) });
-    expect(result.current.instructions.current).toBe('x86');
+  it("starts from the host's preferred variant and keeps it across a re-run", async () => {
+    const store = isaStore({ preferredVariant: 'x86_64-aesni' });
+    const { result } = renderHook(useThreeViews, { wrapper: wrapperFor(store) });
+    expect(result.current.memory.current).toBe('x86_64-aesni');
     act(() => store.getState().setBundle(createFixtureBundle()));
-    expect(store.getState().preferredVariants).toEqual(['x86']);
+    expect(store.getState().preferredVariants).toEqual(['x86_64-aesni']);
     await waitFor(() => expect(result.current.instructions.current).toBeUndefined());
   });
 });
 
-/** Real-world names: instruction and register variants are ISA ids, memory ones target triples + implementation. */
-function tripleStore(options: Parameters<typeof createLabStore>[1] = {}) {
-  const store = createLabStore(createFixtureBundle(), options);
-  store.getState().setDerivedFacets(store.getState().bundle!, {
-    'instructions@aarch64-armv8-ce': 'arm listing',
-    'instructions@x86_64-aesni': 'x86 listing',
-    'memory@x86_64-linux-gnu+c-ref': 'x86 c-ref memory',
-    'memory@x86_64-linux-gnu+aesni': 'x86 aesni memory',
-    'memory@aarch64-linux-gnu+c-ref': 'arm c-ref memory',
-    'memory@aarch64-linux-gnu+armv8': 'arm armv8 memory',
-  });
-  return store;
-}
+describe('settledVariant', () => {
+  const memory = ['aarch64-armv8-ce', 'aarch64-c-ref', 'x86_64-aesni', 'x86_64-c-ref'];
 
-describe('variant choice across kinds with different variant names', () => {
-  it('a host preference x86_64-aesni selects the memory variant sharing most name tokens', () => {
-    const { result } = renderHook(useTwoViews, { wrapper: wrapperFor(tripleStore({ preferredVariant: 'x86_64-aesni' })) });
-    expect(result.current.instructions.current).toBe('x86_64-aesni');
-    expect(result.current.memory.current).toBe('x86_64-linux-gnu+aesni');
+  it('picks the most recent preferred id the kind has exactly', () => {
+    expect(settledVariant(memory, ['riscv', 'x86_64-c-ref', 'x86_64-aesni'], false)).toBe('x86_64-c-ref');
   });
 
-  it('switching instructions to aarch64-armv8-ce moves memory to aarch64-linux-gnu+armv8', () => {
-    const { result } = renderHook(useTwoViews, { wrapper: wrapperFor(tripleStore({ preferredVariant: 'x86_64-aesni' })) });
-    act(() => result.current.instructions.choose('aarch64-armv8-ce'));
-    expect(result.current.memory.current).toBe('aarch64-linux-gnu+armv8');
-    act(() => result.current.instructions.choose('x86_64-aesni'));
-    expect(result.current.memory.current).toBe('x86_64-linux-gnu+aesni');
-  });
-});
-
-describe('preferredVariant', () => {
-  const memory = ['x86_64-linux-gnu+c-ref', 'x86_64-linux-gnu+aesni', 'aarch64-linux-gnu+c-ref', 'aarch64-linux-gnu+armv8'];
-
-  it('prefers an exact match of any preference over a token match', () => {
-    expect(preferredVariant(memory, ['aarch64-armv8-ce', 'x86_64-linux-gnu+c-ref'])).toBe('x86_64-linux-gnu+c-ref');
+  it('otherwise falls back to default, else the first in deriver order, once settled', () => {
+    expect(settledVariant(memory, ['riscv'], false)).toBe('aarch64-armv8-ce');
+    expect(settledVariant(['x', 'default'], ['riscv'], false)).toBe('default');
   });
 
-  it('otherwise picks the most shared tokens with the most recent preference', () => {
-    expect(preferredVariant(memory, ['aarch64-armv8-ce', 'x86_64-aesni'])).toBe('aarch64-linux-gnu+armv8');
-  });
-
-  it('breaks ties by list (deriver) order', () => {
-    expect(preferredVariant(memory, ['x86_64'])).toBe('x86_64-linux-gnu+c-ref');
-  });
-
-  it('falls back to an older preference, then the default, when no token is shared', () => {
-    expect(preferredVariant(memory, ['riscv', 'aarch64'])).toBe('aarch64-linux-gnu+c-ref');
-    expect(preferredVariant(memory, ['riscv'])).toBe('x86_64-linux-gnu+c-ref');
+  it('while a deriver is pending, only an exact match (or default without preferences) is final', () => {
+    expect(settledVariant(memory, ['x86_64-aesni'], true)).toBe('x86_64-aesni');
+    expect(settledVariant(memory, [], true)).toBeUndefined();
+    expect(settledVariant(['default'], [], true)).toBe('default');
+    expect(settledVariant(['default'], ['x86_64-aesni'], true)).toBeUndefined();
   });
 });

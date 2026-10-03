@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { DeriverManifest, PrimitiveManifest, TraceBundle } from '@cryventure/core';
 import type { ReactViewManifest } from '@cryventure/viz';
-import { applicableDerivers, buildRegistry, deriversForFacets, producerRegistry, resolveLab, viewRegistry, viewsForBundle, viewsForFacets, viewsForProducer } from './registry.ts';
+import { buildRegistry, deriversForFacets, producerRegistry, resolveLab, viewRegistry, viewsForBundle, viewsForProducer } from './registry.ts';
 
 function view(id: string, requires: string[], order?: number): ReactViewManifest {
   return { kind: 'view', id, apiVersion: 1, titleKey: `view.${id}.title`, icon: 'x', requires, order, load: async () => ({ default: () => null }) };
@@ -26,11 +26,11 @@ describe('default registries', () => {
   });
 });
 
-describe('viewsForFacets', () => {
+describe('viewsForProducer', () => {
   const views = buildRegistry('views', [view('memory', ['memory'], 1), view('state', ['state'], 2), view('free', [])]);
 
   it('keeps only views whose required facets are available, ordered', () => {
-    expect(viewsForFacets(['state'], views).map((v) => v.id)).toEqual(['state', 'free']);
+    expect(viewsForProducer({ facets: ['state'] }, views, []).map((v) => v.id)).toEqual(['state', 'free']);
   });
 });
 
@@ -49,7 +49,7 @@ describe('resolveLab', () => {
 
   it('uses injected registries', () => {
     const producer = { id: 'toy', facets: ['state'] } as unknown as PrimitiveManifest;
-    const registries = { producers: buildRegistry('p', [producer]), views: buildRegistry('v', [view('state', ['state'])]) };
+    const registries = { producers: buildRegistry('p', [producer]), views: buildRegistry('v', [view('state', ['state'])]), derivers: [] };
     const result = resolveLab('toy', registries);
     expect(result.ok && result.lab.views.map((v) => v.id)).toEqual(['state']);
   });
@@ -84,10 +84,10 @@ describe('deriver-aware view lists', () => {
     expect(viewsForBundle(bundleWith(['state']), views, [memFromWire]).map((v) => v.id)).toEqual(['state']);
   });
 
-  it('applicableDerivers checks from ⊆ bundle kinds and appliesTo', () => {
-    const derivers = [demo, deriver('never', ['state'], ['x'], () => false), memFromWire];
-    expect(applicableDerivers(bundleWith(['state']), derivers).map((d) => d.id)).toEqual(['demo']);
-    expect(applicableDerivers(bundleWith(['state', 'wire']), derivers).map((d) => d.id)).toEqual(['demo', 'mem']);
+  it('viewsForBundle offers a deriver only when its inputs are in the bundle and appliesTo holds', () => {
+    const viewsOf = (bundle: TraceBundle) => viewsForBundle(bundle, views, [deriver('demo', ['state'], ['demo'], () => false), memFromWire]).map((v) => v.id);
+    expect(viewsOf(bundleWith(['state']))).toEqual(['state']);
+    expect(viewsOf(bundleWith(['state', 'wire']))).toEqual(['state', 'mem']);
   });
 
   it('resolveLab offers views reachable through the injected derivers', () => {
@@ -98,10 +98,8 @@ describe('deriver-aware view lists', () => {
 });
 
 describe('deriversForFacets', () => {
-  const deriver = (id: string, from: string[]) => ({ kind: 'deriver' as const, id, apiVersion: 1 as const, from, provides: ['demo'], load: async () => ({ derive: () => ({}) }) });
-
-  it("keeps the derivers whose inputs the producer declares, ignoring appliesTo (it needs a bundle)", () => {
-    const derivers = [deriver('reads-state', ['state']), deriver('reads-memory', ['state', 'memory']), { ...deriver('picky', ['state']), appliesTo: () => false }];
+  it('keeps the derivers whose inputs the producer declares, ignoring appliesTo (it needs a bundle)', () => {
+    const derivers = [deriver('reads-state', ['state'], ['demo']), deriver('reads-memory', ['state', 'memory'], ['demo']), deriver('picky', ['state'], ['demo'], () => false)];
     expect(deriversForFacets(['state', 'narration'], derivers).map((entry) => entry.id)).toEqual(['reads-state', 'picky']);
   });
 });

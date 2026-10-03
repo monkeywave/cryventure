@@ -274,7 +274,7 @@ never on a producer's code:
   (−1 = the initial state). Step i is current iff `first ≤ p ≤ last`; its effects are visible iff
   `p ≥ last`. Spans never decrease and lie in `[-1, stepCount − 1]` (`alignIssues` in core).
 - **Variants:** one deriver may return several variants of a kind (`instructions@x86_64-aesni`,
-  `memory@x86_64-linux-gnu+c-ref`). Each facet carries its own `label: I18nRef` and metadata; views
+  `memory@x86_64-c-ref`). Each facet carries its own `label: I18nRef` and metadata; views
   build their pickers from the data, not from the variant string. `useFacet(kind)` without a variant
   returns `default` or else the first one.
 - **Namespace:** every key a deriver emits or ships lives under `deriver.<id>.*`. This is a

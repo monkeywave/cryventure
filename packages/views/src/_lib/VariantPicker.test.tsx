@@ -25,8 +25,8 @@ function renderViews(preferredVariant?: string) {
     'instructions@x86_64-aesni': 'x86 listing',
     'registers@aarch64-armv8-ce': 'arm registers',
     'registers@x86_64-aesni': 'x86 registers',
-    'memory@aarch64-linux-gnu+armv8': 'arm memory',
-    'memory@x86_64-linux-gnu+aesni': 'x86 memory',
+    'memory@aarch64-armv8-ce': 'arm memory',
+    'memory@x86_64-aesni': 'x86 memory',
   });
   return renderLab(
     <>
@@ -54,17 +54,17 @@ describe('useVariantChoice (lab-wide)', () => {
     expect([shown('instructions'), shown('registers'), shown('memory')]).toEqual(['arm listing', 'arm registers', 'arm memory']);
   });
 
-  it('choosing in one view switches the views sharing the variant name, and the others to the closest name', () => {
+  it('choosing in one view switches every view sharing the variant id', () => {
     renderViews();
     pick('instructions', 'x86_64-aesni');
     expect(shown('instructions')).toBe('x86 listing');
     expect(shown('registers')).toBe('x86 registers');
     expect(picker('registers').value).toBe('x86_64-aesni');
     expect(shown('memory')).toBe('x86 memory');
-    expect(picker('memory').value).toBe('x86_64-linux-gnu+aesni');
+    expect(picker('memory').value).toBe('x86_64-aesni');
   });
 
-  it("starts from the host's preferred variant, memory included (closest name)", () => {
+  it("starts from the host's preferred variant, memory included (same id)", () => {
     renderViews('x86_64-aesni');
     expect([shown('instructions'), shown('registers'), shown('memory')]).toEqual(['x86 listing', 'x86 registers', 'x86 memory']);
   });

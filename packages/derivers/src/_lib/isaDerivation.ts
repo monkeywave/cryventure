@@ -1,7 +1,6 @@
 import {
   facetKey,
   type AlignSpan,
-  type AnyStateFacet,
   type FacetKey,
   type I18nRef,
   type Instruction,
@@ -15,16 +14,10 @@ import {
 } from '@cryventure/core';
 import {
   AES_BLOCK_BYTES,
-  aesStateFacet,
-  aesValuesFacet,
-  locateAesOps,
   opStep,
   requiredSubkeyId,
   roundKeyBytesAt,
   stateBytesAt,
-  subkeyValueIds,
-  valueIdByRole,
-  type AesOpSteps,
 } from './aesTrace.ts';
 import { INITIAL_SPAN, instructionSpan, type CoveredOp } from './isaSpans.ts';
 import {
@@ -35,6 +28,7 @@ import {
   type ListingInstruction,
 } from './listing.ts';
 import { RegisterBank } from './registerBank.ts';
+import { traceContext, type TraceContext } from './traceContext.ts';
 import { withValueRef } from './valueRef.ts';
 
 /**
@@ -66,16 +60,6 @@ export interface IsaProfile {
 
 const VECTOR_BITS = AES_BLOCK_BYTES * 8;
 
-interface TraceContext {
-  facet: AnyStateFacet;
-  ops: AesOpSteps;
-  subkeys: Map<number, string>;
-  plaintextId: string | undefined;
-  ciphertextId: string | undefined;
-  /** The step after which region `w` holds the whole key schedule. */
-  keyScheduleStep: number;
-}
-
 /** What one instruction reads and writes, plus the register values it leaves behind. */
 interface Effects {
   reads: OperandRef[];
@@ -84,22 +68,6 @@ interface Effects {
 }
 
 const NO_EFFECTS: Effects = { reads: [], writes: [], registerWrites: [] };
-
-function traceContext(bundle: TraceBundle): TraceContext {
-  const facet = aesStateFacet(bundle);
-  const values = aesValuesFacet(bundle);
-  const ops = locateAesOps(facet);
-  const ciphertextId = valueIdByRole(values, 'ciphertext');
-  const keyScheduleStep = opStep(ops, 'keyExpansion', 0);
-  return {
-    facet,
-    ops,
-    subkeys: subkeyValueIds(values),
-    plaintextId: valueIdByRole(values, 'plaintext'),
-    ciphertextId,
-    keyScheduleStep,
-  };
-}
 
 function registerOperand(name: string, valueRef?: string): OperandRef {
   return withValueRef({ kind: 'reg' as const, name }, valueRef);

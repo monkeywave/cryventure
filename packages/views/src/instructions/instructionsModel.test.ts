@@ -1,7 +1,10 @@
 import type { Instruction, InstructionsFacet } from '@cryventure/core';
 import { describe, expect, it } from 'vitest';
-import { aesDerivedFacets } from './aesFixture.ts';
+import { isaFixture } from '../testing/isaFixture.ts';
+import fixture from './fixtures/aesC1.json';
 import { listingProgress, operandValueRefs, rowStatus } from './instructionsModel.ts';
+
+const { derivedFacets: aesDerivedFacets } = isaFixture(fixture);
 
 const x86 = aesDerivedFacets['instructions@x86_64-aesni'] as InstructionsFacet;
 const arm = aesDerivedFacets['instructions@aarch64-armv8-ce'] as InstructionsFacet;

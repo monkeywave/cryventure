@@ -1,0 +1,29 @@
+---
+/**
+ * The frame every lab island sits in (`Lab.astro`, `HeroLab.astro`): lab styles, the full-width
+ * breakout, the educational-use note, and `#<heading>&lab=…` anchor scrolling. The island goes in the slot.
+ */
+import '@cryventure/viz/viz.css';
+import '../styles/lab.css';
+import Breakout from './Breakout.astro';
+import EducationalOnly from './EducationalOnly.astro';
+
+interface Props {
+  lang: string;
+}
+
+const { lang } = Astro.props;
+---
+
+<Breakout>
+  <div class="cv-lab-host" data-pagefind-ignore>
+    <EducationalOnly lang={lang} />
+    <slot />
+  </div>
+</Breakout>
+
+<script>
+  // Bundled once per page: `#<heading>&lab=…` links scroll to the heading like a plain `#<heading>`.
+  import { scrollToHeadingAnchor } from '../labs/anchorScroll';
+  scrollToHeadingAnchor();
+</script>

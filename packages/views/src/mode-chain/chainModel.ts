@@ -36,18 +36,6 @@ export type NodeRole = 'plaintext' | 'ciphertext' | 'nonce' | 'key' | 'state' | 
 /** GCM roles, which carry a glyph beside their label and a legend entry. */
 export type GcmRole = Extract<NodeRole, 'tag' | 'aad' | 'hash' | 'length'>;
 
-/**
- * Non-colour cue per GCM role (decorative; the role is also said in words): ✓ the tag that
- * authenticates, ◇✓ AAD (sent in the clear, but authenticated), ⊗ the GHASH multiply by H (PLAN §3
- * op glyphs), ‖ the length block len(A) ‖ len(C).
- */
-export const GCM_ROLE_GLYPHS: Readonly<Record<GcmRole, string>> = {
-  tag: '✓',
-  aad: '◇✓',
-  hash: '⊗',
-  length: '‖',
-};
-
 /** Legend order of the GCM roles. */
 const GCM_ROLES: readonly GcmRole[] = ['aad', 'hash', 'length', 'tag'];
 

@@ -13,9 +13,6 @@ type DerivedCache = Partial<Record<FacetKey, unknown>>;
 const LOADING: FacetResult<never> = { status: 'loading', data: undefined };
 const MISSING: FacetResult<never> = { status: 'missing', data: undefined };
 
-/** Which deriver produced a derived facet key (its id), if known. */
-export type FacetOwner = (key: FacetKey) => string | undefined;
-
 function variantOf(key: FacetKey): string {
   return parseFacetKey(key)?.variant ?? DEFAULT_VARIANT;
 }
@@ -24,18 +21,14 @@ function keysIn(facets: DerivedCache, kind: FacetKind): FacetKey[] {
   return (Object.keys(facets) as FacetKey[]).filter((key) => facets[key] !== undefined && parseFacetKey(key)?.kind === kind);
 }
 
-/** The deriver (by `deriveOnce` result) that produced `key` for `bundle`. */
-function ownerFromDerivations(bundle: TraceBundle, derivers: readonly DeriverManifest[]): FacetOwner {
-  return (key) => derivers.find((deriver) => derivationResult(bundle, deriver.id)?.[key] !== undefined)?.id;
-}
-
 /**
- * Derived keys ordered by their deriver's position in `derivers` (sorted by id upstream), not by the
- * order derivations completed in; keys without a known deriver keep their insertion order, last.
+ * Derived keys ordered by the position in `derivers` (sorted by id upstream) of the deriver whose
+ * `deriveOnce` result holds them, not by the order derivations completed in; keys without a known
+ * deriver keep their insertion order, last.
  */
-function inDeriverOrder(keys: readonly FacetKey[], derivers: readonly DeriverManifest[], ownerOf: FacetOwner): FacetKey[] {
+function inDeriverOrder(bundle: TraceBundle, keys: readonly FacetKey[], derivers: readonly DeriverManifest[]): FacetKey[] {
   const rank = (key: FacetKey) => {
-    const index = derivers.findIndex((deriver) => deriver.id === ownerOf(key));
+    const index = derivers.findIndex((deriver) => derivationResult(bundle, deriver.id)?.[key] !== undefined);
     return index === -1 ? derivers.length : index;
   };
   return [...keys].sort((a, b) => rank(a) - rank(b));
@@ -45,16 +38,10 @@ function inDeriverOrder(keys: readonly FacetKey[], derivers: readonly DeriverMan
  * Variants of `kind` in the bundle, then in the derived cache, without duplicates. Derived variants
  * follow the order of `derivers` (deterministic whatever order derivations finish in).
  */
-export function facetVariants(
-  bundle: TraceBundle | null,
-  derived: DerivedCache,
-  kind: FacetKind,
-  derivers: readonly DeriverManifest[] = [],
-  ownerOf: FacetOwner = bundle === null ? () => undefined : ownerFromDerivations(bundle, derivers),
-): string[] {
+export function facetVariants(bundle: TraceBundle | null, derived: DerivedCache, kind: FacetKind, derivers: readonly DeriverManifest[] = []): string[] {
   if (bundle === null) return [];
   const own = keysIn(bundle.facets, kind);
-  const fromDerivers = inDeriverOrder(keysIn(derived, kind), derivers, ownerOf);
+  const fromDerivers = inDeriverOrder(bundle, keysIn(derived, kind), derivers);
   return [...new Set([...own, ...fromDerivers].map(variantOf))];
 }
 
@@ -63,57 +50,17 @@ export function defaultVariant(variants: readonly string[]): string | undefined 
   return variants.includes(DEFAULT_VARIANT) ? DEFAULT_VARIANT : variants[0];
 }
 
-/** A variant name's tokens (split on `-`, `+`, `_`, `.`), e.g. `x86_64-aesni` → `x86`, `64`, `aesni`. */
-function nameTokens(variant: string): Set<string> {
-  return new Set(variant.split(/[-+_.]/).filter((token) => token !== ''));
-}
-
-/** How many name tokens `variant` shares with `preference`. */
-function sharedTokens(variant: string, preference: string): number {
-  const wanted = nameTokens(preference);
-  return [...nameTokens(variant)].filter((token) => wanted.has(token)).length;
-}
-
-/** The variant sharing the most name tokens with `preference` (ties: earliest in `variants`); none if no token is shared. */
-function closestVariant(variants: readonly string[], preference: string): string | undefined {
-  let best: string | undefined;
-  let bestScore = 0;
-  for (const variant of variants) {
-    const score = sharedTokens(variant, preference);
-    if (score > bestScore) [best, bestScore] = [variant, score];
-  }
-  return best;
-}
-
-/** The first preferred variant `variants` has exactly (most recent preference first). */
-function exactPreferred(variants: readonly string[], preferred: readonly string[]): string | undefined {
-  return preferred.find((variant) => variants.includes(variant));
-}
-
 /**
- * The lab-wide choice for one kind (docs/M4.md §1f): the first preferred variant it has exactly; else
- * the variant sharing the most name tokens with the most recent preference that shares any (ties:
- * deriver order), so `x86_64-aesni` carries over to `x86_64-linux-gnu+aesni`; else `defaultVariant`.
- */
-export function preferredVariant(variants: readonly string[], preferred: readonly string[]): string | undefined {
-  const exact = exactPreferred(variants, preferred);
-  if (exact !== undefined) return exact;
-  for (const preference of preferred) {
-    const closest = closestVariant(variants, preference);
-    if (closest !== undefined) return closest;
-  }
-  return defaultVariant(variants);
-}
-
-/**
- * `preferredVariant`, but only once it cannot change: while a candidate deriver is `pending`, a later
- * variant could win (a closer token match, or one earlier in deriver order), so only an exact preferred
- * match, or the bundle's `default` without preferences, is final; otherwise `undefined` (loading).
+ * The lab-wide choice for one kind (docs/M4.md §1f): the most recent preferred id the kind has
+ * exactly (variant ids are shared across kinds for the same implementation); else `defaultVariant`
+ * (`default`, else the first in deriver order), but only once every candidate deriver has settled, so
+ * the choice never flips: while one is `pending`, a non-exact choice is final only for the bundle's
+ * own `default` without preferences; otherwise `undefined` (loading).
  */
 export function settledVariant(variants: readonly string[], preferred: readonly string[], pending: boolean): string | undefined {
-  if (!pending) return preferredVariant(variants, preferred);
-  const exact = exactPreferred(variants, preferred);
+  const exact = preferred.find((variant) => variants.includes(variant));
   if (exact !== undefined) return exact;
+  if (!pending) return defaultVariant(variants);
   return preferred.length === 0 && variants.includes(DEFAULT_VARIANT) ? DEFAULT_VARIANT : undefined;
 }
 
@@ -155,7 +102,7 @@ function useDerivationRequests(bundle: TraceBundle | null, candidates: readonly 
     for (const deriver of candidates) {
       deriveOnce(bundle, deriver).then(
         (facets) => {
-          store.getState().setDerivedFacets(bundle, facets, deriver.id);
+          store.getState().setDerivedFacets(bundle, facets);
           if (active) settled();
         },
         () => {
@@ -183,7 +130,7 @@ interface KindState {
   pending: boolean;
 }
 
-/** Requests derivation of `kind` and tracks its variants; shared by `useFacet`, `useFacetVariants` and `useChosenVariant`. */
+/** Requests derivation of `kind` and tracks its variants; the one subscription behind every facet hook. */
 function useKind(kind: FacetKind): KindState {
   const bundle = useLab((state) => state.bundle);
   const derived = useLab((state) => state.derivedFacets);
@@ -195,29 +142,35 @@ function useKind(kind: FacetKind): KindState {
   return { bundle, derived, variants, pending };
 }
 
-/** The variants of a kind and the one the lab shows (`settledVariant`; `undefined` while it may still change). */
-export function useChosenVariant(kind: FacetKind): { variants: string[]; current: string | undefined; pending: boolean } {
-  const { variants, pending } = useKind(kind);
+/** One kind as the lab shows it: its variants, the variant shown (`variant`, else the lab-wide choice) and that variant's facet. */
+export interface ShownFacet<T> {
+  variants: string[];
+  /** `variant` if given, else `settledVariant`; `undefined` while a running deriver could change the choice. */
+  current: string | undefined;
+  facet: FacetResult<T>;
+}
+
+/** `useKind` plus the shown variant and its facet: shared by `useFacet` and `useVariantChoice`. */
+export function useShownFacet<T>(kind: FacetKind, variant?: string): ShownFacet<T> {
+  const { bundle, derived, variants, pending } = useKind(kind);
   const preferred = useLab((state) => state.preferredVariants);
-  const current = useMemo(() => settledVariant(variants, preferred, pending), [variants, preferred, pending]);
-  return { variants, current, pending };
+  const current = variant ?? settledVariant(variants, preferred, pending);
+  const facet = useMemo(() => {
+    if (current === undefined && pending) return LOADING;
+    return lookupFacet<T>(bundle, derived, kind, current, pending);
+  }, [bundle, derived, kind, current, pending]);
+  return useMemo(() => ({ variants, current, facet }), [variants, current, facet]);
 }
 
 /**
  * A facet of the current lab's bundle; the caller asserts its type. Without a `variant`: the lab-wide
- * choice (`settledVariant`: exact preference, else closest name, else `default`, else the first in
- * deriver order), `loading` while a still-running deriver could change that choice. A facet the bundle
- * lacks but an applicable deriver provides is `loading` while that deriver runs, then `ready` (or
- * `missing` if derivation failed or did not produce it).
+ * choice (`settledVariant`: the most recent preferred id, else `default`, else the first in deriver
+ * order), `loading` while a still-running deriver could change that choice. A facet the bundle lacks
+ * but an applicable deriver provides is `loading` while that deriver runs, then `ready` (or `missing`
+ * if derivation failed or did not produce it).
  */
 export function useFacet<T>(kind: FacetKind, variant?: string): FacetResult<T> {
-  const { bundle, derived, variants, pending } = useKind(kind);
-  const preferred = useLab((state) => state.preferredVariants);
-  const chosen = variant ?? settledVariant(variants, preferred, pending);
-  return useMemo(() => {
-    if (chosen === undefined && pending) return LOADING;
-    return lookupFacet<T>(bundle, derived, kind, chosen, pending);
-  }, [bundle, derived, kind, chosen, pending]);
+  return useShownFacet<T>(kind, variant).facet;
 }
 
 /** The variants of `kind` in the bundle plus the derived cache (after derivation), derived ones in deriver order. */

@@ -19,9 +19,10 @@ import {
   unknownValueRefProblems,
   type DerivedFacets,
 } from './deriverChecks.ts';
-import { goldenDir, goldenFileName, isGoldenUpdate, PREFERRED_GOLDEN_CASE, readGoldenFiles, writeGoldenFile, type GoldenFile } from './deriverGolden.ts';
+import { GOLDEN_UPDATE_ENV, goldenDir, goldenFileName, PREFERRED_GOLDEN_CASE, readGoldenFiles, writeGoldenFile, type GoldenFile } from './deriverGolden.ts';
 import { jsonValueProblems } from './jsonValues.ts';
 import type { ProducerSet } from './runWithPorts.ts';
+import { isUpdateRun } from './updateRun.ts';
 
 export interface DeriverContractOptions {
   /** Producers whose `defaults` and presets the deriver runs on (e.g. `primitiveProducerSet`). */
@@ -168,7 +169,7 @@ function goldenProblems(dir: string, cases: readonly DerivedCase[], update: bool
 export async function deriverReport(manifest: DeriverManifest, options: DeriverContractOptions & { catalogs: LocaleCatalogs }): Promise<DeriverReport> {
   const namespace = deriverNamespace(manifest.id);
   const cases = await deriveApplicableCases(manifest, await cachedPrimitiveBundleCases(options.producers));
-  const update = options.updateGolden ?? isGoldenUpdate();
+  const update = options.updateGolden ?? isUpdateRun(GOLDEN_UPDATE_ENV);
   return {
     manifest: deriverManifestProblems(manifest),
     applicable: cases.length > 0 ? [] : ['applies to no preset of any registered producer'],

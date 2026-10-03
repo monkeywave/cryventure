@@ -58,14 +58,10 @@ export function unknownValueRefs(facets: IsaFacets, bundle: TraceBundle): string
     .filter((id): id is string => id !== undefined && !known.has(id));
 }
 
-/** The bytes `register` holds after the registers step aligned like `instructionIndex`, replayed via core `registersAt`. */
-export function registerAfter(
-  facets: IsaFacets,
-  instructionIndex: number,
-  register: string,
-): number[] | undefined {
+/** The bytes `register` holds after the registers step aligned like `instructionIndex`, replayed via core `registersAt`; [] if unwritten. */
+export function registerAfter(facets: IsaFacets, instructionIndex: number, register: string): number[] {
   const instruction = facets.instructions.instructions[instructionIndex]!;
-  return registersAt(facets.registers, instruction.align.last).get(register);
+  return registersAt(facets.registers, instruction.align.last).get(register) ?? [];
 }
 
 /**

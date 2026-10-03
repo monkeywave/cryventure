@@ -14,6 +14,8 @@ export type RdKeyEncoding = 'host-endian-u32' | 'raw-bytes';
 /** One `AES_set_encrypt_key` implementation (`data/impls.json`). */
 export interface ImplSpec {
   id: string;
+  /** The ISA extension the impl runs on, as the ISA derivers name it (`c-ref`, `aesni`, `armv8-ce`). */
+  extension: string;
   triples: string[];
   rdKeyEncoding: RdKeyEncoding;
   /** Value stored in `AES_KEY.rounds`, by key size in bits ("128" | "192" | "256"). */
@@ -23,6 +25,8 @@ export interface ImplSpec {
 
 /** A target plus the modeled stack conventions (`data/targets.json`). */
 export interface TargetData extends TargetSpec {
+  /** The ISA as the ISA derivers name it (`x86_64`, `aarch64`). */
+  isa: string;
   stack: { provenance: 'modeled'; frameBase: string; growsDown: boolean; frameAlign: number };
 }
 

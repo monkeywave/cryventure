@@ -5,6 +5,7 @@
  * manifest and a self-unregistering `sw.js` instead, which removes a worker installed by an earlier build.
  */
 import { writeFile } from 'node:fs/promises';
+import { resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { generateSW } from 'workbox-build';
 import {
@@ -19,7 +20,8 @@ import {
   workboxOptions,
 } from './pwa.mjs';
 
-const distDir = fileURLToPath(new URL('../dist', import.meta.url));
+/** Usage: `node scripts/build-sw.mjs [distDir]` (default `apps/web/dist`; resolved against the cwd). */
+const distDir = process.argv[2] === undefined ? fileURLToPath(new URL('../dist', import.meta.url)) : resolve(process.argv[2]);
 
 async function main() {
   if (!isPwaEnabled(process.env)) {

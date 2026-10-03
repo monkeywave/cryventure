@@ -35,17 +35,19 @@ const OPERAND_SEPARATOR = ', ';
 function useValueLabel(): (id: string) => string {
   const t = useT();
   const values = useFacet<ValuesFacet>('values');
+  const labelKeys = useMemo(
+    () =>
+      new Map<string, string>(
+        values.status === 'ready' ? values.data.values.map((value) => [value.id, value.labelKey]) : [],
+      ),
+    [values],
+  );
   return useCallback(
     (id: string) => {
-      const value =
-        values.status === 'ready'
-          ? values.data.values.find((candidate) => candidate.id === id)
-          : undefined;
-      return value === undefined
-        ? id
-        : t('view.instructions.valueRef', { label: t(value.labelKey), id });
+      const labelKey = labelKeys.get(id);
+      return labelKey === undefined ? id : t('view.instructions.valueRef', { label: t(labelKey), id });
     },
-    [values, t],
+    [labelKeys, t],
   );
 }
 

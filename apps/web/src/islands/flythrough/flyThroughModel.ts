@@ -20,8 +20,6 @@ export const WORD_BYTES = 4;
 
 /** FIPS 197 App. C.1 key = round key 0 (`w[0..3]`). */
 export const C1_ROUND_KEY_0 = Uint8Array.from({ length: BLOCK_BYTES }, (_, i) => i);
-/** FIPS 197 App. C.1 plaintext `00112233…eeff`, the state before round 0. */
-export const C1_PLAINTEXT = Uint8Array.from({ length: BLOCK_BYTES }, (_, i) => i * 0x11);
 /** FIPS 197 App. C.1 ciphertext `69c4e0d8…c55a`, the state after the last round: what lands in `out[16]`. */
 export const C1_CIPHERTEXT = Uint8Array.from([0x69, 0xc4, 0xe0, 0xd8, 0x6a, 0x7b, 0x04, 0x30, 0xd8, 0xcd, 0xb7, 0x80, 0x70, 0xb4, 0xc5, 0x5a]);
 
@@ -41,11 +39,6 @@ export function flyData(target: FlyTarget): FlyData {
 /** Column-major: byte `i` is `s[i mod 4, ⌊i/4⌋]` (FIPS 197 §3.4). */
 export function matrixCell(index: number): { row: number; col: number } {
   return { row: index % WORD_BYTES, col: Math.floor(index / WORD_BYTES) };
-}
-
-/** A 128-bit load (`movups` / `movdqu`) puts byte `i` of the block into lane `i` of `xmm0` (lane 0 = lowest byte). */
-export function registerLane(index: number): number {
-  return index;
 }
 
 /**
@@ -82,9 +75,14 @@ export function captionKey(beat: FlyBeat, impl: FlyImpl, target: FlyTarget): str
   return target === 'out' ? 'ui.flyThrough.caption.memory.out' : `ui.flyThrough.caption.memory.rd_key.${impl}`;
 }
 
+/** A beat index clamped to the beats. */
+export function clampBeat(beat: number): number {
+  return Math.min(FLY_BEATS.length - 1, Math.max(0, beat));
+}
+
 /** Beat index after a step forward / back, clamped to the beats. */
 export function stepBeat(beat: number, delta: number): number {
-  return Math.min(FLY_BEATS.length - 1, Math.max(0, beat + delta));
+  return clampBeat(beat + delta);
 }
 
 export interface FlyToken {
@@ -104,7 +102,8 @@ export interface FlySlots {
 /** Where byte `index` sits at `beat`. */
 export function tokenPosition(slots: FlySlots, index: number, beat: FlyBeat, impl: FlyImpl, target: FlyTarget): { x: number; y: number } {
   if (beat === 'matrix') return slots.matrixCell(index);
-  if (beat === 'register') return slots.rowSlot('register', registerLane(index));
+  // A 128-bit load (`movups` / `movdqu`) puts byte `i` of the block into lane `i` of `xmm0` (lane 0 = lowest byte).
+  if (beat === 'register') return slots.rowSlot('register', index);
   return slots.rowSlot('ram', ramOffset(index, impl, target));
 }
 
@@ -117,7 +116,7 @@ export interface FlyFrame {
 
 /** Everything the SVG needs for one beat, placed on `slots`. */
 export function flyThroughFrame(slots: FlySlots, beatIndex: number, impl: FlyImpl, target: FlyTarget): FlyFrame {
-  const beat = FLY_BEATS[stepBeat(beatIndex, 0)]!;
+  const beat = FLY_BEATS[clampBeat(beatIndex)]!;
   const { bytes, role } = flyData(target);
   const tokens = Array.from(bytes, (value, index) => ({ index, value, ...tokenPosition(slots, index, beat, impl, target) }));
   return { beat, role, tokens, captionKey: captionKey(beat, impl, target) };

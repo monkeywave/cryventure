@@ -86,12 +86,11 @@ export interface LabActions {
   select(valueRefId: string | null): void;
   /** Selects (watches) one state node; `null` clears it. */
   selectNode(node: NodeRef | null): void;
-  setDerivedFacet(key: FacetKey, data: unknown): void;
   /**
-   * Adds one deriver's facets for `bundle` in one update; a no-op when `bundle` is no longer the lab's
-   * bundle, when nothing changes, or (with `deriverId`) when that deriver already wrote for this bundle.
+   * Adds one deriver's facets for `bundle` in one update; a no-op (same `derivedFacets` object, no
+   * notification) when `bundle` is no longer the lab's bundle or when nothing changes.
    */
-  setDerivedFacets(bundle: TraceBundle, facets: Partial<Record<FacetKey, unknown>>, deriverId?: string): void;
+  setDerivedFacets(bundle: TraceBundle, facets: Partial<Record<FacetKey, unknown>>): void;
   /** Records the learner's variant choice lab-wide: every view showing a facet with that variant switches to it. */
   preferVariant(variant: string): void;
   /** Remembers whether the learner expanded or collapsed a collapsible region. */
@@ -130,29 +129,6 @@ function syncProgress(store: LabStore): void {
   });
 }
 
-type SetState = StoreApi<LabState>['setState'];
-
-/**
- * `setBundle` and `setDerivedFacets`, which share a log of the derivers whose facets the store holds
- * for its current bundle: each deriver writes once per bundle (the log resets with the bundle).
- */
-function bundleActions(set: SetState, get: () => LabState, initial: TraceBundle | null): Pick<LabActions, 'setBundle' | 'setDerivedFacets'> {
-  let written = { bundle: initial, deriverIds: new Set<string>() };
-  return {
-    setBundle: (next, options) => {
-      written = { bundle: next, deriverIds: new Set() };
-      set((state) => (options?.preserveDebugContext ? withRerunBundle(state, next) : withBundle(next)));
-    },
-    setDerivedFacets: (forBundle, facets, deriverId) => {
-      const current = written.bundle === forBundle;
-      if (deriverId !== undefined && current && written.deriverIds.has(deriverId)) return;
-      if (deriverId !== undefined && current) written.deriverIds.add(deriverId);
-      const update = withDerivedFacets(get(), forBundle, facets);
-      if (update.derivedFacets !== undefined) set(update);
-    },
-  };
-}
-
 /** One store per lab instance (never a module singleton), so several labs can share a page. */
 export function createLabStore(bundle: TraceBundle | null = null, options: LabStoreOptions = {}): LabStore {
   // Kept outside the state: swapping the host's handler must not re-render subscribers.
@@ -161,7 +137,12 @@ export function createLabStore(bundle: TraceBundle | null = null, options: LabSt
     ...initialLabData(bundle),
     ...(options.preferredVariant === undefined ? {} : { preferredVariants: [options.preferredVariant] }),
     progress: motionValue(1),
-    ...bundleActions(set, get, bundle),
+    setBundle: (next, options) => set((state) => (options?.preserveDebugContext ? withRerunBundle(state, next) : withBundle(next))),
+    setDerivedFacets: (forBundle, facets) => {
+      // An empty update would still notify every subscriber, so only a real change is set.
+      const update = withDerivedFacets(get(), forBundle, facets);
+      if (update.derivedFacets !== undefined) set(update);
+    },
     seek: (step) => set((state) => seekTo(state, step)),
     first: () => set((state) => seekTo(state, INITIAL_STEP)),
     last: () => set((state) => seekTo(state, lastStep(state))),
@@ -179,7 +160,6 @@ export function createLabStore(bundle: TraceBundle | null = null, options: LabSt
     toggleCurrentBreakpoint: () => set(toggleCurrentBreakpoint),
     select: (valueRefId) => set((state) => ({ selection: { ...state.selection, valueRefId } })),
     selectNode: (node) => set((state) => ({ selection: { ...state.selection, node } })),
-    setDerivedFacet: (key, data) => set((state) => ({ derivedFacets: { ...state.derivedFacets, [key]: data } })),
     preferVariant: (variant) => set((state) => preferVariant(state, variant)),
     setRegionExpanded: (regionId, expanded) => set((state) => setRegionExpanded(state, regionId, expanded)),
     requestParams: (patch) => paramsRequestHandler?.(patch),

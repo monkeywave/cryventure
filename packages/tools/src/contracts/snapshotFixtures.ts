@@ -54,11 +54,6 @@ export const SNAPSHOT_FIXTURES: readonly SnapshotFixture[] = [
 /** The env flag `pnpm fixtures:update` sets. */
 export const FIXTURES_UPDATE_ENV = 'CV_FIXTURES_UPDATE';
 
-/** Whether this run rewrites the snapshots instead of comparing them. */
-export function isFixturesUpdate(env: Record<string, string | undefined> = process.env): boolean {
-  return env[FIXTURES_UPDATE_ENV] === '1';
-}
-
 /** The committed snapshot at the repo-relative `path`, parsed. */
 export function readSnapshot(path: string, root: string = REPO_ROOT): unknown {
   return JSON.parse(readFileSync(join(root, path), 'utf8')) as unknown;
