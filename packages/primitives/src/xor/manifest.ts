@@ -1,9 +1,9 @@
 import {
   definePrimitive,
   i18nRef,
+  opLabels,
   parseHexOfLength,
   type HexOfLengthResult,
-  type OpLabels,
   type ParamField,
   type Preset,
   type ValidationResult,
@@ -44,9 +44,7 @@ export const XOR_OP_NAMES = ['loadMessage', 'loadKey', 'xorByte', 'decrypt'] as 
 export type XorOpName = (typeof XOR_OP_NAMES)[number];
 
 /** Labels of every op the module records (`StateStep.op`); the player and debugger show them. */
-export const XOR_OPS = Object.fromEntries(
-  XOR_OP_NAMES.map((op) => [op, { labelKey: `${NS}.op.${op}`, shortLabelKey: `${NS}.opShort.${op}` }]),
-) as Record<XorOpName, OpLabels>;
+export const XOR_OPS = opLabels(NS, XOR_OP_NAMES);
 
 const INVALID_PARAMS = `${NS}.error.invalidParams`;
 

@@ -44,9 +44,14 @@ export function parseHex(input: string): ParseHexResult {
   return { ok: true, bytes: decodeHexDigits(digits) };
 }
 
+/** `value` as lowercase hex, zero-padded to at least `digits` digits, e.g. `hexDigits(0x1b, 3)` → `"01b"`. */
+export function hexDigits(value: number, digits: number): string {
+  return value.toString(16).padStart(digits, '0');
+}
+
 /** Two lowercase hex digits of one byte, e.g. `byteToHex(10)` → `"0a"` (expects 0..255). */
 export function byteToHex(byte: number): string {
-  return byte.toString(16).padStart(2, '0');
+  return hexDigits(byte, 2);
 }
 
 /**
@@ -57,6 +62,11 @@ export function parseHexOrThrow(input: string): Uint8Array {
   const parsed = parseHex(input);
   if (!parsed.ok) throw new Error(`parseHexOrThrow: ${parsed.error.key} ${JSON.stringify(parsed.error.params ?? {})}`);
   return parsed.bytes;
+}
+
+/** `parseHexOrThrow` as a plain `number[]` (for hex that validation has already accepted). */
+export function parseHexToArray(input: string): number[] {
+  return Array.from(parseHexOrThrow(input));
 }
 
 export type HexOfLengthResult = { ok: true; bytes: Uint8Array; hex: string } | { ok: false; error: I18nRef };

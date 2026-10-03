@@ -1,4 +1,4 @@
-import { definePrimitive, i18nRef, parseHexOfLength, type HexOfLengthResult, type OpLabels, type ParamField, type Preset, type ValidationResult } from '@cryventure/core';
+import { definePrimitive, i18nRef, opLabels, parseHexOfLength, readOption, type HexOfLengthResult, type ParamField, type Preset, type ValidationResult } from '@cryventure/core';
 
 /**
  * Manifest for the GF(2^8) calculator: xtime (a·x), gmul (a·b) and ginv (a⁻¹) in the AES field.
@@ -47,24 +47,18 @@ export const GF256_PARAM_FIELDS: ParamField[] = [
 export const GF256_OP_NAMES = ['load', 'shift', 'reduce', 'xtime', 'add', 'skip', 'square', 'multiply', 'result'] as const;
 export type Gf256StepOp = (typeof GF256_OP_NAMES)[number];
 
-export const GF256_OPS: Record<Gf256StepOp, OpLabels> = Object.fromEntries(
-  GF256_OP_NAMES.map((op) => [op, { labelKey: `${NS}.op.${op}`, shortLabelKey: `${NS}.opShort.${op}` }]),
-) as Record<Gf256StepOp, OpLabels>;
+export const GF256_OPS = opLabels(NS, GF256_OP_NAMES);
 
 /** Parses exactly one byte of hex; `lengthErrorKey` reports a wrong byte count. */
 export function readByteHex(input: unknown, lengthErrorKey: string): HexOfLengthResult {
   return parseHexOfLength(input, [1], { invalidType: `${NS}.error.invalidParams`, wrongLength: lengthErrorKey });
 }
 
-function readOp(input: unknown): Gf256Op | undefined {
-  return typeof input === 'string' && (GF256_OPERATIONS as readonly string[]).includes(input) ? (input as Gf256Op) : undefined;
-}
-
 /** Validates and normalises params (op checked, hex lowercased with separators stripped). */
 export function validateGf256Params(params: unknown): ValidationResult<Gf256Params> {
   if (typeof params !== 'object' || params === null) return { ok: false, error: i18nRef(`${NS}.error.invalidParams`) };
   const record = params as Record<string, unknown>;
-  const op = readOp(record['op']);
+  const op = readOption(record['op'], GF256_OPERATIONS);
   if (op === undefined) return { ok: false, error: i18nRef(`${NS}.error.op`, { op: String(record['op']) }) };
   const a = readByteHex(record['aHex'], `${NS}.error.aLength`);
   if (!a.ok) return a;

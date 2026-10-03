@@ -3,7 +3,7 @@
  * Educational implementation: data-dependent branches, NOT constant-time.
  */
 import { ginv } from './gf256.ts';
-import type { Bit } from './gf256Steps.ts';
+import { bitOf, type Bit } from './bits.ts';
 
 /** The affine constant {63} of FIPS 197 §5.1.1. */
 export const AFFINE_CONSTANT = 0x63;
@@ -33,10 +33,6 @@ export interface AffineBitStep {
   constantBit: Bit;
   /** XOR of `inputValues` and `constantBit` = bit i of `affine(x)`. */
   result: Bit;
-}
-
-function bitOf(byte: number, position: number): Bit {
-  return (byte >> position) & 1 ? 1 : 0;
 }
 
 function affineBitStep(input: number, bit: number): AffineBitStep {

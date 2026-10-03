@@ -1,5 +1,5 @@
-import { braceHex, GINV_EXPONENT, ginvSteps, highlight, i18nRef, type GinvStep, type MathContent } from '@cryventure/core';
-import { gf256Recorder, NS, scopeLevels, term, write, type Gf256Recorder } from './trace.ts';
+import { braceHex, GINV_EXPONENT, ginvSteps, ginvStepTerms, highlight, i18nRef, type GinvStep, type MathContent } from '@cryventure/core';
+import { gf256Recorder, NS, term, write, type Gf256Recorder } from './trace.ts';
 
 /**
  * a⁻¹ = a²⁵⁴ by square-and-multiply (core's `ginvSteps`). Steps: load at the root scope, then one
@@ -11,7 +11,7 @@ export function recordGinv(a: number): { recorder: Gf256Recorder; result: number
   const explained = ginvSteps(a);
   const { input, result } = explained;
   const zero = input === 0;
-  const recorder = gf256Recorder(['a', 'power', 'result'], scopeLevels('exponentBit', 'part'));
+  const recorder = gf256Recorder(['a', 'power', 'result'], 'exponentBit', 'part');
   const hexA = braceHex(input);
 
   recorder.step(
@@ -46,23 +46,21 @@ const LEADING_EXPONENT_BIT = Math.floor(Math.log2(GINV_EXPONENT));
 /** Each square opens the scope of the next lower exponent bit; its multiply (if any) shares it. */
 function recordPowers(recorder: Gf256Recorder, steps: readonly GinvStep[], a: number): void {
   const hexA = braceHex(a);
-  let exponent = 1;
   let bit = LEADING_EXPONENT_BIT;
   for (const step of steps) {
     if (step.op === 'square') {
       if (bit < LEADING_EXPONENT_BIT) recorder.leave();
       recorder.enter((bit -= 1));
     }
-    recorder.scopedStep(powerInput(step, exponent, hexA), powerMath(step, exponent, a));
-    exponent = step.exponent;
+    recorder.scopedStep(powerInput(step, hexA), powerMath(step, a));
   }
   if (bit < LEADING_EXPONENT_BIT) recorder.leave();
 }
 
 const powerLabel = (exponent: number) => i18nRef(`${NS}.term.power`, { exponent });
 
-function powerInput(step: GinvStep, previousExponent: number, hexA: string) {
-  const params = { previous: previousExponent, exponent: step.exponent, left: braceHex(step.left), value: braceHex(step.value) };
+function powerInput(step: GinvStep, hexA: string) {
+  const params = { previous: step.previousExponent, exponent: step.exponent, left: braceHex(step.left), value: braceHex(step.value) };
   const isSquare = step.op === 'square';
   return {
     op: step.op,
@@ -72,9 +70,7 @@ function powerInput(step: GinvStep, previousExponent: number, hexA: string) {
   };
 }
 
-function powerMath(step: GinvStep, previousExponent: number, a: number): MathContent {
-  const before = term('powerPrevious', step.left, 8, 'operand', { label: powerLabel(previousExponent), ...(step.op === 'square' ? { op: 'square' as const } : {}) });
-  const after = term('power', step.value, 8, step.exponent === GINV_EXPONENT ? 'result' : 'intermediate', { label: powerLabel(step.exponent) });
-  const terms = step.op === 'square' ? [before, after] : [before, term('a', a, 8, 'operand', { op: 'mul' }), after];
-  return { formula: i18nRef(`${NS}.formula.${step.op}`, { previous: previousExponent, exponent: step.exponent }), terms };
+function powerMath(step: GinvStep, a: number): MathContent {
+  const terms = ginvStepTerms(step, { previousId: 'powerPrevious', powerLabel, base: term('a', a, 8, 'operand'), inverseRole: 'result' });
+  return { formula: i18nRef(`${NS}.formula.${step.op}`, { previous: step.previousExponent, exponent: step.exponent }), terms };
 }

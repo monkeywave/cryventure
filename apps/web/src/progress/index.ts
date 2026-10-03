@@ -7,3 +7,4 @@ export * from './lessonKey.ts';
 export * from './lens.ts';
 export * from './useProgress.ts';
 export * from './useLabLens.ts';
+export * from './documentLens.ts';

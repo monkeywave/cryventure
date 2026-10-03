@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { RegionSpec, StateStep } from './facets/state.ts';
-import { unwrittenAt } from './unwrittenAt.ts';
+import { firstWriteSteps, unwrittenAt } from './unwrittenAt.ts';
 
 type Region = 'input' | 'output' | 'fixed';
 const regions: RegionSpec<Region>[] = [
@@ -27,5 +27,35 @@ describe('unwrittenAt', () => {
   it('never lists regions whose initial values are meaningful', () => {
     expect(unwrittenAt({ regions, steps }, -1).has('fixed')).toBe(false);
     expect(unwrittenAt({ regions: [regions[2]!], steps }, -1).size).toBe(0);
+  });
+});
+
+describe('firstWriteSteps', () => {
+  it('gives each blank-region element the step that first writes it (Infinity = never)', () => {
+    const facet = { regions, steps: [...steps, step([{ region: 'input', offset: 1, values: [0] }])] };
+    const first = firstWriteSteps(facet);
+    expect(first.get('input')).toEqual([0, 0]);
+    expect(first.get('output')).toEqual([Infinity, 1, Infinity]);
+    expect(first.has('fixed')).toBe(false);
+  });
+
+  it('is computed once per facet', () => {
+    const facet = { regions, steps };
+    expect(firstWriteSteps(facet)).toBe(firstWriteSteps(facet));
+    expect(firstWriteSteps({ regions, steps })).not.toBe(firstWriteSteps(facet));
+  });
+});
+
+describe('unwrittenAt (cached)', () => {
+  it('agrees with a replay from step 0 at every step', () => {
+    const facet = { regions, steps };
+    const replay = (upto: number) => {
+      const written = new Set(steps.slice(0, upto + 1).flatMap((s) => s.writes.flatMap((w) => w.values.map((_, o) => `${w.region}:${w.offset + o}`))));
+      return { input: [0, 1].filter((i) => !written.has(`input:${i}`)), output: [0, 1, 2].filter((i) => !written.has(`output:${i}`)) };
+    };
+    for (let at = -1; at < steps.length + 1; at++) {
+      const unwritten = unwrittenAt(facet, at);
+      expect({ input: [...unwritten.get('input')!], output: [...unwritten.get('output')!] }).toEqual(replay(at));
+    }
   });
 });

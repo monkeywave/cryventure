@@ -1,14 +1,13 @@
-import { stateAt, unwrittenAt } from '@cryventure/core';
+import { stateAt, unwrittenAt, zeroSnapshot } from '@cryventure/core';
 import { describe, expect, it } from 'vitest';
 import en from './i18n/en.json';
 import de from './i18n/de.json';
-import { addressPosition, bigEndianBytes, bitRange, emptyEndianSnapshot, endianRegions, littleEndianBytes, recordEndian } from './endianTrace.ts';
+import { addressPosition, bitRange, endianRegions, littleEndianBytes, recordEndian } from './endianTrace.ts';
 
 const VALUE = [0x0a, 0x0b, 0x0c, 0x0d];
 
-describe('bigEndianBytes / littleEndianBytes', () => {
-  it('keeps the written order for big-endian and reverses it for little-endian', () => {
-    expect(bigEndianBytes(VALUE)).toEqual([0x0a, 0x0b, 0x0c, 0x0d]);
+describe('littleEndianBytes', () => {
+  it('reverses the written order without changing it', () => {
     expect(littleEndianBytes(VALUE)).toEqual([0x0d, 0x0c, 0x0b, 0x0a]);
     expect(VALUE).toEqual([0x0a, 0x0b, 0x0c, 0x0d]);
   });
@@ -21,13 +20,13 @@ describe('bitRange', () => {
   });
 });
 
-describe('endianRegions / emptyEndianSnapshot', () => {
+describe('endianRegions', () => {
   it('shows the value as a 1×n matrix and memory as one-byte cells labelled +0, +1, … on one line', () => {
     const [value, big, little] = endianRegions(4);
     expect(value).toMatchObject({ id: 'value', shape: [1, 4], layout: { kind: 'grid' } });
     expect(big).toMatchObject({ id: 'big', shape: [4], layout: { kind: 'words', wordBytes: 1, labelPrefix: '+', wordsPerGroup: 4 } });
     expect(little?.id).toBe('little');
-    expect(emptyEndianSnapshot(2)).toEqual({ value: [0, 0], big: [0, 0], little: [0, 0] });
+    expect(zeroSnapshot(endianRegions(2))).toEqual({ value: [0, 0], big: [0, 0], little: [0, 0] });
   });
 });
 

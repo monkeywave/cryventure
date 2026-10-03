@@ -1,5 +1,5 @@
 import { AES_POLYNOMIAL, braceHex, gmulSteps, highlight, i18nRef, type GmulBitStep, type MathContent, type MathTerm } from '@cryventure/core';
-import { gf256Recorder, NS, scopeLevels, setBits, term, write, type Gf256Recorder } from './trace.ts';
+import { gf256Recorder, NS, setBits, term, write, type Gf256Recorder } from './trace.ts';
 
 /**
  * a • b by shift-and-add over the bits of b (core's `gmulSteps`). Steps: load at the root scope,
@@ -8,7 +8,7 @@ import { gf256Recorder, NS, scopeLevels, setBits, term, write, type Gf256Recorde
  */
 export function recordGmul(a: number, b: number): { recorder: Gf256Recorder; result: number } {
   const explained = gmulSteps(a, b);
-  const recorder = gf256Recorder(['a', 'b', 'addend', 'acc'], scopeLevels('bit', 'part'));
+  const recorder = gf256Recorder(['a', 'b', 'addend', 'acc'], 'bit', 'part');
   const hex = { a: braceHex(explained.a), b: braceHex(explained.b) };
 
   recorder.step(
@@ -49,23 +49,25 @@ const addendLabel = (bit: number) => i18nRef(`${NS}.term.addend`, { bit });
 
 function xtimeInput(previous: GmulBitStep, current: GmulBitStep) {
   const params = { bit: current.bit, previous: braceHex(previous.addend), addend: braceHex(current.addend) };
+  const reduced = current.carry === 1;
   return {
     op: 'xtime' as const,
     writes: [write('addend', current.addend)],
-    highlights: [highlight('addend', current.reduced ? 'carry' : 'write')],
-    narration: i18nRef(`${NS}.step.gmul.${current.reduced ? 'xtimeReduce' : 'xtimeShift'}`, params),
+    highlights: [highlight('addend', reduced ? 'carry' : 'write')],
+    narration: i18nRef(`${NS}.step.gmul.${reduced ? 'xtimeReduce' : 'xtimeShift'}`, params),
   };
 }
 
 function xtimeMath(previous: GmulBitStep, current: GmulBitStep): MathContent {
   const shifted = previous.addend << 1;
+  const reduced = current.carry === 1;
   const terms: MathTerm[] = [
     term('addendPrevious', previous.addend, 8, 'operand', { label: addendLabel(previous.bit), bits: [7] }),
-    term('shifted', shifted, 9, 'intermediate', { op: 'shift', bits: [8] }),
-    ...(current.reduced ? [term('modulus', AES_POLYNOMIAL, 9, 'constant', { op: 'reduce', bits: [8] })] : []),
+    term('shifted', shifted, 9, 'intermediate', { op: 'shift', bits: [8], carryBit: 8 }),
+    ...(reduced ? [term('modulus', AES_POLYNOMIAL, 9, 'constant', { op: 'reduce', bits: [8] })] : []),
     term('addend', current.addend, 8, 'intermediate', { label: addendLabel(current.bit) }),
   ];
-  return { formula: i18nRef(`${NS}.formula.${current.reduced ? 'xtimeReduce' : 'xtimeShift'}`, { bit: current.bit }), terms };
+  return { formula: i18nRef(`${NS}.formula.${reduced ? 'xtimeReduce' : 'xtimeShift'}`, { bit: current.bit }), terms };
 }
 
 function addInput(step: GmulBitStep, accBefore: number) {

@@ -1,4 +1,4 @@
-import type { I18nRef, RegionSpec, ScopeLevel, Snapshot, StepInput, Tracer, Write } from '@cryventure/core';
+import { scopeLevels, zeroSnapshot, type I18nRef, type RegionSpec, type ScopeLevel, type Snapshot, type StepInput, type Tracer, type Write } from '@cryventure/core';
 import type { CellMove } from './ops.ts';
 import { BLOCK_BYTES, STATE_COLUMNS, STATE_ROWS } from './state.ts';
 import { WORDS_PER_ROUND_KEY } from './keyExpansion.ts';
@@ -28,11 +28,7 @@ export type AesOpName = AesOp['op'];
  * the op template `{{ordinal}}` (1-based); the player prefers the op's `opShort` label at the op level.
  * `nextKey`/`prevKey` are the full step-by-level button labels ("Next round", "Nächste Runde").
  */
-export const AES_SCOPE_LEVELS: ScopeLevel[] = ['round', 'op'].map((level) => ({
-  labelKey: `plugin.aes.scope.${level}`,
-  nextKey: `plugin.aes.scope.${level}Next`,
-  prevKey: `plugin.aes.scope.${level}Prev`,
-}));
+export const AES_SCOPE_LEVELS: ScopeLevel[] = scopeLevels('plugin.aes', 'round', 'op');
 
 export type AesStep = StepInput<AesRegion, AesOp>;
 export type AesTracer = Tracer<AesRegion, AesOp>;
@@ -74,11 +70,7 @@ export function aesRegions(rounds: number): RegionSpec<AesRegion>[] {
 
 /** All-zero initial snapshot matching `aesRegions(rounds)`. */
 export function emptySnapshot(rounds: number): Snapshot<AesRegion> {
-  return {
-    state: new Array<number>(BLOCK_BYTES).fill(0),
-    roundKey: new Array<number>(BLOCK_BYTES).fill(0),
-    w: new Array<number>(BLOCK_BYTES * (rounds + 1)).fill(0),
-  };
+  return zeroSnapshot(aesRegions(rounds));
 }
 
 function writeIdentity(write: Write<AesRegion>): string {

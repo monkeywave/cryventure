@@ -5,9 +5,8 @@
  * Without JavaScript the island's server output is still a readable question with a <details> answer.
  */
 import '../../styles/quiz.css';
-import { loadMessages, toLocale } from '../../i18n/loadMessages';
+import { loadMessages, pickPrefix, toLocale } from '../../i18n/loadMessages';
 import QuizQuestion from '../../islands/QuizQuestion.tsx';
-import { pickPrefix } from '../../labs/labMessages';
 import { lessonKeyFromPath } from '../../progress/index.ts';
 
 interface Props {

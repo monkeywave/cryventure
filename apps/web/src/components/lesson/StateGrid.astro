@@ -4,7 +4,7 @@
  * cells[r + 4c] = s[r,c], exactly like FIPS 197 §3.4 maps in[r + 4c] onto the 4×4 state).
  */
 import type { GridShape } from '@cryventure/viz';
-import { lessonTranslator } from './lessonTranslator';
+import { namespaceTranslator } from './namespaceTranslator';
 import { DEFAULT_LESSON_KIND, type LessonKind } from './lessonKinds';
 import { AES_STATE_ORDER, AES_STATE_SHAPE, range, stateGridRows, type GridOrder } from './stateGridLayout';
 
@@ -21,7 +21,7 @@ interface Props {
 const { cells, caption, kind = DEFAULT_LESSON_KIND, shape = AES_STATE_SHAPE, order = AES_STATE_ORDER } = Astro.props;
 const rows = stateGridRows(cells, shape, order);
 const columnIndices = range(shape[1]);
-const t = lessonTranslator(Astro.currentLocale);
+const t = namespaceTranslator(Astro.currentLocale, 'lesson');
 ---
 
 <figure class="cv-state-grid not-content" data-kind={kind}>

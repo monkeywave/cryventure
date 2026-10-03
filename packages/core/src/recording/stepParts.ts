@@ -1,4 +1,4 @@
-import type { MathOp, MathTerm, MathTermRole } from '../facets/math.ts';
+import type { MathTerm, MathTermRole } from '../facets/math.ts';
 import type { Highlight, HighlightKind } from '../facets/state.ts';
 import type { I18nRef } from '../i18n.ts';
 
@@ -11,13 +11,19 @@ export function highlight<R extends string>(region: R, kind: HighlightKind, indi
   return { region, indices: [...indices], kind };
 }
 
-export interface MathTermOptions {
-  op?: MathOp;
-  bits?: number[];
-}
+export type MathTermOptions = Pick<MathTerm, 'op' | 'bits' | 'carryBit'>;
 
-/** A math term; `op` and `bits` are only set when given (the facet omits absent optionals). */
+/** A math term; `op`, `bits` and `carryBit` are only set when given (the facet omits absent optionals). */
 export function mathTerm(id: string, label: I18nRef, value: number, width: number, role: MathTermRole, options: MathTermOptions = {}): MathTerm {
-  const { op, bits } = options;
-  return { id, label, value, width, role, ...(op === undefined ? {} : { op }), ...(bits === undefined ? {} : { bits }) };
+  const { op, bits, carryBit } = options;
+  return {
+    id,
+    label,
+    value,
+    width,
+    role,
+    ...(op === undefined ? {} : { op }),
+    ...(bits === undefined ? {} : { bits }),
+    ...(carryBit === undefined ? {} : { carryBit }),
+  };
 }

@@ -58,7 +58,6 @@
   "plugin.aes-sbox.term.output": "b' (so far)",
   "plugin.aes-sbox.term.sbox": "S(x)",
   "plugin.aes-sbox.table.title": "AES S-box (row = high nibble, column = low nibble)",
-  "plugin.aes-sbox.table.inputMark": "Input x",
   "plugin.aes-sbox.error.invalidParams": "Give the input byte as hex text.",
   "plugin.aes-sbox.error.byteLength": "The input has {{length}} bytes; it needs exactly 1."
 }

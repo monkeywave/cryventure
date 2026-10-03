@@ -1,58 +1,1316 @@
 {
-  "stepCount": 7,
+  "state": {
+    "kind": "state",
+    "schemaVersion": 1,
+    "regions": [
+      {
+        "id": "a",
+        "labelKey": "plugin.gf256.region.a",
+        "elem": "u8",
+        "shape": [1],
+        "layout": {
+          "kind": "grid"
+        },
+        "initial": "blank"
+      },
+      {
+        "id": "b",
+        "labelKey": "plugin.gf256.region.b",
+        "elem": "u8",
+        "shape": [1],
+        "layout": {
+          "kind": "grid"
+        },
+        "initial": "blank"
+      },
+      {
+        "id": "addend",
+        "labelKey": "plugin.gf256.region.addend",
+        "elem": "u8",
+        "shape": [1],
+        "layout": {
+          "kind": "grid"
+        },
+        "initial": "blank"
+      },
+      {
+        "id": "acc",
+        "labelKey": "plugin.gf256.region.acc",
+        "elem": "u8",
+        "shape": [1],
+        "layout": {
+          "kind": "grid"
+        },
+        "initial": "blank"
+      }
+    ],
+    "initial": {
+      "a": [0],
+      "b": [0],
+      "addend": [0],
+      "acc": [0]
+    },
+    "steps": [
+      {
+        "op": "load",
+        "writes": [
+          {
+            "region": "a",
+            "offset": 0,
+            "values": [87]
+          },
+          {
+            "region": "b",
+            "offset": 0,
+            "values": [131]
+          },
+          {
+            "region": "addend",
+            "offset": 0,
+            "values": [87]
+          },
+          {
+            "region": "acc",
+            "offset": 0,
+            "values": [0]
+          }
+        ],
+        "highlights": [
+          {
+            "region": "a",
+            "indices": [0],
+            "kind": "write"
+          },
+          {
+            "region": "b",
+            "indices": [0],
+            "kind": "write"
+          }
+        ],
+        "narration": {
+          "key": "plugin.gf256.step.gmul.load",
+          "params": {
+            "a": "{57}",
+            "b": "{83}"
+          }
+        },
+        "scope": []
+      },
+      {
+        "op": "add",
+        "writes": [
+          {
+            "region": "acc",
+            "offset": 0,
+            "values": [87]
+          }
+        ],
+        "highlights": [
+          {
+            "region": "b",
+            "indices": [0],
+            "kind": "read"
+          },
+          {
+            "region": "addend",
+            "indices": [0],
+            "kind": "read"
+          },
+          {
+            "region": "acc",
+            "indices": [0],
+            "kind": "xor"
+          }
+        ],
+        "narration": {
+          "key": "plugin.gf256.step.gmul.add",
+          "params": {
+            "bit": 0,
+            "addend": "{57}",
+            "acc": "{57}"
+          }
+        },
+        "scope": [0, 0]
+      },
+      {
+        "op": "xtime",
+        "writes": [
+          {
+            "region": "addend",
+            "offset": 0,
+            "values": [174]
+          }
+        ],
+        "highlights": [
+          {
+            "region": "addend",
+            "indices": [0],
+            "kind": "write"
+          }
+        ],
+        "narration": {
+          "key": "plugin.gf256.step.gmul.xtimeShift",
+          "params": {
+            "bit": 1,
+            "previous": "{57}",
+            "addend": "{ae}"
+          }
+        },
+        "scope": [1, 0]
+      },
+      {
+        "op": "add",
+        "writes": [
+          {
+            "region": "acc",
+            "offset": 0,
+            "values": [249]
+          }
+        ],
+        "highlights": [
+          {
+            "region": "b",
+            "indices": [0],
+            "kind": "read"
+          },
+          {
+            "region": "addend",
+            "indices": [0],
+            "kind": "read"
+          },
+          {
+            "region": "acc",
+            "indices": [0],
+            "kind": "xor"
+          }
+        ],
+        "narration": {
+          "key": "plugin.gf256.step.gmul.add",
+          "params": {
+            "bit": 1,
+            "addend": "{ae}",
+            "acc": "{f9}"
+          }
+        },
+        "scope": [1, 1]
+      },
+      {
+        "op": "xtime",
+        "writes": [
+          {
+            "region": "addend",
+            "offset": 0,
+            "values": [71]
+          }
+        ],
+        "highlights": [
+          {
+            "region": "addend",
+            "indices": [0],
+            "kind": "carry"
+          }
+        ],
+        "narration": {
+          "key": "plugin.gf256.step.gmul.xtimeReduce",
+          "params": {
+            "bit": 2,
+            "previous": "{ae}",
+            "addend": "{47}"
+          }
+        },
+        "scope": [2, 0]
+      },
+      {
+        "op": "skip",
+        "writes": [],
+        "highlights": [
+          {
+            "region": "b",
+            "indices": [0],
+            "kind": "read"
+          },
+          {
+            "region": "acc",
+            "indices": [0],
+            "kind": "read"
+          }
+        ],
+        "narration": {
+          "key": "plugin.gf256.step.gmul.skip",
+          "params": {
+            "bit": 2,
+            "acc": "{f9}"
+          }
+        },
+        "scope": [2, 1]
+      },
+      {
+        "op": "xtime",
+        "writes": [
+          {
+            "region": "addend",
+            "offset": 0,
+            "values": [142]
+          }
+        ],
+        "highlights": [
+          {
+            "region": "addend",
+            "indices": [0],
+            "kind": "write"
+          }
+        ],
+        "narration": {
+          "key": "plugin.gf256.step.gmul.xtimeShift",
+          "params": {
+            "bit": 3,
+            "previous": "{47}",
+            "addend": "{8e}"
+          }
+        },
+        "scope": [3, 0]
+      },
+      {
+        "op": "skip",
+        "writes": [],
+        "highlights": [
+          {
+            "region": "b",
+            "indices": [0],
+            "kind": "read"
+          },
+          {
+            "region": "acc",
+            "indices": [0],
+            "kind": "read"
+          }
+        ],
+        "narration": {
+          "key": "plugin.gf256.step.gmul.skip",
+          "params": {
+            "bit": 3,
+            "acc": "{f9}"
+          }
+        },
+        "scope": [3, 1]
+      },
+      {
+        "op": "xtime",
+        "writes": [
+          {
+            "region": "addend",
+            "offset": 0,
+            "values": [7]
+          }
+        ],
+        "highlights": [
+          {
+            "region": "addend",
+            "indices": [0],
+            "kind": "carry"
+          }
+        ],
+        "narration": {
+          "key": "plugin.gf256.step.gmul.xtimeReduce",
+          "params": {
+            "bit": 4,
+            "previous": "{8e}",
+            "addend": "{07}"
+          }
+        },
+        "scope": [4, 0]
+      },
+      {
+        "op": "skip",
+        "writes": [],
+        "highlights": [
+          {
+            "region": "b",
+            "indices": [0],
+            "kind": "read"
+          },
+          {
+            "region": "acc",
+            "indices": [0],
+            "kind": "read"
+          }
+        ],
+        "narration": {
+          "key": "plugin.gf256.step.gmul.skip",
+          "params": {
+            "bit": 4,
+            "acc": "{f9}"
+          }
+        },
+        "scope": [4, 1]
+      },
+      {
+        "op": "xtime",
+        "writes": [
+          {
+            "region": "addend",
+            "offset": 0,
+            "values": [14]
+          }
+        ],
+        "highlights": [
+          {
+            "region": "addend",
+            "indices": [0],
+            "kind": "write"
+          }
+        ],
+        "narration": {
+          "key": "plugin.gf256.step.gmul.xtimeShift",
+          "params": {
+            "bit": 5,
+            "previous": "{07}",
+            "addend": "{0e}"
+          }
+        },
+        "scope": [5, 0]
+      },
+      {
+        "op": "skip",
+        "writes": [],
+        "highlights": [
+          {
+            "region": "b",
+            "indices": [0],
+            "kind": "read"
+          },
+          {
+            "region": "acc",
+            "indices": [0],
+            "kind": "read"
+          }
+        ],
+        "narration": {
+          "key": "plugin.gf256.step.gmul.skip",
+          "params": {
+            "bit": 5,
+            "acc": "{f9}"
+          }
+        },
+        "scope": [5, 1]
+      },
+      {
+        "op": "xtime",
+        "writes": [
+          {
+            "region": "addend",
+            "offset": 0,
+            "values": [28]
+          }
+        ],
+        "highlights": [
+          {
+            "region": "addend",
+            "indices": [0],
+            "kind": "write"
+          }
+        ],
+        "narration": {
+          "key": "plugin.gf256.step.gmul.xtimeShift",
+          "params": {
+            "bit": 6,
+            "previous": "{0e}",
+            "addend": "{1c}"
+          }
+        },
+        "scope": [6, 0]
+      },
+      {
+        "op": "skip",
+        "writes": [],
+        "highlights": [
+          {
+            "region": "b",
+            "indices": [0],
+            "kind": "read"
+          },
+          {
+            "region": "acc",
+            "indices": [0],
+            "kind": "read"
+          }
+        ],
+        "narration": {
+          "key": "plugin.gf256.step.gmul.skip",
+          "params": {
+            "bit": 6,
+            "acc": "{f9}"
+          }
+        },
+        "scope": [6, 1]
+      },
+      {
+        "op": "xtime",
+        "writes": [
+          {
+            "region": "addend",
+            "offset": 0,
+            "values": [56]
+          }
+        ],
+        "highlights": [
+          {
+            "region": "addend",
+            "indices": [0],
+            "kind": "write"
+          }
+        ],
+        "narration": {
+          "key": "plugin.gf256.step.gmul.xtimeShift",
+          "params": {
+            "bit": 7,
+            "previous": "{1c}",
+            "addend": "{38}"
+          }
+        },
+        "scope": [7, 0]
+      },
+      {
+        "op": "add",
+        "writes": [
+          {
+            "region": "acc",
+            "offset": 0,
+            "values": [193]
+          }
+        ],
+        "highlights": [
+          {
+            "region": "b",
+            "indices": [0],
+            "kind": "read"
+          },
+          {
+            "region": "addend",
+            "indices": [0],
+            "kind": "read"
+          },
+          {
+            "region": "acc",
+            "indices": [0],
+            "kind": "xor"
+          }
+        ],
+        "narration": {
+          "key": "plugin.gf256.step.gmul.add",
+          "params": {
+            "bit": 7,
+            "addend": "{38}",
+            "acc": "{c1}"
+          }
+        },
+        "scope": [7, 1]
+      },
+      {
+        "op": "result",
+        "writes": [],
+        "highlights": [
+          {
+            "region": "acc",
+            "indices": [0],
+            "kind": "read"
+          }
+        ],
+        "narration": {
+          "key": "plugin.gf256.step.gmul.result",
+          "params": {
+            "a": "{57}",
+            "b": "{83}",
+            "result": "{c1}"
+          }
+        },
+        "scope": []
+      }
+    ],
+    "keyframes": [],
+    "scopeLevels": [
+      {
+        "labelKey": "plugin.gf256.scope.bit",
+        "nextKey": "plugin.gf256.scope.bitNext",
+        "prevKey": "plugin.gf256.scope.bitPrev"
+      },
+      {
+        "labelKey": "plugin.gf256.scope.part",
+        "nextKey": "plugin.gf256.scope.partNext",
+        "prevKey": "plugin.gf256.scope.partPrev"
+      }
+    ]
+  },
   "math": {
     "kind": "math",
     "schemaVersion": 1,
-    "notation": { "field": "gf2^8", "modulus": 283 },
+    "notation": {
+      "field": "gf2^8",
+      "modulus": 283
+    },
     "steps": [
       {
         "step": 0,
-        "formula": { "key": "plugin.gf256.formula.addIfBit", "params": { "i": 0 } },
+        "formula": {
+          "key": "plugin.gf256.formula.gmulLoad"
+        },
         "terms": [
-          { "id": "b", "label": { "key": "plugin.gf256.term.b" }, "value": 131, "width": 8, "role": "operand", "bits": [0] },
-          { "id": "a", "label": { "key": "plugin.gf256.term.a" }, "value": 87, "width": 8, "role": "operand", "op": "xor" },
-          { "id": "acc", "label": { "key": "plugin.gf256.term.acc" }, "value": 87, "width": 8, "role": "result", "op": "result" }
+          {
+            "id": "a",
+            "label": {
+              "key": "plugin.gf256.term.a"
+            },
+            "value": 87,
+            "width": 8,
+            "role": "operand"
+          },
+          {
+            "id": "b",
+            "label": {
+              "key": "plugin.gf256.term.b"
+            },
+            "value": 131,
+            "width": 8,
+            "role": "operand",
+            "bits": [0, 1, 7]
+          }
         ]
       },
       {
         "step": 1,
-        "formula": { "key": "plugin.gf256.formula.xtime" },
+        "formula": {
+          "key": "plugin.gf256.formula.add",
+          "params": {
+            "bit": 0
+          }
+        },
         "terms": [
-          { "id": "a", "label": { "key": "plugin.gf256.term.a" }, "value": 87, "width": 8, "role": "operand" },
-          { "id": "shifted", "label": { "key": "plugin.gf256.term.shifted" }, "value": 174, "width": 9, "role": "intermediate", "op": "xtime", "bits": [8] },
-          { "id": "next", "label": { "key": "plugin.gf256.term.a" }, "value": 174, "width": 8, "role": "result", "op": "result" }
+          {
+            "id": "b",
+            "label": {
+              "key": "plugin.gf256.term.b"
+            },
+            "value": 131,
+            "width": 8,
+            "role": "operand",
+            "bits": [0]
+          },
+          {
+            "id": "accPrevious",
+            "label": {
+              "key": "plugin.gf256.term.accPrevious"
+            },
+            "value": 0,
+            "width": 8,
+            "role": "intermediate"
+          },
+          {
+            "id": "addend",
+            "label": {
+              "key": "plugin.gf256.term.addend",
+              "params": {
+                "bit": 0
+              }
+            },
+            "value": 87,
+            "width": 8,
+            "role": "intermediate",
+            "op": "xor"
+          },
+          {
+            "id": "acc",
+            "label": {
+              "key": "plugin.gf256.term.acc"
+            },
+            "value": 87,
+            "width": 8,
+            "role": "intermediate"
+          }
         ]
       },
       {
         "step": 2,
-        "formula": { "key": "plugin.gf256.formula.addIfBit", "params": { "i": 1 } },
+        "formula": {
+          "key": "plugin.gf256.formula.xtimeShift",
+          "params": {
+            "bit": 1
+          }
+        },
         "terms": [
-          { "id": "b", "label": { "key": "plugin.gf256.term.b" }, "value": 131, "width": 8, "role": "operand", "bits": [1] },
-          { "id": "acc", "label": { "key": "plugin.gf256.term.acc" }, "value": 87, "width": 8, "role": "intermediate" },
-          { "id": "a", "label": { "key": "plugin.gf256.term.a" }, "value": 174, "width": 8, "role": "operand", "op": "xor" },
-          { "id": "sum", "label": { "key": "plugin.gf256.term.acc" }, "value": 249, "width": 8, "role": "result", "op": "result" }
+          {
+            "id": "addendPrevious",
+            "label": {
+              "key": "plugin.gf256.term.addend",
+              "params": {
+                "bit": 0
+              }
+            },
+            "value": 87,
+            "width": 8,
+            "role": "operand",
+            "bits": [7]
+          },
+          {
+            "id": "shifted",
+            "label": {
+              "key": "plugin.gf256.term.shifted"
+            },
+            "value": 174,
+            "width": 9,
+            "role": "intermediate",
+            "op": "shift",
+            "bits": [8],
+            "carryBit": 8
+          },
+          {
+            "id": "addend",
+            "label": {
+              "key": "plugin.gf256.term.addend",
+              "params": {
+                "bit": 1
+              }
+            },
+            "value": 174,
+            "width": 8,
+            "role": "intermediate"
+          }
         ]
       },
       {
         "step": 3,
-        "formula": { "key": "plugin.gf256.formula.xtimeReduce" },
+        "formula": {
+          "key": "plugin.gf256.formula.add",
+          "params": {
+            "bit": 1
+          }
+        },
         "terms": [
-          { "id": "a", "label": { "key": "plugin.gf256.term.a" }, "value": 174, "width": 8, "role": "operand" },
-          { "id": "shifted", "label": { "key": "plugin.gf256.term.shifted" }, "value": 348, "width": 9, "role": "carry", "op": "xtime", "bits": [8] },
-          { "id": "modulus", "label": { "key": "plugin.gf256.term.modulus" }, "value": 283, "width": 9, "role": "constant", "op": "reduce" },
-          { "id": "next", "label": { "key": "plugin.gf256.term.a" }, "value": 71, "width": 8, "role": "result", "op": "result" }
+          {
+            "id": "b",
+            "label": {
+              "key": "plugin.gf256.term.b"
+            },
+            "value": 131,
+            "width": 8,
+            "role": "operand",
+            "bits": [1]
+          },
+          {
+            "id": "accPrevious",
+            "label": {
+              "key": "plugin.gf256.term.accPrevious"
+            },
+            "value": 87,
+            "width": 8,
+            "role": "intermediate"
+          },
+          {
+            "id": "addend",
+            "label": {
+              "key": "plugin.gf256.term.addend",
+              "params": {
+                "bit": 1
+              }
+            },
+            "value": 174,
+            "width": 8,
+            "role": "intermediate",
+            "op": "xor"
+          },
+          {
+            "id": "acc",
+            "label": {
+              "key": "plugin.gf256.term.acc"
+            },
+            "value": 249,
+            "width": 8,
+            "role": "intermediate"
+          }
+        ]
+      },
+      {
+        "step": 4,
+        "formula": {
+          "key": "plugin.gf256.formula.xtimeReduce",
+          "params": {
+            "bit": 2
+          }
+        },
+        "terms": [
+          {
+            "id": "addendPrevious",
+            "label": {
+              "key": "plugin.gf256.term.addend",
+              "params": {
+                "bit": 1
+              }
+            },
+            "value": 174,
+            "width": 8,
+            "role": "operand",
+            "bits": [7]
+          },
+          {
+            "id": "shifted",
+            "label": {
+              "key": "plugin.gf256.term.shifted"
+            },
+            "value": 348,
+            "width": 9,
+            "role": "intermediate",
+            "op": "shift",
+            "bits": [8],
+            "carryBit": 8
+          },
+          {
+            "id": "modulus",
+            "label": {
+              "key": "plugin.gf256.term.modulus"
+            },
+            "value": 283,
+            "width": 9,
+            "role": "constant",
+            "op": "reduce",
+            "bits": [8]
+          },
+          {
+            "id": "addend",
+            "label": {
+              "key": "plugin.gf256.term.addend",
+              "params": {
+                "bit": 2
+              }
+            },
+            "value": 71,
+            "width": 8,
+            "role": "intermediate"
+          }
         ]
       },
       {
         "step": 5,
-        "formula": { "key": "plugin.gf256.formula.addIfBit", "params": { "i": 7 } },
+        "formula": {
+          "key": "plugin.gf256.formula.skip",
+          "params": {
+            "bit": 2
+          }
+        },
         "terms": [
-          { "id": "b", "label": { "key": "plugin.gf256.term.b" }, "value": 131, "width": 8, "role": "operand", "bits": [7] },
-          { "id": "acc", "label": { "key": "plugin.gf256.term.acc" }, "value": 249, "width": 8, "role": "intermediate" },
-          { "id": "a", "label": { "key": "plugin.gf256.term.a" }, "value": 56, "width": 8, "role": "operand", "op": "xor" },
-          { "id": "product", "label": { "key": "plugin.gf256.term.product" }, "value": 193, "width": 8, "role": "result", "op": "result" }
+          {
+            "id": "b",
+            "label": {
+              "key": "plugin.gf256.term.b"
+            },
+            "value": 131,
+            "width": 8,
+            "role": "operand",
+            "bits": [2]
+          },
+          {
+            "id": "acc",
+            "label": {
+              "key": "plugin.gf256.term.acc"
+            },
+            "value": 249,
+            "width": 8,
+            "role": "intermediate"
+          }
+        ]
+      },
+      {
+        "step": 6,
+        "formula": {
+          "key": "plugin.gf256.formula.xtimeShift",
+          "params": {
+            "bit": 3
+          }
+        },
+        "terms": [
+          {
+            "id": "addendPrevious",
+            "label": {
+              "key": "plugin.gf256.term.addend",
+              "params": {
+                "bit": 2
+              }
+            },
+            "value": 71,
+            "width": 8,
+            "role": "operand",
+            "bits": [7]
+          },
+          {
+            "id": "shifted",
+            "label": {
+              "key": "plugin.gf256.term.shifted"
+            },
+            "value": 142,
+            "width": 9,
+            "role": "intermediate",
+            "op": "shift",
+            "bits": [8],
+            "carryBit": 8
+          },
+          {
+            "id": "addend",
+            "label": {
+              "key": "plugin.gf256.term.addend",
+              "params": {
+                "bit": 3
+              }
+            },
+            "value": 142,
+            "width": 8,
+            "role": "intermediate"
+          }
+        ]
+      },
+      {
+        "step": 7,
+        "formula": {
+          "key": "plugin.gf256.formula.skip",
+          "params": {
+            "bit": 3
+          }
+        },
+        "terms": [
+          {
+            "id": "b",
+            "label": {
+              "key": "plugin.gf256.term.b"
+            },
+            "value": 131,
+            "width": 8,
+            "role": "operand",
+            "bits": [3]
+          },
+          {
+            "id": "acc",
+            "label": {
+              "key": "plugin.gf256.term.acc"
+            },
+            "value": 249,
+            "width": 8,
+            "role": "intermediate"
+          }
+        ]
+      },
+      {
+        "step": 8,
+        "formula": {
+          "key": "plugin.gf256.formula.xtimeReduce",
+          "params": {
+            "bit": 4
+          }
+        },
+        "terms": [
+          {
+            "id": "addendPrevious",
+            "label": {
+              "key": "plugin.gf256.term.addend",
+              "params": {
+                "bit": 3
+              }
+            },
+            "value": 142,
+            "width": 8,
+            "role": "operand",
+            "bits": [7]
+          },
+          {
+            "id": "shifted",
+            "label": {
+              "key": "plugin.gf256.term.shifted"
+            },
+            "value": 284,
+            "width": 9,
+            "role": "intermediate",
+            "op": "shift",
+            "bits": [8],
+            "carryBit": 8
+          },
+          {
+            "id": "modulus",
+            "label": {
+              "key": "plugin.gf256.term.modulus"
+            },
+            "value": 283,
+            "width": 9,
+            "role": "constant",
+            "op": "reduce",
+            "bits": [8]
+          },
+          {
+            "id": "addend",
+            "label": {
+              "key": "plugin.gf256.term.addend",
+              "params": {
+                "bit": 4
+              }
+            },
+            "value": 7,
+            "width": 8,
+            "role": "intermediate"
+          }
+        ]
+      },
+      {
+        "step": 9,
+        "formula": {
+          "key": "plugin.gf256.formula.skip",
+          "params": {
+            "bit": 4
+          }
+        },
+        "terms": [
+          {
+            "id": "b",
+            "label": {
+              "key": "plugin.gf256.term.b"
+            },
+            "value": 131,
+            "width": 8,
+            "role": "operand",
+            "bits": [4]
+          },
+          {
+            "id": "acc",
+            "label": {
+              "key": "plugin.gf256.term.acc"
+            },
+            "value": 249,
+            "width": 8,
+            "role": "intermediate"
+          }
+        ]
+      },
+      {
+        "step": 10,
+        "formula": {
+          "key": "plugin.gf256.formula.xtimeShift",
+          "params": {
+            "bit": 5
+          }
+        },
+        "terms": [
+          {
+            "id": "addendPrevious",
+            "label": {
+              "key": "plugin.gf256.term.addend",
+              "params": {
+                "bit": 4
+              }
+            },
+            "value": 7,
+            "width": 8,
+            "role": "operand",
+            "bits": [7]
+          },
+          {
+            "id": "shifted",
+            "label": {
+              "key": "plugin.gf256.term.shifted"
+            },
+            "value": 14,
+            "width": 9,
+            "role": "intermediate",
+            "op": "shift",
+            "bits": [8],
+            "carryBit": 8
+          },
+          {
+            "id": "addend",
+            "label": {
+              "key": "plugin.gf256.term.addend",
+              "params": {
+                "bit": 5
+              }
+            },
+            "value": 14,
+            "width": 8,
+            "role": "intermediate"
+          }
+        ]
+      },
+      {
+        "step": 11,
+        "formula": {
+          "key": "plugin.gf256.formula.skip",
+          "params": {
+            "bit": 5
+          }
+        },
+        "terms": [
+          {
+            "id": "b",
+            "label": {
+              "key": "plugin.gf256.term.b"
+            },
+            "value": 131,
+            "width": 8,
+            "role": "operand",
+            "bits": [5]
+          },
+          {
+            "id": "acc",
+            "label": {
+              "key": "plugin.gf256.term.acc"
+            },
+            "value": 249,
+            "width": 8,
+            "role": "intermediate"
+          }
+        ]
+      },
+      {
+        "step": 12,
+        "formula": {
+          "key": "plugin.gf256.formula.xtimeShift",
+          "params": {
+            "bit": 6
+          }
+        },
+        "terms": [
+          {
+            "id": "addendPrevious",
+            "label": {
+              "key": "plugin.gf256.term.addend",
+              "params": {
+                "bit": 5
+              }
+            },
+            "value": 14,
+            "width": 8,
+            "role": "operand",
+            "bits": [7]
+          },
+          {
+            "id": "shifted",
+            "label": {
+              "key": "plugin.gf256.term.shifted"
+            },
+            "value": 28,
+            "width": 9,
+            "role": "intermediate",
+            "op": "shift",
+            "bits": [8],
+            "carryBit": 8
+          },
+          {
+            "id": "addend",
+            "label": {
+              "key": "plugin.gf256.term.addend",
+              "params": {
+                "bit": 6
+              }
+            },
+            "value": 28,
+            "width": 8,
+            "role": "intermediate"
+          }
+        ]
+      },
+      {
+        "step": 13,
+        "formula": {
+          "key": "plugin.gf256.formula.skip",
+          "params": {
+            "bit": 6
+          }
+        },
+        "terms": [
+          {
+            "id": "b",
+            "label": {
+              "key": "plugin.gf256.term.b"
+            },
+            "value": 131,
+            "width": 8,
+            "role": "operand",
+            "bits": [6]
+          },
+          {
+            "id": "acc",
+            "label": {
+              "key": "plugin.gf256.term.acc"
+            },
+            "value": 249,
+            "width": 8,
+            "role": "intermediate"
+          }
+        ]
+      },
+      {
+        "step": 14,
+        "formula": {
+          "key": "plugin.gf256.formula.xtimeShift",
+          "params": {
+            "bit": 7
+          }
+        },
+        "terms": [
+          {
+            "id": "addendPrevious",
+            "label": {
+              "key": "plugin.gf256.term.addend",
+              "params": {
+                "bit": 6
+              }
+            },
+            "value": 28,
+            "width": 8,
+            "role": "operand",
+            "bits": [7]
+          },
+          {
+            "id": "shifted",
+            "label": {
+              "key": "plugin.gf256.term.shifted"
+            },
+            "value": 56,
+            "width": 9,
+            "role": "intermediate",
+            "op": "shift",
+            "bits": [8],
+            "carryBit": 8
+          },
+          {
+            "id": "addend",
+            "label": {
+              "key": "plugin.gf256.term.addend",
+              "params": {
+                "bit": 7
+              }
+            },
+            "value": 56,
+            "width": 8,
+            "role": "intermediate"
+          }
+        ]
+      },
+      {
+        "step": 15,
+        "formula": {
+          "key": "plugin.gf256.formula.add",
+          "params": {
+            "bit": 7
+          }
+        },
+        "terms": [
+          {
+            "id": "b",
+            "label": {
+              "key": "plugin.gf256.term.b"
+            },
+            "value": 131,
+            "width": 8,
+            "role": "operand",
+            "bits": [7]
+          },
+          {
+            "id": "accPrevious",
+            "label": {
+              "key": "plugin.gf256.term.accPrevious"
+            },
+            "value": 249,
+            "width": 8,
+            "role": "intermediate"
+          },
+          {
+            "id": "addend",
+            "label": {
+              "key": "plugin.gf256.term.addend",
+              "params": {
+                "bit": 7
+              }
+            },
+            "value": 56,
+            "width": 8,
+            "role": "intermediate",
+            "op": "xor"
+          },
+          {
+            "id": "acc",
+            "label": {
+              "key": "plugin.gf256.term.acc"
+            },
+            "value": 193,
+            "width": 8,
+            "role": "intermediate"
+          }
+        ]
+      },
+      {
+        "step": 16,
+        "formula": {
+          "key": "plugin.gf256.formula.gmulResult"
+        },
+        "terms": [
+          {
+            "id": "a",
+            "label": {
+              "key": "plugin.gf256.term.a"
+            },
+            "value": 87,
+            "width": 8,
+            "role": "operand"
+          },
+          {
+            "id": "b",
+            "label": {
+              "key": "plugin.gf256.term.b"
+            },
+            "value": 131,
+            "width": 8,
+            "role": "operand",
+            "op": "mul"
+          },
+          {
+            "id": "result",
+            "label": {
+              "key": "plugin.gf256.term.result"
+            },
+            "value": 193,
+            "width": 8,
+            "role": "result",
+            "op": "result"
+          }
         ]
       }
     ]
+  },
+  "labels": {
+    "en": {
+      "plugin.gf256.formula.add": "b bit {{bit}} = 1: acc ← acc ⊕ a • x^{{bit}}",
+      "plugin.gf256.formula.gmulLoad": "a • b = ⊕ a • xⁱ over all set bits i of b",
+      "plugin.gf256.formula.gmulResult": "a • b = acc",
+      "plugin.gf256.formula.skip": "b bit {{bit}} = 0: acc unchanged",
+      "plugin.gf256.formula.xtimeReduce": "a • x^{{bit}} = (a • x^({{bit}}−1) ≪ 1) ⊕ {11b}",
+      "plugin.gf256.formula.xtimeShift": "a • x^{{bit}} = a • x^({{bit}}−1) ≪ 1",
+      "plugin.gf256.term.a": "a",
+      "plugin.gf256.term.acc": "acc",
+      "plugin.gf256.term.accPrevious": "acc (before)",
+      "plugin.gf256.term.addend": "a • x^{{bit}}",
+      "plugin.gf256.term.b": "b",
+      "plugin.gf256.term.modulus": "Irreducible polynomial {11b}",
+      "plugin.gf256.term.result": "Result",
+      "plugin.gf256.term.shifted": "a ≪ 1"
+    },
+    "de": {
+      "plugin.gf256.formula.add": "Bit {{bit}} von b = 1: acc ← acc ⊕ a • x^{{bit}}",
+      "plugin.gf256.formula.gmulLoad": "a • b = ⊕ a • xⁱ über alle gesetzten Bits i von b",
+      "plugin.gf256.formula.gmulResult": "a • b = acc",
+      "plugin.gf256.formula.skip": "Bit {{bit}} von b = 0: acc bleibt unverändert",
+      "plugin.gf256.formula.xtimeReduce": "a • x^{{bit}} = (a • x^({{bit}}−1) ≪ 1) ⊕ {11b}",
+      "plugin.gf256.formula.xtimeShift": "a • x^{{bit}} = a • x^({{bit}}−1) ≪ 1",
+      "plugin.gf256.term.a": "a",
+      "plugin.gf256.term.acc": "acc",
+      "plugin.gf256.term.accPrevious": "acc (vorher)",
+      "plugin.gf256.term.addend": "a • x^{{bit}}",
+      "plugin.gf256.term.b": "b",
+      "plugin.gf256.term.modulus": "Irreduzibles Polynom {11b}",
+      "plugin.gf256.term.result": "Ergebnis",
+      "plugin.gf256.term.shifted": "a ≪ 1"
+    }
   }
 }

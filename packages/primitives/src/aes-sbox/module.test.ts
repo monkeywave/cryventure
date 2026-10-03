@@ -1,7 +1,7 @@
-import { getFacet, toHex, validateMathFacet, validateTableFacet, type MathFacet, type TableFacet, type TraceBundle, type ValuesFacet } from '@cryventure/core';
+import { getFacet, SBOX, toHex, validateMathFacet, validateTableFacet, type MathFacet, type TableFacet, type TraceBundle, type ValuesFacet } from '@cryventure/core';
 import { describe, expect, it } from 'vitest';
 import { AES_SBOX_PRESETS, aesSboxManifest, readByteHex, validateAesSboxParams } from './manifest.ts';
-import { buildSboxTable, run, SBOX_TABLE } from './module.ts';
+import { buildSboxTable, run } from './module.ts';
 import vectors from './vectors/fips197.json';
 
 const NS = 'plugin.aes-sbox';
@@ -29,7 +29,7 @@ describe('aes-sbox run against FIPS 197', () => {
 
   it('matches hardcoded FIPS 197 Table 4 entries', () => {
     const entries: [number, number][] = [[0x00, 0x63], [0x53, 0xed], [0x9a, 0xb8], [0xc9, 0xdd], [0xff, 0x16]];
-    for (const [x, s] of entries) expect(SBOX_TABLE[x]).toBe(s);
+    for (const [x, s] of entries) expect(SBOX[x]).toBe(s);
   });
 
   it('every preset produces the S-box entry named in its vector', () => {
@@ -49,7 +49,8 @@ describe('aes-sbox facets', () => {
     expect(validateMathFacet(math)).toEqual([]);
     expect(math.notation).toEqual({ field: 'gf2^8', modulus: 0x11b });
     expect(validateTableFacet(table)).toEqual([]);
-    expect(table).toMatchObject({ rows: 16, cols: 16, selected: 0x53, selectParam: 'byteHex', marks: [{ index: 0x53, role: 'input' }] });
+    expect(table).toMatchObject({ rows: 16, cols: 16, selected: 0x53, selectParam: 'byteHex' });
+    expect(table).not.toHaveProperty('marks');
   });
 
   it('labels the constant {63} with the constant role and the inverse once it is final', () => {
@@ -62,6 +63,7 @@ describe('aes-sbox facets', () => {
   it('buildSboxTable selects any index', () => {
     expect(buildSboxTable(0xff).selected).toBe(0xff);
     expect(buildSboxTable(0xff).entries).toHaveLength(256);
+    expect(buildSboxTable(0xff).entries).toBe(SBOX);
   });
 });
 

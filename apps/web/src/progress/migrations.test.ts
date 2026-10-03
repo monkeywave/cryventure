@@ -12,7 +12,7 @@ describe('migrate', () => {
   });
 
   it('validates a current-version record', () => {
-    const record = { version: 1, lens: 'cryptographer', lessons: { a: { quiz: { '1': { correct: false, solved: false, attempts: 1, lastAnswer: 3 } } } } };
+    const record = { version: 1, lens: 'cryptographer', lessons: { a: { quiz: { '1': { solved: false, lastAnswer: 3 } } } } };
     expect(migrate(record)).toEqual(record);
   });
 });

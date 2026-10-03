@@ -1,4 +1,4 @@
-import { definePrimitive, i18nRef, parseHex, toHex, type OpLabels, type ParamField, type Preset, type ValidationResult } from '@cryventure/core';
+import { definePrimitive, i18nRef, opLabels, parseHex, readOption, toHex, type ParamField, type Preset, type ValidationResult } from '@cryventure/core';
 
 /** Manifest for the byte-order (endianness) primitive. Imports core only; the implementation loads lazily. */
 export type EndianWidth = 'u16' | 'u32' | 'u64';
@@ -45,16 +45,9 @@ export const ENDIAN_OP_NAMES = ['split', 'storeBig', 'storeLittle', 'compare'] a
 export type EndianOpName = (typeof ENDIAN_OP_NAMES)[number];
 
 /** Labels of every op the module records (`StateStep.op`); the player and debugger show them. */
-export const ENDIAN_OPS = Object.fromEntries(
-  ENDIAN_OP_NAMES.map((op) => [op, { labelKey: `${NS}.op.${op}`, shortLabelKey: `${NS}.opShort.${op}` }]),
-) as Record<EndianOpName, OpLabels>;
+export const ENDIAN_OPS = opLabels(NS, ENDIAN_OP_NAMES);
 
 const INVALID_PARAMS = `${NS}.error.invalidParams`;
-
-function readWidth(input: unknown): EndianWidth | undefined {
-  if (input === undefined) return 'u32';
-  return ENDIAN_WIDTHS.find((width) => width === input);
-}
 
 /** Drops leading zero bytes, so `00001234` fits a u16 just like `1234`. */
 export function significantBytes(bytes: Uint8Array): Uint8Array {
@@ -73,7 +66,7 @@ export function padToWidth(bytes: Uint8Array, length: number): Uint8Array {
 export function validateEndianParams(params: unknown): ValidationResult<EndianParams> {
   if (typeof params !== 'object' || params === null) return { ok: false, error: i18nRef(INVALID_PARAMS) };
   const record = params as Record<string, unknown>;
-  const width = readWidth(record['width']);
+  const width = readOption(record['width'], ENDIAN_WIDTHS, 'u32');
   if (width === undefined) return { ok: false, error: i18nRef(`${NS}.error.width`, { width: String(record['width']) }) };
   const valueHex = record['valueHex'];
   if (typeof valueHex !== 'string') return { ok: false, error: i18nRef(INVALID_PARAMS) };

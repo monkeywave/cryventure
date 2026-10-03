@@ -1,4 +1,4 @@
-import { allIndices, byteToHex, i18nRef, RecordingTracer, type RegionSpec, type Snapshot, type StateFacet } from '@cryventure/core';
+import { allIndices, byteToHex, i18nRef, RecordingTracer, zeroSnapshot, type RegionSpec, type StateFacet } from '@cryventure/core';
 import type { XorOpName } from './manifest.ts';
 
 /** Trace vocabulary of the XOR producer: four byte rows and one op per lesson beat. */
@@ -17,12 +17,6 @@ export function xorRegions(length: number): RegionSpec<XorRegion>[] {
   return REGION_IDS.map((id) => ({ id, labelKey: `${NS}.region.${id}`, elem: 'u8', shape: [length], initial: 'blank' }));
 }
 
-/** All regions zeroed: nothing is loaded before the first step. */
-export function emptyXorSnapshot(length: number): Snapshot<XorRegion> {
-  const zeros = (): number[] => new Array<number>(length).fill(0);
-  return { message: zeros(), key: zeros(), result: zeros(), recovered: zeros() };
-}
-
 /** Byte-wise XOR of two equal-length rows. */
 export function xorRows(a: readonly number[], b: readonly number[]): number[] {
   return a.map((byte, index) => byte ^ (b[index] ?? 0));
@@ -39,7 +33,8 @@ function loadRow(tracer: XorTracer, op: 'loadMessage' | 'loadKey', region: 'mess
   });
 }
 
-function xorByte(tracer: XorTracer, index: number, message: number, key: number): void {
+/** Records one byte's XOR and returns it. */
+function xorByte(tracer: XorTracer, index: number, message: number, key: number): number {
   const result = message ^ key;
   tracer.step({
     op: 'xorByte',
@@ -51,6 +46,7 @@ function xorByte(tracer: XorTracer, index: number, message: number, key: number)
     ],
     narration: i18nRef(`${NS}.step.xorByte`, { index, message: byteToHex(message), key: byteToHex(key), result: byteToHex(result) }),
   });
+  return result;
 }
 
 function decrypt(tracer: XorTracer, result: number[], key: number[]): number[] {
@@ -77,12 +73,12 @@ export interface XorRecording {
 
 /** Records: load message, load key, one XOR step per byte, then decrypt with the same key. */
 export function recordXor(message: number[], key: number[]): XorRecording {
-  const tracer: XorTracer = new RecordingTracer<XorRegion, XorOp>(xorRegions(message.length), emptyXorSnapshot(message.length));
+  const regions = xorRegions(message.length);
+  const tracer: XorTracer = new RecordingTracer<XorRegion, XorOp>(regions, zeroSnapshot(regions));
   tracer.enter();
   loadRow(tracer, 'loadMessage', 'message', message);
   loadRow(tracer, 'loadKey', 'key', key);
-  message.forEach((byte, index) => xorByte(tracer, index, byte, key[index] ?? 0));
-  const result = xorRows(message, key);
+  const result = message.map((byte, index) => xorByte(tracer, index, byte, key[index] ?? 0));
   const recovered = decrypt(tracer, result, key);
   tracer.leave();
   return { facet: tracer.toFacet(), result, recovered };

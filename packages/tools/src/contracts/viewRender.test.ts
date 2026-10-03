@@ -6,7 +6,7 @@ import type { ViewComponent } from '@cryventure/viz';
 import { createFixtureBundle } from '@cryventure/viz/testing';
 import { beforeAll, describe, expect, it } from 'vitest';
 import { primitiveFixtureBundles, type NamedBundle } from './facetFixtures.ts';
-import { LENSES, RAW_KEY_PATTERN, labMessages, rawKeysIn, renderViewProblems, viewRenderCases } from './viewRender.ts';
+import { LENSES, RAW_KEY_PATTERN, labMessages, lensesToRender, rawKeysIn, renderViewProblems, viewRenderCases } from './viewRender.ts';
 
 const element = (html: string) => {
   const root = document.createElement('div');
@@ -45,6 +45,20 @@ describe('viewRenderCases', () => {
     expect(cases).toHaveLength(2 * LENSES.length * 3);
     expect(new Set(cases.map((renderCase) => renderCase.step))).toEqual(new Set([-1, 0, 2]));
     expect(new Set(cases.map((renderCase) => renderCase.locale))).toEqual(new Set(['en', 'de']));
+  });
+
+  it('renders only the given lenses', () => {
+    const cases = viewRenderCases(createFixtureBundle(), ['story']);
+    expect(cases).toHaveLength(2 * 3);
+    expect(cases.every((renderCase) => renderCase.lens === 'story')).toBe(true);
+  });
+});
+
+describe('lensesToRender', () => {
+  it('renders every lens for a lens-aware view, else one', () => {
+    expect(lensesToRender(['story'])).toEqual(LENSES);
+    expect(lensesToRender(undefined)).toEqual(['cryptographer']);
+    expect(lensesToRender([])).toEqual(['cryptographer']);
   });
 });
 

@@ -25,7 +25,7 @@ function sameIds(a: readonly string[], b: readonly string[]): boolean {
 }
 
 /** Never throws (private mode, quota, blocked storage); returns `undefined` when unavailable. */
-function safeStorage(): Storage | undefined {
+export function safeStorage(): Storage | undefined {
   try {
     return globalThis.localStorage ?? undefined;
   } catch {

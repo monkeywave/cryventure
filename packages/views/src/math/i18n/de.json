@@ -12,7 +12,6 @@
   "view.math.col.hex": "Hexwert",
   "view.math.col.polynomial": "Polynom",
   "view.math.op.xor": "XOR-verknüpfen",
-  "view.math.op.xtime": "xtime: um ein Bit nach links schieben (mit x multiplizieren)",
   "view.math.op.shift": "nach links schieben",
   "view.math.op.reduce": "modulo m(x) reduzieren",
   "view.math.op.mul": "in GF(2⁸) multiplizieren",

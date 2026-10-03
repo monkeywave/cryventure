@@ -13,6 +13,7 @@ import {
   type TraceBundle,
   type ValuesFacet,
 } from '@cryventure/core';
+import fc from 'fast-check';
 import { describe, expect, it } from 'vitest';
 import { GF256_PRESETS, gf256Manifest, readByteHex, validateGf256Params, type Gf256Op, type Gf256Params } from './manifest.ts';
 import { run } from './module.ts';
@@ -54,12 +55,19 @@ describe('gf256 run equals core arithmetic', () => {
     }
   });
 
-  it('gmul for every pair a, b', () => {
-    const mismatches: string[] = [];
-    for (const a of bytes)
-      for (const b of bytes) if (resultOf({ op: 'gmul', aHex: hex(a), bHex: hex(b) }) !== gmul(a, b)) mismatches.push(`${hex(a)}•${hex(b)}`);
-    expect(mismatches).toEqual([]);
-  }, 60_000);
+  // Exhaustively, gmulSteps = gmul for all 65,536 pairs (core); here run() on edge pairs and a sample.
+  it('gmul for every pair of edge bytes', () => {
+    const edges = [0x00, 0x01, 0x02, 0x1b, 0x57, 0x80, 0x83, 0xff];
+    for (const a of edges) for (const b of edges) expect(resultOf({ op: 'gmul', aHex: hex(a), bHex: hex(b) }), `${hex(a)}•${hex(b)}`).toBe(gmul(a, b));
+  });
+
+  it('gmul for sampled pairs a, b', () => {
+    const byte = fc.integer({ min: 0, max: 0xff });
+    fc.assert(
+      fc.property(byte, byte, (a, b) => resultOf({ op: 'gmul', aHex: hex(a), bHex: hex(b) }) === gmul(a, b)),
+      { numRuns: 256 },
+    );
+  });
 });
 
 describe('gf256 trace structure', () => {
@@ -75,6 +83,12 @@ describe('gf256 trace structure', () => {
       ['result', 0x47, 8],
     ]);
     expect(math(bundle).notation).toEqual({ field: 'gf2^8', modulus: 0x11b });
+  });
+
+  it('marks the carried-out bit 8 on shifted terms only (never on the modulus)', () => {
+    const carried = (bundle: TraceBundle) => math(bundle).steps.flatMap((step) => step.terms.filter((t) => t.carryBit !== undefined).map((t) => [t.id, t.op, t.carryBit]));
+    expect(carried(trace({ op: 'xtime', aHex: 'ae', bHex: '00' }))).toEqual([['shifted', 'shift', 8]]);
+    expect(carried(trace({ op: 'gmul', aHex: '57', bHex: '13' }))).toEqual(new Array(7).fill(['shifted', 'shift', 8]));
   });
 
   it('xtime without carry has no modulus term', () => {

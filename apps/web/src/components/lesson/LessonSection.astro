@@ -3,7 +3,7 @@
  * One of the six lesson parts (docs/PLAN.md §4). Renders a localized "Part n · Name" eyebrow;
  * the author writes the section's `##` heading and body inside the slot.
  */
-import { lessonTranslator } from './lessonTranslator';
+import { namespaceTranslator } from './namespaceTranslator';
 
 const LESSON_PARTS = ['concept', 'playground', 'inside', 'memory', 'break', 'check'] as const;
 type LessonPart = (typeof LESSON_PARTS)[number];
@@ -13,7 +13,7 @@ interface Props {
 }
 
 const { part } = Astro.props;
-const t = lessonTranslator(Astro.currentLocale);
+const t = namespaceTranslator(Astro.currentLocale, 'lesson');
 const number = LESSON_PARTS.indexOf(part) + 1;
 ---
 

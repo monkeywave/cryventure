@@ -17,24 +17,11 @@
 
 /*
  * Only the view scrolls sideways, and only when cells would drop below their minimum (very narrow
- * phones); edge shadows then show that more columns hide there (local covers hide them at either end).
+ * phones); the shared `.cv-scroll-shadow` utility (viz.css) shows that more columns hide there.
  */
 .cv-lookup-table__scroll {
   min-width: 0;
-  max-width: 100%;
-  overflow-x: auto;
   container-type: inline-size;
-  --cv-lookup-scroll-bg: var(--cv-surface, Canvas);
-  --cv-lookup-scroll-shadow: color-mix(in srgb, var(--cv-text, CanvasText) 35%, transparent);
-  background:
-    linear-gradient(to right, var(--cv-lookup-scroll-bg) 40%, transparent) left / 1.5rem 100%
-      no-repeat local,
-    linear-gradient(to left, var(--cv-lookup-scroll-bg) 40%, transparent) right / 1.5rem 100%
-      no-repeat local,
-    radial-gradient(farthest-side at 0 50%, var(--cv-lookup-scroll-shadow), transparent) left /
-      0.75rem 100% no-repeat scroll,
-    radial-gradient(farthest-side at 100% 50%, var(--cv-lookup-scroll-shadow), transparent) right /
-      0.75rem 100% no-repeat scroll;
 }
 
 /*
@@ -147,33 +134,6 @@
   color: var(--sl-color-text-invert, HighlightText);
   background: var(--sl-color-accent, Highlight);
   border: 2px solid var(--cv-text, CanvasText);
-}
-
-/* Marked cells: role accent + border style + corner glyph. */
-.cv-lookup-table__cell[data-marks] {
-  border-width: 2px;
-  border-color: var(--cv-constant, GrayText);
-}
-
-.cv-lookup-table__cell[data-marks~='input'] {
-  border-color: var(--cv-plaintext, CanvasText);
-}
-
-.cv-lookup-table__cell[data-marks~='output'] {
-  border-color: var(--cv-ciphertext, CanvasText);
-}
-
-.cv-lookup-table__cell[data-marks~='fixed-point'],
-.cv-lookup-table__cell[data-marks~='opposite-fixed-point'] {
-  border-style: dashed;
-}
-
-.cv-lookup-table__glyph {
-  position: absolute;
-  inset-block-start: 0;
-  inset-inline-end: 1px;
-  font-size: 0.6em;
-  line-height: 1;
 }
 
 .cv-lookup-table__caption {

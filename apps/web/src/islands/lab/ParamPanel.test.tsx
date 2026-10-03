@@ -78,6 +78,40 @@ describe('ParamPanel', () => {
     expect(screen.getByLabelText('Key (hex)')).toHaveProperty('value', draft);
   });
 
+  it('shows an external change after an own edit, even back to the value the field applied earlier', () => {
+    const onApply = vi.fn();
+    const panel = (params: LabParams) => (
+      <I18nProvider messages={labMessages('en', aes)}>
+        <ParamPanel producer={aes} params={params} onApply={onApply} />
+      </I18nProvider>
+    );
+    const defaults = aes.defaults as LabParams;
+    const { rerender } = render(panel(defaults));
+    const key = () => screen.getByLabelText('Key (hex)');
+    fireEvent.change(key(), { target: { value: 'AA'.repeat(16) } });
+    const own = onApply.mock.calls[0]?.[0] as LabParams;
+    rerender(panel(own));
+    rerender(panel({ ...defaults, keyHex: '00'.repeat(16) }));
+    expect(key()).toHaveProperty('value', '00'.repeat(16));
+    rerender(panel(own));
+    expect(key()).toHaveProperty('value', own.keyHex);
+  });
+
+  it('replaces an invalid draft and its error when the params change from outside', () => {
+    const panel = (params: LabParams) => (
+      <I18nProvider messages={labMessages('en', aes)}>
+        <ParamPanel producer={aes} params={params} onApply={vi.fn()} />
+      </I18nProvider>
+    );
+    const { rerender } = render(panel(aes.defaults as LabParams));
+    const key = () => screen.getByLabelText('Key (hex)');
+    fireEvent.change(key(), { target: { value: 'zz' } });
+    expect(key().getAttribute('aria-invalid')).toBe('true');
+    rerender(panel({ ...(aes.defaults as LabParams), keyHex: 'ff'.repeat(16) }));
+    expect(key()).toHaveProperty('value', 'ff'.repeat(16));
+    expect(key().getAttribute('aria-invalid')).toBe('false');
+  });
+
   it("shows a rejected view request's error, localized", () => {
     render(
       <I18nProvider messages={labMessages('en', aes)}>

@@ -6,7 +6,7 @@
  * Hidden blocks are `display: none`, so screen readers skip them too.
  */
 import { lensBlockOf } from './lensBlock';
-import { lensTranslator } from './lensTranslator';
+import { namespaceTranslator } from './namespaceTranslator';
 
 interface Props {
   level?: 'story' | 'engineer' | 'cryptographer';
@@ -14,7 +14,7 @@ interface Props {
 }
 
 const { match, lens } = lensBlockOf(Astro.props);
-const t = lensTranslator(Astro.currentLocale);
+const t = namespaceTranslator(Astro.currentLocale, 'lens');
 ---
 
 <div class="cv-lens" data-lens-match={match} data-lens-for={lens}>

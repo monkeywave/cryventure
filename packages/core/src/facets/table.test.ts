@@ -13,8 +13,8 @@ const table = (extra: Partial<TableFacet> = {}): TableFacet => ({
 });
 
 describe('validateTableFacet / assertValidTableFacet', () => {
-  it('accepts a well-formed table with selection and marks', () => {
-    const valid = table({ selected: 3, selectParam: 'x', marks: [{ index: 0, role: 'input', label: i18nRef('m') }] });
+  it('accepts a well-formed table with a selection', () => {
+    const valid = table({ selected: 3, selectParam: 'x' });
     expect(validateTableFacet(valid)).toEqual([]);
     expect(() => assertValidTableFacet(valid)).not.toThrow();
   });
@@ -29,9 +29,9 @@ describe('validateTableFacet / assertValidTableFacet', () => {
       'table: entry 3 = 1.5 is not a u8',
     ]);
   });
-  it('rejects out-of-range selection and marks and an empty selectParam', () => {
-    const bad = table({ selected: 4, selectParam: '', marks: [{ index: -1, role: 'output' }] });
-    expect(validateTableFacet(bad)).toEqual(['table: selected 4 outside 0..3', 'table: output mark -1 outside 0..3', 'table: selectParam is empty']);
+  it('rejects an out-of-range selection and an empty selectParam', () => {
+    const bad = table({ selected: 4, selectParam: '' });
+    expect(validateTableFacet(bad)).toEqual(['table: selected 4 outside 0..3', 'table: selectParam is empty']);
     expect(() => assertValidTableFacet(bad)).toThrow('table: selected 4 outside 0..3');
   });
 });

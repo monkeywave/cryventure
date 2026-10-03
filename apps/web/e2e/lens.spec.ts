@@ -49,6 +49,16 @@ test('a lab without a pinned lens follows the page lens live', async ({ page }) 
   await expect(lab).toHaveAttribute('data-lens', 'story');
 });
 
+test('after a reload, a lab starts from the stored page lens and the early lens script ships once', async ({ page }) => {
+  await page.goto(`en/${SBOX_PAGE}`);
+  await lensSelect(page).selectOption('story');
+  await page.reload();
+  const lab = await waitForLab(page, SBOX_LAB);
+  await expect(lab).toHaveAttribute('data-lens', 'story');
+  await expect(page.locator('script[data-storage-key]')).toHaveCount(1);
+  await expect(page.locator('head script[data-storage-key]')).toHaveCount(1);
+});
+
 test('the lens selector is in the mobile menu', async ({ page }) => {
   await page.setViewportSize(PHONE);
   await page.goto(`en/${SBOX_PAGE}`);

@@ -7,7 +7,7 @@ import { isIndex } from './validation.ts';
  */
 
 /** How a term enters the computation. */
-export type MathOp = 'xor' | 'xtime' | 'shift' | 'reduce' | 'mul' | 'square' | 'affine-bit' | 'result';
+export type MathOp = 'xor' | 'shift' | 'reduce' | 'mul' | 'square' | 'affine-bit' | 'result';
 
 export type MathTermRole = 'operand' | 'intermediate' | 'constant' | 'carry' | 'result';
 
@@ -24,6 +24,12 @@ export interface MathTerm {
   op?: MathOp;
   /** Emphasised bit positions, 0 = LSB. */
   bits?: number[];
+  /**
+   * Position of the bit a shift carried out of the byte (e.g. 8 of an unreduced `a << 1`), which
+   * views mark as the carry. Set by the producer; never inferred from `width` (the modulus {11b}
+   * has a bit 8 that nothing carried out). A term with role `carry` is a carry bit as a whole.
+   */
+  carryBit?: number;
 }
 
 export interface MathStep {
@@ -61,11 +67,12 @@ export function mathStepAt(facet: MathFacet, step: number): MathStep | undefined
 
 /** Problems of one term (`where` prefixes each message). */
 export function mathTermProblems(term: MathTerm, where: string): string[] {
-  const { width, value, bits = [] } = term;
+  const { width, value, bits = [], carryBit } = term;
   if (!Number.isInteger(width) || width < 1 || width > MAX_MATH_TERM_WIDTH) return [`${where}: width ${width} not in 1..${MAX_MATH_TERM_WIDTH}`];
   const problems: string[] = [];
   if (!isIndex(value, 2 ** width)) problems.push(`${where}: value ${value} is not an unsigned ${width}-bit integer`);
   for (const bit of bits) if (!isIndex(bit, width)) problems.push(`${where}: bit ${bit} outside 0..${width - 1}`);
+  if (carryBit !== undefined && !isIndex(carryBit, width)) problems.push(`${where}: carry bit ${carryBit} outside 0..${width - 1}`);
   return problems;
 }
 

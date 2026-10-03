@@ -1,4 +1,4 @@
-import { allIndices, byteToHex, i18nRef, RecordingTracer, toHex, type RegionSpec, type Snapshot, type StateFacet } from '@cryventure/core';
+import { allIndices, byteToHex, i18nRef, RecordingTracer, toHex, zeroSnapshot, type RegionSpec, type StateFacet } from '@cryventure/core';
 import type { EndianOpName } from './manifest.ts';
 
 /** Trace vocabulary of the endian producer: the written value and its two memory layouts. */
@@ -27,18 +27,10 @@ export function endianRegions(length: number): RegionSpec<EndianRegion>[] {
   return [{ id: 'value', labelKey: `${NS}.region.value`, elem: 'u8', shape: [1, length], order: 'row-major', layout: { kind: 'grid' }, initial: 'blank' }, memory('big'), memory('little')];
 }
 
-/** All regions zeroed: nothing is written before the first step. */
-export function emptyEndianSnapshot(length: number): Snapshot<EndianRegion> {
-  const zeros = (): number[] => new Array<number>(length).fill(0);
-  return { value: zeros(), big: zeros(), little: zeros() };
-}
-
-/** Big-endian layout: address +i holds the i-th most significant byte (identical to the written order). */
-export function bigEndianBytes(valueMsbFirst: readonly number[]): number[] {
-  return [...valueMsbFirst];
-}
-
-/** Little-endian layout: address +i holds the i-th least significant byte (the written order reversed). */
+/**
+ * Little-endian layout: address +i holds the i-th least significant byte (the written order reversed).
+ * The big-endian layout is the written order itself.
+ */
 export function littleEndianBytes(valueMsbFirst: readonly number[]): number[] {
   return [...valueMsbFirst].reverse();
 }
@@ -106,7 +98,7 @@ function compare(tracer: EndianTracer, value: number[]): void {
       { region: 'value', indices, kind: 'read' },
     ],
     narration: i18nRef(`${NS}.step.compare`, {
-      big: toHex(bigEndianBytes(value), { group: 1 }),
+      big: toHex(value, { group: 1 }),
       little: toHex(littleEndianBytes(value), { group: 1 }),
       msb: byteToHex(value[0] ?? 0),
       lsb: byteToHex(value[value.length - 1] ?? 0),
@@ -123,12 +115,13 @@ export interface EndianRecording {
 /** Records: split the value into bytes, store big-endian, store little-endian, compare at address +0. */
 export function recordEndian(value: number[]): EndianRecording {
   const length = value.length;
-  const tracer: EndianTracer = new RecordingTracer<EndianRegion, EndianOp>(endianRegions(length), emptyEndianSnapshot(length));
+  const regions = endianRegions(length);
+  const tracer: EndianTracer = new RecordingTracer<EndianRegion, EndianOp>(regions, zeroSnapshot(regions));
   tracer.enter();
   split(tracer, value);
   store(tracer, 'storeBig', value, (address) => address);
   store(tracer, 'storeLittle', value, (address) => length - 1 - address);
   compare(tracer, value);
   tracer.leave();
-  return { facet: tracer.toFacet(), bigEndian: bigEndianBytes(value), littleEndian: littleEndianBytes(value) };
+  return { facet: tracer.toFacet(), bigEndian: [...value], littleEndian: littleEndianBytes(value) };
 }

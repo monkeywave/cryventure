@@ -14,21 +14,21 @@ function storageEvent(key: string | null, newValue: string | null): StorageEvent
 }
 
 describe('nextQuizAnswer / withQuizAnswer', () => {
-  it('counts attempts and keeps the latest answer', () => {
+  it('keeps the latest answer and marks a correct one as solved', () => {
     const first = nextQuizAnswer(undefined, 2, false);
-    expect(first).toEqual({ correct: false, solved: false, attempts: 1, lastAnswer: 2 });
-    expect(nextQuizAnswer(first, 0, true)).toEqual({ correct: true, solved: true, attempts: 2, lastAnswer: 0 });
+    expect(first).toEqual({ solved: false, lastAnswer: 2 });
+    expect(nextQuizAnswer(first, 0, true)).toEqual({ solved: true, lastAnswer: 0 });
   });
 
   it('stays solved after a later wrong attempt', () => {
     const solved = nextQuizAnswer(undefined, 0, true);
-    expect(nextQuizAnswer(solved, 2, false)).toEqual({ correct: false, solved: true, attempts: 2, lastAnswer: 2 });
+    expect(nextQuizAnswer(solved, 2, false)).toEqual({ solved: true, lastAnswer: 2 });
   });
 
   it('adds the answer without mutating the input', () => {
     const before = emptyProgress();
     const after = withQuizAnswer(before, 'a/b', 3, 1, true);
-    expect(after.lessons['a/b']?.quiz['3']).toEqual({ correct: true, solved: true, attempts: 1, lastAnswer: 1 });
+    expect(after.lessons['a/b']?.quiz['3']).toEqual({ solved: true, lastAnswer: 1 });
     expect(before).toEqual(emptyProgress());
   });
 });
@@ -124,7 +124,7 @@ describe('default store actions', () => {
     const { recordQuizAnswer, getProgress } = await load();
     recordQuizAnswer('symmetric/aes/subbytes-sbox', 1, 2, false);
     recordQuizAnswer('symmetric/aes/subbytes-sbox', 1, 0, true);
-    const expected = { correct: true, solved: true, attempts: 2, lastAnswer: 0 };
+    const expected = { solved: true, lastAnswer: 0 };
     expect(getProgress().lessons['symmetric/aes/subbytes-sbox']?.quiz['1']).toEqual(expected);
     expect(stored()).toMatchObject({ lessons: { 'symmetric/aes/subbytes-sbox': { quiz: { '1': expected } } } });
   });

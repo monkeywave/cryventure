@@ -6,7 +6,7 @@ const progress: ProgressV1 = {
   version: 1,
   lens: 'cryptographer',
   prologue: { completedAt: '2026-10-02T10:00:00.000Z' },
-  lessons: { 'symmetric/aes/subbytes-sbox': { quiz: { '1': { correct: true, solved: true, attempts: 2, lastAnswer: 1 } } } },
+  lessons: { 'symmetric/aes/subbytes-sbox': { quiz: { '1': { solved: true, lastAnswer: 1 } } } },
 };
 
 describe('exportProgress', () => {

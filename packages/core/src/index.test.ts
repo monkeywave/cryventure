@@ -13,6 +13,8 @@ describe('public API', () => {
       'Registry', 'definePrimitive', 'defineView', 'defineDeriver', 'viewsFor', 'reachableFacetKinds',
       'inferHexFields', 'paramFieldsOf', 'paramFieldKeys', 'optionLabelKey',
       'allIndices', 'braceHex', 'AES_POLYNOMIAL', 'highlight', 'mathTerm', 'PairedRecorder',
+      'hexDigits', 'parseHexToArray', 'readOption', 'valueRef', 'bitOf', 'SBOX', 'INV_SBOX', 'buildSbox', 'buildInvSbox',
+      'ginvStepTerms', 'scopeLevels', 'opLabels', 'singleCellRegion', 'zeroSnapshot', 'runPrimitive',
     ];
     for (const name of expected) expect(core).toHaveProperty(name);
   });

@@ -61,7 +61,7 @@ test('progress page shows scores, exports, resets and imports', async ({ page })
   const [download] = await Promise.all([page.waitForEvent('download'), page.getByRole('button', { name: 'Export progress' }).click()]);
   expect(download.suggestedFilename()).toBe('cryventure-progress.json');
   const exported = await readFile(await download.path(), 'utf8');
-  expect(JSON.parse(exported)).toMatchObject({ format: 'cryventure-progress', version: 1, lessons: { 'symmetric/aes': { quiz: { 1: { correct: true, attempts: 2 } } } } });
+  expect(JSON.parse(exported)).toMatchObject({ format: 'cryventure-progress', version: 1, lessons: { 'symmetric/aes': { quiz: { 1: { solved: true, lastAnswer: 1 } } } } });
 
   await page.getByRole('button', { name: 'Reset progress' }).click();
   await page.getByRole('button', { name: 'Yes, reset' }).click();

@@ -61,11 +61,11 @@ export function createProgressStore(persistence: ProgressPersistence = defaultPe
 }
 
 /**
- * The learner's answer state after one more attempt: `correct` and `lastAnswer` reflect the latest
- * answer, while `solved` stays true once any attempt was correct.
+ * The learner's answer state after one more attempt: `lastAnswer` reflects the latest answer, while
+ * `solved` stays true once any attempt was correct.
  */
 export function nextQuizAnswer(previous: QuizAnswer | undefined, answerIndex: number, correct: boolean): QuizAnswer {
-  return { correct, solved: correct || previous?.solved === true, attempts: (previous?.attempts ?? 0) + 1, lastAnswer: answerIndex };
+  return { solved: correct || previous?.solved === true, lastAnswer: answerIndex };
 }
 
 export function withQuizAnswer(progress: ProgressV1, lessonKey: string, questionNumber: number, answerIndex: number, correct: boolean): ProgressV1 {

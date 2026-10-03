@@ -1,14 +1,12 @@
 import {
-  facetKey,
   narrationFromState,
-  parseHexOrThrow,
+  parseHexToArray,
   RecordingTracer,
-  valueId,
+  runPrimitive,
+  valueRef,
   type RunOptions,
   type RunResult,
   type StateFacet,
-  type TraceBundle,
-  type ValueRef,
   type ValueRole,
   type ValuesFacet,
 } from '@cryventure/core';
@@ -21,11 +19,6 @@ import { BLOCK_BYTES } from './state.ts';
 
 /** AES producer: runs the traced cipher and packages state/values/narration/derivation facets. */
 export type AesStateFacet = StateFacet<AesRegion, AesOp>;
-
-/** Decodes hex that validation has already accepted. */
-function validatedBytes(hex: string): number[] {
-  return Array.from(parseHexOrThrow(hex));
-}
 
 /**
  * For every round, the first step that loads a round key (encryption uses round key r in round r):
@@ -40,14 +33,10 @@ export function roundKeySteps(facet: AesStateFacet): Map<number, number> {
   return steps;
 }
 
-function valueRef(
-  scope: (number | string)[],
-  name: string,
-  role: ValueRole,
-  bytes: number[],
-  createdAt: number,
-): ValueRef {
-  return { id: valueId(scope, name), labelKey: `plugin.aes.value.${name}`, role, bytes, createdAt };
+const NS = 'plugin.aes';
+
+function aesValue(scope: number[], name: string, role: ValueRole, bytes: number[], createdAt: number) {
+  return valueRef(NS, name, role, bytes, createdAt, scope);
 }
 
 interface Encryption {
@@ -61,21 +50,21 @@ interface Encryption {
 
 function buildValues({ key, plaintext, ciphertext, schedule, facet, roundKeySteps: steps }: Encryption): ValuesFacet {
   const roundKeys = Array.from({ length: schedule.rounds + 1 }, (_, round) =>
-    valueRef([round], 'roundKey', 'subkey', roundKeyBytes(schedule.words, round), steps.get(round) ?? 0),
+    aesValue([round], 'roundKey', 'subkey', roundKeyBytes(schedule.words, round), steps.get(round) ?? 0),
   );
   const values = [
-    valueRef([], 'key', 'key', key, 0),
-    valueRef([], 'plaintext', 'plaintext', plaintext, 0),
+    aesValue([], 'key', 'key', key, 0),
+    aesValue([], 'plaintext', 'plaintext', plaintext, 0),
     ...roundKeys,
-    valueRef([], 'ciphertext', 'ciphertext', ciphertext, facet.steps.length - 1),
+    aesValue([], 'ciphertext', 'ciphertext', ciphertext, facet.steps.length - 1),
   ];
   return { kind: 'values', schemaVersion: 1, values };
 }
 
 /** Expands the key once and records the traced encryption with it. */
 function recordEncryption(params: AesParams): Encryption {
-  const key = validatedBytes(params.keyHex);
-  const plaintext = validatedBytes(params.plaintextHex);
+  const key = parseHexToArray(params.keyHex);
+  const plaintext = parseHexToArray(params.plaintextHex);
   const schedule = keySchedule(key);
   const tracer = new RecordingTracer<AesRegion, AesOp>(aesRegions(schedule.rounds), emptySnapshot(schedule.rounds));
   const ciphertext = encryptWithSchedule(schedule, plaintext, tracer, params.detail);
@@ -88,23 +77,18 @@ function recordEncryption(params: AesParams): Encryption {
  * the bundle always needs its own RecordingTracer to build the state facet.
  */
 export function run(params: AesParams, _options: RunOptions = {}): RunResult {
-  const validated = aesManifest.validate(params);
-  if (!validated.ok) return validated;
-  const encryption = recordEncryption(validated.value);
-  const trace: TraceBundle = {
-    schemaVersion: 1,
-    producer: { kind: 'primitive', id: 'aes', apiVersion: 1 },
-    provenance: 'modeled',
-    params: validated.value,
-    facets: {
-      [facetKey('state')]: encryption.facet,
-      [facetKey('values')]: buildValues(encryption),
-      [facetKey('narration')]: narrationFromState(encryption.facet),
-      [facetKey('derivation')]: keyScheduleDerivation(encryption.schedule, encryption.roundKeySteps),
-    },
-    output: { ciphertext: encryption.ciphertext },
-  };
-  return { ok: true, trace };
+  return runPrimitive(aesManifest, params, (validated) => {
+    const encryption = recordEncryption(validated);
+    return {
+      facets: {
+        state: encryption.facet,
+        values: buildValues(encryption),
+        narration: narrationFromState(encryption.facet),
+        derivation: keyScheduleDerivation(encryption.schedule, encryption.roundKeySteps),
+      },
+      output: { ciphertext: encryption.ciphertext },
+    };
+  });
 }
 
 /** Port metadata + untraced fast path, for future Mode combinators (ECB/CBC/CTR/GCM). */

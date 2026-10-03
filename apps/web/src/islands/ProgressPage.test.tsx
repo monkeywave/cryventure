@@ -13,7 +13,7 @@ const LESSONS = [
   { key: 'symmetric/aes/subbytes-sbox', title: 'SubBytes and the S-box', href: '/en/symmetric/aes/subbytes-sbox/', questionCount: 3 },
 ];
 
-const answer = (correct: boolean) => ({ correct, solved: correct, attempts: 1, lastAnswer: 0 });
+const answer = (correct: boolean) => ({ solved: correct, lastAnswer: 0 });
 const SAMPLE: ProgressV1 = { version: 1, lens: 'story', lessons: { 'symmetric/aes': { quiz: { 1: answer(true), 2: answer(true), 3: answer(false) } } } };
 
 const renderPage = (messages: Record<string, string> = en, locale = 'en') => render(<ProgressPage lessons={LESSONS} messages={messages} locale={locale} />);

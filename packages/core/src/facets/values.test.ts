@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { valueId } from './values.ts';
+import { valueId, valueRef } from './values.ts';
 
 describe('valueId', () => {
   it('joins the scope path and name', () => {
@@ -15,5 +15,15 @@ describe('valueId', () => {
   it('rejects empty names and names containing the separator', () => {
     expect(() => valueId([0], '')).toThrow(RangeError);
     expect(() => valueId([0], 'a/b')).toThrow(RangeError);
+  });
+});
+
+describe('valueRef', () => {
+  it('labels the value in the plugin namespace with a root-scope id by default', () => {
+    expect(valueRef('plugin.xor', 'key', 'key', [1, 2], 1)).toEqual({ id: 'key', labelKey: 'plugin.xor.value.key', role: 'key', bytes: [1, 2], createdAt: 1 });
+  });
+
+  it('derives the id from the scope path', () => {
+    expect(valueRef('plugin.aes', 'roundKey', 'subkey', [0], 4, [3]).id).toBe('3/roundKey');
   });
 });

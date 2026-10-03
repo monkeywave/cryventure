@@ -36,18 +36,29 @@ export function labMessages(locale: Locale, producerIds: readonly string[]): Mes
   return Object.assign({}, loadVizMessages(locale), loadViewMessages(locale), loadCoreMessages(locale), ...plugins);
 }
 
+/** The lens a view that declares no `lenses` is rendered in: the most detailed one. */
+const SINGLE_LENS: Lens = 'cryptographer';
+
+/**
+ * The lenses a view is rendered in: all of them when its manifest declares `lenses` (it adapts to
+ * the lens), else once, in the most detailed lens.
+ */
+export function lensesToRender(declared: readonly Lens[] | undefined): readonly Lens[] {
+  return declared !== undefined && declared.length > 0 ? LENSES : [SINGLE_LENS];
+}
+
 export interface ViewRenderCase {
   locale: Locale;
   lens: Lens;
   step: number;
 }
 
-/** Every locale × lens × representative step (first, middle, last) of `bundle`. */
-export function viewRenderCases(bundle: TraceBundle): ViewRenderCase[] {
+/** Every locale × lens (default: all) × representative step (first, middle, last) of `bundle`. */
+export function viewRenderCases(bundle: TraceBundle, lenses: readonly Lens[] = LENSES): ViewRenderCase[] {
   const store = createLabStore(bundle);
   store.getState().last();
   const steps = representativeSteps(store.getState().step);
-  return supportedLocales.flatMap((locale) => LENSES.flatMap((lens) => steps.map((step) => ({ locale, lens, step }))));
+  return supportedLocales.flatMap((locale) => lenses.flatMap((lens) => steps.map((step) => ({ locale, lens, step }))));
 }
 
 /** Renders `View` at one case and returns the raw keys it shows (rendering errors throw). */

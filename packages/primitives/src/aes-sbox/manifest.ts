@@ -1,4 +1,4 @@
-import { definePrimitive, i18nRef, parseHexOfLength, type HexOfLengthResult, type OpLabels, type ParamField, type Preset, type ValidationResult } from '@cryventure/core';
+import { definePrimitive, i18nRef, opLabels, parseHexOfLength, type HexOfLengthResult, type ParamField, type Preset, type ValidationResult } from '@cryventure/core';
 
 /** Manifest for the aes-sbox primitive (S-box derivation for one byte). Imports core only; the implementation loads lazily. */
 export interface AesSboxParams {
@@ -21,17 +21,11 @@ export const AES_SBOX_PRESETS: Preset<AesSboxParams>[] = [
 /** Inputs for the generic param panel (label/hint keys must exist in EN and DE; the contract kit checks). */
 export const AES_SBOX_PARAM_FIELDS: ParamField[] = [{ name: 'byteHex', kind: 'hex', labelKey: `${NS}.param.byte`, hintKey: `${NS}.param.byteHint` }];
 
-export type AesSboxOpName = 'load' | 'square' | 'multiply' | 'inverse' | 'affineBit' | 'result';
+export const AES_SBOX_OP_NAMES = ['load', 'square', 'multiply', 'inverse', 'affineBit', 'result'] as const;
+export type AesSboxOpName = (typeof AES_SBOX_OP_NAMES)[number];
 
 /** Labels of every op the module records (`StateStep.op`); the player and debugger show them. */
-export const AES_SBOX_OPS: Record<AesSboxOpName, OpLabels> = {
-  load: { labelKey: `${NS}.op.load`, shortLabelKey: `${NS}.opShort.load` },
-  square: { labelKey: `${NS}.op.square`, shortLabelKey: `${NS}.opShort.square` },
-  multiply: { labelKey: `${NS}.op.multiply`, shortLabelKey: `${NS}.opShort.multiply` },
-  inverse: { labelKey: `${NS}.op.inverse`, shortLabelKey: `${NS}.opShort.inverse` },
-  affineBit: { labelKey: `${NS}.op.affineBit`, shortLabelKey: `${NS}.opShort.affineBit` },
-  result: { labelKey: `${NS}.op.result`, shortLabelKey: `${NS}.opShort.result` },
-};
+export const AES_SBOX_OPS = opLabels(NS, AES_SBOX_OP_NAMES);
 
 /** Parses the one-byte input; non-strings and other lengths become plugin errors. */
 export function readByteHex(input: unknown): HexOfLengthResult {

@@ -1,4 +1,4 @@
-import { useEffect, useId, useRef, useState, type ChangeEvent, type ReactNode } from 'react';
+import { useId, useState, type ChangeEvent, type ReactNode } from 'react';
 import { paramFieldsOf, type I18nRef, type ParamField, type PrimitiveManifest } from '@cryventure/core';
 import { useT } from '@cryventure/viz';
 import type { LabParams } from '../../labs/labSession.ts';
@@ -69,27 +69,57 @@ function describedBy(id: string, field: ParamField): string {
   return hintKeyOf(field) === undefined ? `${id}-error` : `${id}-hint ${id}-error`;
 }
 
-/** Validates one edited field and applies it when valid; returns the error to show (or null). */
+/**
+ * Validates one edited field and applies it when valid. `error` is the message to show (or null);
+ * `edit` returns the applied params, or `undefined` when the text was rejected.
+ */
 function useFieldEdit({ producer, params, onApply, field }: FieldProps) {
   const [error, setError] = useState<I18nRef | null>(null);
-  const edit = (value: string) => {
+  const edit = (value: string): LabParams | undefined => {
     const result = editField(producer, params, field.name, value);
     setError(result.ok ? null : result.error);
-    if (result.ok) onApply(result.value);
+    if (!result.ok) return undefined;
+    onApply(result.value);
+    return result.value;
   };
-  return { error, edit };
+  return { error, edit, clearError: () => setError(null) };
+}
+
+/** What a text field shows, the param value it last saw, and the value its own last edit applied. */
+interface Draft {
+  text: string;
+  seen: unknown;
+  applied: unknown;
+}
+
+/**
+ * A text field's draft. When the param value changes to something the field did not apply itself (a
+ * preset, a view request), the draft shows it and any error clears; the learner's own edits keep
+ * their text and focus, also while their re-run is still pending.
+ */
+function useDraft(props: FieldProps) {
+  const value = props.params[props.field.name];
+  const [draft, setDraft] = useState<Draft>({ text: String(value ?? ''), seen: value, applied: value });
+  const { error, edit, clearError } = useFieldEdit(props);
+  if (!Object.is(draft.seen, value)) {
+    // Adjusting state while rendering (React's documented alternative to an effect) avoids a stale frame.
+    const own = Object.is(draft.applied, value);
+    setDraft(own ? { ...draft, seen: value } : { text: String(value ?? ''), seen: value, applied: value });
+    if (!own) clearError();
+  }
+  const change = (text: string) => {
+    const applied = edit(text);
+    setDraft({ ...draft, text, applied: applied === undefined ? draft.applied : applied[props.field.name] });
+  };
+  return { text: draft.text, error, change };
 }
 
 function HexField(props: FieldProps) {
   const t = useT();
   const id = useId();
-  const { field, params } = props;
-  const [text, setText] = useState(String(params[field.name] ?? ''));
-  const { error, edit } = useFieldEdit(props);
-  const change = (event: ChangeEvent<HTMLInputElement>) => {
-    setText(event.target.value);
-    edit(event.target.value);
-  };
+  const { field } = props;
+  const { text, error, change: changeText } = useDraft(props);
+  const change = (event: ChangeEvent<HTMLInputElement>) => changeText(event.target.value);
   return (
     <div className="cv-params__field cv-params__field--hex">
       <label htmlFor={id}>{t(field.labelKey)}</label>
@@ -121,27 +151,6 @@ function SelectField(props: FieldProps) {
 
 const FIELD_INPUTS = { hex: HexField, select: SelectField } satisfies Record<ParamField['kind'], (props: FieldProps) => ReactNode>;
 
-/**
- * Counts param changes the fields did not make themselves (a view's `requestParams`, a preset), so the
- * text fields can be re-keyed to show them; the fields' own edits keep their draft text and focus.
- */
-function useExternalParamsRevision(params: LabParams, onApply: (params: LabParams) => void) {
-  const [revision, setRevision] = useState(0);
-  // Every set the fields applied (not just the last): re-runs resolve after further typing.
-  const ownParams = useRef(new WeakSet<LabParams>());
-  const seenParams = useRef(params);
-  useEffect(() => {
-    if (params === seenParams.current) return;
-    seenParams.current = params;
-    if (!ownParams.current.has(params)) setRevision((current) => current + 1);
-  }, [params]);
-  const applyOwn = (next: LabParams) => {
-    ownParams.current.add(next);
-    onApply(next);
-  };
-  return { revision, applyOwn };
-}
-
 /** The panel-level error for a rejected view request (fields show their own errors). */
 function RequestError({ error }: { error: I18nRef | null | undefined }) {
   const t = useT();
@@ -155,21 +164,13 @@ function RequestError({ error }: { error: I18nRef | null | undefined }) {
 /** Preset picker plus one input per declared param field; invalid input shows a localized error and is not applied. */
 export function ParamPanel(props: ParamPanelProps) {
   const t = useT();
-  // Params changed from outside the fields (a view request) bump the revision so the text fields re-read them.
-  const { revision: externalRevision, applyOwn } = useExternalParamsRevision(props.params, props.onApply);
-  // Choosing a preset bumps the revision so the text fields re-read the new params.
-  const [revision, setRevision] = useState(0);
-  const applyPreset = (params: LabParams) => {
-    setRevision((current) => current + 1);
-    props.onApply(params);
-  };
   return (
     <fieldset className="cv-params">
       <legend>{t('ui.lab.params.title')}</legend>
-      <PresetSelect {...props} onApply={applyPreset} />
+      <PresetSelect {...props} />
       {paramFieldsOf(props.producer).map((field) => {
         const Input = FIELD_INPUTS[field.kind];
-        return <Input key={`${field.name}:${revision}:${externalRevision}`} field={field} {...props} onApply={applyOwn} />;
+        return <Input key={field.name} field={field} {...props} />;
       })}
       <RequestError error={props.requestError} />
     </fieldset>

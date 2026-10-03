@@ -19,7 +19,6 @@ const table: TableFacet = {
   rows: 1,
   cols: 2,
   entries: [0x63, 0x7c],
-  marks: [{ index: 0, role: 'input', label: i18nRef(`${ns}.mark.input`) }],
 };
 
 /** One state step, so the math step at index 0 has a state step to align with. */
@@ -38,7 +37,6 @@ const catalog = (prefix: string) => ({
   [`${ns}.region.a`]: `${prefix} region a`,
   [`${ns}.step.load`]: `${prefix} load`,
   [`${ns}.table.title`]: `${prefix} table`,
-  [`${ns}.mark.input`]: `${prefix} input`,
 });
 
 const manifest = definePrimitive<Record<string, never>>({

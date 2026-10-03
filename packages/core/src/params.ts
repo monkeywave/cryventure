@@ -50,3 +50,12 @@ export function paramFieldKeys(fields: readonly ParamField[]): string[] {
 export function optionLabelKey(field: ParamField, value: unknown): string | undefined {
   return field.options?.find((option) => option.value === value)?.labelKey;
 }
+
+/**
+ * Param validation for a closed set of string options: `input` if it is one of `allowed`, `fallback`
+ * when `input` is absent (`undefined`) and a fallback is given, else `undefined` (an invalid value).
+ */
+export function readOption<T extends string>(input: unknown, allowed: readonly T[], fallback?: T): T | undefined {
+  if (input === undefined) return fallback;
+  return allowed.find((option) => option === input);
+}

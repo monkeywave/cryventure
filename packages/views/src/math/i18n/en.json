@@ -12,7 +12,6 @@
   "view.math.col.hex": "Hex",
   "view.math.col.polynomial": "Polynomial",
   "view.math.op.xor": "XOR",
-  "view.math.op.xtime": "xtime: shift left by one bit (multiply by x)",
   "view.math.op.shift": "shift left",
   "view.math.op.reduce": "reduce modulo m(x)",
   "view.math.op.mul": "multiply in GF(2⁸)",

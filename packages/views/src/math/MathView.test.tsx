@@ -25,10 +25,13 @@ const bitLabels = (id: string) =>
     .queryAllByRole('img')
     .map((cell) => cell.getAttribute('aria-label'));
 
+const formula = () => document.querySelector('.cv-math__formula')?.textContent;
+
 describe('MathView', () => {
   it('shows the formula and a semantic table of terms at the playhead', () => {
-    render();
-    expect(screen.getByText('Bit 0 of b is 1: acc ← acc ⊕ a')).toBeTruthy();
+    const { store } = render();
+    act(() => store.getState().seek(1));
+    expect(formula()).toBe('b bit 0 = 1: acc ← acc ⊕ a • x⁰');
     const table = screen.getByRole('table', { name: english['view.math.terms'] });
     expect(
       within(table)
@@ -39,13 +42,14 @@ describe('MathView', () => {
       within(table)
         .getAllByRole('rowheader')
         .map((th) => th.textContent),
-    ).toEqual(['b', 'a', 'acc']);
-    expect(row('a').textContent).toContain('0x57');
-    expect(row('a').textContent).toContain('XOR');
+    ).toEqual(['b', 'acc (before)', 'a • x⁰', 'acc']);
+    expect(row('addend').textContent).toContain('0x57');
+    expect(row('addend').textContent).toContain('XOR');
   });
 
   it('labels each bit MSB → LSB and marks emphasised bits with a non-colour cue', () => {
-    render();
+    const { store } = render();
+    act(() => store.getState().seek(1));
     expect(bitLabels('b')).toEqual([
       'bit 7 = 1',
       'bit 6 = 0',
@@ -60,17 +64,20 @@ describe('MathView', () => {
   });
 
   it('follows the playhead and keeps the latest equation between math steps', () => {
-    const { store } = render();
-    act(() => store.getState().seek(3));
-    expect(screen.getByText('a ← xtime(a), reduced mod m(x)')).toBeTruthy();
+    const { store } = render('engineer', {
+      ...gmulMath,
+      steps: gmulMath.steps.filter((mathStep) => mathStep.step !== 5),
+    });
+    act(() => store.getState().seek(4));
+    expect(formula()).toBe('a • x² = (a • x²⁻¹ ≪ 1) ⊕ {11b}');
     expect(bitLabels('shifted')[0]).toBe('carry bit 8 = 1, highlighted');
     expect(row('shifted').querySelector('[data-carry]')).not.toBeNull();
     expect(row('modulus').textContent).toContain('0x11b');
     expect(row('modulus').querySelector('[data-carry]')).toBeNull();
-    act(() => store.getState().seek(4));
-    expect(screen.getByText('a ← xtime(a), reduced mod m(x)')).toBeTruthy();
     act(() => store.getState().seek(5));
-    expect(row('product').textContent).toContain('0xc1');
+    expect(formula()).toBe('a • x² = (a • x²⁻¹ ≪ 1) ⊕ {11b}');
+    act(() => store.getState().seek(gmulMath.steps.at(-1)!.step));
+    expect(row('result').textContent).toContain('0xc1');
   });
 
   it('story lens shows formula and hex only', () => {
@@ -98,7 +105,7 @@ describe('MathView', () => {
     act(() => store.getState().seek(-1));
     const preview = document.querySelector<HTMLElement>('[data-upcoming]')!;
     expect(within(preview).getByText(english['view.math.upcoming']!)).toBeTruthy();
-    expect(within(preview).getByText('Bit 0 of b is 1: acc ← acc ⊕ a')).toBeTruthy();
+    expect(within(preview).getByText(english['plugin.gf256.formula.gmulLoad']!)).toBeTruthy();
     expect(within(preview).getByRole('table')).toBeTruthy();
     expect(screen.queryByText(english['view.math.notYet']!)).toBeNull();
     act(() => store.getState().seek(0));
@@ -125,11 +132,11 @@ describe('MathView', () => {
   it('raises caret exponents in formulas and term labels', () => {
     render('engineer', gmulMath, {
       ...english,
-      'plugin.gf256.formula.addIfBit': 'acc ← acc ⊕ a·x^{{i}}, from a·x^({{i}}−1)',
+      'plugin.gf256.formula.gmulLoad': 'acc ← acc ⊕ a·x^7, from a·x^(7−1)',
       'plugin.gf256.term.a': 'a^254',
       'plugin.gf256.term.b': 'b^{k}',
     });
-    expect(screen.getByText('acc ← acc ⊕ a·x⁰, from a·x⁰⁻¹')).toBeTruthy();
+    expect(screen.getByText('acc ← acc ⊕ a·x⁷, from a·x⁷⁻¹')).toBeTruthy();
     expect(screen.getByRole('rowheader', { name: 'a²⁵⁴' })).toBeTruthy();
     const b = within(row('b')).getByRole('rowheader');
     expect(b.querySelector('sup')?.textContent).toBe('k');
@@ -142,7 +149,7 @@ describe('MathView', () => {
     expect(table.getAttribute('role')).toBe('table');
     expect(table.hasAttribute('data-polynomial')).toBe(true);
     expect(table.hasAttribute('data-bits')).toBe(true);
-    expect(within(table).getAllByRole('row')).toHaveLength(4);
+    expect(within(table).getAllByRole('row')).toHaveLength(3);
     expect(within(row('a')).getAllByRole('cell')).toHaveLength(4);
   });
 
@@ -150,18 +157,20 @@ describe('MathView', () => {
     render();
     const region = screen.getByRole('region', { name: english['view.math.terms'] });
     expect(region.tabIndex).toBe(0);
+    expect(region.classList.contains('cv-scroll-shadow')).toBe(true);
     expect(within(region).getByRole('table')).toBeTruthy();
   });
 
   it('renders in German', () => {
-    render('cryptographer', gmulMath, {
+    const { store } = render('cryptographer', gmulMath, {
       ...loadVizMessages('de'),
       ...loadViewMessages('de'),
       ...mathLabels.de,
     });
     expect(screen.getByRole('columnheader', { name: 'Polynom' })).toBeTruthy();
     expect(screen.getByText(/Der endliche Körper GF\(2⁸\)/)).toBeTruthy();
-    expect(row('a').textContent).toContain('XOR-verknüpfen');
+    act(() => store.getState().seek(1));
+    expect(row('addend').textContent).toContain('XOR-verknüpfen');
   });
 
   it('explains when the math facet is missing', () => {

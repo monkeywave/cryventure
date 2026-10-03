@@ -106,10 +106,9 @@ export function mathFacetRefs(facet: MathFacet): I18nRef[] {
   return uniqueRefs(facet.steps.flatMap((step) => [step.formula, ...step.terms.map((term) => term.label)]));
 }
 
-/** Every ref a table facet emits: its title and its mark labels. */
+/** Every ref a table facet emits: its title. */
 export function tableFacetRefs(facet: TableFacet): I18nRef[] {
-  const marks = (facet.marks ?? []).flatMap((mark) => (mark.label === undefined ? [] : [mark.label]));
-  return uniqueRefs([facet.title, ...marks]);
+  return [facet.title];
 }
 
 /** Param field names that are not keys of the manifest's `defaults`. */

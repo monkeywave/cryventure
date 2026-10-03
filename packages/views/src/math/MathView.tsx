@@ -75,7 +75,7 @@ function MathEquation({ mathStep, columns }: { mathStep: MathStep; columns: Lens
       <p className="cv-math__formula">
         <MathText text={t(mathStep.formula)} />
       </p>
-      <div className="cv-math__scroll" role="region" tabIndex={0} aria-label={t('view.math.terms')}>
+      <div className="cv-math__scroll cv-scroll-shadow" role="region" tabIndex={0} aria-label={t('view.math.terms')}>
         <table
           role="table"
           className="cv-math__table"

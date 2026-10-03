@@ -62,25 +62,9 @@
 }
 
 /*
- * Last resort when even the stacked table is too wide: it scrolls inside this focusable region, whose
- * edges show a shadow while more content hides there (local covers hide the shadows at either end).
+ * Last resort when even the stacked table is too wide: it scrolls inside this focusable region
+ * (edge shadows from the shared `.cv-scroll-shadow` utility in viz.css).
  */
-.cv-math__scroll {
-  max-width: 100%;
-  overflow-x: auto;
-  --cv-math-scroll-bg: var(--cv-surface, Canvas);
-  --cv-math-scroll-shadow: color-mix(in srgb, var(--cv-text, CanvasText) 35%, transparent);
-  background:
-    linear-gradient(to right, var(--cv-math-scroll-bg) 40%, transparent) left / 1.5rem 100%
-      no-repeat local,
-    linear-gradient(to left, var(--cv-math-scroll-bg) 40%, transparent) right / 1.5rem 100%
-      no-repeat local,
-    radial-gradient(farthest-side at 0 50%, var(--cv-math-scroll-shadow), transparent) left /
-      0.75rem 100% no-repeat scroll,
-    radial-gradient(farthest-side at 100% 50%, var(--cv-math-scroll-shadow), transparent) right /
-      0.75rem 100% no-repeat scroll;
-}
-
 .cv-math__scroll:focus-visible {
   outline: 2px solid var(--cv-cell-focus-border, Highlight);
   outline-offset: 2px;

@@ -15,6 +15,10 @@ describe('viewManifests', () => {
     expect(viewManifests.find((view) => view.id === 'state')?.narrowPlacement).toBeUndefined();
   });
 
+  it('declares every lens for the lens-dependent math view, so the contract kit renders all three', () => {
+    expect(viewManifests.find((view) => view.id === 'math')?.lenses).toEqual(['story', 'engineer', 'cryptographer']);
+  });
+
   it('is offered by core viewsFor according to available facets', () => {
     const coreViews = (available: string[]) => viewsFor([...viewManifests], available).map((view) => view.id).filter((id) => id === 'state' || id === 'narration');
     expect(coreViews(['state'])).toEqual(['state']);

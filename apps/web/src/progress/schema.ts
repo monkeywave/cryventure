@@ -5,12 +5,14 @@ export type { Lens };
 
 export const PROGRESS_VERSION = 1;
 
+/**
+ * Whether the latest answer was correct is derived from `lastAnswer` (see `questionStatus`), so it is
+ * not stored. Records written before this shape may still carry `correct` and `attempts`; the parser
+ * ignores them (deriving `solved` from `correct` when `solved` is missing).
+ */
 export interface QuizAnswer {
-  /** Whether the latest attempt was correct. */
-  correct: boolean;
   /** Answered correctly at least once; later wrong attempts keep it (the lesson score counts this). */
   solved: boolean;
-  attempts: number;
   /** Index of the option the learner picked last. */
   lastAnswer: number;
 }
@@ -42,9 +44,10 @@ function isCount(value: unknown): value is number {
 
 function parseQuizAnswer(value: unknown): QuizAnswer | undefined {
   if (!isRecord(value)) return undefined;
-  const { correct, solved, attempts, lastAnswer } = value;
-  if (typeof correct !== 'boolean' || !isCount(attempts) || !isCount(lastAnswer)) return undefined;
-  return { correct, solved: solved === true, attempts, lastAnswer };
+  const { solved, correct, lastAnswer } = value;
+  if (!isCount(lastAnswer)) return undefined;
+  // Early v1 records lack `solved`; their `correct` (latest attempt) is the best evidence available.
+  return { solved: typeof solved === 'boolean' ? solved : correct === true, lastAnswer };
 }
 
 /** Keeps only well-formed entries of a record; anything else becomes `{}`. */

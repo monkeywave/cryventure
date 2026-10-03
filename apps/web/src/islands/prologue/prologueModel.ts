@@ -22,8 +22,14 @@ export function previousScene(scene: SceneId): SceneId {
 /** What the island shows: the tour, the confirmation after choosing a lens, or a returning learner's welcome. */
 export type PrologueView = 'tour' | 'done' | 'welcomeBack';
 
-export function prologueView(state: { justChose: boolean; completed: boolean; replaying: boolean }): PrologueView {
-  if (state.justChose) return 'done';
-  if (state.completed && !state.replaying) return 'welcomeBack';
-  return 'tour';
+/**
+ * Where the learner is in this visit: `visit` (just arrived), `replay` (asked to see the tour again)
+ * or `done` (just chose a lens).
+ */
+export type PrologueSession = 'visit' | 'replay' | 'done';
+
+/** A fresh visit shows the tour, or the welcome when the prologue was completed before. */
+export function prologueView(session: PrologueSession, completed: boolean): PrologueView {
+  if (session === 'done') return 'done';
+  return session === 'visit' && completed ? 'welcomeBack' : 'tour';
 }

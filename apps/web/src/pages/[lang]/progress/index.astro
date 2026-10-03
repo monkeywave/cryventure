@@ -6,9 +6,8 @@
 import { getCollection } from 'astro:content';
 import StarlightPage from '@astrojs/starlight/components/StarlightPage.astro';
 import '../../../styles/quiz.css';
-import { loadMessages, supportedLocales, toLocale } from '../../../i18n/loadMessages';
+import { loadMessages, pickPrefix, supportedLocales, toLocale } from '../../../i18n/loadMessages';
 import ProgressPage from '../../../islands/ProgressPage.tsx';
-import { pickPrefix } from '../../../labs/labMessages';
 import { withBase } from '../../../lib/withBase';
 import { lessonKeyFromPath } from '../../../progress/index.ts';
 import { countCheckQuestions, type QuizLesson } from '../../../quiz/quizModel.ts';

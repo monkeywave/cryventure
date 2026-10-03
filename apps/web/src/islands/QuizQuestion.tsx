@@ -3,7 +3,7 @@ import type { Messages } from '@cryventure/core';
 import { I18nProvider, useT } from '@cryventure/viz';
 import { optionLetter } from '../quiz/quizModel.ts';
 import { QuizFeedback, QuizOption } from './quiz/QuizParts.tsx';
-import { useHydrated } from './quiz/useHydrated.ts';
+import { useHydrated } from './shared/useHydrated.ts';
 import { useQuizQuestion, type QuizQuestionState } from './quiz/useQuizQuestion.ts';
 
 export interface QuizQuestionProps {

@@ -1,6 +1,6 @@
 import fc from 'fast-check';
 import { describe, expect, it } from 'vitest';
-import { byteToHex, bytesEqual, parseHex, parseHexOfLength, parseHexOrThrow, toHex, xorBytes } from './bytes.ts';
+import { byteToHex, bytesEqual, hexDigits, parseHex, parseHexOfLength, parseHexOrThrow, parseHexToArray, toHex, xorBytes } from './bytes.ts';
 
 const bytesOf = (input: string): number[] => {
   const result = parseHex(input);
@@ -103,5 +103,24 @@ describe('parseHexOfLength', () => {
   });
   it('reports a wrong byte length with the wrongLength key', () => {
     expect(parseHexOfLength('00', [16, 32], keys)).toEqual({ ok: false, error: { key: 'x.length', params: { length: 1 } } });
+  });
+});
+
+describe('hexDigits', () => {
+  it('writes lowercase hex zero-padded to at least `digits` digits', () => {
+    expect(hexDigits(0x1b, 3)).toBe('01b');
+    expect(hexDigits(0xab, 2)).toBe('ab');
+    expect(hexDigits(0x11b, 2)).toBe('11b');
+    expect(hexDigits(0, 1)).toBe('0');
+  });
+});
+
+describe('parseHexToArray', () => {
+  it('returns the bytes of accepted hex as a plain array', () => {
+    expect(parseHexToArray('0a:FF')).toEqual([0x0a, 0xff]);
+  });
+
+  it('throws on hex that validation should have rejected', () => {
+    expect(() => parseHexToArray('0g')).toThrow('core.error.hexInvalidChar');
   });
 });

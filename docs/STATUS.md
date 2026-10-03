@@ -98,6 +98,15 @@ _Last updated: 2026-10-02 (M2 complete)._
 - View-contract renders skip axe (no vitest axe helper); axe runs in Playwright only.
 - Lookup-table touch cells are ~17px wide on a 390px phone (compact font chosen over scrolling).
 - `symmetric/aes/subbytes-sbox` concept section is over the 150-word limit (≈190 incl. the cryptographer Lens block).
+- **From the M2 /simplify review (deeper redesigns, not done):**
+  - `stateAt` could return `undefined` for never-written cells, replacing `RegionSpec.initial: 'blank'` +
+    `unwrittenAt` special-casing in motion/watch code.
+  - Let a facet carry narration/math for the initial state (step −1) so producers don't need synthetic `load`
+    steps and lessons don't need `startAt="op:load"`.
+  - Quiz answers are keyed by question number; reordering questions re-attaches old answers — add stable ids.
+  - `MathText` superscripts every `^n` in translated text; a param-level formatter would be safer.
+  - Pages with several labs embed the same `messages` JSON per island; one shared per-page blob would save ~15 KB.
+  - One quiz island per lesson instead of one per question.
 - Unused keys `lesson.check.reveal` / `lesson.check.answer` in `lesson.json` (left in place).
 
 ## Quality gates (all must be green before committing)

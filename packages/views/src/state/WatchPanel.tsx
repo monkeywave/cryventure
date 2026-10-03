@@ -20,7 +20,10 @@ function WatchItem({ entry, current, elem }: { entry: WatchEntry; current: boole
   );
 }
 
-/** Debugger watch: the selected node's value history (last changes, with step numbers) up to the playhead. */
+/**
+ * Debugger watch: the selected node's value history (last changes, with step numbers) up to the playhead;
+ * a blank cell not yet written says so instead of showing its placeholder.
+ */
 export function WatchPanel({ facet, node }: WatchPanelProps) {
   const t = useT();
   const step = useLab((state) => state.step);
@@ -37,6 +40,7 @@ export function WatchPanel({ facet, node }: WatchPanelProps) {
           {t('view.state.watch.clear')}
         </button>
       </p>
+      {history.length === 0 && <p className="cv-watch__hint">{t('ui.grid.unwritten')}</p>}
       <ol className="cv-watch__list">
         {history.map((entry, position) => (
           <WatchItem key={entry.step} entry={entry} current={position === history.length - 1} elem={region.elem} />

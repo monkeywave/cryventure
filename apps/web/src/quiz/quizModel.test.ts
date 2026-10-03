@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { emptyProgress, type ProgressV1 } from '../progress/index.ts';
 import { countCheckQuestions, lessonScore, lessonsWithProgress, optionLetter, questionStatus } from './quizModel.ts';
 
-const answer = (solved: boolean) => ({ correct: solved, solved, attempts: 1, lastAnswer: 0 });
+const answer = (solved: boolean) => ({ solved, lastAnswer: 0 });
 
 describe('optionLetter', () => {
   it('maps indices to letters', () => {
@@ -11,7 +11,7 @@ describe('optionLetter', () => {
 });
 
 describe('questionStatus', () => {
-  const stored = (lastAnswer: number, correct: boolean) => ({ correct, solved: correct, attempts: 1, lastAnswer });
+  const stored = (lastAnswer: number, correct: boolean) => ({ solved: correct, lastAnswer });
 
   it('distinguishes unanswered, correct and wrong', () => {
     expect(questionStatus(undefined, 1, 4)).toBe('unanswered');
@@ -35,7 +35,7 @@ describe('lessonScore', () => {
   });
 
   it('keeps the point of a question solved earlier even if the latest attempt was wrong', () => {
-    const retriedWrong = { correct: false, solved: true, attempts: 2, lastAnswer: 3 };
+    const retriedWrong = { solved: true, lastAnswer: 3 };
     expect(lessonScore({ quiz: { 1: retriedWrong } }, 2).correct).toBe(1);
   });
 

@@ -1,39 +1,52 @@
 // @vitest-environment jsdom
 import { act, cleanup, render, screen } from '@testing-library/react';
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { renderToString } from 'react-dom/server';
+import { afterEach, describe, expect, it } from 'vitest';
 import type { Lens } from '@cryventure/core';
+import { applyLensToDocument } from './lens.ts';
+import { useLabLens } from './useLabLens.ts';
 
-beforeEach(() => {
-  localStorage.clear();
-  vi.resetModules();
-});
 afterEach(() => {
   cleanup();
-  localStorage.clear();
+  delete document.documentElement.dataset.lens;
 });
 
-async function lensProbe() {
-  const { useLabLens } = await import('./useLabLens.ts');
-  const store = await import('./store.ts');
-  function LensProbe({ pinned }: { pinned?: Lens }) {
-    return <span data-testid="lens">{useLabLens(pinned)}</span>;
-  }
-  return { LensProbe, store };
+function LensProbe({ pinned }: { pinned?: Lens }) {
+  return <span data-testid="lens">{useLabLens(pinned)}</span>;
+}
+
+const shownLens = () => screen.getByTestId('lens').textContent;
+
+/** MutationObserver callbacks run as microtasks; flush them inside `act`. */
+async function setPageLens(lens: Lens): Promise<void> {
+  await act(async () => {
+    applyLensToDocument(lens);
+    await Promise.resolve();
+  });
 }
 
 describe('useLabLens', () => {
-  it('follows the page lens live and defaults to engineer', async () => {
-    const { LensProbe, store } = await lensProbe();
+  it('defaults to engineer while <html> carries no lens', () => {
     render(<LensProbe />);
-    expect(screen.getByTestId('lens').textContent).toBe('engineer');
-    act(() => store.setLens('cryptographer'));
-    expect(screen.getByTestId('lens').textContent).toBe('cryptographer');
+    expect(shownLens()).toBe('engineer');
+  });
+
+  it('starts from the lens the head script already set, and follows it live', async () => {
+    applyLensToDocument('story');
+    render(<LensProbe />);
+    expect(shownLens()).toBe('story');
+    await setPageLens('cryptographer');
+    expect(shownLens()).toBe('cryptographer');
   });
 
   it('keeps a pinned lens regardless of the page lens', async () => {
-    const { LensProbe, store } = await lensProbe();
     render(<LensProbe pinned="story" />);
-    act(() => store.setLens('cryptographer'));
-    expect(screen.getByTestId('lens').textContent).toBe('story');
+    await setPageLens('cryptographer');
+    expect(shownLens()).toBe('story');
+  });
+
+  it('renders the default lens on the server', () => {
+    applyLensToDocument('cryptographer');
+    expect(renderToString(<LensProbe />)).toContain('engineer');
   });
 });

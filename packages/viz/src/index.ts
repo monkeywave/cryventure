@@ -37,3 +37,4 @@ export type { ReactViewManifest, ViewComponent, ViewProps } from './workspace/vi
 export { Workspace, type WorkspaceProps } from './workspace/Workspace.tsx';
 export { ViewStatus, type ViewStatusKind, type ViewStatusProps } from './workspace/ViewStatus.tsx';
 export { ErrorBoundary, type ErrorBoundaryProps } from './workspace/ErrorBoundary.tsx';
+export { safeStorage } from './workspace/layoutStorage.ts';

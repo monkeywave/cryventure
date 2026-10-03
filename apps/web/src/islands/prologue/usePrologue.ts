@@ -2,7 +2,7 @@ import { useState } from 'react';
 import type { Lens } from '@cryventure/core';
 import { completePrologue, setLens, useProgress } from '../../progress/index.ts';
 import { clampNoteToBytes, noteToBytes, randomKey, type FillRandom } from './noteBytes.ts';
-import { CHOOSE_SCENE, FIRST_SCENE, nextScene, previousScene, prologueView, type PrologueView, type SceneId } from './prologueModel.ts';
+import { CHOOSE_SCENE, FIRST_SCENE, nextScene, previousScene, prologueView, type PrologueSession, type PrologueView, type SceneId } from './prologueModel.ts';
 
 export interface PrologueState {
   view: PrologueView;
@@ -70,8 +70,7 @@ export function usePrologue(defaultNote: string, fill?: FillRandom): PrologueSta
   const [scene, setScene] = useState<SceneId>(FIRST_SCENE);
   const noteAndKey = useNoteAndKey(defaultNote, fill);
   const { noteBytes, ensureKey } = noteAndKey;
-  const [replaying, setReplaying] = useState(false);
-  const [justChose, setJustChose] = useState(false);
+  const [session, setSession] = useState<PrologueSession>('visit');
   const { interacted, act } = useInteraction();
 
   const next = (): void => {
@@ -81,16 +80,15 @@ export function usePrologue(defaultNote: string, fill?: FillRandom): PrologueSta
   };
   const choose = (chosen: Lens): void => {
     finishWithLens(chosen);
-    setJustChose(true);
+    setSession('done');
   };
   const replay = (): void => {
-    setReplaying(true);
-    setJustChose(false);
+    setSession('replay');
     setScene(FIRST_SCENE);
   };
 
   return {
-    view: prologueView({ justChose, completed: completedAt !== undefined, replaying }),
+    view: prologueView(session, completedAt !== undefined),
     ...noteAndKey,
     scene,
     interacted,

@@ -1,8 +1,9 @@
 import {
   definePrimitive,
   i18nRef,
+  opLabels,
   parseHexOfLength,
-  type OpLabels,
+  readOption,
   type ParamField,
   type Preset,
   type ValidationResult,
@@ -19,7 +20,7 @@ export interface AesParams {
 
 const KEY_LENGTHS = [16, 24, 32];
 const BLOCK_LENGTH = 16;
-const DETAILS: readonly string[] = ['round', 'op'] satisfies AesDetail[];
+const DETAILS: readonly AesDetail[] = ['round', 'op'];
 const PLAINTEXT_C = '00112233445566778899aabbccddeeff';
 const KEY_256 = '000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f';
 
@@ -73,14 +74,7 @@ export const AES_OP_NAMES = [
   'round',
 ] as const;
 
-export const AES_OPS: Record<(typeof AES_OP_NAMES)[number], OpLabels> = Object.fromEntries(
-  AES_OP_NAMES.map((op) => [op, { labelKey: `${NS}.op.${op}`, shortLabelKey: `${NS}.opShort.${op}` }]),
-) as Record<(typeof AES_OP_NAMES)[number], OpLabels>;
-
-function readDetail(input: unknown): AesDetail | undefined {
-  if (input === undefined) return 'op';
-  return typeof input === 'string' && DETAILS.includes(input) ? (input as AesDetail) : undefined;
-}
+export const AES_OPS = opLabels(NS, AES_OP_NAMES);
 
 /** Validates and normalises params (hex lowercased, separators stripped, detail defaults to 'op'). */
 export function validateAesParams(params: unknown): ValidationResult<AesParams> {
@@ -91,7 +85,7 @@ export function validateAesParams(params: unknown): ValidationResult<AesParams> 
   if (!key.ok) return key;
   const plaintext = parseHexOfLength(record['plaintextHex'], [BLOCK_LENGTH], { invalidType: INVALID_PARAMS, wrongLength: `${NS}.error.plaintextLength` });
   if (!plaintext.ok) return plaintext;
-  const detail = readDetail(record['detail']);
+  const detail = readOption(record['detail'], DETAILS, 'op');
   if (detail === undefined)
     return {
       ok: false,

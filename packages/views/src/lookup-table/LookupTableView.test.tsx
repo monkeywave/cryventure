@@ -51,19 +51,13 @@ describe('LookupTableView', () => {
     expect(caption()).toBe('53 → ed');
   });
 
-  it('labels marks by role or producer label and shows a glyph', () => {
-    render(
-      sboxTable({
-        marks: [
-          { index: 0x53, role: 'input' },
-          { index: 0xed, role: 'output', label: { key: 'fixture.table.title' } },
-        ],
-      }),
+  it('labels the selected cell like any other, with no extra glyph', () => {
+    render(sboxTable({ selected: 0x53 }));
+    expect(cell(0x53).getAttribute('aria-label')).toBe('Input 53 → output ed');
+    expect(cell(0x53).textContent).toBe('ed');
+    expect(screen.getByRole('grid').parentElement!.classList.contains('cv-scroll-shadow')).toBe(
+      true,
     );
-    expect(cell(0x53).getAttribute('aria-label')).toBe('Input 53 → output ed (current input)');
-    expect(cell(0x53).getAttribute('data-marks')).toBe('input');
-    expect(cell(0x53).querySelector('.cv-lookup-table__glyph')?.textContent).toBe('▸');
-    expect(cell(0xed).getAttribute('aria-label')).toBe('Input ed → output 55 (S-box)');
   });
 
   it('requests the clicked input as a 2-digit hex param and shows it at once', async () => {

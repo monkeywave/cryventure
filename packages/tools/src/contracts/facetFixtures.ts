@@ -1,4 +1,4 @@
-import type { FacetKind, PrimitiveManifest, TraceBundle } from '@cryventure/core';
+import { availableFacetKinds, facetKey, getFacet, type FacetKind, type PrimitiveManifest, type TraceBundle } from '@cryventure/core';
 import { runOrThrow } from './primitiveContract.ts';
 
 /**
@@ -26,13 +26,13 @@ export async function primitiveFixtureBundles(manifests: readonly PrimitiveManif
 
 /** The facet kinds a bundle carries (any variant). */
 export function facetKindsOf(bundle: TraceBundle): Set<FacetKind> {
-  return new Set(Object.keys(bundle.facets).map((key) => key.slice(0, key.indexOf('@'))));
+  return new Set(availableFacetKinds(bundle));
 }
 
 /** The first facet of `kind` across the bundles (default variant), else the fallback. */
 function facetOfKind(kind: FacetKind, sources: readonly NamedBundle[], fallbacks: FallbackFacets): unknown {
   const source = sources.find(({ bundle }) => facetKindsOf(bundle).has(kind));
-  return source === undefined ? fallbacks[kind] : source.bundle.facets[`${kind}@default`];
+  return source === undefined ? fallbacks[kind] : getFacet(source.bundle, kind);
 }
 
 /** A bundle composed per facet kind, for views no single producer serves. */
@@ -41,7 +41,7 @@ function assembledBundle(kinds: readonly FacetKind[], sources: readonly NamedBun
   const missing = facets.filter(([, facet]) => facet === undefined).map(([kind]) => kind);
   if (missing.length > 0) return { ok: false, problem: `no fixture provides facet kind(s) ${missing.join(', ')}: emit them from a primitive or add a fallback in facetFixtures` };
   const base = sources[0]?.bundle ?? { schemaVersion: 1, producer: { kind: 'primitive', id: ASSEMBLED, apiVersion: 1 }, provenance: 'modeled', params: {}, output: {} };
-  const bundle: TraceBundle = { ...base, facets: Object.fromEntries(facets.map(([kind, facet]) => [`${kind}@default`, facet])) };
+  const bundle: TraceBundle = { ...base, facets: Object.fromEntries(facets.map(([kind, facet]) => [facetKey(kind), facet])) };
   return { ok: true, bundles: [{ name: ASSEMBLED, bundle }] };
 }
 

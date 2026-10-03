@@ -19,7 +19,7 @@ describe('mathStepAt', () => {
 
 describe('mathTermProblems', () => {
   it('accepts values that fit the width and in-range bits', () => {
-    expect(mathTermProblems(term('p', 0x1ff, 9, { bits: [0, 8] }), 't')).toEqual([]);
+    expect(mathTermProblems(term('p', 0x1ff, 9, { bits: [0, 8], carryBit: 8 }), 't')).toEqual([]);
     expect(mathTermProblems(term('w', 0xffffffff, 32), 't')).toEqual([]);
   });
   it('rejects bad widths, oversized or negative values and out-of-range bits', () => {
@@ -28,6 +28,7 @@ describe('mathTermProblems', () => {
     expect(mathTermProblems(term('a', 0x100), 't')).toEqual(['t: value 256 is not an unsigned 8-bit integer']);
     expect(mathTermProblems(term('a', -1), 't')).toEqual(['t: value -1 is not an unsigned 8-bit integer']);
     expect(mathTermProblems(term('c', 1, 1, { bits: [1] }), 't')).toEqual(['t: bit 1 outside 0..0']);
+    expect(mathTermProblems(term('s', 0xae, 8, { carryBit: 8 }), 't')).toEqual(['t: carry bit 8 outside 0..7']);
   });
 });
 

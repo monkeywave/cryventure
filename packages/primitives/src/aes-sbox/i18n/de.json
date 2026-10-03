@@ -58,7 +58,6 @@
   "plugin.aes-sbox.term.output": "b' (bisher)",
   "plugin.aes-sbox.term.sbox": "S(x)",
   "plugin.aes-sbox.table.title": "AES-S-Box (Zeile = oberes Halbbyte, Spalte = unteres Halbbyte)",
-  "plugin.aes-sbox.table.inputMark": "Eingabe x",
   "plugin.aes-sbox.error.invalidParams": "Gib das Eingabebyte als Hextext an.",
   "plugin.aes-sbox.error.byteLength": "Die Eingabe hat {{length}} Byte; sie braucht genau 1."
 }

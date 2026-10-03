@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { inferHexFields, optionLabelKey, paramFieldKeys, paramFieldsOf, type ParamField } from './params.ts';
+import { inferHexFields, optionLabelKey, paramFieldKeys, paramFieldsOf, readOption, type ParamField } from './params.ts';
 
 const detail: ParamField = {
   name: 'detail',
@@ -45,5 +45,21 @@ describe('optionLabelKey', () => {
   it('finds the option label for a value', () => {
     expect(optionLabelKey(detail, 'round')).toBe('plugin.x.param.detailOption.round');
     expect(optionLabelKey(detail, 'nope')).toBeUndefined();
+  });
+});
+
+describe('readOption', () => {
+  const sizes = ['u16', 'u32'] as const;
+
+  it('accepts only the allowed options', () => {
+    expect(readOption('u16', sizes)).toBe('u16');
+    expect(readOption('u8', sizes)).toBeUndefined();
+    expect(readOption(16, sizes)).toBeUndefined();
+    expect(readOption(null, sizes, 'u32')).toBeUndefined();
+  });
+
+  it('uses the fallback only for an absent value', () => {
+    expect(readOption(undefined, sizes, 'u32')).toBe('u32');
+    expect(readOption(undefined, sizes)).toBeUndefined();
   });
 });

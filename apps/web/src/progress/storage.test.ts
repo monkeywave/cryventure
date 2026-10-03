@@ -3,7 +3,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { emptyProgress, type ProgressV1 } from './schema.ts';
 import { loadProgress, parseStoredProgress, PROGRESS_STORAGE_KEY, saveProgress } from './storage.ts';
 
-const progress: ProgressV1 = { version: 1, lens: 'story', lessons: { a: { quiz: { '1': { correct: true, solved: true, attempts: 1, lastAnswer: 0 } } } } };
+const progress: ProgressV1 = { version: 1, lens: 'story', lessons: { a: { quiz: { '1': { solved: true, lastAnswer: 0 } } } } };
 
 afterEach(() => {
   vi.restoreAllMocks();
@@ -16,6 +16,11 @@ describe('parseStoredProgress', () => {
     expect(parseStoredProgress(null)).toEqual(emptyProgress());
     expect(parseStoredProgress('{oops')).toEqual(emptyProgress());
     expect(parseStoredProgress('"text"')).toEqual(emptyProgress());
+  });
+
+  it('reads a record stored by the first v1 release (correct/attempts, no solved)', () => {
+    const stored = JSON.stringify({ version: 1, lens: 'story', lessons: { a: { quiz: { '1': { correct: true, attempts: 2, lastAnswer: 0 } } } } });
+    expect(parseStoredProgress(stored)).toEqual(progress);
   });
 });
 

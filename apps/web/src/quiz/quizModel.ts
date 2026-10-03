@@ -14,8 +14,8 @@ export function isOptionIndex(index: number | undefined, optionCount: number): i
 }
 
 /**
- * Derived from the stored last answer against the question's actual answer (the stored `correct`
- * flag may be stale or hand-edited); a last answer outside the options counts as unanswered.
+ * Derived from the stored last answer against the question's actual answer (so a changed question
+ * or a hand-edited record cannot disagree); a last answer outside the options counts as unanswered.
  */
 export function questionStatus(stored: QuizAnswer | undefined, answer: number, optionCount: number): QuestionStatus {
   if (!isOptionIndex(stored?.lastAnswer, optionCount)) return 'unanswered';

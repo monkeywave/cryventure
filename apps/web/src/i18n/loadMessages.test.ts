@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import en from './en/ui.json';
 import de from './de/ui.json';
-import { isLocale, loadMessages, toLocale } from './loadMessages.ts';
+import { isLocale, loadMessages, pickPrefix, toLocale } from './loadMessages.ts';
 
 describe('toLocale / isLocale', () => {
   it('accepts supported locales and region variants', () => {
@@ -34,5 +34,11 @@ describe('loadMessages', () => {
   it('EN and DE dictionaries have identical, non-empty keys', () => {
     expect(Object.keys(de).sort()).toEqual(Object.keys(en).sort());
     for (const value of [...Object.values(en), ...Object.values(de)]) expect(value).not.toBe('');
+  });
+});
+
+describe('pickPrefix', () => {
+  it('keeps only keys under the prefix', () => {
+    expect(pickPrefix({ 'ui.lab.a': '1', 'ui.notFound.b': '2' }, 'ui.lab.')).toEqual({ 'ui.lab.a': '1' });
   });
 });

@@ -20,3 +20,8 @@ export function loadMessages(lang: string, namespaces: readonly string[]): Messa
   const locale = toLocale(lang);
   return Object.assign({}, ...namespaces.map((namespace) => dictionaryFor(locale, namespace)));
 }
+
+/** Keeps only the keys under `prefix` (e.g. `quiz.question.`), so an island gets just the strings it uses. */
+export function pickPrefix(messages: Messages, prefix: string): Messages {
+  return Object.fromEntries(Object.entries(messages).filter(([key]) => key.startsWith(prefix)));
+}

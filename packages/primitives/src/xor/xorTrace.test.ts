@@ -1,6 +1,6 @@
-import { stateAt, unwrittenAt } from '@cryventure/core';
+import { stateAt, unwrittenAt, zeroSnapshot } from '@cryventure/core';
 import { describe, expect, it } from 'vitest';
-import { emptyXorSnapshot, recordXor, xorRegions, xorRows } from './xorTrace.ts';
+import { recordXor, xorRegions, xorRows } from './xorTrace.ts';
 
 describe('xorRows', () => {
   it('XORs byte by byte and is its own inverse', () => {
@@ -11,7 +11,7 @@ describe('xorRows', () => {
   });
 });
 
-describe('xorRegions / emptyXorSnapshot', () => {
+describe('xorRegions', () => {
   it('declares four flat u8 rows of the message length, all zero initially', () => {
     expect(xorRegions(3).map((region) => [region.id, region.shape])).toEqual([
       ['message', [3]],
@@ -19,7 +19,7 @@ describe('xorRegions / emptyXorSnapshot', () => {
       ['result', [3]],
       ['recovered', [3]],
     ]);
-    expect(emptyXorSnapshot(2)).toEqual({ message: [0, 0], key: [0, 0], result: [0, 0], recovered: [0, 0] });
+    expect(zeroSnapshot(xorRegions(2))).toEqual({ message: [0, 0], key: [0, 0], result: [0, 0], recovered: [0, 0] });
   });
 });
 

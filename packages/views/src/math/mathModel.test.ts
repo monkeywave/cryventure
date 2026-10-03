@@ -10,21 +10,22 @@ describe('bitStrip', () => {
     expect(cells.some((cell) => cell.carry)).toBe(false);
   });
 
-  it('marks bit 8 of a shifted 9-bit product as the carry', () => {
-    const cells = bitStrip({ value: 0x15c, width: 9, role: 'intermediate', op: 'shift' });
+  it('marks the producer-declared carry bit (bit 8 of a shifted 9-bit product)', () => {
+    const cells = bitStrip({ value: 0x15c, width: 9, role: 'intermediate', op: 'shift', carryBit: 8 });
     expect(cells).toHaveLength(9);
     expect(cells[0]).toEqual({ position: 8, set: true, emphasised: false, carry: true });
     expect(cells.slice(1).some((cell) => cell.carry)).toBe(false);
   });
 
-  it('marks the top bit of an xtime product and every bit of a carry term', () => {
-    expect(bitStrip({ value: 0x15c, width: 9, role: 'carry', op: 'xtime' })[0]!.carry).toBe(true);
+  it('marks the top bit of a shifted product and every bit of a carry term', () => {
+    expect(bitStrip({ value: 0x15c, width: 9, role: 'carry', op: 'shift' })[0]!.carry).toBe(true);
     expect(bitStrip({ value: 1, width: 1, role: 'carry' })).toEqual([{ position: 0, set: true, emphasised: false, carry: true }]);
   });
 
   it('never marks the 9-bit modulus {11b} (or any other non-shifted 9-bit term) as a carry', () => {
     expect(bitStrip({ value: 0x11b, width: 9, role: 'constant', op: 'reduce' }).some((cell) => cell.carry)).toBe(false);
     expect(bitStrip({ value: 0x15c, width: 9, role: 'intermediate' }).some((cell) => cell.carry)).toBe(false);
+    expect(bitStrip({ value: 0x15c, width: 9, role: 'intermediate', op: 'shift' }).some((cell) => cell.carry)).toBe(false);
   });
 
   it('handles 32-bit values without sign problems', () => {

@@ -3,11 +3,13 @@ import {
   AFFINE_CONSTANT,
   braceHex,
   ginvSteps,
+  ginvStepTerms,
   highlight,
   i18nRef,
   mathTerm,
   PairedRecorder,
-  toHex,
+  scopeLevels,
+  singleCellRegion,
   type AffineBitStep,
   type GinvStep,
   type Highlight,
@@ -15,8 +17,6 @@ import {
   type MathFacet,
   type MathTerm,
   type MathTermOptions,
-  type RegionSpec,
-  type ScopeLevel,
   type StateFacet,
 } from '@cryventure/core';
 import type { AesSboxOpName } from './manifest.ts';
@@ -35,19 +35,8 @@ const BYTE_WIDTH = 8;
 /** Phases (outermost scope level): load, inversion, affine map. */
 export const PHASE = { load: 0, inversion: 1, affine: 2 } as const;
 
-export const SBOX_SCOPE_LEVELS: ScopeLevel[] = ['phase', 'op'].map((level) => ({
-  labelKey: `${NS}.scope.${level}`,
-  nextKey: `${NS}.scope.${level}Next`,
-  prevKey: `${NS}.scope.${level}Prev`,
-}));
-
-/** The affine constant is known up front; every other byte is a placeholder until a step computes it. */
-function byteRegion(id: SboxRegion): RegionSpec<SboxRegion> {
-  const spec: RegionSpec<SboxRegion> = { id, labelKey: `${NS}.region.${id}`, elem: 'u8', shape: [1], order: 'row-major', layout: { kind: 'grid' } };
-  return id === 'constant' ? spec : { ...spec, initial: 'blank' };
-}
-
-export const SBOX_REGIONS: RegionSpec<SboxRegion>[] = (['input', 'inverse', 'constant', 'output'] as const).map(byteRegion);
+/** One byte per region; the affine constant is known up front, every other byte is a placeholder until a step computes it. */
+const SBOX_REGIONS = (['input', 'inverse', 'constant', 'output'] as const).map((id) => singleCellRegion(NS, id, { order: 'row-major', blank: id !== 'constant' }));
 
 /** A byte term (`width` overrides 8 for a single bit). */
 function term(id: string, label: I18nRef, value: number, role: MathTerm['role'], { width = BYTE_WIDTH, ...options }: MathTermOptions & { width?: number } = {}): MathTerm {
@@ -67,19 +56,22 @@ interface SboxStep {
   terms: MathTerm[];
 }
 
-/** Wraps core's `PairedRecorder`: each `emit` is one op-level state step (own scope) plus its math step. */
-class SboxRecorder {
-  readonly paired = new PairedRecorder<SboxRegion, SboxOp>(SBOX_REGIONS, { input: [0], inverse: [0], constant: [AFFINE_CONSTANT], output: [0] }, SBOX_SCOPE_LEVELS);
+type SboxRecorder = PairedRecorder<SboxRegion, SboxOp>;
 
-  emit({ op, region, value, highlights, narration, formula, terms }: SboxStep): void {
-    this.paired.scopedStep({ op, writes: [{ region, offset: 0, values: [value] }], highlights, narration }, { formula, terms });
-  }
+function sboxRecorder(): SboxRecorder {
+  const initial = { input: [0], inverse: [0], constant: [AFFINE_CONSTANT], output: [0] };
+  return new PairedRecorder<SboxRegion, SboxOp>(SBOX_REGIONS, initial, scopeLevels(NS, 'phase', 'op'));
+}
 
-  phase(index: number, body: () => void): void {
-    this.paired.enter(index);
-    body();
-    this.paired.leave();
-  }
+/** One op-level state step (own scope) plus its math step. */
+function emit(recorder: SboxRecorder, { op, region, value, highlights, narration, formula, terms }: SboxStep): void {
+  recorder.scopedStep({ op, writes: [{ region, offset: 0, values: [value] }], highlights, narration }, { formula, terms });
+}
+
+function inPhase(recorder: SboxRecorder, index: number, body: () => void): void {
+  recorder.enter(index);
+  body();
+  recorder.leave();
 }
 
 function loadStep(x: number): SboxStep {
@@ -97,10 +89,7 @@ function loadStep(x: number): SboxStep {
 
 function powerStep(x: number, step: GinvStep): SboxStep {
   const isSquare = step.op === 'square';
-  const previousExp = isSquare ? step.exponent / 2 : step.exponent - 1;
-  const previous = term('previous', powerLabel(previousExp), step.left, 'operand', isSquare ? { op: 'square' } : {});
-  const factors = isSquare ? [previous] : [previous, xTerm(x, { op: 'mul' })];
-  const params = { exp: step.exponent, previous: previousExp };
+  const params = { exp: step.exponent, previous: step.previousExponent };
   return {
     op: isSquare ? 'square' : 'multiply',
     region: 'inverse',
@@ -108,7 +97,7 @@ function powerStep(x: number, step: GinvStep): SboxStep {
     highlights: isSquare ? [highlight('inverse', 'write')] : [highlight('input', 'read'), highlight('inverse', 'write')],
     narration: i18nRef(`${NS}.step.${step.op}`, { exp: step.exponent, value: braceHex(step.value) }),
     formula: i18nRef(`${NS}.math.${step.op}`, params),
-    terms: [...factors, term('power', powerLabel(step.exponent), step.value, 'intermediate')],
+    terms: ginvStepTerms(step, { previousId: 'previous', powerLabel, base: xTerm(x) }),
   };
 }
 
@@ -154,7 +143,7 @@ function affineBitStep(inverse: number, bitStep: AffineBitStep, partial: number)
 }
 
 function resultStep(x: number, inverse: number, sbox: number): SboxStep {
-  const params = { x: braceHex(x), s: braceHex(sbox), row: toHex([x >> 4]).slice(1), col: toHex([x & 0xf]).slice(1) };
+  const params = { x: braceHex(x), s: braceHex(sbox), row: (x >> 4).toString(16), col: (x & 0xf).toString(16) };
   return {
     op: 'result',
     region: 'output',
@@ -169,8 +158,8 @@ function resultStep(x: number, inverse: number, sbox: number): SboxStep {
 function recordInversion(recorder: SboxRecorder, x: number): number {
   const { steps, result } = ginvSteps(x);
   // x = 0 has no inverse: skip the (all-zero) powers and state the convention instead.
-  if (x !== 0) steps.forEach((step) => recorder.emit(powerStep(x, step)));
-  recorder.emit(inverseStep(x, result));
+  if (x !== 0) steps.forEach((step) => emit(recorder, powerStep(x, step)));
+  emit(recorder, inverseStep(x, result));
   return result;
 }
 
@@ -178,7 +167,7 @@ function recordAffine(recorder: SboxRecorder, inverse: number): number {
   let partial = 0;
   for (const bitStep of affineSteps(inverse)) {
     partial |= bitStep.result << bitStep.bit;
-    recorder.emit(affineBitStep(inverse, bitStep, partial));
+    emit(recorder, affineBitStep(inverse, bitStep, partial));
   }
   return partial;
 }
@@ -194,15 +183,15 @@ export interface SboxDerivation {
 
 /** Records the full derivation of S(x) in scopes [phase, op]. */
 export function recordSboxDerivation(x: number): SboxDerivation {
-  const recorder = new SboxRecorder();
+  const recorder = sboxRecorder();
   let inverse = 0;
   let sbox = 0;
-  recorder.phase(PHASE.load, () => recorder.emit(loadStep(x)));
-  recorder.phase(PHASE.inversion, () => (inverse = recordInversion(recorder, x)));
-  const inverseStep = recorder.paired.stepCount - 1;
-  recorder.phase(PHASE.affine, () => {
+  inPhase(recorder, PHASE.load, () => emit(recorder, loadStep(x)));
+  inPhase(recorder, PHASE.inversion, () => (inverse = recordInversion(recorder, x)));
+  const inverseStep = recorder.stepCount - 1;
+  inPhase(recorder, PHASE.affine, () => {
     sbox = recordAffine(recorder, inverse);
-    recorder.emit(resultStep(x, inverse, sbox));
+    emit(recorder, resultStep(x, inverse, sbox));
   });
-  return { state: recorder.paired.stateFacet(), math: recorder.paired.mathFacet(), inverse, sbox, inverseStep };
+  return { state: recorder.stateFacet(), math: recorder.mathFacet(), inverse, sbox, inverseStep };
 }

@@ -1,8 +1,8 @@
 ---
 /** Localized "interactive views coming soon" note for preview sections. */
-import { lessonTranslator } from './lessonTranslator';
+import { namespaceTranslator } from './namespaceTranslator';
 
-const t = lessonTranslator(Astro.currentLocale);
+const t = namespaceTranslator(Astro.currentLocale, 'lesson');
 ---
 
 <p class="cv-coming-soon not-content" role="note">

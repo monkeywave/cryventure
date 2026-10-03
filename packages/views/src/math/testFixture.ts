@@ -1,54 +1,32 @@
-import { RecordingTracer, type MathFacet, type Messages, type TraceBundle } from '@cryventure/core';
+import {
+  facetKey,
+  type AnyStateFacet,
+  type MathFacet,
+  type Messages,
+  type TraceBundle,
+} from '@cryventure/core';
+import { createFixtureBundle } from '@cryventure/viz/testing';
 import fixture from './fixtures/gmul-57-83.json';
 
 /**
- * Test-only: a hand-written slice of a GF(2⁸) multiplication {57} • {83} = {c1} (FIPS 197 §4.2),
- * shift-and-add style. Math steps sit at state steps 0, 1, 2, 3 and 5 (step 4 keeps step 3's
- * equation). Views may not import primitives, hence the JSON.
+ * Test-only: the state and math facets of the gf256 module's FIPS 197 §4.2 run {57} • {83} = {c1}
+ * (one math step per state step), plus the gf256 catalog entries they reference. Generated from
+ * `@cryventure/primitives` and kept fresh by a tools contract test (`mathViewFixture.test.ts`);
+ * views may not import primitives, hence the JSON snapshot.
  */
 export const gmulMath = fixture.math as MathFacet;
-export const gmulStepCount = fixture.stepCount;
+// JSON imports widen string unions (`kind`, `elem` …), hence the cast through `unknown`.
+const gmulState = fixture.state as unknown as AnyStateFacet;
 
-/** A bundle with the fixture math facet plus an empty-write state facet so the playhead can move. */
+/** The shared fixture bundle with the gf256 run's state facet and `math` (default: the run's). */
 export function mathBundle(math: MathFacet = gmulMath): TraceBundle {
-  const tracer = new RecordingTracer<'s', { op: 'tick' }>(
-    [{ id: 's', labelKey: 'fixture.region.s', elem: 'u8', shape: [1] }],
-    { s: [0] },
-  );
-  for (let i = 0; i < gmulStepCount; i++)
-    tracer.step({ op: 'tick', writes: [], highlights: [], narration: { key: 'fixture.tick' } });
+  const bundle = createFixtureBundle();
   return {
-    schemaVersion: 1,
+    ...bundle,
     producer: { kind: 'primitive', id: 'gf256', apiVersion: 1 },
-    provenance: 'modeled',
-    params: {},
-    facets: { 'state@default': tracer.toFacet(), 'math@default': math },
-    output: {},
+    facets: { [facetKey('state')]: gmulState, [facetKey('math')]: math },
   };
 }
 
-/** Producer labels the view renders (normally from the gf256 plugin catalog). */
-export const mathLabels: Record<'en' | 'de', Messages> = {
-  en: {
-    'plugin.gf256.formula.addIfBit': 'Bit {{i}} of b is 1: acc ← acc ⊕ a',
-    'plugin.gf256.formula.xtime': 'a ← xtime(a) = a · x',
-    'plugin.gf256.formula.xtimeReduce': 'a ← xtime(a), reduced mod m(x)',
-    'plugin.gf256.term.a': 'a',
-    'plugin.gf256.term.b': 'b',
-    'plugin.gf256.term.acc': 'acc',
-    'plugin.gf256.term.shifted': 'a ≪ 1',
-    'plugin.gf256.term.modulus': 'm(x)',
-    'plugin.gf256.term.product': 'a • b',
-  },
-  de: {
-    'plugin.gf256.formula.addIfBit': 'Bit {{i}} von b ist 1: acc ← acc ⊕ a',
-    'plugin.gf256.formula.xtime': 'a ← xtime(a) = a · x',
-    'plugin.gf256.formula.xtimeReduce': 'a ← xtime(a), reduziert mod m(x)',
-    'plugin.gf256.term.a': 'a',
-    'plugin.gf256.term.b': 'b',
-    'plugin.gf256.term.acc': 'acc',
-    'plugin.gf256.term.shifted': 'a ≪ 1',
-    'plugin.gf256.term.modulus': 'm(x)',
-    'plugin.gf256.term.product': 'a • b',
-  },
-};
+/** Producer labels the view renders (the gf256 catalog entries the math facet references). */
+export const mathLabels: Record<'en' | 'de', Messages> = fixture.labels;

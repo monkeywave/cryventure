@@ -134,6 +134,19 @@ describe('StateView watch', () => {
     expect(within(panel).getAllByRole('listitem').map((item) => item.textContent)).toEqual(['step start: 0x10', 'step 3: 0xff']);
   });
 
+  it('starts a blank cell\'s watch at its first write, not at the placeholder', () => {
+    const bundle = createFixtureBundle();
+    const state = bundle.facets['state@default'] as AnyStateFacet;
+    bundle.facets['state@default'] = { ...state, regions: state.regions.map((region) => (region.id === 'state' ? { ...region, initial: 'blank' as const } : region)) };
+    const { store } = renderState(bundle);
+    act(() => store.getState().selectNode({ region: 'state', index: 0 }));
+    const panel = screen.getByRole('region', { name: 'Watching State[0]' });
+    expect(within(panel).queryAllByRole('listitem')).toHaveLength(0);
+    expect(within(panel).getByText('not yet written')).toBeTruthy();
+    act(() => store.getState().seek(1));
+    expect(within(panel).getAllByRole('listitem').map((item) => item.textContent)).toEqual(['step 1: 0x10', 'step 2: 0xaa']);
+  });
+
   it('hides the watch area in story mode', () => {
     const { store } = renderState();
     act(() => store.getState().selectNode({ region: 'state', index: 0 }));

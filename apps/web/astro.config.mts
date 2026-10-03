@@ -46,6 +46,7 @@ export default defineConfig({
       disable404Route: true,
       customCss: ['./src/styles/global.css'],
       components: {
+        Head: './src/overrides/Head.astro',
         LanguageSelect: './src/overrides/LanguageSelect.astro',
         ThemeSelect: './src/overrides/ThemeSelect.astro',
       },

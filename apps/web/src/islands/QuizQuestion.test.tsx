@@ -51,13 +51,13 @@ describe('QuizQuestion', () => {
     await userEvent.click(button('Check'));
     expect(feedback().textContent).toContain('Not quite');
     expect(option(/^C.*wrong/).checked).toBe(true);
-    expect(getProgress().lessons[LESSON]?.quiz['2']).toEqual({ correct: false, solved: false, attempts: 1, lastAnswer: 2 });
+    expect(getProgress().lessons[LESSON]?.quiz['2']).toEqual({ solved: false, lastAnswer: 2 });
     await userEvent.click(button('Try again'));
     expect(screen.getAllByRole('radio').some((radio) => (radio as HTMLInputElement).checked)).toBe(false);
     expect(feedback().textContent).toBe('');
   });
 
-  it('confirms a correct answer, reveals the explanation and records the attempt count', async () => {
+  it('confirms a correct answer, reveals the explanation and records it as solved', async () => {
     renderQuiz();
     await userEvent.click(option(/^C/));
     await userEvent.click(button('Check'));
@@ -66,7 +66,7 @@ describe('QuizQuestion', () => {
     expect(feedback().textContent).toContain('Correct!');
     expect(screen.getByText('Answer: B')).toBeTruthy();
     expect(screen.getByText('Ten rounds for a 128-bit key.')).toBeTruthy();
-    expect(getProgress().lessons[LESSON]?.quiz['2']).toEqual({ correct: true, solved: true, attempts: 2, lastAnswer: 1 });
+    expect(getProgress().lessons[LESSON]?.quiz['2']).toEqual({ solved: true, lastAnswer: 1 });
   });
 
   it('shows the answer on request without recording an attempt', async () => {
@@ -90,7 +90,7 @@ describe('QuizQuestion', () => {
   });
 
   it('restores an earlier answer from progress', () => {
-    act(() => replaceProgress({ version: 1, lessons: { [LESSON]: { quiz: { 2: { correct: true, solved: true, attempts: 1, lastAnswer: 1 } } } } }));
+    act(() => replaceProgress({ version: 1, lessons: { [LESSON]: { quiz: { 2: { solved: true, lastAnswer: 1 } } } } }));
     renderQuiz();
     expect(option(/^B/).checked).toBe(true);
     expect(feedback().textContent).toContain('Correct!');
@@ -98,13 +98,13 @@ describe('QuizQuestion', () => {
   });
 
   it('shows a tampered entry as wrong when its last answer is wrong', () => {
-    act(() => replaceProgress({ version: 1, lessons: { [LESSON]: { quiz: { 2: { correct: true, solved: true, attempts: 1, lastAnswer: 3 } } } } }));
+    act(() => replaceProgress({ version: 1, lessons: { [LESSON]: { quiz: { 2: { solved: true, lastAnswer: 3 } } } } }));
     renderQuiz();
     expect(feedback().textContent).toContain('Not quite');
   });
 
   it('treats an out-of-range stored answer as unanswered', () => {
-    act(() => replaceProgress({ version: 1, lessons: { [LESSON]: { quiz: { 2: { correct: true, solved: true, attempts: 1, lastAnswer: 9 } } } } }));
+    act(() => replaceProgress({ version: 1, lessons: { [LESSON]: { quiz: { 2: { solved: true, lastAnswer: 9 } } } } }));
     renderQuiz();
     expect(screen.getAllByRole('radio').some((radio) => (radio as HTMLInputElement).checked)).toBe(false);
     expect(button('Check')).toBeTruthy();
@@ -115,7 +115,7 @@ describe('QuizQuestion', () => {
     await userEvent.click(option(/^B/));
     await userEvent.click(button('Check'));
     expect(Object.keys(getProgress().lessons)).toEqual(['other/lesson']);
-    expect(getProgress().lessons['other/lesson']?.quiz['1']?.correct).toBe(true);
+    expect(getProgress().lessons['other/lesson']?.quiz['1']?.solved).toBe(true);
   });
 
   it('renders German', async () => {

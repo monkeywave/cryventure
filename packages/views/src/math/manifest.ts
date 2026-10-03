@@ -8,6 +8,7 @@ export default defineView<ViewComponent>({
   titleKey: 'view.math.title',
   icon: 'grid',
   requires: ['math'],
+  lenses: ['story', 'engineer', 'cryptographer'],
   defaultSlot: 'side',
   order: 100,
   load: () => import('./MathView.tsx'),

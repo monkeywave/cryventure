@@ -1,16 +1,8 @@
+import { safeStorage } from '@cryventure/viz';
 import { migrate } from './migrations.ts';
 import type { ProgressV1 } from './schema.ts';
 
 export const PROGRESS_STORAGE_KEY = 'cv.progress.v1';
-
-/** Never throws (private mode, blocked storage); returns `undefined` when unavailable. */
-function safeStorage(): Storage | undefined {
-  try {
-    return globalThis.localStorage ?? undefined;
-  } catch {
-    return undefined;
-  }
-}
 
 /** Parses a stored string; `null`, unparsable JSON or garbage yield empty progress. */
 export function parseStoredProgress(raw: string | null | undefined): ProgressV1 {

@@ -17,6 +17,12 @@ function facetWriting(values: readonly number[]): AnyStateFacet {
   } as unknown as AnyStateFacet;
 }
 
+/** `facetWriting`, but the `state` region starts blank (its initial 00s are placeholders). */
+function blankFacetWriting(values: readonly number[]): AnyStateFacet {
+  const facet = facetWriting(values);
+  return { ...facet, regions: facet.regions.map((region) => (region.id === 'state' ? { ...region, initial: 'blank' } : region)) } as AnyStateFacet;
+}
+
 describe('watchHistory', () => {
   it('starts with the initial value at step -1', () => {
     expect(watchHistory(fixtureFacet(), { region: 'state', index: 0 }, -1)).toEqual([{ step: -1, value: 0 }]);
@@ -74,6 +80,23 @@ describe('watchHistory', () => {
   it('is empty for unknown regions or indices', () => {
     expect(watchHistory(fixtureFacet(), { region: 'nope', index: 0 }, 2)).toEqual([]);
     expect(watchHistory(fixtureFacet(), { region: 'state', index: 99 }, 2)).toEqual([]);
+  });
+});
+
+describe('watchHistory of a blank region', () => {
+  const node = { region: 'state', index: 3 };
+
+  it('is empty until the first real write (no placeholder start value)', () => {
+    expect(watchHistory(blankFacetWriting([7]), node, -1)).toEqual([]);
+    expect(watchHistory(blankFacetWriting([7]), { region: 'state', index: 0 }, 0)).toEqual([]);
+  });
+
+  it('starts with the first write, even one of 00, then lists changes only', () => {
+    expect(watchHistory(blankFacetWriting([0, 0, 5]), node, 2)).toEqual([
+      { step: 0, value: 0 },
+      { step: 2, value: 5 },
+    ]);
+    expect(watchHistory(blankFacetWriting([0, 0, 5]), node, 1)).toEqual([{ step: 0, value: 0 }]);
   });
 });
 

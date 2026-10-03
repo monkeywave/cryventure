@@ -163,11 +163,8 @@ describe('mathFacetRefs', () => {
 });
 
 describe('tableFacetRefs', () => {
-  it('collects the title and mark labels', () => {
+  it('collects the title', () => {
     const title = { key: 'plugin.x.table' };
-    const label = { key: 'plugin.x.mark' };
-    const marks = [{ index: 0, role: 'input' as const, label }, { index: 1, role: 'output' as const }];
-    expect(tableFacetRefs({ kind: 'table', schemaVersion: 1, title, rows: 1, cols: 2, entries: [0, 1], marks })).toEqual([title, label]);
     expect(tableFacetRefs({ kind: 'table', schemaVersion: 1, title, rows: 1, cols: 1, entries: [0] })).toEqual([title]);
   });
 });

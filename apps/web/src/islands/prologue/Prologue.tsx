@@ -1,7 +1,7 @@
 import type { ReactNode } from 'react';
 import type { Messages } from '@cryventure/core';
 import { I18nProvider, useT } from '@cryventure/viz';
-import { useHydrated } from '../quiz/useHydrated.ts';
+import { useHydrated } from '../shared/useHydrated.ts';
 import { Finale } from './Finale.tsx';
 import type { FillRandom } from './noteBytes.ts';
 import { SCENES, sceneNumber, type SceneId } from './prologueModel.ts';

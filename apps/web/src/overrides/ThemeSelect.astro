@@ -1,75 +1,45 @@
 ---
 /**
  * Starlight's ThemeSelect plus the page-wide lens selector (docs/M2.md §6). Starlight renders this
- * twice per page (desktop header, mobile menu footer); every instance stays in sync via the store.
+ * twice per page (desktop header, mobile menu footer); one bundled script serves both instances.
+ * The stored lens reaches `<html data-lens>` before paint through the early script in `Head.astro`.
  */
 import Default from '@astrojs/starlight/components/ThemeSelect.astro';
 import Select from '@astrojs/starlight/components/Select.astro';
-import { lensTranslator } from '../components/lesson/lensTranslator';
+import { namespaceTranslator } from '../components/lesson/namespaceTranslator';
 import { DEFAULT_LENS, LENS_ORDER } from '../progress/lens';
-import { PROGRESS_STORAGE_KEY } from '../progress/storage';
 
-const t = lensTranslator(Astro.currentLocale);
+const t = namespaceTranslator(Astro.currentLocale, 'lens');
 const options = LENS_ORDER.map((lens) => ({ label: t(`lens.name.${lens}`), value: lens, selected: lens === DEFAULT_LENS }));
 ---
 
 <Default />
 <cv-lens-select>
-  <Select icon="open-book" label={t('lens.select.label')} options={options} width="10.25em" />
+  {/* `auto` sizes the select to its longest option in every language (Starlight's Select reads the custom property). */}
+  <Select icon="open-book" label={t('lens.select.label')} options={options} width="auto" />
 </cv-lens-select>
-
-{/*
-  Inlined (CSP allows it) so the stored lens applies before the content below is painted. Values travel
-  as data-* attributes rather than define:vars, which would wrap the script and confuse type checking.
-*/}
-<script is:inline data-storage-key={PROGRESS_STORAGE_KEY} data-lenses={LENS_ORDER.join(' ')} data-fallback={DEFAULT_LENS}>
-  {
-    const { storageKey, lenses, fallback } = document.currentScript.dataset;
-    let lens = fallback;
-    try {
-      const stored = JSON.parse(localStorage.getItem(storageKey) ?? 'null')?.lens;
-      if (lenses.split(' ').includes(stored)) lens = stored;
-    } catch {
-      // Unreadable storage: keep the default lens.
-    }
-    document.documentElement.dataset.lens = lens;
-    document.querySelectorAll('cv-lens-select select').forEach((select) => (select.value = lens));
-  }
-</script>
 
 <script>
   // Specific modules, not '../progress': its index also exports the React hooks.
   import { applyLensToDocument, DEFAULT_LENS, isLens } from '../progress/lens';
   import { getProgress, setLens, subscribe } from '../progress/store';
 
+  const LENS_SELECTS = 'cv-lens-select select';
+
   /** Reflects the stored lens on `<html>` and on every lens selector; follows other tabs, too. */
   function syncLens(): void {
     const lens = getProgress().lens ?? DEFAULT_LENS;
     applyLensToDocument(lens);
-    document.querySelectorAll<HTMLSelectElement>('cv-lens-select select').forEach((select) => (select.value = lens));
+    document.querySelectorAll<HTMLSelectElement>(LENS_SELECTS).forEach((select) => (select.value = lens));
   }
 
-  class CvLensSelect extends HTMLElement {
-    private unsubscribe?: () => void;
-
-    connectedCallback(): void {
-      this.addEventListener('change', this.onChange);
-      this.unsubscribe = subscribe(syncLens);
-      syncLens();
-    }
-
-    disconnectedCallback(): void {
-      this.removeEventListener('change', this.onChange);
-      this.unsubscribe?.();
-    }
-
-    private onChange = (event: Event): void => {
-      const select = event.target;
-      if (select instanceof HTMLSelectElement && isLens(select.value)) setLens(select.value);
-    };
-  }
-
-  customElements.define('cv-lens-select', CvLensSelect);
+  // Module scripts run once per page, after both selector instances are parsed.
+  document.addEventListener('change', (event) => {
+    const select = event.target;
+    if (select instanceof HTMLSelectElement && select.matches(LENS_SELECTS) && isLens(select.value)) setLens(select.value);
+  });
+  subscribe(syncLens);
+  syncLens();
 </script>
 
 <style>
@@ -80,9 +50,9 @@ const options = LENS_ORDER.map((lens) => ({ label: t(`lens.name.${lens}`), value
   /*
    * Starlight sizes its theme select at a fixed 6.25em (see its "width that works well for each
    * language" TODO), which truncates German "System". Its label sets the width inline, so the custom
-   * property is redefined on the select itself, the element that consumes it.
+   * property is redefined on the select itself, the element that consumes it; `auto` fits the content.
    */
   :global(starlight-theme-select select) {
-    --sl-select-width: 7em;
+    --sl-select-width: auto;
   }
 </style>

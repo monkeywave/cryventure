@@ -1,0 +1,30 @@
+---
+/**
+ * Starlight's Head plus the early lens script (docs/M2.md §6): rendered once per page, before the
+ * body, so `<html data-lens>` is set before any lens content is painted. The header lens selector's
+ * bundled script keeps it in sync afterwards (see `ThemeSelect.astro`).
+ */
+import Default from '@astrojs/starlight/components/Head.astro';
+import { DEFAULT_LENS, LENS_ORDER } from '../progress/lens';
+import { PROGRESS_STORAGE_KEY } from '../progress/storage';
+---
+
+<Default />
+
+{/*
+  Inlined (CSP allows it) so the stored lens applies before first paint. Values travel as data-*
+  attributes rather than define:vars, which would wrap the script and confuse type checking.
+*/}
+<script is:inline data-storage-key={PROGRESS_STORAGE_KEY} data-lenses={LENS_ORDER.join(' ')} data-fallback={DEFAULT_LENS}>
+  {
+    const { storageKey, lenses, fallback } = document.currentScript.dataset;
+    let lens = fallback;
+    try {
+      const stored = JSON.parse(localStorage.getItem(storageKey) ?? 'null')?.lens;
+      if (lenses.split(' ').includes(stored)) lens = stored;
+    } catch {
+      // Unreadable storage: keep the default lens.
+    }
+    document.documentElement.dataset.lens = lens;
+  }
+</script>

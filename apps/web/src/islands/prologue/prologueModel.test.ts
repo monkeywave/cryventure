@@ -20,18 +20,20 @@ describe('scene navigation', () => {
 
 describe('prologueView', () => {
   it('shows the tour to a first-time learner', () => {
-    expect(prologueView({ justChose: false, completed: false, replaying: false })).toBe('tour');
+    expect(prologueView('visit', false)).toBe('tour');
   });
 
   it('welcomes back a learner who already finished', () => {
-    expect(prologueView({ justChose: false, completed: true, replaying: false })).toBe('welcomeBack');
+    expect(prologueView('visit', true)).toBe('welcomeBack');
   });
 
   it('shows the tour again while replaying', () => {
-    expect(prologueView({ justChose: false, completed: true, replaying: true })).toBe('tour');
+    expect(prologueView('replay', true)).toBe('tour');
+    expect(prologueView('replay', false)).toBe('tour');
   });
 
   it('confirms right after a lens was chosen', () => {
-    expect(prologueView({ justChose: true, completed: true, replaying: true })).toBe('done');
+    expect(prologueView('done', true)).toBe('done');
+    expect(prologueView('done', false)).toBe('done');
   });
 });

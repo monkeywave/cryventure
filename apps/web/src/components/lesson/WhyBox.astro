@@ -1,6 +1,6 @@
 ---
 /** "Why this constant?" box (docs/PLAN.md §4): teal = constants, with the π glyph for colour-blind readers. */
-import { lessonTranslator } from './lessonTranslator';
+import { namespaceTranslator } from './namespaceTranslator';
 
 interface Props {
   /** The constant as written in the spec, e.g. "0x11B". */
@@ -10,7 +10,7 @@ interface Props {
 }
 
 const { constant, title } = Astro.props;
-const t = lessonTranslator(Astro.currentLocale);
+const t = namespaceTranslator(Astro.currentLocale, 'lesson');
 ---
 
 <aside class="cv-why not-content" aria-label={`${t('lesson.why.label')} ${constant}`}>

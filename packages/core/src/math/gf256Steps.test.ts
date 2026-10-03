@@ -6,19 +6,19 @@ const ALL_BYTES = Array.from({ length: 256 }, (_, i) => i);
 
 describe('xtimeSteps', () => {
   it('explains xtime({57}) = {ae} without reduction', () => {
-    expect(xtimeSteps(0x57)).toEqual({ input: 0x57, shifted: 0xae, carry: 0, reduced: false, result: 0xae });
+    expect(xtimeSteps(0x57)).toEqual({ input: 0x57, shifted: 0xae, carry: 0, result: 0xae });
   });
 
   it('reduces by {1b} when bit 7 is carried out', () => {
-    expect(xtimeSteps(0x8e)).toEqual({ input: 0x8e, shifted: 0x11c, carry: 1, reduced: true, result: 0x07 });
+    expect(xtimeSteps(0x8e)).toEqual({ input: 0x8e, shifted: 0x11c, carry: 1, result: 0x07 });
   });
 
   it('matches xtime for all 256 bytes and reduces iff the carry is set', () => {
     for (const a of ALL_BYTES) {
       const steps = xtimeSteps(a);
       expect(steps.result).toBe(xtime(a));
-      expect(steps.reduced).toBe(steps.carry === 1);
-      expect(steps.result).toBe((steps.shifted & 0xff) ^ (steps.reduced ? XTIME_REDUCTION : 0));
+      expect(steps.carry).toBe(steps.shifted >> 8);
+      expect(steps.result).toBe((steps.shifted & 0xff) ^ (steps.carry ? XTIME_REDUCTION : 0));
     }
   });
 });
@@ -46,8 +46,7 @@ describe('gmulSteps', () => {
     }
     const { bits } = gmulSteps(0xff, 0xa5);
     expect(bits.map((step) => step.bit)).toEqual([0, 1, 2, 3, 4, 5, 6, 7]);
-    bits.forEach((step) => expect(step.reduced).toBe(step.carry === 1));
-    bits.forEach((step) => expect(step.added).toBe(step.bBit === 1));
+    bits.forEach((step) => expect(step.added).toBe(((0xa5 >> step.bit) & 1) === 1));
   });
 
   it('masks operands to bytes', () => {
@@ -58,6 +57,14 @@ describe('gmulSteps', () => {
 describe('ginvSteps', () => {
   it('matches the FIPS example {53}^-1 = {ca}', () => {
     expect(ginvSteps(0x53).result).toBe(0xca);
+  });
+
+  it('records each power\'s previous exponent', () => {
+    expect(ginvSteps(0x53).steps.slice(0, 3).map(({ op, previousExponent, exponent }) => [op, previousExponent, exponent])).toEqual([
+      ['square', 1, 2],
+      ['multiply', 2, 3],
+      ['square', 3, 6],
+    ]);
   });
 
   it('squares 7 times and multiplies 6 times, ending at exponent 254', () => {
@@ -72,9 +79,12 @@ describe('ginvSteps', () => {
     for (const a of ALL_BYTES) {
       const { steps, result } = ginvSteps(a);
       expect(result).toBe(ginv(a));
+      let exponent = 1;
       for (const step of steps) {
-        expect(step.value).toBe(gmul(step.left, step.right));
-        expect(step.right).toBe(step.op === 'square' ? step.left : a);
+        expect(step.previousExponent).toBe(exponent);
+        expect(step.exponent).toBe(step.op === 'square' ? 2 * exponent : exponent + 1);
+        expect(step.value).toBe(gmul(step.left, step.op === 'square' ? step.left : a));
+        exponent = step.exponent;
       }
     }
     expect(ginvSteps(0).result).toBe(0);

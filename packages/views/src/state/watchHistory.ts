@@ -19,14 +19,22 @@ function writtenValue(step: AnyStateFacet['steps'][number], node: NodeRef): numb
   return value;
 }
 
-/** Every change of one node over the whole facet: the initial value, then each step that changed it. */
+function isBlankRegion(facet: AnyStateFacet, region: string): boolean {
+  return facet.regions.some((spec) => spec.id === region && spec.initial === 'blank');
+}
+
+/**
+ * Every change of one node over the whole facet: the initial value, then each step that changed it.
+ * In a blank region the initial value is a placeholder, so the history starts at the first write
+ * (a write of 00 counts).
+ */
 function changePoints(facet: AnyStateFacet, node: NodeRef): readonly WatchEntry[] {
   const initial = facet.initial[node.region]?.[node.index];
   if (initial === undefined) return [];
-  const entries: WatchEntry[] = [{ step: INITIAL_STEP, value: initial }];
+  const entries: WatchEntry[] = isBlankRegion(facet, node.region) ? [] : [{ step: INITIAL_STEP, value: initial }];
   facet.steps.forEach((step, index) => {
     const value = writtenValue(step, node);
-    if (value !== undefined && value !== entries.at(-1)!.value) entries.push({ step: index, value });
+    if (value !== undefined && value !== entries.at(-1)?.value) entries.push({ step: index, value });
   });
   return entries;
 }
@@ -56,14 +64,15 @@ function countUpTo(entries: readonly WatchEntry[], uptoStep: number): number {
 }
 
 /**
- * Value history of one node up to and including `uptoStep`: the initial value, then every step that
- * changed it; only the last `limit` entries are kept. The changes are computed once per node and
+ * Value history of one node up to and including `uptoStep`: the initial value (unless the region is
+ * blank), then every step that changed it; only the last `limit` entries are kept. The changes are computed once per node and
  * the playhead is found by binary search, so moving the playhead costs O(log steps).
  */
 export function watchHistory(facet: AnyStateFacet, node: NodeRef, uptoStep: number, limit: number = WATCH_LIMIT): WatchEntry[] {
   const changes = nodeChanges(facet, node);
-  // The initial value is always part of the history (as before any step).
-  const end = Math.max(Math.min(1, changes.length), countUpTo(changes, uptoStep));
+  // A meaningful initial value is always part of the history (as before any step).
+  const keepsInitial = changes[0]?.step === INITIAL_STEP ? 1 : 0;
+  const end = Math.max(keepsInitial, countUpTo(changes, uptoStep));
   return changes.slice(Math.max(0, end - limit), end);
 }
 
