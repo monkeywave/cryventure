@@ -1,0 +1,8 @@
+{
+  "deriver.isa-x86.label": "x86-64 · AES-NI",
+  "deriver.isa-x86.registers.label": "x86-64 · AES-NI · XMM-Register",
+  "deriver.isa-x86.op.addRoundKey": "AddRoundKey (Runde {{round}})",
+  "deriver.isa-x86.op.subBytes": "SubBytes (Runde {{round}})",
+  "deriver.isa-x86.op.shiftRows": "ShiftRows (Runde {{round}})",
+  "deriver.isa-x86.op.mixColumns": "MixColumns (Runde {{round}})"
+}

@@ -2,8 +2,8 @@ import { describe, expect, it } from 'vitest';
 import { createTranslator } from '@cryventure/core';
 import { compactOpLabel, opLabel, type OpLabelMap } from './opLabel.ts';
 
-const t = createTranslator({ 'p.subBytes': 'SubBytes – substitute bytes', 'p.subBytesShort': 'SubBytes', 'p.shiftRows': 'ShiftRows' });
-const ops: OpLabelMap = { subBytes: { labelKey: 'p.subBytes', shortLabelKey: 'p.subBytesShort' }, shiftRows: { labelKey: 'p.shiftRows' } };
+const t = createTranslator({ 'p.subBytes': 'SubBytes – substitute bytes', 'p.subBytesShort': 'SubBytes', 'p.shiftRows': 'ShiftRows', 'p.mulBit': 'One iteration', 'p.mulBitShort': 'Bit {{value}}' });
+const ops: OpLabelMap = { subBytes: { labelKey: 'p.subBytes', shortLabelKey: 'p.subBytesShort' }, shiftRows: { labelKey: 'p.shiftRows' }, mulBit: { labelKey: 'p.mulBit', shortLabelKey: 'p.mulBitShort' } };
 
 describe('opLabel', () => {
   it("returns the producer's translated label", () => {
@@ -21,6 +21,10 @@ describe('compactOpLabel', () => {
   it('prefers the short label, then the op label', () => {
     expect(compactOpLabel(t, ops, 'subBytes')).toBe('SubBytes');
     expect(compactOpLabel(t, ops, 'shiftRows')).toBe('ShiftRows');
+  });
+
+  it("fills the short label with the deepest scope level's params (GHASH: \"Bit 37\")", () => {
+    expect(compactOpLabel(t, ops, 'mulBit', { index: 37, ordinal: 38, value: 37, n: 3 })).toBe('Bit 37');
   });
 
   it('is undefined when the producer declares no label for the op', () => {

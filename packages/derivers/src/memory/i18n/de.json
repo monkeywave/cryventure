@@ -1,0 +1,12 @@
+{
+  "deriver.memory.variant.x86_64-linux-gnu.c-ref": "x86-64 Linux · OpenSSL-C-Referenz",
+  "deriver.memory.variant.x86_64-linux-gnu.aesni": "x86-64 Linux · OpenSSL AES-NI",
+  "deriver.memory.variant.aarch64-linux-gnu.c-ref": "AArch64 Linux · OpenSSL-C-Referenz",
+  "deriver.memory.variant.aarch64-linux-gnu.armv8": "AArch64 Linux · OpenSSL ARMv8 Crypto Extensions",
+  "deriver.memory.impl.c-ref": "OpenSSL-C-Referenz (aes_core.c)",
+  "deriver.memory.impl.aesni": "OpenSSL-AES-NI-Assembler (aesni-x86_64.pl)",
+  "deriver.memory.impl.armv8": "OpenSSL-ARMv8-Assembler (aesv8-armx.pl)",
+  "deriver.memory.allocation.in": "in – Klartextpuffer (unsigned char[16])",
+  "deriver.memory.allocation.out": "out – Geheimtextpuffer (unsigned char[16])",
+  "deriver.memory.allocation.key": "key – expandierter Schlüssel (AES_KEY)"
+}

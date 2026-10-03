@@ -6,7 +6,7 @@
   "description": "CryVenture website: Astro + Starlight shell with interactive cryptography labs.",
   "scripts": {
     "dev": "astro dev",
-    "build": "astro build && node scripts/build-sw.mjs",
+    "build": "astro build && tsx scripts/csp-postbuild.ts && node scripts/build-sw.mjs",
     "preview": "astro preview",
     "typecheck": "astro check",
     "e2e": "playwright test",

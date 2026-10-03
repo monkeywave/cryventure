@@ -3,7 +3,8 @@ import { viewsFor, type Messages } from '@cryventure/core';
 import { viewManifests } from './index.ts';
 
 const catalogs = import.meta.glob<Messages>('./*/i18n/*.json', { eager: true, import: 'default' });
-const viewFolders = [...new Set(Object.keys(catalogs).map((path) => path.split('/')[1]))];
+// `_lib` holds helpers shared by the views (plugins never import each other), not a view.
+const viewFolders = [...new Set(Object.keys(catalogs).map((path) => path.split('/')[1]))].filter((folder) => folder !== '_lib');
 
 describe('viewManifests', () => {
   it('collects every view folder', () => {

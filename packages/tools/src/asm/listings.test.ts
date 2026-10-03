@@ -37,6 +37,7 @@ function expectCommonShape(listing: AsmListing, bits: number): void {
   expect(count(instructions, (entry) => entry.role === 'loadState')).toBeGreaterThan(0);
   expect(count(instructions, (entry) => entry.role === 'store')).toBeGreaterThan(0);
   const addresses = instructions.map((entry) => Number.parseInt(entry.address, 16));
+  expect(instructions[0]?.address).toBe('0x0');
   addresses
     .slice(1)
     .forEach((address, index) => expect(address).toBeGreaterThan(addresses[index]!));

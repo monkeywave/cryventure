@@ -17,7 +17,8 @@
   "view.wire.role.ciphertext": "Geheimtext",
   "view.wire.role.plaintext": "Klartext",
   "view.wire.role.padding": "Padding",
-  "view.wire.role.tag": "Tag",
+  "view.wire.role.tag": "Authentifizierungs-Tag",
+  "view.wire.role.aad": "zusätzliche authentifizierte Daten (AAD)",
   "view.wire.legendActive": "dicker Rahmen: in diesem Schritt im Fokus",
   "view.wire.legendPending": "gestrichelt ··: noch nicht gesendet",
   "view.wire.legendFlip": "gekippte Bits (selbst kippen kannst du sie in den Angriffs-Labs)"

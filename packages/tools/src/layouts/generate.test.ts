@@ -3,21 +3,23 @@ import {
   AES_KEY_SOURCE,
   buildLayout,
   clangArgs,
+  generateLayout,
   probeRecordName,
   probeSource,
 } from './generate.ts';
 import { parseRecordLayoutDump } from './recordLayoutDump.ts';
 
 // Fixed dumps (clang 23.1.0, x86_64-linux-gnu); these tests never invoke clang.
-const RECORD_DUMP = parseRecordLayoutDump(`
+const RECORD_DUMP_TEXT = `
 *** Dumping AST Record Layout
          0 | struct aes_key_st
          0 |   unsigned int[60] rd_key
        240 |   int rounds
            | [sizeof=244, align=4]
-`);
+`;
+const RECORD_DUMP = parseRecordLayoutDump(RECORD_DUMP_TEXT);
 
-const PROBE_DUMP = parseRecordLayoutDump(`
+const PROBE_DUMP_TEXT = `
 *** Dumping AST Record Layout
          0 | struct cv_size_rd_key
          0 |   unsigned int[60] v
@@ -32,7 +34,8 @@ const PROBE_DUMP = parseRecordLayoutDump(`
          0 | struct cv_size_rounds
          0 |   int v
            | [sizeof=4, align=4]
-`);
+`;
+const PROBE_DUMP = parseRecordLayoutDump(PROBE_DUMP_TEXT);
 
 const COMPILER = {
   version: 'Homebrew clang version 23.1.0',
@@ -107,6 +110,32 @@ describe('clangArgs', () => {
       '-x',
       'c',
       '-',
+    ]);
+  });
+});
+
+describe('generateLayout (injected compiler runner)', () => {
+  it('dumps the record, then the probes, and records the compiler it ran', () => {
+    const calls: { command: string; args: readonly string[] }[] = [];
+    const run = (command: string, args: readonly string[], input?: string) => {
+      calls.push({ command, args });
+      if (args[0] === '--version') return 'Homebrew clang version 23.1.0\nTarget: arm64\n';
+      return input?.includes(probeRecordName('rounds', 'size'))
+        ? PROBE_DUMP_TEXT
+        : RECORD_DUMP_TEXT;
+    };
+    const layout = generateLayout('x86_64-linux-gnu', 'struct aes_key_st;', {
+      clang: '/pinned/clang',
+      run,
+    });
+    expect(calls.map(({ command }) => command)).toEqual(Array(3).fill('/pinned/clang'));
+    expect(layout.compiler).toEqual({
+      version: 'Homebrew clang version 23.1.0',
+      args: clangArgs('x86_64-linux-gnu').slice(0, -1),
+    });
+    expect(layout.fields.map(({ name, size }) => [name, size])).toEqual([
+      ['rd_key', 240],
+      ['rounds', 4],
     ]);
   });
 });

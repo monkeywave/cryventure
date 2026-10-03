@@ -1,0 +1,199 @@
+---
+title: AES_KEY in memory
+description: How OpenSSL lays out AES_KEY on x86_64 and aarch64 Linux, why the same round keys appear byte-reversed in one implementation and not in another, and what the rounds field really stores.
+lessonId: block-ciphers/aes/memory-abi
+track: block-ciphers
+phase: 1
+sidebar:
+  order: 6
+tableOfContents: false
+prereqs:
+  - block-ciphers/aes/key-expansion
+  - foundations/endianness
+labs:
+  - aes-memory
+refs:
+  - FIPS 197, Section 5.2 (Key Expansion)
+  - FIPS 197, Appendix C.1 (AES-128, Nk = 4)
+  - OpenSSL 3.5.9, include/openssl/aes.h:33–43 (AES_MAXNR, struct aes_key_st)
+  - OpenSSL 3.5.9, crypto/aes/aes_local.h:26 (GETU32)
+  - OpenSSL 3.5.9, crypto/aes/aes_core.c:3045–3067 (AES_set_encrypt_key)
+  - OpenSSL 3.5.9, crypto/aes/asm/aesni-x86_64.pl:244–267, 282, 4304, 4371–4420 (aesni_set_encrypt_key)
+  - OpenSSL 3.5.9, crypto/aes/asm/aesv8-armx.pl:127–301 (aes_v8_set_encrypt_key)
+  - OpenSSL 3.5.9, crypto/aes/build.info:10–14, 34–35
+  - OpenSSL 3.5, OPENSSL_malloc(3) (OPENSSL_cleanse)
+  - MITRE CWE-14, Compiler Removal of Code to Clear Buffers
+  - Halderman et al., Lest We Remember — Cold Boot Attacks on Encryption Keys (USENIX Security 2008)
+---
+
+import FlyThrough from '../../../../../components/FlyThrough.astro';
+import Lab from '../../../../../components/Lab.astro';
+import CheckQuestion from '../../../../../components/lesson/CheckQuestion.astro';
+import Formula from '../../../../../components/lesson/Formula.astro';
+import KeyFact from '../../../../../components/lesson/KeyFact.astro';
+import KeyFacts from '../../../../../components/lesson/KeyFacts.astro';
+import Lens from '../../../../../components/lesson/Lens.astro';
+import LessonSection from '../../../../../components/lesson/LessonSection.astro';
+import WhyBox from '../../../../../components/lesson/WhyBox.astro';
+
+<LessonSection part="concept">
+
+## One struct, three byte patterns
+
+OpenSSL keeps an expanded AES key in `AES_KEY`: 60 32-bit words `rd_key` plus an `int rounds`
+(`include/openssl/aes.h:36–43`, OpenSSL 3.5.9). `AES_MAXNR` is 14 (`aes.h:33`), so `rd_key` always
+has room for the 15 round keys of AES-256. On both targets of this lesson, `x86_64-linux-gnu` and
+`aarch64-linux-gnu` (LP64, little-endian), clang 23.1.0 lays the struct out the same way:
+
+<KeyFacts>
+  <KeyFact label="sizeof(AES_KEY)" value="244 B · align 4" kind="key" />
+  <KeyFact label="rd_key" value="offset 0 · 240 B" kind="key" />
+  <KeyFact label="rounds" value="offset 240 · 4 B" kind="constant" />
+</KeyFacts>
+
+What lands *in* those bytes depends on the code that fills them:
+
+| Implementation | Triples | `rd_key` bytes | `rounds` (128/192/256) |
+|---|---|---|---|
+| `c-ref` (`aes_core.c:3045`) | x86_64, aarch64 | host-endian 32-bit words | 10 / 12 / 14 |
+| `aesni` (`aesni-x86_64.pl:4371`) | x86_64 | raw key bytes | 9 / 11 / 13 |
+| `armv8` (`aesv8-armx.pl:127`) | aarch64 | raw key bytes | 10 / 12 / 14 |
+
+<Lens only="story">
+
+Think of `AES_KEY` as a shelf with 60 four-byte boxes. One implementation packs every box back to front;
+the others pack them in reading order.
+
+</Lens>
+
+<Lens level="cryptographer">
+
+With `AES_LONG` defined, `rd_key` would hold `unsigned long` (8 bytes on LP64): 488 bytes, align 8
+(`aes.h:37–41`). No OpenSSL 3.5.9 configuration defines it.
+
+</Lens>
+
+</LessonSection>
+
+<LessonSection part="playground">
+
+## Watch the key land on the stack
+
+The lab runs FIPS 197, Appendix C.1 (key `000102…0f`, plaintext `00112233…ff`) and opens at the
+key-expansion step, where `AES_set_encrypt_key` fills `key`. Switch the memory view between the four
+implementation × triple variants and compare the first bytes of `key`: `03 02 01 00` for `c-ref`,
+`00 01 02 03` for `aesni` and `armv8`. Step to the end to see `out` receive the ciphertext
+`69c4e0d8…`.
+
+<Lab labId="aes-memory" producerId="aes" presetId="fips197-c1" startAt="op:keyExpansion" layout="memory:60|narration:40" />
+
+</LessonSection>
+
+<LessonSection part="inside">
+
+## GETU32 versus a plain copy
+
+The portable C key schedule reads every key word big-endian with `GETU32`
+(`aes_local.h:26`: `pt[0]<<24 ^ pt[1]<<16 ^ pt[2]<<8 ^ pt[3]`) and stores it as a native `u32`
+(`aes_core.c:3067`). A little-endian CPU writes the low byte first, so each 4-byte word appears
+reversed in RAM. The AES-NI and ARMv8 schedules load the key into a 128-bit vector register and store
+it unchanged (`aesni-x86_64.pl:4382, 4398`; `aesv8-armx.pl:162, 174`).
+
+<Formula caption="AES_KEY bytes for FIPS 197 C.1, from the lab's memory facet.">
+{`offset  field           c-ref          aesni          armv8
+0       rd_key (w[0])   03 02 01 00    00 01 02 03    00 01 02 03
+172     rd_key (w[43])  c5 30 2b 4d    4d 2b 30 c5    4d 2b 30 c5
+240     rounds          0a 00 00 00    09 00 00 00    0a 00 00 00`}
+</Formula>
+
+<WhyBox constant="rounds" title="9, not 10">
+  The AES-NI code uses the field as its `aesenc` loop count and then adds one `aesenclast`
+  (`aesni-x86_64.pl:244–267, 282`); its own comments call it "rounds-1" (`:4304`). A schedule written by
+  one implementation only fits that implementation's encrypt routine.
+</WhyBox>
+
+On x86_64, an OpenSSL build with assembly does not compile `aes_core.c` at all
+(`build.info:10–14`), so `c-ref` there means a `no-asm` build. aarch64 compiles it as the C fallback
+(`build.info:34–35`).
+
+</LessonSection>
+
+<LessonSection part="memory">
+
+## A modeled stack frame
+
+The lab models one function with three locals, `unsigned char in[16], out[16]; AES_KEY key;`, placed
+below a frame base in declaration order, each on a 16-byte boundary. The addresses are **modeled**:
+deterministic and typical for a Linux user stack, but not recorded from a real process. ASLR moves
+the stack on every run, and compilers may reorder locals.
+
+| Local | x86_64 | aarch64 | Bytes |
+|---|---|---|---|
+| `in` | `0x7ffc5e3a0ff0` | `0xffffd2c4eff0` | 16 |
+| `out` | `0x7ffc5e3a0fe0` | `0xffffd2c4efe0` | 16 |
+| `key` | `0x7ffc5e3a0ee0` | `0xffffd2c4eee0` | 244 |
+
+AES-128 fills only the first 176 bytes of `rd_key` (11 round keys, FIPS 197 §5.2); `rounds` sits at
+`key + 240`. Bytes 176–239 keep whatever was there before.
+
+The fly-through follows round key 0 (or the ciphertext block bound for `out`) from the 4×4 matrix into the `xmm0` lanes
+and on into RAM. Switch between the C reference and AES-NI to see the word reversal.
+
+<FlyThrough />
+
+</LessonSection>
+
+<LessonSection part="break">
+
+## Mallory reads a forgotten key
+
+Round key 0 *is* the cipher key (FIPS 197, §5.2), so `AES_KEY` holds the key and the whole schedule.
+If the struct goes out of scope without being wiped, those bytes stay in the stack or heap page until
+something overwrites them. A core file, a swapped-out page or a memory dump can then hand Mallory the
+key, and the schedule's structure makes it easy to find and even repair (Halderman et al., 2008).
+
+A plain `memset` just before the struct dies is a dead store that the compiler may remove (CWE-14).
+OpenSSL provides `OPENSSL_cleanse()`, which zeroes memory in a way the optimizer cannot drop
+(OPENSSL_malloc(3)). Key lifetimes, zeroization and scanning real dumps are the topic of the later
+**Secrets in memory** track.
+
+</LessonSection>
+
+<LessonSection part="check">
+
+## Check yourself
+
+<CheckQuestion
+  id="aes-key-sizeof"
+  number={1}
+  question="How large is OpenSSL's AES_KEY on x86_64-linux-gnu?"
+  options={['176 bytes', '240 bytes', '244 bytes', '256 bytes']}
+  answer={2}
+>
+  60 × 4 bytes of `rd_key` plus a 4-byte `rounds` at offset 240 = 244 bytes, align 4
+  (`include/openssl/aes.h:36–43`).
+</CheckQuestion>
+
+<CheckQuestion
+  id="c-ref-first-bytes"
+  number={2}
+  question="The key starts 00 01 02 03. Which bytes does the c-ref schedule store at key + 0 on x86_64?"
+  options={['00 01 02 03', '03 02 01 00', '01 00 03 02', '00 00 00 00']}
+  answer={1}
+>
+  `GETU32` reads the word `00010203` big-endian, and the little-endian store writes its low byte
+  first (`aes_core.c:3067`, `aes_local.h:26`).
+</CheckQuestion>
+
+<CheckQuestion
+  id="aesni-rounds-field"
+  number={3}
+  question="Which value does OpenSSL's AES-NI key schedule store in rounds for AES-128?"
+  options={['9', '10', '11', '14']}
+  answer={0}
+>
+  It stores rounds − 1, the `aesenc` loop count; one `aesenclast` follows
+  (`aesni-x86_64.pl:4394`, `:244–267, 282`).
+</CheckQuestion>
+
+</LessonSection>

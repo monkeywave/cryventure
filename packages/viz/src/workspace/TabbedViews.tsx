@@ -18,16 +18,21 @@ const TAB_STEPS: Readonly<Record<string, (index: number, count: number) => numbe
 export function TabbedViews({ manifests, labId, lens }: TabbedViewsProps) {
   const t = useT();
   const baseId = useId();
-  const [activeIndex, setActiveIndex] = useState(0);
-  const active = manifests[activeIndex] ?? manifests[0];
+  // Tracked by view id, not position: when derived views join (or leave) the list, the chosen view
+  // stays selected; when it disappears, the first view takes over.
+  const [activeId, setActiveId] = useState<string | undefined>(undefined);
+  const found = manifests.findIndex((manifest) => manifest.id === activeId);
+  const activeIndex = found < 0 ? 0 : found;
+  const active = manifests[activeIndex];
   const tabId = (index: number) => `${baseId}-tab-${index}`;
+  const select = (index: number) => setActiveId(manifests[index]?.id);
 
   const onKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
     const step = TAB_STEPS[event.key];
     if (step === undefined) return;
     event.preventDefault();
     const next = step(activeIndex, manifests.length);
-    setActiveIndex(next);
+    select(next);
     document.getElementById(tabId(next))?.focus();
   };
 
@@ -45,7 +50,7 @@ export function TabbedViews({ manifests, labId, lens }: TabbedViewsProps) {
             aria-selected={index === activeIndex}
             aria-controls={`${baseId}-panel`}
             tabIndex={index === activeIndex ? 0 : -1}
-            onClick={() => setActiveIndex(index)}
+            onClick={() => select(index)}
           >
             {t(manifest.titleKey)}
           </button>

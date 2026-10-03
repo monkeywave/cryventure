@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { createTranslator, getFacet, type StateFacet } from '@cryventure/core';
 import { vizMessages } from '../i18n/messages.ts';
 import { createFixtureBundle } from '../testing/fixtureBundle.ts';
-import { formatScopePath, scopeAt, scopeLevelKeys, scopeParams } from './scopeLabel.ts';
+import { deepestScopeParams, formatScopePath, scopeAt, scopeLevelKeys, scopeParams } from './scopeLabel.ts';
 
 const t = createTranslator(vizMessages.en);
 const LEVEL_KEYS = ['ui.scope.round', 'ui.scope.op', 'ui.scope.sub'];
@@ -71,5 +71,13 @@ describe('scopeLevelKeys', () => {
     const keys = scopeLevelKeys({ scopeLevels: [{ labelKey: 'p.round' }, { labelKey: 'p.op' }] });
     expect(formatScopePath([3, 1], producerT, keys)).toBe('R3 (level 1) · op 1 (level 2)');
     expect(formatScopePath([3, 1, 7], producerT, keys)).toBe('R3 (level 1) · op 1 (level 2) · op 7 (level 3)');
+  });
+});
+
+describe('deepestScopeParams', () => {
+  it("gives the params of the deepest declared level when the scope reaches it, else none", () => {
+    expect(deepestScopeParams([1, 0, 37], ['b', 'o', 'i'])).toEqual({ index: 37, ordinal: 38, value: 37, n: 3 });
+    expect(deepestScopeParams([1, 0], ['b', 'o', 'i'])).toBeUndefined();
+    expect(deepestScopeParams([2], [])).toBeUndefined();
   });
 });

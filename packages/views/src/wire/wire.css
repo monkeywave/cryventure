@@ -54,8 +54,22 @@
 }
 
 .cv-wire__segment[data-role='tag'] {
-  --cv-wire-role: var(--cv-key);
-  --cv-wire-glow: var(--cv-glow-key);
+  --cv-wire-role: var(--cv-success);
+  --cv-wire-glow: color-mix(in srgb, var(--cv-success) 14%, transparent);
+  border-inline-start-width: 6px;
+}
+
+/* AAD: public like plaintext (dotted), but authenticated: a double rule, and its boxes outlined only. */
+.cv-wire__segment[data-role='aad'] {
+  --cv-wire-role: var(--cv-plaintext);
+  --cv-wire-glow: var(--cv-glow-plaintext);
+  border-inline-start-style: double;
+  border-inline-start-width: 6px;
+}
+
+.cv-wire__segment[data-role='aad'] .cv-wire__byte {
+  border-style: dotted;
+  border-width: 2px;
 }
 
 .cv-wire__segment[data-role='padding'] .cv-wire__byte {
@@ -136,7 +150,8 @@
   color: var(--cv-cell-dim-fg, GrayText);
 }
 
-.cv-wire__segment[data-pending] .cv-wire__byte {
+.cv-wire__segment[data-pending] .cv-wire__byte,
+.cv-wire__segment[data-pending][data-role] .cv-wire__byte {
   color: var(--cv-cell-dim-fg, GrayText);
   background: var(--cv-cell-dim-bg, Canvas);
   border-style: dashed;

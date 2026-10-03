@@ -1,0 +1,175 @@
+/*
+ * Registers view styles. Imported by the view component, so it ships in the view's lazy chunk.
+ * Colours come only from the semantic tokens (--cv-*, --sl-color-*); fallbacks keep it usable standalone.
+ * The byte grid itself (cells, unwritten `··`, write glyphs, ▸ row marker, horizontal scrolling inside
+ * the panel) is viz's ByteGrid.
+ */
+
+.cv-registers {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 0.5rem;
+  min-width: 0;
+  container-type: inline-size;
+}
+
+.cv-registers__controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem 1rem;
+  align-items: center;
+  min-width: 0;
+  font-size: 0.85em;
+}
+
+.cv-registers__controls > * {
+  min-width: 0;
+  max-width: 100%;
+}
+
+.cv-registers__variant {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  align-items: center;
+  margin: 0;
+}
+
+/*
+ * Compact picker: the instructions view of the same lab shows the full, labelled picker, so here the
+ * label is visually hidden (it still names the select) and a long variant name ellipsises inside the
+ * panel (RegistersView puts the whole name in the title).
+ */
+.cv-registers__variant-wrap {
+  display: block;
+  flex: 1 1 100%;
+  min-width: 0;
+  max-width: 100%;
+}
+
+.cv-registers__variant label {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+.cv-registers__variant select {
+  min-width: 0;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--cv-text, CanvasText);
+  background: var(--cv-surface-elevated, Canvas);
+  border: 1px solid var(--cv-border, GrayText);
+  border-radius: 4px;
+}
+
+.cv-registers__switch {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.15rem 0.6rem;
+  align-items: center;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.cv-registers__switch legend {
+  float: left;
+  margin-inline-end: 0.4rem;
+  padding: 0;
+  color: var(--cv-text-muted, GrayText);
+}
+
+.cv-registers__switch label {
+  display: inline-flex;
+  gap: 0.2rem;
+  align-items: center;
+}
+
+/*
+ * Compact cells: the byte grid's em-based cells (1.8em + 2px gap here, a 4em row header, lane gaps)
+ * shrink with the panel so all 16 lanes fit a half-width split; below the readable minimum (12px,
+ * 11px on phones) the grid scrolls inside the panel (viz's ByteGrid, with its edge fade), never the
+ * page.
+ */
+.cv-registers .cv-grid {
+  /* Readable floor: 11px on phones, 12px on wider screens (the grid scrolls when it does not fit). */
+  --cv-registers-min-font: 0.6875rem;
+  --cv-cell-pitch: calc(1.8em + 2px);
+  font-size: clamp(var(--cv-registers-min-font), calc((100cqi - 2.75rem) / (var(--cv-registers-cols, 16) * 1.8 + 5)), 1rem);
+}
+
+/* Tighter cells and row header than viz's defaults, so 16 bytes fit a half-width split at 12px. */
+.cv-registers .cv-grid :is(.cv-cell, .cv-grid__colhead) {
+  min-width: 1.8em;
+}
+
+.cv-registers .cv-grid .cv-cell {
+  height: 1.8em;
+}
+
+.cv-registers .cv-grid .cv-grid__offset {
+  min-width: 4em;
+  white-space: nowrap;
+}
+
+@media (min-width: 48rem) {
+  .cv-registers .cv-grid {
+    --cv-registers-min-font: 0.75rem;
+  }
+}
+
+/* Lane boundaries: a gap before the first byte of every lane (child 1 is the row header / corner). */
+.cv-registers[data-lane-bytes='2'] .cv-grid__row > :nth-child(2n + 2):not(:nth-child(2)),
+.cv-registers[data-lane-bytes='4'] .cv-grid__row > :nth-child(4n + 2):not(:nth-child(2)),
+.cv-registers[data-lane-bytes='8'] .cv-grid__row > :nth-child(8n + 2):not(:nth-child(2)) {
+  margin-inline-start: 0.45rem;
+}
+
+/* The lane table scrolls inside the panel, never the page. */
+.cv-registers__lanes-scroll {
+  position: relative;
+  max-width: 100%;
+  overflow-x: auto;
+  overscroll-behavior-inline: contain;
+}
+
+.cv-registers__lanes {
+  border-collapse: collapse;
+  font-size: 0.8em;
+}
+
+.cv-registers__lanes caption {
+  padding-block-end: 0.2rem;
+  color: var(--cv-text-muted, GrayText);
+  text-align: start;
+  white-space: normal;
+}
+
+.cv-registers__lanes th,
+.cv-registers__lanes td {
+  padding: 0.1rem 0.5rem;
+  font-family: var(--sl-font-mono, ui-monospace, monospace);
+  white-space: nowrap;
+  border-block-end: 1px solid var(--cv-border-subtle, GrayText);
+}
+
+.cv-registers__lanes th {
+  font-weight: 600;
+  color: var(--cv-text-muted, GrayText);
+  text-align: start;
+}
+
+.cv-registers__legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem 1rem;
+  margin: 0;
+  font-size: 0.8em;
+  color: var(--cv-text-muted, GrayText);
+}

@@ -1,0 +1,2781 @@
+{
+  "cases": [
+    {
+      "producer": "gcm",
+      "preset": "mcgrew-viega-tc4",
+      "stepCount": 23,
+      "chain": {
+        "kind": "chain",
+        "schemaVersion": 1,
+        "mode": "gcm",
+        "direction": "encrypt",
+        "formula": {
+          "key": "plugin.gcm.formula.encrypt"
+        },
+        "nodes": [
+          {
+            "id": "h",
+            "block": -1,
+            "kind": "cipher",
+            "label": {
+              "key": "plugin.gcm.chain.hashKey"
+            },
+            "bytes": [
+              184,
+              59,
+              83,
+              55,
+              8,
+              191,
+              83,
+              93,
+              10,
+              166,
+              229,
+              41,
+              128,
+              213,
+              59,
+              120
+            ],
+            "activeAt": 0,
+            "valueRef": "h",
+            "zoom": {
+              "producerId": "aes",
+              "keyHex": "feffe9928665731c6d6a8f9467308308",
+              "blockHex": "00000000000000000000000000000000"
+            }
+          },
+          {
+            "id": "iv",
+            "block": -1,
+            "kind": "iv",
+            "label": {
+              "key": "plugin.gcm.chain.iv"
+            },
+            "bytes": [
+              202,
+              254,
+              186,
+              190,
+              250,
+              206,
+              219,
+              173,
+              222,
+              202,
+              248,
+              136
+            ],
+            "activeAt": -1,
+            "valueRef": "iv",
+            "segmentId": "iv"
+          },
+          {
+            "id": "j0",
+            "block": -1,
+            "kind": "counter",
+            "label": {
+              "key": "plugin.gcm.chain.j0"
+            },
+            "bytes": [
+              202,
+              254,
+              186,
+              190,
+              250,
+              206,
+              219,
+              173,
+              222,
+              202,
+              248,
+              136,
+              0,
+              0,
+              0,
+              1
+            ],
+            "activeAt": 1,
+            "valueRef": "j0"
+          },
+          {
+            "id": "b0.counter",
+            "block": 0,
+            "kind": "counter",
+            "label": {
+              "key": "plugin.gcm.chain.counter",
+              "params": {
+                "n": 1
+              }
+            },
+            "bytes": [
+              202,
+              254,
+              186,
+              190,
+              250,
+              206,
+              219,
+              173,
+              222,
+              202,
+              248,
+              136,
+              0,
+              0,
+              0,
+              2
+            ],
+            "activeAt": 2
+          },
+          {
+            "id": "b0.cipher",
+            "block": 0,
+            "kind": "cipher",
+            "label": {
+              "key": "plugin.gcm.chain.encrypt"
+            },
+            "bytes": [
+              155,
+              178,
+              44,
+              231,
+              217,
+              243,
+              114,
+              193,
+              238,
+              43,
+              40,
+              114,
+              43,
+              37,
+              242,
+              6
+            ],
+            "activeAt": 3,
+            "zoom": {
+              "producerId": "aes",
+              "keyHex": "feffe9928665731c6d6a8f9467308308",
+              "blockHex": "cafebabefacedbaddecaf88800000002"
+            }
+          },
+          {
+            "id": "b0.keystream",
+            "block": 0,
+            "kind": "keystream",
+            "label": {
+              "key": "plugin.gcm.chain.keystream",
+              "params": {
+                "n": 1
+              }
+            },
+            "bytes": [
+              155,
+              178,
+              44,
+              231,
+              217,
+              243,
+              114,
+              193,
+              238,
+              43,
+              40,
+              114,
+              43,
+              37,
+              242,
+              6
+            ],
+            "activeAt": 3
+          },
+          {
+            "id": "b0.input",
+            "block": 0,
+            "kind": "input",
+            "label": {
+              "key": "plugin.gcm.chain.plaintext",
+              "params": {
+                "n": 1
+              }
+            },
+            "bytes": [
+              217,
+              49,
+              50,
+              37,
+              248,
+              132,
+              6,
+              229,
+              165,
+              89,
+              9,
+              197,
+              175,
+              245,
+              38,
+              154
+            ],
+            "activeAt": -1
+          },
+          {
+            "id": "b0.xor",
+            "block": 0,
+            "kind": "xor",
+            "label": {
+              "key": "plugin.gcm.chain.xor"
+            },
+            "bytes": [
+              66,
+              131,
+              30,
+              194,
+              33,
+              119,
+              116,
+              36,
+              75,
+              114,
+              33,
+              183,
+              132,
+              208,
+              212,
+              156
+            ],
+            "activeAt": 4
+          },
+          {
+            "id": "b0.output",
+            "block": 0,
+            "kind": "output",
+            "label": {
+              "key": "plugin.gcm.chain.ciphertext",
+              "params": {
+                "n": 1
+              }
+            },
+            "bytes": [
+              66,
+              131,
+              30,
+              194,
+              33,
+              119,
+              116,
+              36,
+              75,
+              114,
+              33,
+              183,
+              132,
+              208,
+              212,
+              156
+            ],
+            "activeAt": 4,
+            "segmentId": "c0"
+          },
+          {
+            "id": "b1.counter",
+            "block": 1,
+            "kind": "counter",
+            "label": {
+              "key": "plugin.gcm.chain.counter",
+              "params": {
+                "n": 2
+              }
+            },
+            "bytes": [
+              202,
+              254,
+              186,
+              190,
+              250,
+              206,
+              219,
+              173,
+              222,
+              202,
+              248,
+              136,
+              0,
+              0,
+              0,
+              3
+            ],
+            "activeAt": 5
+          },
+          {
+            "id": "b1.cipher",
+            "block": 1,
+            "kind": "cipher",
+            "label": {
+              "key": "plugin.gcm.chain.encrypt"
+            },
+            "bytes": [
+              101,
+              13,
+              136,
+              124,
+              57,
+              54,
+              83,
+              58,
+              27,
+              141,
+              78,
+              30,
+              163,
+              157,
+              43,
+              92
+            ],
+            "activeAt": 6,
+            "zoom": {
+              "producerId": "aes",
+              "keyHex": "feffe9928665731c6d6a8f9467308308",
+              "blockHex": "cafebabefacedbaddecaf88800000003"
+            }
+          },
+          {
+            "id": "b1.keystream",
+            "block": 1,
+            "kind": "keystream",
+            "label": {
+              "key": "plugin.gcm.chain.keystream",
+              "params": {
+                "n": 2
+              }
+            },
+            "bytes": [
+              101,
+              13,
+              136,
+              124,
+              57,
+              54,
+              83,
+              58,
+              27,
+              141,
+              78,
+              30,
+              163,
+              157,
+              43,
+              92
+            ],
+            "activeAt": 6
+          },
+          {
+            "id": "b1.input",
+            "block": 1,
+            "kind": "input",
+            "label": {
+              "key": "plugin.gcm.chain.plaintext",
+              "params": {
+                "n": 2
+              }
+            },
+            "bytes": [
+              134,
+              167,
+              169,
+              83,
+              21,
+              52,
+              247,
+              218,
+              46,
+              76,
+              48,
+              61,
+              138,
+              49,
+              138,
+              114
+            ],
+            "activeAt": -1
+          },
+          {
+            "id": "b1.xor",
+            "block": 1,
+            "kind": "xor",
+            "label": {
+              "key": "plugin.gcm.chain.xor"
+            },
+            "bytes": [
+              227,
+              170,
+              33,
+              47,
+              44,
+              2,
+              164,
+              224,
+              53,
+              193,
+              126,
+              35,
+              41,
+              172,
+              161,
+              46
+            ],
+            "activeAt": 7
+          },
+          {
+            "id": "b1.output",
+            "block": 1,
+            "kind": "output",
+            "label": {
+              "key": "plugin.gcm.chain.ciphertext",
+              "params": {
+                "n": 2
+              }
+            },
+            "bytes": [
+              227,
+              170,
+              33,
+              47,
+              44,
+              2,
+              164,
+              224,
+              53,
+              193,
+              126,
+              35,
+              41,
+              172,
+              161,
+              46
+            ],
+            "activeAt": 7,
+            "segmentId": "c1"
+          },
+          {
+            "id": "b2.counter",
+            "block": 2,
+            "kind": "counter",
+            "label": {
+              "key": "plugin.gcm.chain.counter",
+              "params": {
+                "n": 3
+              }
+            },
+            "bytes": [
+              202,
+              254,
+              186,
+              190,
+              250,
+              206,
+              219,
+              173,
+              222,
+              202,
+              248,
+              136,
+              0,
+              0,
+              0,
+              4
+            ],
+            "activeAt": 8
+          },
+          {
+            "id": "b2.cipher",
+            "block": 2,
+            "kind": "cipher",
+            "label": {
+              "key": "plugin.gcm.chain.encrypt"
+            },
+            "bytes": [
+              61,
+              233,
+              24,
+              39,
+              193,
+              14,
+              154,
+              79,
+              82,
+              64,
+              100,
+              126,
+              229,
+              34,
+              31,
+              32
+            ],
+            "activeAt": 9,
+            "zoom": {
+              "producerId": "aes",
+              "keyHex": "feffe9928665731c6d6a8f9467308308",
+              "blockHex": "cafebabefacedbaddecaf88800000004"
+            }
+          },
+          {
+            "id": "b2.keystream",
+            "block": 2,
+            "kind": "keystream",
+            "label": {
+              "key": "plugin.gcm.chain.keystream",
+              "params": {
+                "n": 3
+              }
+            },
+            "bytes": [
+              61,
+              233,
+              24,
+              39,
+              193,
+              14,
+              154,
+              79,
+              82,
+              64,
+              100,
+              126,
+              229,
+              34,
+              31,
+              32
+            ],
+            "activeAt": 9
+          },
+          {
+            "id": "b2.input",
+            "block": 2,
+            "kind": "input",
+            "label": {
+              "key": "plugin.gcm.chain.plaintext",
+              "params": {
+                "n": 3
+              }
+            },
+            "bytes": [
+              28,
+              60,
+              12,
+              149,
+              149,
+              104,
+              9,
+              83,
+              47,
+              207,
+              14,
+              36,
+              73,
+              166,
+              181,
+              37
+            ],
+            "activeAt": -1
+          },
+          {
+            "id": "b2.xor",
+            "block": 2,
+            "kind": "xor",
+            "label": {
+              "key": "plugin.gcm.chain.xor"
+            },
+            "bytes": [
+              33,
+              213,
+              20,
+              178,
+              84,
+              102,
+              147,
+              28,
+              125,
+              143,
+              106,
+              90,
+              172,
+              132,
+              170,
+              5
+            ],
+            "activeAt": 10
+          },
+          {
+            "id": "b2.output",
+            "block": 2,
+            "kind": "output",
+            "label": {
+              "key": "plugin.gcm.chain.ciphertext",
+              "params": {
+                "n": 3
+              }
+            },
+            "bytes": [
+              33,
+              213,
+              20,
+              178,
+              84,
+              102,
+              147,
+              28,
+              125,
+              143,
+              106,
+              90,
+              172,
+              132,
+              170,
+              5
+            ],
+            "activeAt": 10,
+            "segmentId": "c2"
+          },
+          {
+            "id": "b3.counter",
+            "block": 3,
+            "kind": "counter",
+            "label": {
+              "key": "plugin.gcm.chain.counter",
+              "params": {
+                "n": 4
+              }
+            },
+            "bytes": [
+              202,
+              254,
+              186,
+              190,
+              250,
+              206,
+              219,
+              173,
+              222,
+              202,
+              248,
+              136,
+              0,
+              0,
+              0,
+              5
+            ],
+            "activeAt": 11
+          },
+          {
+            "id": "b3.cipher",
+            "block": 3,
+            "kind": "cipher",
+            "label": {
+              "key": "plugin.gcm.chain.encrypt"
+            },
+            "bytes": [
+              170,
+              201,
+              230,
+              204,
+              192,
+              7,
+              74,
+              192,
+              135,
+              59,
+              155,
+              168,
+              93,
+              144,
+              139,
+              208
+            ],
+            "activeAt": 12,
+            "zoom": {
+              "producerId": "aes",
+              "keyHex": "feffe9928665731c6d6a8f9467308308",
+              "blockHex": "cafebabefacedbaddecaf88800000005"
+            }
+          },
+          {
+            "id": "b3.keystream",
+            "block": 3,
+            "kind": "keystream",
+            "label": {
+              "key": "plugin.gcm.chain.keystream",
+              "params": {
+                "n": 4
+              }
+            },
+            "bytes": [
+              170,
+              201,
+              230,
+              204,
+              192,
+              7,
+              74,
+              192,
+              135,
+              59,
+              155,
+              168
+            ],
+            "activeAt": 12
+          },
+          {
+            "id": "b3.input",
+            "block": 3,
+            "kind": "input",
+            "label": {
+              "key": "plugin.gcm.chain.plaintext",
+              "params": {
+                "n": 4
+              }
+            },
+            "bytes": [
+              177,
+              106,
+              237,
+              245,
+              170,
+              13,
+              230,
+              87,
+              186,
+              99,
+              123,
+              57
+            ],
+            "activeAt": -1
+          },
+          {
+            "id": "b3.xor",
+            "block": 3,
+            "kind": "xor",
+            "label": {
+              "key": "plugin.gcm.chain.xor"
+            },
+            "bytes": [
+              27,
+              163,
+              11,
+              57,
+              106,
+              10,
+              172,
+              151,
+              61,
+              88,
+              224,
+              145
+            ],
+            "activeAt": 13
+          },
+          {
+            "id": "b3.output",
+            "block": 3,
+            "kind": "output",
+            "label": {
+              "key": "plugin.gcm.chain.ciphertext",
+              "params": {
+                "n": 4
+              }
+            },
+            "bytes": [
+              27,
+              163,
+              11,
+              57,
+              106,
+              10,
+              172,
+              151,
+              61,
+              88,
+              224,
+              145
+            ],
+            "activeAt": 13,
+            "segmentId": "c3"
+          },
+          {
+            "id": "ghash.aad0",
+            "block": 4,
+            "kind": "aad",
+            "label": {
+              "key": "plugin.gcm.chain.aad",
+              "params": {
+                "n": 1
+              }
+            },
+            "bytes": [
+              254,
+              237,
+              250,
+              206,
+              222,
+              173,
+              190,
+              239,
+              254,
+              237,
+              250,
+              206,
+              222,
+              173,
+              190,
+              239
+            ],
+            "activeAt": -1
+          },
+          {
+            "id": "ghash.x1",
+            "block": 4,
+            "kind": "hash",
+            "label": {
+              "key": "plugin.gcm.chain.hash",
+              "params": {
+                "n": 1
+              }
+            },
+            "bytes": [
+              237,
+              86,
+              170,
+              248,
+              167,
+              45,
+              103,
+              4,
+              159,
+              219,
+              146,
+              40,
+              237,
+              186,
+              19,
+              34
+            ],
+            "activeAt": 14
+          },
+          {
+            "id": "ghash.aad1",
+            "block": 4,
+            "kind": "aad",
+            "label": {
+              "key": "plugin.gcm.chain.aad",
+              "params": {
+                "n": 2
+              }
+            },
+            "bytes": [
+              171,
+              173,
+              218,
+              210
+            ],
+            "activeAt": -1
+          },
+          {
+            "id": "ghash.x2",
+            "block": 4,
+            "kind": "hash",
+            "label": {
+              "key": "plugin.gcm.chain.hash",
+              "params": {
+                "n": 2
+              }
+            },
+            "bytes": [
+              205,
+              71,
+              34,
+              28,
+              206,
+              240,
+              85,
+              78,
+              228,
+              187,
+              4,
+              76,
+              136,
+              21,
+              3,
+              82
+            ],
+            "activeAt": 15
+          },
+          {
+            "id": "ghash.x3",
+            "block": 4,
+            "kind": "hash",
+            "label": {
+              "key": "plugin.gcm.chain.hash",
+              "params": {
+                "n": 3
+              }
+            },
+            "bytes": [
+              84,
+              245,
+              225,
+              178,
+              181,
+              168,
+              249,
+              82,
+              92,
+              35,
+              146,
+              71,
+              81,
+              163,
+              202,
+              81
+            ],
+            "activeAt": 16
+          },
+          {
+            "id": "ghash.x4",
+            "block": 4,
+            "kind": "hash",
+            "label": {
+              "key": "plugin.gcm.chain.hash",
+              "params": {
+                "n": 4
+              }
+            },
+            "bytes": [
+              50,
+              79,
+              88,
+              92,
+              111,
+              252,
+              19,
+              89,
+              171,
+              55,
+              21,
+              101,
+              214,
+              196,
+              95,
+              147
+            ],
+            "activeAt": 17
+          },
+          {
+            "id": "ghash.x5",
+            "block": 4,
+            "kind": "hash",
+            "label": {
+              "key": "plugin.gcm.chain.hash",
+              "params": {
+                "n": 5
+              }
+            },
+            "bytes": [
+              202,
+              125,
+              212,
+              70,
+              175,
+              74,
+              167,
+              12,
+              195,
+              192,
+              205,
+              90,
+              187,
+              166,
+              170,
+              28
+            ],
+            "activeAt": 18
+          },
+          {
+            "id": "ghash.x6",
+            "block": 4,
+            "kind": "hash",
+            "label": {
+              "key": "plugin.gcm.chain.hash",
+              "params": {
+                "n": 6
+              }
+            },
+            "bytes": [
+              21,
+              144,
+              223,
+              155,
+              46,
+              182,
+              118,
+              130,
+              137,
+              229,
+              125,
+              86,
+              39,
+              76,
+              133,
+              112
+            ],
+            "activeAt": 19
+          },
+          {
+            "id": "ghash.length",
+            "block": 4,
+            "kind": "length",
+            "label": {
+              "key": "plugin.gcm.chain.length"
+            },
+            "bytes": [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              160,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              1,
+              224
+            ],
+            "activeAt": 20
+          },
+          {
+            "id": "ghash.x7",
+            "block": 4,
+            "kind": "hash",
+            "label": {
+              "key": "plugin.gcm.chain.s",
+              "params": {
+                "n": 7
+              }
+            },
+            "bytes": [
+              105,
+              142,
+              87,
+              247,
+              14,
+              110,
+              204,
+              127,
+              217,
+              70,
+              59,
+              114,
+              96,
+              169,
+              174,
+              95
+            ],
+            "activeAt": 20,
+            "valueRef": "s"
+          },
+          {
+            "id": "tag.mask",
+            "block": 4,
+            "kind": "cipher",
+            "label": {
+              "key": "plugin.gcm.chain.mask"
+            },
+            "bytes": [
+              50,
+              71,
+              24,
+              75,
+              60,
+              79,
+              105,
+              164,
+              77,
+              188,
+              210,
+              40,
+              135,
+              187,
+              180,
+              24
+            ],
+            "activeAt": 21,
+            "zoom": {
+              "producerId": "aes",
+              "keyHex": "feffe9928665731c6d6a8f9467308308",
+              "blockHex": "cafebabefacedbaddecaf88800000001"
+            }
+          },
+          {
+            "id": "tag.t",
+            "block": 4,
+            "kind": "tag",
+            "label": {
+              "key": "plugin.gcm.chain.tag"
+            },
+            "bytes": [
+              91,
+              201,
+              79,
+              188,
+              50,
+              33,
+              165,
+              219,
+              148,
+              250,
+              233,
+              90,
+              231,
+              18,
+              26,
+              71
+            ],
+            "activeAt": 22,
+            "valueRef": "tag",
+            "segmentId": "tag"
+          }
+        ],
+        "edges": [
+          {
+            "from": "iv",
+            "to": "j0",
+            "activeAt": 1
+          },
+          {
+            "from": "j0",
+            "to": "b0.counter",
+            "activeAt": 2
+          },
+          {
+            "from": "b0.counter",
+            "to": "b0.cipher",
+            "activeAt": 3
+          },
+          {
+            "from": "b0.cipher",
+            "to": "b0.keystream",
+            "activeAt": 3
+          },
+          {
+            "from": "b0.input",
+            "to": "b0.xor",
+            "activeAt": 4
+          },
+          {
+            "from": "b0.keystream",
+            "to": "b0.xor",
+            "activeAt": 4
+          },
+          {
+            "from": "b0.xor",
+            "to": "b0.output",
+            "activeAt": 4
+          },
+          {
+            "from": "b0.counter",
+            "to": "b1.counter",
+            "activeAt": 5
+          },
+          {
+            "from": "b1.counter",
+            "to": "b1.cipher",
+            "activeAt": 6
+          },
+          {
+            "from": "b1.cipher",
+            "to": "b1.keystream",
+            "activeAt": 6
+          },
+          {
+            "from": "b1.input",
+            "to": "b1.xor",
+            "activeAt": 7
+          },
+          {
+            "from": "b1.keystream",
+            "to": "b1.xor",
+            "activeAt": 7
+          },
+          {
+            "from": "b1.xor",
+            "to": "b1.output",
+            "activeAt": 7
+          },
+          {
+            "from": "b1.counter",
+            "to": "b2.counter",
+            "activeAt": 8
+          },
+          {
+            "from": "b2.counter",
+            "to": "b2.cipher",
+            "activeAt": 9
+          },
+          {
+            "from": "b2.cipher",
+            "to": "b2.keystream",
+            "activeAt": 9
+          },
+          {
+            "from": "b2.input",
+            "to": "b2.xor",
+            "activeAt": 10
+          },
+          {
+            "from": "b2.keystream",
+            "to": "b2.xor",
+            "activeAt": 10
+          },
+          {
+            "from": "b2.xor",
+            "to": "b2.output",
+            "activeAt": 10
+          },
+          {
+            "from": "b2.counter",
+            "to": "b3.counter",
+            "activeAt": 11
+          },
+          {
+            "from": "b3.counter",
+            "to": "b3.cipher",
+            "activeAt": 12
+          },
+          {
+            "from": "b3.cipher",
+            "to": "b3.keystream",
+            "activeAt": 12
+          },
+          {
+            "from": "b3.input",
+            "to": "b3.xor",
+            "activeAt": 13
+          },
+          {
+            "from": "b3.keystream",
+            "to": "b3.xor",
+            "activeAt": 13
+          },
+          {
+            "from": "b3.xor",
+            "to": "b3.output",
+            "activeAt": 13
+          },
+          {
+            "from": "ghash.aad0",
+            "to": "ghash.x1",
+            "activeAt": 14
+          },
+          {
+            "from": "h",
+            "to": "ghash.x1",
+            "activeAt": 14
+          },
+          {
+            "from": "ghash.x1",
+            "to": "ghash.x2",
+            "activeAt": 15
+          },
+          {
+            "from": "ghash.aad1",
+            "to": "ghash.x2",
+            "activeAt": 15
+          },
+          {
+            "from": "h",
+            "to": "ghash.x2",
+            "activeAt": 15
+          },
+          {
+            "from": "ghash.x2",
+            "to": "ghash.x3",
+            "activeAt": 16
+          },
+          {
+            "from": "b0.output",
+            "to": "ghash.x3",
+            "activeAt": 16
+          },
+          {
+            "from": "h",
+            "to": "ghash.x3",
+            "activeAt": 16
+          },
+          {
+            "from": "ghash.x3",
+            "to": "ghash.x4",
+            "activeAt": 17
+          },
+          {
+            "from": "b1.output",
+            "to": "ghash.x4",
+            "activeAt": 17
+          },
+          {
+            "from": "h",
+            "to": "ghash.x4",
+            "activeAt": 17
+          },
+          {
+            "from": "ghash.x4",
+            "to": "ghash.x5",
+            "activeAt": 18
+          },
+          {
+            "from": "b2.output",
+            "to": "ghash.x5",
+            "activeAt": 18
+          },
+          {
+            "from": "h",
+            "to": "ghash.x5",
+            "activeAt": 18
+          },
+          {
+            "from": "ghash.x5",
+            "to": "ghash.x6",
+            "activeAt": 19
+          },
+          {
+            "from": "b3.output",
+            "to": "ghash.x6",
+            "activeAt": 19
+          },
+          {
+            "from": "h",
+            "to": "ghash.x6",
+            "activeAt": 19
+          },
+          {
+            "from": "ghash.x6",
+            "to": "ghash.x7",
+            "activeAt": 20
+          },
+          {
+            "from": "ghash.length",
+            "to": "ghash.x7",
+            "activeAt": 20
+          },
+          {
+            "from": "h",
+            "to": "ghash.x7",
+            "activeAt": 20
+          },
+          {
+            "from": "j0",
+            "to": "tag.mask",
+            "activeAt": 21
+          },
+          {
+            "from": "ghash.x7",
+            "to": "tag.t",
+            "activeAt": 22
+          },
+          {
+            "from": "tag.mask",
+            "to": "tag.t",
+            "activeAt": 22
+          }
+        ]
+      }
+    },
+    {
+      "producer": "gcm",
+      "preset": "decrypt-forged",
+      "stepCount": 24,
+      "chain": {
+        "kind": "chain",
+        "schemaVersion": 1,
+        "mode": "gcm",
+        "direction": "decrypt",
+        "formula": {
+          "key": "plugin.gcm.formula.decrypt"
+        },
+        "nodes": [
+          {
+            "id": "h",
+            "block": -1,
+            "kind": "cipher",
+            "label": {
+              "key": "plugin.gcm.chain.hashKey"
+            },
+            "bytes": [
+              184,
+              59,
+              83,
+              55,
+              8,
+              191,
+              83,
+              93,
+              10,
+              166,
+              229,
+              41,
+              128,
+              213,
+              59,
+              120
+            ],
+            "activeAt": 0,
+            "valueRef": "h",
+            "zoom": {
+              "producerId": "aes",
+              "keyHex": "feffe9928665731c6d6a8f9467308308",
+              "blockHex": "00000000000000000000000000000000"
+            }
+          },
+          {
+            "id": "iv",
+            "block": -1,
+            "kind": "iv",
+            "label": {
+              "key": "plugin.gcm.chain.iv"
+            },
+            "bytes": [
+              202,
+              254,
+              186,
+              190,
+              250,
+              206,
+              219,
+              173,
+              222,
+              202,
+              248,
+              136
+            ],
+            "activeAt": -1,
+            "valueRef": "iv",
+            "segmentId": "iv"
+          },
+          {
+            "id": "j0",
+            "block": -1,
+            "kind": "counter",
+            "label": {
+              "key": "plugin.gcm.chain.j0"
+            },
+            "bytes": [
+              202,
+              254,
+              186,
+              190,
+              250,
+              206,
+              219,
+              173,
+              222,
+              202,
+              248,
+              136,
+              0,
+              0,
+              0,
+              1
+            ],
+            "activeAt": 1,
+            "valueRef": "j0"
+          },
+          {
+            "id": "b0.counter",
+            "block": 0,
+            "kind": "counter",
+            "label": {
+              "key": "plugin.gcm.chain.counter",
+              "params": {
+                "n": 1
+              }
+            },
+            "bytes": [
+              202,
+              254,
+              186,
+              190,
+              250,
+              206,
+              219,
+              173,
+              222,
+              202,
+              248,
+              136,
+              0,
+              0,
+              0,
+              2
+            ],
+            "activeAt": 2
+          },
+          {
+            "id": "b0.cipher",
+            "block": 0,
+            "kind": "cipher",
+            "label": {
+              "key": "plugin.gcm.chain.encrypt"
+            },
+            "bytes": [
+              155,
+              178,
+              44,
+              231,
+              217,
+              243,
+              114,
+              193,
+              238,
+              43,
+              40,
+              114,
+              43,
+              37,
+              242,
+              6
+            ],
+            "activeAt": 3,
+            "zoom": {
+              "producerId": "aes",
+              "keyHex": "feffe9928665731c6d6a8f9467308308",
+              "blockHex": "cafebabefacedbaddecaf88800000002"
+            }
+          },
+          {
+            "id": "b0.keystream",
+            "block": 0,
+            "kind": "keystream",
+            "label": {
+              "key": "plugin.gcm.chain.keystream",
+              "params": {
+                "n": 1
+              }
+            },
+            "bytes": [
+              155,
+              178,
+              44,
+              231,
+              217,
+              243,
+              114,
+              193,
+              238,
+              43,
+              40,
+              114,
+              43,
+              37,
+              242,
+              6
+            ],
+            "activeAt": 3
+          },
+          {
+            "id": "b0.input",
+            "block": 0,
+            "kind": "input",
+            "label": {
+              "key": "plugin.gcm.chain.ciphertext",
+              "params": {
+                "n": 1
+              }
+            },
+            "bytes": [
+              66,
+              131,
+              30,
+              194,
+              33,
+              119,
+              116,
+              36,
+              75,
+              114,
+              33,
+              183,
+              132,
+              208,
+              212,
+              156
+            ],
+            "activeAt": -1,
+            "segmentId": "c0"
+          },
+          {
+            "id": "b0.xor",
+            "block": 0,
+            "kind": "xor",
+            "label": {
+              "key": "plugin.gcm.chain.xorWithheld"
+            },
+            "bytes": [],
+            "activeAt": 4
+          },
+          {
+            "id": "b0.output",
+            "block": 0,
+            "kind": "output",
+            "label": {
+              "key": "plugin.gcm.chain.plaintextDiscarded",
+              "params": {
+                "n": 1
+              }
+            },
+            "bytes": [],
+            "activeAt": 23
+          },
+          {
+            "id": "b1.counter",
+            "block": 1,
+            "kind": "counter",
+            "label": {
+              "key": "plugin.gcm.chain.counter",
+              "params": {
+                "n": 2
+              }
+            },
+            "bytes": [
+              202,
+              254,
+              186,
+              190,
+              250,
+              206,
+              219,
+              173,
+              222,
+              202,
+              248,
+              136,
+              0,
+              0,
+              0,
+              3
+            ],
+            "activeAt": 5
+          },
+          {
+            "id": "b1.cipher",
+            "block": 1,
+            "kind": "cipher",
+            "label": {
+              "key": "plugin.gcm.chain.encrypt"
+            },
+            "bytes": [
+              101,
+              13,
+              136,
+              124,
+              57,
+              54,
+              83,
+              58,
+              27,
+              141,
+              78,
+              30,
+              163,
+              157,
+              43,
+              92
+            ],
+            "activeAt": 6,
+            "zoom": {
+              "producerId": "aes",
+              "keyHex": "feffe9928665731c6d6a8f9467308308",
+              "blockHex": "cafebabefacedbaddecaf88800000003"
+            }
+          },
+          {
+            "id": "b1.keystream",
+            "block": 1,
+            "kind": "keystream",
+            "label": {
+              "key": "plugin.gcm.chain.keystream",
+              "params": {
+                "n": 2
+              }
+            },
+            "bytes": [
+              101,
+              13,
+              136,
+              124,
+              57,
+              54,
+              83,
+              58,
+              27,
+              141,
+              78,
+              30,
+              163,
+              157,
+              43,
+              92
+            ],
+            "activeAt": 6
+          },
+          {
+            "id": "b1.input",
+            "block": 1,
+            "kind": "input",
+            "label": {
+              "key": "plugin.gcm.chain.ciphertext",
+              "params": {
+                "n": 2
+              }
+            },
+            "bytes": [
+              227,
+              170,
+              33,
+              47,
+              44,
+              2,
+              164,
+              224,
+              53,
+              193,
+              126,
+              35,
+              41,
+              172,
+              161,
+              46
+            ],
+            "activeAt": -1,
+            "segmentId": "c1"
+          },
+          {
+            "id": "b1.xor",
+            "block": 1,
+            "kind": "xor",
+            "label": {
+              "key": "plugin.gcm.chain.xorWithheld"
+            },
+            "bytes": [],
+            "activeAt": 7
+          },
+          {
+            "id": "b1.output",
+            "block": 1,
+            "kind": "output",
+            "label": {
+              "key": "plugin.gcm.chain.plaintextDiscarded",
+              "params": {
+                "n": 2
+              }
+            },
+            "bytes": [],
+            "activeAt": 23
+          },
+          {
+            "id": "b2.counter",
+            "block": 2,
+            "kind": "counter",
+            "label": {
+              "key": "plugin.gcm.chain.counter",
+              "params": {
+                "n": 3
+              }
+            },
+            "bytes": [
+              202,
+              254,
+              186,
+              190,
+              250,
+              206,
+              219,
+              173,
+              222,
+              202,
+              248,
+              136,
+              0,
+              0,
+              0,
+              4
+            ],
+            "activeAt": 8
+          },
+          {
+            "id": "b2.cipher",
+            "block": 2,
+            "kind": "cipher",
+            "label": {
+              "key": "plugin.gcm.chain.encrypt"
+            },
+            "bytes": [
+              61,
+              233,
+              24,
+              39,
+              193,
+              14,
+              154,
+              79,
+              82,
+              64,
+              100,
+              126,
+              229,
+              34,
+              31,
+              32
+            ],
+            "activeAt": 9,
+            "zoom": {
+              "producerId": "aes",
+              "keyHex": "feffe9928665731c6d6a8f9467308308",
+              "blockHex": "cafebabefacedbaddecaf88800000004"
+            }
+          },
+          {
+            "id": "b2.keystream",
+            "block": 2,
+            "kind": "keystream",
+            "label": {
+              "key": "plugin.gcm.chain.keystream",
+              "params": {
+                "n": 3
+              }
+            },
+            "bytes": [
+              61,
+              233,
+              24,
+              39,
+              193,
+              14,
+              154,
+              79,
+              82,
+              64,
+              100,
+              126,
+              229,
+              34,
+              31,
+              32
+            ],
+            "activeAt": 9
+          },
+          {
+            "id": "b2.input",
+            "block": 2,
+            "kind": "input",
+            "label": {
+              "key": "plugin.gcm.chain.ciphertext",
+              "params": {
+                "n": 3
+              }
+            },
+            "bytes": [
+              33,
+              213,
+              20,
+              178,
+              84,
+              102,
+              147,
+              28,
+              125,
+              143,
+              106,
+              90,
+              172,
+              132,
+              170,
+              5
+            ],
+            "activeAt": -1,
+            "segmentId": "c2"
+          },
+          {
+            "id": "b2.xor",
+            "block": 2,
+            "kind": "xor",
+            "label": {
+              "key": "plugin.gcm.chain.xorWithheld"
+            },
+            "bytes": [],
+            "activeAt": 10
+          },
+          {
+            "id": "b2.output",
+            "block": 2,
+            "kind": "output",
+            "label": {
+              "key": "plugin.gcm.chain.plaintextDiscarded",
+              "params": {
+                "n": 3
+              }
+            },
+            "bytes": [],
+            "activeAt": 23
+          },
+          {
+            "id": "b3.counter",
+            "block": 3,
+            "kind": "counter",
+            "label": {
+              "key": "plugin.gcm.chain.counter",
+              "params": {
+                "n": 4
+              }
+            },
+            "bytes": [
+              202,
+              254,
+              186,
+              190,
+              250,
+              206,
+              219,
+              173,
+              222,
+              202,
+              248,
+              136,
+              0,
+              0,
+              0,
+              5
+            ],
+            "activeAt": 11
+          },
+          {
+            "id": "b3.cipher",
+            "block": 3,
+            "kind": "cipher",
+            "label": {
+              "key": "plugin.gcm.chain.encrypt"
+            },
+            "bytes": [
+              170,
+              201,
+              230,
+              204,
+              192,
+              7,
+              74,
+              192,
+              135,
+              59,
+              155,
+              168,
+              93,
+              144,
+              139,
+              208
+            ],
+            "activeAt": 12,
+            "zoom": {
+              "producerId": "aes",
+              "keyHex": "feffe9928665731c6d6a8f9467308308",
+              "blockHex": "cafebabefacedbaddecaf88800000005"
+            }
+          },
+          {
+            "id": "b3.keystream",
+            "block": 3,
+            "kind": "keystream",
+            "label": {
+              "key": "plugin.gcm.chain.keystream",
+              "params": {
+                "n": 4
+              }
+            },
+            "bytes": [
+              170,
+              201,
+              230,
+              204,
+              192,
+              7,
+              74,
+              192,
+              135,
+              59,
+              155,
+              168
+            ],
+            "activeAt": 12
+          },
+          {
+            "id": "b3.input",
+            "block": 3,
+            "kind": "input",
+            "label": {
+              "key": "plugin.gcm.chain.ciphertext",
+              "params": {
+                "n": 4
+              }
+            },
+            "bytes": [
+              27,
+              163,
+              11,
+              57,
+              106,
+              10,
+              172,
+              151,
+              61,
+              88,
+              224,
+              145
+            ],
+            "activeAt": -1,
+            "segmentId": "c3"
+          },
+          {
+            "id": "b3.xor",
+            "block": 3,
+            "kind": "xor",
+            "label": {
+              "key": "plugin.gcm.chain.xorWithheld"
+            },
+            "bytes": [],
+            "activeAt": 13
+          },
+          {
+            "id": "b3.output",
+            "block": 3,
+            "kind": "output",
+            "label": {
+              "key": "plugin.gcm.chain.plaintextDiscarded",
+              "params": {
+                "n": 4
+              }
+            },
+            "bytes": [],
+            "activeAt": 23
+          },
+          {
+            "id": "ghash.aad0",
+            "block": 4,
+            "kind": "aad",
+            "label": {
+              "key": "plugin.gcm.chain.aad",
+              "params": {
+                "n": 1
+              }
+            },
+            "bytes": [
+              254,
+              237,
+              250,
+              206,
+              222,
+              173,
+              190,
+              239,
+              254,
+              237,
+              250,
+              206,
+              222,
+              173,
+              190,
+              239
+            ],
+            "activeAt": -1
+          },
+          {
+            "id": "ghash.x1",
+            "block": 4,
+            "kind": "hash",
+            "label": {
+              "key": "plugin.gcm.chain.hash",
+              "params": {
+                "n": 1
+              }
+            },
+            "bytes": [
+              237,
+              86,
+              170,
+              248,
+              167,
+              45,
+              103,
+              4,
+              159,
+              219,
+              146,
+              40,
+              237,
+              186,
+              19,
+              34
+            ],
+            "activeAt": 14
+          },
+          {
+            "id": "ghash.aad1",
+            "block": 4,
+            "kind": "aad",
+            "label": {
+              "key": "plugin.gcm.chain.aad",
+              "params": {
+                "n": 2
+              }
+            },
+            "bytes": [
+              171,
+              173,
+              218,
+              210
+            ],
+            "activeAt": -1
+          },
+          {
+            "id": "ghash.x2",
+            "block": 4,
+            "kind": "hash",
+            "label": {
+              "key": "plugin.gcm.chain.hash",
+              "params": {
+                "n": 2
+              }
+            },
+            "bytes": [
+              205,
+              71,
+              34,
+              28,
+              206,
+              240,
+              85,
+              78,
+              228,
+              187,
+              4,
+              76,
+              136,
+              21,
+              3,
+              82
+            ],
+            "activeAt": 15
+          },
+          {
+            "id": "ghash.x3",
+            "block": 4,
+            "kind": "hash",
+            "label": {
+              "key": "plugin.gcm.chain.hash",
+              "params": {
+                "n": 3
+              }
+            },
+            "bytes": [
+              84,
+              245,
+              225,
+              178,
+              181,
+              168,
+              249,
+              82,
+              92,
+              35,
+              146,
+              71,
+              81,
+              163,
+              202,
+              81
+            ],
+            "activeAt": 16
+          },
+          {
+            "id": "ghash.x4",
+            "block": 4,
+            "kind": "hash",
+            "label": {
+              "key": "plugin.gcm.chain.hash",
+              "params": {
+                "n": 4
+              }
+            },
+            "bytes": [
+              50,
+              79,
+              88,
+              92,
+              111,
+              252,
+              19,
+              89,
+              171,
+              55,
+              21,
+              101,
+              214,
+              196,
+              95,
+              147
+            ],
+            "activeAt": 17
+          },
+          {
+            "id": "ghash.x5",
+            "block": 4,
+            "kind": "hash",
+            "label": {
+              "key": "plugin.gcm.chain.hash",
+              "params": {
+                "n": 5
+              }
+            },
+            "bytes": [
+              202,
+              125,
+              212,
+              70,
+              175,
+              74,
+              167,
+              12,
+              195,
+              192,
+              205,
+              90,
+              187,
+              166,
+              170,
+              28
+            ],
+            "activeAt": 18
+          },
+          {
+            "id": "ghash.x6",
+            "block": 4,
+            "kind": "hash",
+            "label": {
+              "key": "plugin.gcm.chain.hash",
+              "params": {
+                "n": 6
+              }
+            },
+            "bytes": [
+              21,
+              144,
+              223,
+              155,
+              46,
+              182,
+              118,
+              130,
+              137,
+              229,
+              125,
+              86,
+              39,
+              76,
+              133,
+              112
+            ],
+            "activeAt": 19
+          },
+          {
+            "id": "ghash.length",
+            "block": 4,
+            "kind": "length",
+            "label": {
+              "key": "plugin.gcm.chain.length"
+            },
+            "bytes": [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              160,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              1,
+              224
+            ],
+            "activeAt": 20
+          },
+          {
+            "id": "ghash.x7",
+            "block": 4,
+            "kind": "hash",
+            "label": {
+              "key": "plugin.gcm.chain.s",
+              "params": {
+                "n": 7
+              }
+            },
+            "bytes": [
+              105,
+              142,
+              87,
+              247,
+              14,
+              110,
+              204,
+              127,
+              217,
+              70,
+              59,
+              114,
+              96,
+              169,
+              174,
+              95
+            ],
+            "activeAt": 20,
+            "valueRef": "s"
+          },
+          {
+            "id": "tag.mask",
+            "block": 4,
+            "kind": "cipher",
+            "label": {
+              "key": "plugin.gcm.chain.mask"
+            },
+            "bytes": [
+              50,
+              71,
+              24,
+              75,
+              60,
+              79,
+              105,
+              164,
+              77,
+              188,
+              210,
+              40,
+              135,
+              187,
+              180,
+              24
+            ],
+            "activeAt": 21,
+            "zoom": {
+              "producerId": "aes",
+              "keyHex": "feffe9928665731c6d6a8f9467308308",
+              "blockHex": "cafebabefacedbaddecaf88800000001"
+            }
+          },
+          {
+            "id": "tag.t",
+            "block": 4,
+            "kind": "tag",
+            "label": {
+              "key": "plugin.gcm.chain.tagRecomputed"
+            },
+            "bytes": [
+              91,
+              201,
+              79,
+              188,
+              50,
+              33,
+              165,
+              219,
+              148,
+              250,
+              233,
+              90,
+              231,
+              18,
+              26,
+              71
+            ],
+            "activeAt": 22,
+            "valueRef": "tag"
+          },
+          {
+            "id": "tag.received",
+            "block": 4,
+            "kind": "tag",
+            "label": {
+              "key": "plugin.gcm.chain.tagReceived"
+            },
+            "bytes": [
+              90,
+              201,
+              79,
+              188,
+              50,
+              33,
+              165,
+              219,
+              148,
+              250,
+              233,
+              90,
+              231,
+              18,
+              26,
+              71
+            ],
+            "activeAt": -1,
+            "valueRef": "receivedTag",
+            "segmentId": "tag"
+          },
+          {
+            "id": "tag.verify",
+            "block": 4,
+            "kind": "tag",
+            "label": {
+              "key": "plugin.gcm.chain.verifyFail"
+            },
+            "bytes": [
+              91,
+              201,
+              79,
+              188,
+              50,
+              33,
+              165,
+              219,
+              148,
+              250,
+              233,
+              90,
+              231,
+              18,
+              26,
+              71
+            ],
+            "activeAt": 23
+          }
+        ],
+        "edges": [
+          {
+            "from": "iv",
+            "to": "j0",
+            "activeAt": 1
+          },
+          {
+            "from": "j0",
+            "to": "b0.counter",
+            "activeAt": 2
+          },
+          {
+            "from": "b0.counter",
+            "to": "b0.cipher",
+            "activeAt": 3
+          },
+          {
+            "from": "b0.cipher",
+            "to": "b0.keystream",
+            "activeAt": 3
+          },
+          {
+            "from": "b0.input",
+            "to": "b0.xor",
+            "activeAt": 4
+          },
+          {
+            "from": "b0.keystream",
+            "to": "b0.xor",
+            "activeAt": 4
+          },
+          {
+            "from": "b0.xor",
+            "to": "b0.output",
+            "activeAt": 23
+          },
+          {
+            "from": "b0.counter",
+            "to": "b1.counter",
+            "activeAt": 5
+          },
+          {
+            "from": "b1.counter",
+            "to": "b1.cipher",
+            "activeAt": 6
+          },
+          {
+            "from": "b1.cipher",
+            "to": "b1.keystream",
+            "activeAt": 6
+          },
+          {
+            "from": "b1.input",
+            "to": "b1.xor",
+            "activeAt": 7
+          },
+          {
+            "from": "b1.keystream",
+            "to": "b1.xor",
+            "activeAt": 7
+          },
+          {
+            "from": "b1.xor",
+            "to": "b1.output",
+            "activeAt": 23
+          },
+          {
+            "from": "b1.counter",
+            "to": "b2.counter",
+            "activeAt": 8
+          },
+          {
+            "from": "b2.counter",
+            "to": "b2.cipher",
+            "activeAt": 9
+          },
+          {
+            "from": "b2.cipher",
+            "to": "b2.keystream",
+            "activeAt": 9
+          },
+          {
+            "from": "b2.input",
+            "to": "b2.xor",
+            "activeAt": 10
+          },
+          {
+            "from": "b2.keystream",
+            "to": "b2.xor",
+            "activeAt": 10
+          },
+          {
+            "from": "b2.xor",
+            "to": "b2.output",
+            "activeAt": 23
+          },
+          {
+            "from": "b2.counter",
+            "to": "b3.counter",
+            "activeAt": 11
+          },
+          {
+            "from": "b3.counter",
+            "to": "b3.cipher",
+            "activeAt": 12
+          },
+          {
+            "from": "b3.cipher",
+            "to": "b3.keystream",
+            "activeAt": 12
+          },
+          {
+            "from": "b3.input",
+            "to": "b3.xor",
+            "activeAt": 13
+          },
+          {
+            "from": "b3.keystream",
+            "to": "b3.xor",
+            "activeAt": 13
+          },
+          {
+            "from": "b3.xor",
+            "to": "b3.output",
+            "activeAt": 23
+          },
+          {
+            "from": "ghash.aad0",
+            "to": "ghash.x1",
+            "activeAt": 14
+          },
+          {
+            "from": "h",
+            "to": "ghash.x1",
+            "activeAt": 14
+          },
+          {
+            "from": "ghash.x1",
+            "to": "ghash.x2",
+            "activeAt": 15
+          },
+          {
+            "from": "ghash.aad1",
+            "to": "ghash.x2",
+            "activeAt": 15
+          },
+          {
+            "from": "h",
+            "to": "ghash.x2",
+            "activeAt": 15
+          },
+          {
+            "from": "ghash.x2",
+            "to": "ghash.x3",
+            "activeAt": 16
+          },
+          {
+            "from": "b0.input",
+            "to": "ghash.x3",
+            "activeAt": 16
+          },
+          {
+            "from": "h",
+            "to": "ghash.x3",
+            "activeAt": 16
+          },
+          {
+            "from": "ghash.x3",
+            "to": "ghash.x4",
+            "activeAt": 17
+          },
+          {
+            "from": "b1.input",
+            "to": "ghash.x4",
+            "activeAt": 17
+          },
+          {
+            "from": "h",
+            "to": "ghash.x4",
+            "activeAt": 17
+          },
+          {
+            "from": "ghash.x4",
+            "to": "ghash.x5",
+            "activeAt": 18
+          },
+          {
+            "from": "b2.input",
+            "to": "ghash.x5",
+            "activeAt": 18
+          },
+          {
+            "from": "h",
+            "to": "ghash.x5",
+            "activeAt": 18
+          },
+          {
+            "from": "ghash.x5",
+            "to": "ghash.x6",
+            "activeAt": 19
+          },
+          {
+            "from": "b3.input",
+            "to": "ghash.x6",
+            "activeAt": 19
+          },
+          {
+            "from": "h",
+            "to": "ghash.x6",
+            "activeAt": 19
+          },
+          {
+            "from": "ghash.x6",
+            "to": "ghash.x7",
+            "activeAt": 20
+          },
+          {
+            "from": "ghash.length",
+            "to": "ghash.x7",
+            "activeAt": 20
+          },
+          {
+            "from": "h",
+            "to": "ghash.x7",
+            "activeAt": 20
+          },
+          {
+            "from": "j0",
+            "to": "tag.mask",
+            "activeAt": 21
+          },
+          {
+            "from": "ghash.x7",
+            "to": "tag.t",
+            "activeAt": 22
+          },
+          {
+            "from": "tag.mask",
+            "to": "tag.t",
+            "activeAt": 22
+          },
+          {
+            "from": "tag.t",
+            "to": "tag.verify",
+            "activeAt": 23
+          },
+          {
+            "from": "tag.received",
+            "to": "tag.verify",
+            "activeAt": 23
+          }
+        ]
+      }
+    }
+  ],
+  "labels": {
+    "en": {
+      "plugin.gcm.chain.aad": "A{{n}}",
+      "plugin.gcm.chain.ciphertext": "C{{n}}",
+      "plugin.gcm.chain.counter": "CB{{n}}",
+      "plugin.gcm.chain.encrypt": "E_K",
+      "plugin.gcm.chain.hash": "Y{{n}}",
+      "plugin.gcm.chain.hashKey": "H = E_K(0¹²⁸)",
+      "plugin.gcm.chain.iv": "IV",
+      "plugin.gcm.chain.j0": "J0",
+      "plugin.gcm.chain.keystream": "Keystream {{n}}",
+      "plugin.gcm.chain.length": "[len(A)]₆₄ ‖ [len(C)]₆₄",
+      "plugin.gcm.chain.mask": "E_K(J0)",
+      "plugin.gcm.chain.plaintext": "P{{n}}",
+      "plugin.gcm.chain.plaintextDiscarded": "P{{n}} discarded (FAIL)",
+      "plugin.gcm.chain.s": "S = Y{{n}}",
+      "plugin.gcm.chain.tag": "Tag T",
+      "plugin.gcm.chain.tagReceived": "Received tag T",
+      "plugin.gcm.chain.tagRecomputed": "Recomputed tag T′",
+      "plugin.gcm.chain.verifyFail": "T′ ≠ T: FAIL",
+      "plugin.gcm.chain.xor": "⊕",
+      "plugin.gcm.chain.xorWithheld": "⊕ (held back)",
+      "plugin.gcm.formula.decrypt": "T′ = MSB_t(GCTR_K(J0, GHASH_H(A ‖ C ‖ lengths))); P = GCTR_K(inc32(J0), C) only if T′ = T",
+      "plugin.gcm.formula.encrypt": "C = GCTR_K(inc32(J0), P), T = MSB_t(GCTR_K(J0, GHASH_H(A ‖ C ‖ lengths)))"
+    },
+    "de": {
+      "plugin.gcm.chain.aad": "A{{n}}",
+      "plugin.gcm.chain.ciphertext": "C{{n}}",
+      "plugin.gcm.chain.counter": "CB{{n}}",
+      "plugin.gcm.chain.encrypt": "E_K",
+      "plugin.gcm.chain.hash": "Y{{n}}",
+      "plugin.gcm.chain.hashKey": "H = E_K(0¹²⁸)",
+      "plugin.gcm.chain.iv": "IV",
+      "plugin.gcm.chain.j0": "J0",
+      "plugin.gcm.chain.keystream": "Schlüsselstrom {{n}}",
+      "plugin.gcm.chain.length": "[len(A)]₆₄ ‖ [len(C)]₆₄",
+      "plugin.gcm.chain.mask": "E_K(J0)",
+      "plugin.gcm.chain.plaintext": "P{{n}}",
+      "plugin.gcm.chain.plaintextDiscarded": "P{{n}} verworfen (FAIL)",
+      "plugin.gcm.chain.s": "S = Y{{n}}",
+      "plugin.gcm.chain.tag": "Tag T",
+      "plugin.gcm.chain.tagReceived": "Empfangenes Tag T",
+      "plugin.gcm.chain.tagRecomputed": "Neu berechnetes Tag T′",
+      "plugin.gcm.chain.verifyFail": "T′ ≠ T: FAIL",
+      "plugin.gcm.chain.xor": "⊕",
+      "plugin.gcm.chain.xorWithheld": "⊕ (zurückgehalten)",
+      "plugin.gcm.formula.decrypt": "T′ = MSB_t(GCTR_K(J0, GHASH_H(A ‖ C ‖ Längen))); P = GCTR_K(inc32(J0), C) nur wenn T′ = T",
+      "plugin.gcm.formula.encrypt": "C = GCTR_K(inc32(J0), P), T = MSB_t(GCTR_K(J0, GHASH_H(A ‖ C ‖ Längen)))"
+    }
+  }
+}

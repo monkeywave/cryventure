@@ -1,0 +1,49 @@
+{
+  "source": "McGrew & Viega, The Galois/Counter Mode of Operation (GCM), revised spec (May 31, 2005), Appendix B: test case 2 GHASH(H, A, C) and test case 4 intermediate values X₂ and X₄ (TC 4's full GHASH input is 112 bytes, above this lab's 64-byte limit, so its 32- and 64-byte prefixes are used); cross-checked against @noble/ciphers ghash",
+  "cases": [
+    {
+      "name": "TC 2 GHASH(H, {}, C) over C ‖ [len(A)]64 ‖ [len(C)]64",
+      "params": {
+        "hHex": "66e94bd4ef8a2c3b884cfa59ca342b2e",
+        "inputHex": "0388dace60b6a392f328c2b971b2fe7800000000000000000000000000000080",
+        "detail": "block"
+      },
+      "outputs": {
+        "ghash": "f38cbb1ad69223dcc3457ae5b6b0f885"
+      }
+    },
+    {
+      "name": "TC 2 GHASH at bit detail",
+      "params": {
+        "hHex": "66e94bd4ef8a2c3b884cfa59ca342b2e",
+        "inputHex": "0388dace60b6a392f328c2b971b2fe7800000000000000000000000000000080",
+        "detail": "bit"
+      },
+      "outputs": {
+        "ghash": "f38cbb1ad69223dcc3457ae5b6b0f885"
+      }
+    },
+    {
+      "name": "TC 4 X₂ (the zero-padded AAD A)",
+      "params": {
+        "hHex": "b83b533708bf535d0aa6e52980d53b78",
+        "inputHex": "feedfacedeadbeeffeedfacedeadbeefabaddad2000000000000000000000000",
+        "detail": "block"
+      },
+      "outputs": {
+        "ghash": "cd47221ccef0554ee4bb044c88150352"
+      }
+    },
+    {
+      "name": "TC 4 X₄ (padded A ‖ C₁ ‖ C₂)",
+      "params": {
+        "hHex": "b83b533708bf535d0aa6e52980d53b78",
+        "inputHex": "feedfacedeadbeeffeedfacedeadbeefabaddad200000000000000000000000042831ec2217774244b7221b784d0d49ce3aa212f2c02a4e035c17e2329aca12e",
+        "detail": "block"
+      },
+      "outputs": {
+        "ghash": "324f585c6ffc1359ab371565d6c45f93"
+      }
+    }
+  ]
+}

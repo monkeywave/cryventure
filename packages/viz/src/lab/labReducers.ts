@@ -40,6 +40,11 @@ export interface LabData {
   derivedFacets: Partial<Record<FacetKey, unknown>>;
   /** The learner's explicit expand/collapse choice per collapsible region id; absent = the layout's default. */
   regionsExpanded: Readonly<Record<string, boolean>>;
+  /**
+   * Lab-wide variant preference, most recent first (docs/M4.md §1f): every view shows the first of
+   * these its facet kind has, so choosing `x86_64-aesni` in one view switches all views with that variant.
+   */
+  preferredVariants: readonly string[];
 }
 
 /** Steps on the lab's timeline, derived from the bundle (not stored); use as `useLab(selectStepCount)`. */
@@ -79,12 +84,13 @@ export function initialLabData(bundle: TraceBundle | null = null): LabData {
     selection: { valueRefId: null, node: null },
     derivedFacets: {},
     regionsExpanded: {},
+    preferredVariants: [],
   };
 }
 
-/** A new bundle resets the playhead, selection, breakpoints and derived facets but keeps speed, mode and expanded regions. */
+/** A new bundle resets the playhead, selection, breakpoints and derived facets but keeps speed, mode, expanded regions and preferred variants. */
 export function withBundle(bundle: TraceBundle | null): Partial<LabData> {
-  const { speed: _speed, mode: _mode, regionsExpanded: _regionsExpanded, ...reset } = initialLabData(bundle);
+  const { speed: _speed, mode: _mode, regionsExpanded: _regionsExpanded, preferredVariants: _preferredVariants, ...reset } = initialLabData(bundle);
   return reset;
 }
 
@@ -102,6 +108,23 @@ function nodeExists(bundle: TraceBundle | null, node: NodeRef): boolean {
   const region = stateFacetOf(bundle)?.regions.find((candidate) => candidate.id === node.region);
   const size = region?.shape.reduce((product, length) => product * length, 1) ?? 0;
   return node.index >= 0 && node.index < size;
+}
+
+/**
+ * Merges one deriver's facets into the derived cache; ignored (`{}`) when the store has moved on to
+ * another bundle (stale guard) or when every key already holds the identical value, so a repeated
+ * write never creates a new `derivedFacets` object (and never re-renders its subscribers).
+ */
+export function withDerivedFacets(state: Pick<LabData, 'bundle' | 'derivedFacets'>, bundle: TraceBundle, facets: Partial<Record<FacetKey, unknown>>): Partial<LabData> {
+  if (state.bundle !== bundle) return {};
+  const changed = (Object.keys(facets) as FacetKey[]).some((key) => !Object.is(state.derivedFacets[key], facets[key]) || !(key in state.derivedFacets));
+  if (!changed) return {};
+  return { derivedFacets: { ...state.derivedFacets, ...facets } };
+}
+
+/** Records `variant` as the lab's most recent variant choice (moved to the front, no duplicates). */
+export function preferVariant(state: Pick<LabData, 'preferredVariants'>, variant: string): Partial<LabData> {
+  return { preferredVariants: [variant, ...state.preferredVariants.filter((entry) => entry !== variant)] };
 }
 
 /** Remembers the learner's expand/collapse choice for one region (per lab, for this page visit). */

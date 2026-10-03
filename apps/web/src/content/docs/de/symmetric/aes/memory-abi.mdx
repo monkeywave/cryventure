@@ -1,0 +1,211 @@
+---
+title: AES_KEY im Speicher
+description: Wie OpenSSL die Struktur AES_KEY unter x86_64- und aarch64-Linux ablegt, warum dieselben Rundenschlüssel in einer Implementierung byteweise umgedreht erscheinen und in einer anderen nicht, und was das Feld rounds wirklich speichert.
+lessonId: block-ciphers/aes/memory-abi
+track: block-ciphers
+phase: 1
+sidebar:
+  order: 6
+tableOfContents: false
+prereqs:
+  - block-ciphers/aes/key-expansion
+  - foundations/endianness
+labs:
+  - aes-memory
+refs:
+  - FIPS 197, Abschnitt 5.2 (Key Expansion)
+  - FIPS 197, Anhang C.1 (AES-128, Nk = 4)
+  - OpenSSL 3.5.9, include/openssl/aes.h:33–43 (AES_MAXNR, struct aes_key_st)
+  - OpenSSL 3.5.9, crypto/aes/aes_local.h:26 (GETU32)
+  - OpenSSL 3.5.9, crypto/aes/aes_core.c:3045–3067 (AES_set_encrypt_key)
+  - OpenSSL 3.5.9, crypto/aes/asm/aesni-x86_64.pl:244–267, 282, 4304, 4371–4420 (aesni_set_encrypt_key)
+  - OpenSSL 3.5.9, crypto/aes/asm/aesv8-armx.pl:127–301 (aes_v8_set_encrypt_key)
+  - OpenSSL 3.5.9, crypto/aes/build.info:10–14, 34–35
+  - OpenSSL 3.5, OPENSSL_malloc(3) (OPENSSL_cleanse)
+  - MITRE CWE-14, Compiler Removal of Code to Clear Buffers
+  - Halderman et al., Lest We Remember — Cold Boot Attacks on Encryption Keys (USENIX Security 2008)
+sourceHash: sha256:a6e39350ab648cd6430885a9f0d84d7125d12808296528e4cad1858c9355b771
+translation:
+  status: ai-reviewed
+  reviewedAt: '2026-10-03'
+  reviewer: AI editorial review (Claude)
+---
+
+import FlyThrough from '../../../../../components/FlyThrough.astro';
+import Lab from '../../../../../components/Lab.astro';
+import CheckQuestion from '../../../../../components/lesson/CheckQuestion.astro';
+import Formula from '../../../../../components/lesson/Formula.astro';
+import KeyFact from '../../../../../components/lesson/KeyFact.astro';
+import KeyFacts from '../../../../../components/lesson/KeyFacts.astro';
+import Lens from '../../../../../components/lesson/Lens.astro';
+import LessonSection from '../../../../../components/lesson/LessonSection.astro';
+import WhyBox from '../../../../../components/lesson/WhyBox.astro';
+
+<LessonSection part="concept">
+
+## Eine Struktur, drei Bytemuster
+
+OpenSSL hält einen expandierten AES-Schlüssel in `AES_KEY`: 60 32-Bit-Wörter `rd_key` plus ein
+`int rounds` (`include/openssl/aes.h:36–43`, OpenSSL 3.5.9). `AES_MAXNR` ist 14 (`aes.h:33`), daher
+bietet `rd_key` immer Platz für die 15 Rundenschlüssel von AES-256. Auf beiden Zielplattformen dieser
+Lektion, `x86_64-linux-gnu` und `aarch64-linux-gnu` (LP64, Little-Endian), legt clang 23.1.0 die
+Struktur gleich an:
+
+<KeyFacts>
+  <KeyFact label="sizeof(AES_KEY)" value="244 B · Ausrichtung 4" kind="key" />
+  <KeyFact label="rd_key" value="Offset 0 · 240 B" kind="key" />
+  <KeyFact label="rounds" value="Offset 240 · 4 B" kind="constant" />
+</KeyFacts>
+
+Was *in* diesen Bytes landet, hängt vom Code ab, der sie füllt:
+
+| Implementierung | Zielplattformen | Bytes in `rd_key` | `rounds` (128/192/256) |
+|---|---|---|---|
+| `c-ref` (`aes_core.c:3045`) | x86_64, aarch64 | 32-Bit-Wörter in Host-Bytereihenfolge | 10 / 12 / 14 |
+| `aesni` (`aesni-x86_64.pl:4371`) | x86_64 | rohe Schlüsselbytes | 9 / 11 / 13 |
+| `armv8` (`aesv8-armx.pl:127`) | aarch64 | rohe Schlüsselbytes | 10 / 12 / 14 |
+
+<Lens only="story">
+
+Stell dir `AES_KEY` als Regal mit 60 Kästchen zu je vier Byte vor. Eine Implementierung packt jedes
+Kästchen von hinten nach vorn, die anderen in Leserichtung.
+
+</Lens>
+
+<Lens level="cryptographer">
+
+Wäre `AES_LONG` definiert, enthielte `rd_key` Werte vom Typ `unsigned long` (8 Byte unter LP64):
+488 Byte, Ausrichtung 8 (`aes.h:37–41`). Keine Konfiguration von OpenSSL 3.5.9 definiert es.
+
+</Lens>
+
+</LessonSection>
+
+<LessonSection part="playground">
+
+## Sieh zu, wie der Schlüssel auf dem Stack landet
+
+Das Lab rechnet FIPS 197, Anhang C.1 durch (Schlüssel `000102…0f`, Klartext `00112233…ff`) und
+startet beim Schritt der Schlüsselexpansion, in dem `AES_set_encrypt_key` die Variable `key` füllt.
+Schalte die Speicheransicht zwischen den vier Varianten aus Implementierung × Zielplattform um und
+vergleiche die ersten Bytes von `key`: `03 02 01 00` bei `c-ref`, `00 01 02 03` bei `aesni` und
+`armv8`. Geh bis zum Ende, um zu sehen, wie `out` den Geheimtext `69c4e0d8…` erhält.
+
+<Lab labId="aes-memory" producerId="aes" presetId="fips197-c1" startAt="op:keyExpansion" layout="memory:60|narration:40" />
+
+</LessonSection>
+
+<LessonSection part="inside">
+
+## GETU32 gegen eine schlichte Kopie
+
+Die portable C-Schlüsselexpansion liest jedes Schlüsselwort mit `GETU32` als Big-Endian
+(`aes_local.h:26`: `pt[0]<<24 ^ pt[1]<<16 ^ pt[2]<<8 ^ pt[3]`) und speichert es als natives `u32`
+(`aes_core.c:3067`). Eine Little-Endian-CPU schreibt das niedrigstwertige Byte zuerst, daher erscheint
+jedes 4-Byte-Wort im RAM umgedreht. Die Schlüsselexpansionen für AES-NI und ARMv8 laden den Schlüssel
+in ein 128-Bit-Vektorregister und speichern ihn unverändert (`aesni-x86_64.pl:4382, 4398`;
+`aesv8-armx.pl:162, 174`).
+
+<Formula caption="Bytes von AES_KEY für FIPS 197 C.1, aus der Speicheransicht des Labs.">
+{`offset  field           c-ref          aesni          armv8
+0       rd_key (w[0])   03 02 01 00    00 01 02 03    00 01 02 03
+172     rd_key (w[43])  c5 30 2b 4d    4d 2b 30 c5    4d 2b 30 c5
+240     rounds          0a 00 00 00    09 00 00 00    0a 00 00 00`}
+</Formula>
+
+<WhyBox constant="rounds" title="9, nicht 10">
+  Der AES-NI-Code nutzt das Feld als Schleifenzähler für `aesenc` und hängt danach ein `aesenclast`
+  an (`aesni-x86_64.pl:244–267, 282`); seine eigenen Kommentare nennen es „rounds-1“ (`:4304`). Ein
+  Schlüsselplan, den eine Implementierung geschrieben hat, passt nur zur Verschlüsselungsroutine
+  derselben Implementierung.
+</WhyBox>
+
+Auf x86_64 übersetzt ein OpenSSL-Build mit Assembler `aes_core.c` gar nicht erst
+(`build.info:10–14`); `c-ref` steht dort also für einen `no-asm`-Build. Auf aarch64 wird die Datei
+als C-Fallback übersetzt (`build.info:34–35`).
+
+</LessonSection>
+
+<LessonSection part="memory">
+
+## Ein modellierter Stackframe
+
+Das Lab modelliert eine Funktion mit drei lokalen Variablen, `unsigned char in[16], out[16]; AES_KEY key;`,
+die in Deklarationsreihenfolge unterhalb einer Frame-Basis liegen, jede an einer 16-Byte-Grenze. Die
+Adressen sind **modelliert**: deterministisch und typisch für einen Linux-Benutzerstack, aber nicht
+aus einem echten Prozess aufgezeichnet. ASLR verschiebt den Stack bei jedem Lauf, und Compiler dürfen
+lokale Variablen umordnen.
+
+| Lokale Variable | x86_64 | aarch64 | Byte |
+|---|---|---|---|
+| `in` | `0x7ffc5e3a0ff0` | `0xffffd2c4eff0` | 16 |
+| `out` | `0x7ffc5e3a0fe0` | `0xffffd2c4efe0` | 16 |
+| `key` | `0x7ffc5e3a0ee0` | `0xffffd2c4eee0` | 244 |
+
+AES-128 füllt nur die ersten 176 Byte von `rd_key` (11 Rundenschlüssel, FIPS 197, §5.2); `rounds`
+liegt bei `key + 240`. Die Bytes 176–239 behalten, was vorher dort stand.
+
+Die Kamerafahrt verfolgt Rundenschlüssel 0 (oder den Geheimtextblock für `out`) von der 4×4-Matrix in die Lanes von
+`xmm0` und weiter in den RAM. Wechsle zwischen der C-Referenz und AES-NI, um die Umkehrung der Wörter
+zu sehen.
+
+<FlyThrough />
+
+</LessonSection>
+
+<LessonSection part="break">
+
+## Mallory liest einen vergessenen Schlüssel
+
+Rundenschlüssel 0 *ist* der Chiffrierschlüssel (FIPS 197, §5.2), also enthält `AES_KEY` den Schlüssel
+und den ganzen Schlüsselplan. Verlässt die Struktur ihren Gültigkeitsbereich, ohne gelöscht zu werden,
+bleiben diese Bytes in der Stack- oder Heap-Seite, bis etwas sie überschreibt. Eine Core-Datei, eine
+ausgelagerte Seite oder ein Speicherabbild kann Mallory dann den Schlüssel liefern, und die Struktur
+des Schlüsselplans macht es leicht, ihn zu finden und sogar zu reparieren (Halderman et al., 2008).
+
+Ein schlichtes `memset` kurz vor dem Ende der Struktur ist ein überflüssiger Schreibzugriff
+(engl. *dead store*), den der Compiler entfernen darf (CWE-14). OpenSSL bietet `OPENSSL_cleanse()`, das Speicher so
+nullt, dass der Optimierer es nicht verwerfen kann (OPENSSL_malloc(3)). Lebensdauer von Schlüsseln,
+Nullen von Speicher und das Durchsuchen echter Speicherabbilder sind Thema des späteren Lernpfads
+**Geheimnisse im Speicher**.
+
+</LessonSection>
+
+<LessonSection part="check">
+
+## Teste dich selbst
+
+<CheckQuestion
+  id="aes-key-sizeof"
+  number={1}
+  question="Wie groß ist die OpenSSL-Struktur AES_KEY unter x86_64-linux-gnu?"
+  options={['176 Byte', '240 Byte', '244 Byte', '256 Byte']}
+  answer={2}
+>
+  60 × 4 Byte für `rd_key` plus ein 4-Byte-Feld `rounds` bei Offset 240 = 244 Byte, Ausrichtung 4
+  (`include/openssl/aes.h:36–43`).
+</CheckQuestion>
+
+<CheckQuestion
+  id="c-ref-first-bytes"
+  number={2}
+  question="Der Schlüssel beginnt mit 00 01 02 03. Welche Bytes speichert die c-ref-Schlüsselexpansion auf x86_64 bei key + 0?"
+  options={['00 01 02 03', '03 02 01 00', '01 00 03 02', '00 00 00 00']}
+  answer={1}
+>
+  `GETU32` liest das Wort `00010203` als Big-Endian, und der Little-Endian-Speicherbefehl schreibt
+  dessen niedrigstwertiges Byte zuerst (`aes_core.c:3067`, `aes_local.h:26`).
+</CheckQuestion>
+
+<CheckQuestion
+  id="aesni-rounds-field"
+  number={3}
+  question="Welchen Wert speichert die AES-NI-Schlüsselexpansion von OpenSSL für AES-128 in rounds?"
+  options={['9', '10', '11', '14']}
+  answer={0}
+>
+  Sie speichert rounds − 1, den Schleifenzähler für `aesenc`; danach folgt ein `aesenclast`
+  (`aesni-x86_64.pl:4394`, `:244–267, 282`).
+</CheckQuestion>
+
+</LessonSection>

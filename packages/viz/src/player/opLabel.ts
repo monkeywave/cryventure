@@ -14,10 +14,14 @@ export function opLabel(t: Translate, opLabels: OpLabelMap | undefined, op: stri
   return labels === undefined ? op : t(labels.labelKey);
 }
 
-/** The compact op name (`shortLabelKey`), else the op label, else `undefined` when the producer declares none. */
-export function compactOpLabel(t: Translate, opLabels: OpLabelMap | undefined, op: string): string | undefined {
+/**
+ * The compact op name (`shortLabelKey`), else the op label, else `undefined` when the producer
+ * declares none. `params` (the deepest scope level's, `scopeParams`) fill a short label that names
+ * its position, e.g. GHASH's "Bit {{value}}".
+ */
+export function compactOpLabel(t: Translate, opLabels: OpLabelMap | undefined, op: string, params?: Record<string, number>): string | undefined {
   const labels = labelsOf(opLabels, op);
-  return labels === undefined ? undefined : t(labels.shortLabelKey ?? labels.labelKey);
+  return labels === undefined ? undefined : t(labels.shortLabelKey ?? labels.labelKey, params);
 }
 
 /** Provided by `LabRoot` (`opLabels` prop). */

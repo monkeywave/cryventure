@@ -48,6 +48,13 @@ describe('sameGroups', () => {
     expect([...groups.keys()]).toEqual(['b0.input', 'b1.input']);
   });
 
+  it('never groups nodes without bytes (a withheld or discarded block is not "equal")', () => {
+    const { chain: facet, stepCount } = modeCase('cbc/repeated-blocks');
+    const emptied = { ...facet, nodes: facet.nodes.map((node) => (node.kind === 'output' ? { ...node, bytes: [] } : node)) };
+    const groups = sameGroups(emptied, chainActiveNodesAt(emptied, stepCount - 1));
+    expect([...groups.keys()]).toEqual(['b0.input', 'b1.input']);
+  });
+
   it('keys the groups by the last step that gave an input or output block its value', () => {
     const { chain: facet } = modeCase('ecb/repeated-blocks');
     // Outputs arrive at steps 2, 4 and 6; the cipher steps in between change no group.

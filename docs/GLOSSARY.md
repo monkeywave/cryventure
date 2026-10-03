@@ -43,7 +43,7 @@ Status: drafted in an AI editorial review (2026-10). A native-speaker sign-off i
 | lens (page-wide selector) | **Perspektive** (die) | Header label; badges read „Perspektive Kryptografie“. |
 | lens names (`story`, `engineer`, `cryptographer`) | **Erzählung**, **Technik**, **Kryptografie** (proposed) | Used in `apps/web/src/i18n/de/lens.json`; name the perspective, not a person, to stay gender-neutral („Ingenieur“/„Kryptograf“ would need gendering). |
 | SubBytes, ShiftRows, MixColumns, AddRoundKey, KeyExpansion, RotWord, SubWord, Inv… | **unchanged** (proper names from FIPS 197) plus a German gloss: „SubBytes – Bytes ersetzen“, „ShiftRows – Zeilen rotieren“, „MixColumns – Spalten mischen“, „AddRoundKey – XOR mit dem Rundenschlüssel“ | Students meet these names in FIPS 197, in code and in AES-NI mnemonics. |
-| GF(2⁸) | **GF(2⁸)**, „der endliche Körper GF(2⁸)“ (also: Galois-Körper) | „Körper“, never „Feld“ (false friend of *field*). |
+| GF(2⁸) | **GF(2⁸)**, „der endliche Körper GF(2⁸)“ (also: Galoiskörper) | „Körper“, never „Feld“ (false friend of *field*). |
 | irreducible / primitive polynomial | **irreduzibles** / **primitives Polynom** | |
 | multiplicative inverse | **multiplikatives Inverses** (das) | |
 | affine transformation | **affine Abbildung** | |
@@ -61,12 +61,56 @@ Status: drafted in an AI editorial review (2026-10). A native-speaker sign-off i
 | memory dump | **Speicherabbild** (das) | |
 | cold-boot attack | **Cold-Boot-Angriff** | |
 | test vector | **Testvektor** (der) | |
-| endianness / host byte order | **Bytereihenfolge**, „Bytereihenfolge des Hosts“, **Big-Endian**, **Little-Endian** | Established names, hyphenated. |
+| endianness / host byte order | **Bytereihenfolge**, **Host-Bytereihenfolge** (labels) or „Bytereihenfolge des Hosts“ (running text), **Big-Endian**, **Little-Endian** | Established names, hyphenated. |
 | most / least significant byte (MSB / LSB) | **höchstwertiges** / **niedrigstwertiges Byte** (MSB / LSB) | |
 | one-time pad | **One-Time-Pad** (das) | Established name. |
 | hex digit / hex text | **Hexziffer** (die), **Hextext** (der) | One word, no hyphen (like „Hexziffern“ in the core parse errors): „zwei Hexziffern“, „als Hextext“. |
 | previous (navigation labels) | **vorheriger / vorherige / vorheriges** | „Vorherige Runde“, „Vorheriger Teilschritt“, „Vorheriges Exponentenbit“; not „vorige(r)“ in UI labels, paired with „Nächste(r/s)“. |
 | field multiplication | **•** (FIPS 197), e.g. „{57} • {83} = {c1}“ | Same glyph in EN and DE catalogs; field elements in lowercase braces „{57}“. |
+
+### Modes of operation (M3)
+
+| English | German | Decision and rationale |
+|---|---|---|
+| counter mode (CTR) | **Zählermodus** (der), kurz CTR | First mention: „Zählermodus (engl. *Counter Mode*), kurz CTR“. |
+| counter block | **Zählerblock** (der) | SP 800-38A §6.5 *counter block* `Tⱼ`. |
+| initial counter block | **Anfangszählerblock** (der) | `T₁`, the first counter block of a message. |
+| keystream | **Schlüsselstrom** (der); **Schlüsselstromblock** for one block | |
+| malleable | **formbar**, on first use „formbar (engl. *malleable*)“ | Standard German rendering in textbooks; „verformbar“ is rejected. |
+| zero byte / zero block | **Nullbyte** / **Nullblock** (one word) | „{{count}} Nullbyte“ needs no plural key (unit form). |
+
+### GCM and GHASH (M4)
+
+| English | German | Decision and rationale |
+|---|---|---|
+| authentication tag | **Authentifizierungs-Tag** (das); short **das Tag**, plural **Tags** | Hyphenated for readability (three-part compound with an English loan); „das Tag“ as in „HTML-Tag“ (not „der Tag“). „Authentifizierungstag“ is rejected by the lint (reads as *-tag* = day). Compounds: „Tag-Länge“, „Tag-Maske“, „96-Bit-Tag“. |
+| additional authenticated data (AAD) | **zusätzliche authentifizierte Daten (AAD)**, then **die AAD** (plural) | SP 800-38D §5.2.1.1. Verbs in the plural: „Die AAD werden authentifiziert“. |
+| hash subkey H | **Hash-Teilschlüssel H** (der) | „Teilschlüssel“ renders *subkey* (as in DES/Feistel teaching material); „Unterschlüssel“ rejected. |
+| pre-counter block J0 | **Vorzählerblock J0** (der) | Parallels „Zählerblock“; the symbol `J0` always follows on first use. Matches `plugin.gcm.*` in `packages/primitives/src/gcm/i18n/de.json`. |
+| GHASH, GMAC, GCTR, J0, inc32 | **unchanged** (SP 800-38D names) | „Galois/Counter Mode“ also stays English in running text. |
+| Galois field | **Galoiskörper** (der); preferred in running text: „der Körper GF(2¹²⁸)“ | One word. „Galoisfeld“/„Galois-Feld“ (false friend) is an error, „Galois-Körper“ a warning in the lint. |
+| length block | **Längenblock** (der) | `[len(A)]₆₄ ‖ [len(C)]₆₄`. |
+| reflected bit order | **gespiegelte Bitreihenfolge** | SP 800-38D §6.3 („bit 0 is the MSB of byte 0“). |
+| (almost) XOR-universal hash | **(fast) XOR-universeller Hash**, with „(engl. *almost XOR-universal*)“ on first use | |
+| forgery / to forge (a tag) | **Fälschung** / **(ein Tag) fälschen** | |
+| nonce reuse / nonce misuse | **wiederholte Nonce**, **Nonce-Wiederverwendung** / **Nonce-Missbrauch** | |
+| record (TLS) | **Datensatz** (der), with „(engl. *record*)“ on first use | |
+
+### Memory, registers and instructions (M4)
+
+| English | German | Decision and rationale |
+|---|---|---|
+| struct layout | **Struct-Layout** (das) | C term kept; „Strukturaufbau“ would hide the `struct` keyword. |
+| round keys in memory | **Rundenschlüssel im Speicher** | Label for `rk0`, `rk1`, … in the memory view. |
+| register | **Register** (das), plural **Register** | „Vektorregister“, „XMM-Register“. |
+| lane (of a vector register) | **Lane** (die), plural **Lanes** | Established SIMD term; no common German equivalent („Spur“ is used for the mode-chain lanes). |
+| instruction | **Befehl** (der); **Ladebefehl** for a load | Not „Instruktion“. Mnemonics (`aesenc`, `aese`, `movdqu`) stay as they are. |
+| instruction set / instruction set extension | **Befehlssatz** / **Befehlssatzerweiterung** (die) | Product names (AES-NI, ARMv8 Crypto Extensions) stay English. |
+| calling convention | **Aufrufkonvention** (die) | |
+| host byte order | **Host-Bytereihenfolge** (die); „u32-Wörter in Host-Bytereihenfolge“ | Replaces „host-endian“ in prose; „Bytereihenfolge des Hosts“ is fine in running text. „Byte-Reihenfolge“ is a lint warning. |
+| stack / heap | **Stack** / **Heap** (der) | Established; not „Stapel“/„Halde“. |
+| fly-through | **Kamerafahrt** (die) | Title of the AES fly-through island. Not „Rundflug“ (a round trip returns to its start). |
+| track (curriculum) | **Lernpfad** (der); „der Lernpfad Geheimnisse im Speicher“ | Used for the curriculum tracks (PLAN §6). |
 
 ## Style guide
 
@@ -98,7 +142,8 @@ Status: drafted in an AI editorial review (2026-10). A native-speaker sign-off i
 |---|---|
 | straight double quote in prose | error |
 | formal address („Sie“, „Ihnen“, „Ihr…“) in mid-sentence; allowlist `FORMAL_ADDRESS_ALLOWLIST` | error |
-| rejected glossary variants (Chiffretext, Chiffrat, Ciphertext/Plaintext, S-box/Sbox, Konstantzeit, Schlüsselablaufplan) | error |
+| rejected glossary variants (Chiffretext, Chiffrat, Ciphertext/Plaintext, S-box/Sbox, Konstantzeit, Schlüsselablaufplan, Authentifizierungstag, Galoisfeld) | error |
+| discouraged spellings (Galois-Körper, Byte-Reihenfolge) | warning |
 | „z.B.“, „d.h.“ … without a space | error |
 | double space | error |
 | „1“ followed by a plural noun („1 Positionen“), plural noun in a `_one` form | error |

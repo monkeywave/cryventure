@@ -5,7 +5,7 @@ import { renderLab } from '../testing/renderLab.tsx';
 import { I18nProvider } from '../i18n/I18nProvider.tsx';
 import { vizMessages } from '../i18n/messages.ts';
 import { createLabStore, type ParamsRequestHandler } from './createLabStore.ts';
-import { useLab, useLabActions, useLabStore } from './LabContext.tsx';
+import { useDerivers, useLab, useLabActions, useLabStore } from './LabContext.tsx';
 import { LabRoot } from './LabRoot.tsx';
 import { useLabLayout } from './LabLayout.tsx';
 import { selectStepCount } from './labReducers.ts';
@@ -108,5 +108,29 @@ describe('useLabActions().labHref', () => {
   it('is absent without host wiring, so views render no link', () => {
     renderLab(<ZoomLink />);
     expect(screen.getByTestId('zoom').textContent).toBe('none');
+  });
+});
+
+function DeriversProbe() {
+  return <output data-testid="derivers">{useDerivers().map((deriver) => deriver.id).join(',') || 'none'}</output>;
+}
+
+describe('LabRoot derivers', () => {
+  const deriver = { kind: 'deriver' as const, id: 'demo', apiVersion: 1 as const, from: [], provides: ['demo'], load: async () => ({ derive: () => ({}) }) };
+
+  it('exposes the derivers prop through the lab context', () => {
+    render(
+      <I18nProvider messages={vizMessages.en}>
+        <LabRoot store={createLabStore()} derivers={[deriver]}>
+          <DeriversProbe />
+        </LabRoot>
+      </I18nProvider>,
+    );
+    expect(screen.getByTestId('derivers').textContent).toBe('demo');
+  });
+
+  it('defaults to no derivers', () => {
+    renderLab(<DeriversProbe />);
+    expect(screen.getByTestId('derivers').textContent).toBe('none');
   });
 });

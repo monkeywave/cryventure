@@ -1,8 +1,12 @@
-import { narrationFromState, parseHexOfLength, RecordingTracer, type AnyStateFacet, type I18nRef, type MathFacet, type NarrationFacet, type PrimitiveManifest, type RegionSpec, type TableFacet, type TraceBundle } from '@cryventure/core';
+import { narrationFromState, parseHexOfLength, RecordingTracer, type AnyStateFacet, type FieldFacet, type I18nRef, type MathFacet, type NarrationFacet, type PrimitiveManifest, type RegionSpec, type TableFacet, type TraceBundle } from '@cryventure/core';
 import { describe, expect, it } from 'vitest';
+import { validateFieldFacet } from '@cryventure/core';
 import {
   derivationGroupRefs,
   emittedNarration,
+  facetStepRangeProblems,
+  fieldFacetRefs,
+  fieldValueRefProblems,
   jsonRoundTrip,
   normalFormProblems,
   keysOutsideNamespace,
@@ -215,6 +219,40 @@ describe('mathStepRangeProblems', () => {
       'math step 3 has no state step (-1..2)',
       'math step 4 has no state step (-1..2)',
     ]);
+  });
+});
+
+describe('field facet checks', () => {
+  const term = (id: string, valueRef?: string, bytes: number[] = new Array(16).fill(0)) => ({ id, label: { key: `plugin.x.term.${id}` }, bytes, role: 'operand' as const, ...(valueRef === undefined ? {} : { valueRef }) });
+  const field = (steps: FieldFacet['steps']): FieldFacet => ({ kind: 'field', schemaVersion: 1, notation: { field: 'gf2^128', modulus: 'x^128+x^7+x^2+x+1', bitOrder: 'gcm-reflected' }, steps });
+  const valid = field([{ step: 0, formula: { key: 'plugin.x.f', params: { n: 1 } }, terms: [term('h', 'h'), term('x')] }]);
+  const broken = field([
+    { step: 2, formula: { key: 'plugin.x.f' }, terms: [term('h', 'nope', [1, 2])] },
+    { step: 1, formula: { key: 'plugin.x.f' }, terms: [] },
+  ]);
+
+  it('validates a synthetic broken field facet with the core validator', () => {
+    expect(validateFieldFacet(valid)).toEqual([]);
+    expect(validateFieldFacet(broken)).toEqual(['field step 2 term "h": 2 bytes, expected 16', 'field: step 1 does not increase (after 2)']);
+  });
+
+  it('reports field steps outside the state steps', () => {
+    const state = { steps: new Array(2).fill(undefined) };
+    expect(facetStepRangeProblems('field', valid, state)).toEqual([]);
+    expect(facetStepRangeProblems('field', broken, state)).toEqual(['field step 2 has no state step (-1..1)']);
+  });
+
+  it('collects formula and term label refs, checked in EN and DE', () => {
+    expect(fieldFacetRefs(valid)).toEqual([{ key: 'plugin.x.f', params: { n: 1 } }, { key: 'plugin.x.term.h' }, { key: 'plugin.x.term.x' }]);
+    const fieldCatalogs = { en: { 'plugin.x.f': 'F {{n}}', 'plugin.x.term.h': 'H', 'plugin.x.term.x': 'X' }, de: { 'plugin.x.f': 'F', 'plugin.x.term.h': 'H' } };
+    expect(refProblems(fieldFacetRefs(valid), fieldCatalogs)).toEqual(['de:plugin.x.f params [n] vs template []', 'de:plugin.x.term.x missing']);
+  });
+
+  it('reports term valueRefs the values facet lacks', () => {
+    const values = { values: [{ id: 'h', labelKey: 'k', role: 'subkey' as const, bytes: [], createdAt: 0 }] };
+    expect(fieldValueRefProblems(valid, values)).toEqual([]);
+    expect(fieldValueRefProblems(broken, values)).toEqual(['field step 2 term "h": valueRef "nope" is not in the values facet']);
+    expect(fieldValueRefProblems(valid, undefined)).toEqual(['field step 0 term "h": valueRef "h" is not in the values facet']);
   });
 });
 

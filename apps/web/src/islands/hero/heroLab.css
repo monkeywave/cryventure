@@ -1,0 +1,114 @@
+/* The hero lab's "Type your own text" field (docs/M4.md §8). Tokens only, so light and dark both work. */
+
+.cv-hero-text {
+  display: grid;
+  gap: 0.4rem;
+  margin-block: 0.5rem 0.75rem;
+  padding: 0.75rem;
+  border: 1px solid var(--cv-plaintext);
+  border-radius: 0.5rem;
+  background: var(--cv-surface-elevated);
+  box-shadow: 0 0 0.75rem var(--cv-glow-plaintext);
+}
+
+.cv-hero-text p {
+  margin: 0;
+}
+
+.cv-hero-text__row {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 0.25rem 1rem;
+}
+
+.cv-hero-text__row label {
+  font-weight: 600;
+}
+
+.cv-hero-text__counter {
+  color: var(--cv-text-muted);
+  font-size: 0.875rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.cv-hero-text__input,
+.cv-hero-text__key-value {
+  font: inherit;
+  min-inline-size: 0;
+  inline-size: 100%;
+  padding: 0.4rem 0.6rem;
+  border: 1px solid var(--cv-border);
+  border-radius: 0.375rem;
+  color: var(--cv-text);
+  background: var(--cv-bg);
+}
+
+.cv-hero-text__input {
+  font-size: 1.125rem;
+}
+
+.cv-hero-text__input:focus-visible,
+.cv-hero-text__key-value:focus-visible {
+  outline: 2px solid var(--sl-color-accent);
+  outline-offset: 1px;
+}
+
+.cv-hero-text__block {
+  display: grid;
+  grid-template-columns: repeat(16, minmax(0, 1fr));
+  gap: 0.2rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-family: var(--sl-font-mono, ui-monospace, monospace);
+  font-size: 0.8125rem;
+}
+
+.cv-hero-text__byte {
+  margin: 0 !important;
+  padding-block: 0.2rem;
+  text-align: center;
+  border: 1px solid var(--cv-plaintext);
+  border-radius: 0.25rem;
+  color: var(--cv-plaintext);
+  background: var(--cv-bg);
+}
+
+/* Padding bytes: dashed, muted and italic, so the marking does not rely on colour alone. */
+.cv-hero-text__byte--pad {
+  border-style: dashed;
+  border-color: var(--cv-text-muted);
+  color: var(--cv-text-muted);
+  font-style: italic;
+}
+
+@media (max-width: 40rem) {
+  .cv-hero-text__block {
+    grid-template-columns: repeat(8, minmax(0, 1fr));
+  }
+}
+
+.cv-hero-text__note {
+  color: var(--cv-text-muted);
+  font-size: 0.875rem;
+}
+
+.cv-hero-text__key {
+  display: grid;
+  gap: 0.25rem;
+}
+
+.cv-hero-text__key label {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--cv-key);
+}
+
+.cv-hero-text__key-value {
+  font-family: var(--sl-font-mono, ui-monospace, monospace);
+  font-size: 0.875rem;
+  border-color: var(--cv-key);
+  background: var(--cv-surface);
+}

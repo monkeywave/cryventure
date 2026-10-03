@@ -1,0 +1,290 @@
+/*
+ * Instructions view styles. Imported by the view component, so it ships in the view's lazy chunk.
+ * Colours come only from the semantic tokens (--cv-*, --sl-color-*); fallbacks keep it usable standalone.
+ */
+
+.cv-instructions {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 0.5rem;
+  min-width: 0;
+  container-type: inline-size;
+}
+
+.cv-instructions__variant {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  align-items: center;
+  margin: 0;
+  font-size: 0.85em;
+}
+
+.cv-instructions__variant select {
+  max-width: 100%;
+  color: var(--cv-text, CanvasText);
+  background: var(--cv-surface-elevated, Canvas);
+  border: 1px solid var(--cv-border, GrayText);
+  border-radius: 4px;
+}
+
+.cv-instructions__source {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.2rem 0.75rem;
+  margin: 0;
+  font-size: 0.8em;
+  color: var(--cv-text-muted, GrayText);
+  overflow-wrap: anywhere;
+}
+
+.cv-instructions__source a {
+  color: var(--sl-color-text-accent, LinkText);
+}
+
+/* The listing scrolls inside its own box (both axes), never the page; the current row is revealed here. */
+.cv-instructions__scroll {
+  max-block-size: min(26rem, 70vh);
+  max-width: 100%;
+  overflow: auto;
+  overscroll-behavior: contain;
+  border: 1px solid var(--cv-border-subtle, GrayText);
+  border-radius: 4px;
+  /* Containing block for the visually hidden cell texts, so they stay clipped here, not on the page. */
+  position: relative;
+}
+
+.cv-instructions__table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.85em;
+}
+
+.cv-instructions__table thead th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  padding: 0.25rem 0.5rem;
+  font-weight: 600;
+  color: var(--cv-text-muted, GrayText);
+  text-align: start;
+  white-space: nowrap;
+  background: var(--cv-surface, Canvas);
+  border-block-end: 1px solid var(--cv-border, GrayText);
+}
+
+.cv-instructions__row td {
+  padding: 0.2rem 0.5rem;
+  vertical-align: top;
+  border-block-end: 1px solid var(--cv-border-subtle, GrayText);
+}
+
+.cv-instructions__row code {
+  font-family: var(--sl-font-mono, ui-monospace, monospace);
+  white-space: nowrap;
+}
+
+.cv-instructions__status {
+  width: 1.5em;
+  text-align: center;
+}
+
+.cv-instructions__address code {
+  color: var(--cv-text-muted, GrayText);
+}
+
+.cv-instructions__mnemonic code {
+  font-weight: 600;
+}
+
+/* Executed: normal text with ✓. Pending: dimmed through colour tokens (never opacity). */
+.cv-instructions__row[data-status='executed'] .cv-instructions__status {
+  color: var(--cv-success, CanvasText);
+}
+
+.cv-instructions__row[data-status='pending'] td {
+  color: var(--cv-cell-dim-fg, GrayText);
+}
+
+.cv-instructions__row[data-status='pending'] code {
+  color: inherit;
+}
+
+/* Current: ▶ glyph, heavy accent border and weight, so it never relies on colour alone. */
+.cv-instructions__row[data-status='current'] td {
+  background: var(--cv-cell-focus-bg, Canvas);
+  border-block: 2px solid var(--sl-color-accent, Highlight);
+}
+
+.cv-instructions__row[data-status='current'] td:first-child {
+  border-inline-start: 4px solid var(--sl-color-accent, Highlight);
+  color: var(--sl-color-accent, Highlight);
+}
+
+.cv-instructions__row[data-status='current'] .cv-instructions__mnemonic code {
+  font-weight: 800;
+}
+
+.cv-instructions__operands {
+  display: inline-flex;
+  flex-wrap: nowrap;
+  white-space: nowrap;
+}
+
+.cv-instructions__operand-item {
+  white-space: pre;
+}
+
+button.cv-instructions__operand {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: flex-start;
+  padding: 0 0.15rem;
+  font: inherit;
+  color: inherit;
+  text-align: start;
+  cursor: pointer;
+  background: none;
+  border: 0;
+  border-block-end: 1px dotted var(--cv-text-muted, GrayText);
+  border-radius: 2px;
+}
+
+button.cv-instructions__operand:focus-visible {
+  outline: 2px solid var(--sl-color-accent, Highlight);
+  outline-offset: 1px;
+}
+
+/* Linked brushing: the selected value (from any view) gets a solid underline and the subkey glow. */
+button.cv-instructions__operand[data-selected] {
+  background: var(--cv-glow-key, Mark);
+  border-block-end: 2px solid var(--cv-subkey, Highlight);
+}
+
+.cv-instructions__ref {
+  font-size: 0.8em;
+  color: var(--cv-subkey, GrayText);
+  white-space: normal;
+  overflow-wrap: break-word;
+}
+
+/* Chips flow inline (each stays whole), so the ※ note mark after them stays on their last line. */
+.cv-instructions__covers {
+  display: inline;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.cv-instructions__covers li {
+  display: inline-block;
+  margin-block: 0.1rem;
+  margin-inline-end: 0.2rem;
+  padding: 0 0.4rem;
+  font-size: 0.85em;
+  white-space: nowrap;
+  border: 1px solid var(--cv-border, GrayText);
+  border-radius: 999px;
+}
+
+.cv-instructions__note {
+  max-width: 34rem;
+  margin: 0.25rem 0 0;
+  padding-inline-start: 0.4rem;
+  font-size: 0.85em;
+  color: var(--cv-text, CanvasText);
+  white-space: normal;
+  overflow-wrap: anywhere;
+  border-inline-start: 3px double var(--cv-border, GrayText);
+}
+
+.cv-instructions__note-mark {
+  margin-inline-start: 0.05rem;
+  white-space: nowrap;
+  color: var(--cv-text-muted, GrayText);
+}
+
+/* After chips, the mark sits in room reserved at the end of the last chip (net width 0), so a full
+   chip line never pushes it onto a line of its own. */
+.cv-instructions__covers:has(+ .cv-instructions__note-mark) li:last-child {
+  margin-inline-end: 1.2em;
+}
+
+.cv-instructions__covers + .cv-instructions__note-mark {
+  display: inline-block;
+  width: 1em;
+  margin-inline-start: -1em;
+  text-align: center;
+}
+
+.cv-instructions__legend {
+  margin: 0;
+  font-size: 0.8em;
+  color: var(--cv-text-muted, GrayText);
+}
+
+/*
+ * Narrow containers (a phone, or one half of a split lab): the "does" column (chips and the note)
+ * moves below its row and spans the listing, instead of being crushed beside the operands. The
+ * rows become subgrid rows of one shared grid, so columns still line up; the markup's explicit
+ * table roles keep the table semantics that a `display` change could otherwise drop.
+ */
+@container (max-width: 46rem) {
+  .cv-instructions:not([data-lens='story']) .cv-instructions__table {
+    display: grid;
+    grid-template-columns: auto auto auto minmax(min-content, 1fr);
+  }
+
+  .cv-instructions:not([data-lens='story']) .cv-instructions__table :is(thead, tbody, tr) {
+    display: grid;
+    grid-column: 1 / -1;
+    grid-template-columns: subgrid;
+  }
+
+  .cv-instructions:not([data-lens='story']) .cv-instructions__table thead {
+    position: sticky;
+    top: 0;
+    z-index: 1;
+  }
+
+  .cv-instructions:not([data-lens='story']) .cv-instructions__row > td.cv-instructions__does {
+    grid-column: 2 / -1;
+    padding-block-start: 0;
+  }
+
+  .cv-instructions:not([data-lens='story']) .cv-instructions__row > td:not(.cv-instructions__does):has(~ td.cv-instructions__does:not(:empty)) {
+    border-block-end: 0;
+  }
+
+  .cv-instructions:not([data-lens='story']) .cv-instructions__row > td.cv-instructions__does:empty {
+    display: none;
+  }
+
+  /* The current row's accent bar runs down the status cell of both lines. */
+  .cv-instructions:not([data-lens='story']) .cv-instructions__row > td.cv-instructions__status {
+    grid-row: span 2;
+  }
+
+  .cv-instructions:not([data-lens='story']) .cv-instructions__row:not(:has(> td.cv-instructions__does:not(:empty))) > td.cv-instructions__status {
+    grid-row: auto;
+  }
+
+  .cv-instructions:not([data-lens='story']) th.cv-instructions__does {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+
+  .cv-instructions__note {
+    max-width: none;
+  }
+
+  /* Operands wrap between items (each stays whole), so the column needs only its widest operand. */
+  .cv-instructions__operands {
+    flex-wrap: wrap;
+    row-gap: 0.15rem;
+  }
+}

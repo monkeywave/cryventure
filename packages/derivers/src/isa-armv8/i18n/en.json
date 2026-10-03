@@ -1,0 +1,9 @@
+{
+  "deriver.isa-armv8.label": "AArch64 · ARMv8 Crypto Extensions",
+  "deriver.isa-armv8.registers.label": "AArch64 · ARMv8 Crypto Extensions · vector registers",
+  "deriver.isa-armv8.op.addRoundKey": "AddRoundKey (round {{round}})",
+  "deriver.isa-armv8.op.subBytes": "SubBytes (round {{round}})",
+  "deriver.isa-armv8.op.shiftRows": "ShiftRows (round {{round}})",
+  "deriver.isa-armv8.op.mixColumns": "MixColumns (round {{round}})",
+  "deriver.isa-armv8.note.fusion": "aese and aesmc work as a pair: many ARM cores fuse an aese directly followed by an aesmc on the same register into a single operation. That is why the compiler keeps the two side by side."
+}

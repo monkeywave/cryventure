@@ -115,7 +115,8 @@ Starlight's built-in 404 route is disabled; `apps/web/src/pages/404.astro` emits
 ### Limitations on Pages
 
 - Pages cannot send custom HTTP headers. The security headers listed in section 3 are only sent by the
-  Docker/nginx image. A `<meta http-equiv>` CSP for Pages (PLAN 7b) is **not yet supported**.
+  Docker/nginx image. The CSP reaches Pages as a per-page `<meta http-equiv>` tag (see "Content Security
+  Policy" below); `frame-ancestors`, `Referrer-Policy` and the other headers cannot be set that way.
 - PR preview deployments are **not yet supported**. CI (`ci.yml`) uploads a `site-preview` artifact
   (built with `CV_BASE=/cryventure/` and `CV_PWA=false`, kept 7 days) that you can download and serve locally.
 
@@ -176,13 +177,57 @@ Students open `http://<teacher-machine-ip>:8080/`.
 - gzip for CSS, JS, JSON, SVG and plain text.
 - Caching: anything under `/_astro/` gets `Cache-Control: public, max-age=31536000, immutable`; all other files (HTML etc.) get `Cache-Control: no-cache`.
   `sw.js` and `manifest.webmanifest` have their own location with `no-cache` and explicit MIME types, so browsers always see a new service worker.
-- Security headers on HTML: `Content-Security-Policy` (`default-src 'self'`, `frame-ancestors 'none'`, `'unsafe-inline'` for scripts/styles, `'wasm-unsafe-eval'`, `worker-src 'self' blob:`, `manifest-src 'self'`), `Referrer-Policy: no-referrer`, `X-Content-Type-Options: nosniff`.
-  The server block also declares `Permissions-Policy` and `Cross-Origin-Opener-Policy`, but see the note below.
+- Security headers on every page and asset response: `Content-Security-Policy` (generated, see
+  "Content Security Policy" below, with `frame-ancestors 'none'`), `Referrer-Policy: no-referrer`,
+  `X-Content-Type-Options: nosniff`, `Permissions-Policy` and `Cross-Origin-Opener-Policy: same-origin`.
+  They come from one generated include, `/etc/nginx/snippets/security-headers.conf`, which every
+  `location` block includes (nginx does not inherit `add_header` into a location that sets its own).
+  `/healthz` sends none of them.
 
-> Note: nginx does not inherit `add_header` directives from the `server` block into a `location` that
-> defines its own `add_header`. As written, `Permissions-Policy` and `Cross-Origin-Opener-Policy` are
-> therefore only sent on `/healthz`, not on pages or assets, and `/_astro/` responses carry only
-> `Cache-Control`, a minimal CSP and `nosniff`.
+### Content Security Policy
+
+One source: `apps/web/src/security/csp.ts` holds the directives as data (with the reason for each
+non-`'self'` source) and the builders. Target policy (docs/M4.md §9):
+
+```
+default-src 'self'; script-src 'self' 'wasm-unsafe-eval' <sha256 hashes>;
+style-src 'self' <sha256 hashes>; style-src-attr 'unsafe-inline'; img-src 'self' data: blob:;
+font-src 'self'; connect-src 'self'; worker-src 'self' blob:; manifest-src 'self';
+object-src 'none'; base-uri 'self'; form-action 'self'   [+ frame-ancestors 'none' in the header]
+```
+
+- No `'unsafe-inline'` for scripts. Every inline `<script>` (Starlight's theme/sidebar scripts, the
+  lens script, the root redirect, small Astro-inlined modules) and every inline `<style>` is allowed
+  by its SHA-256 hash. `style-src-attr 'unsafe-inline'` covers `style="…"` attributes (Motion, React,
+  Starlight); `'wasm-unsafe-eval'` is for Pagefind.
+- How: `pnpm build` runs `astro build`, then `apps/web/scripts/csp-postbuild.ts`, then the service
+  worker step (so the precache holds the final HTML). The post-build step hashes the inline content
+  of each `dist/**/*.html`, writes that page's `<meta http-equiv="Content-Security-Policy">` right
+  after `<meta charset>`, and writes `docker/generated/security-headers.conf` (git-ignored) with the
+  union of all hashes plus `frame-ancestors 'none'` and the other headers. The Dockerfile copies that
+  file from its build stage.
+- Why not Astro's `security.csp`: Astro 7.3 hashes only the scripts it bundles, not `is:inline` ones
+  (Starlight's and ours), so the build output is hashed instead.
+- Hashes depend on the built content, which depends on `CV_BASE` (the root redirect embeds the base),
+  so they are computed per build and never committed. To regenerate, just rebuild:
+  `pnpm build` (or `CV_BASE=/cryventure/ pnpm build` for the Pages variant). After changing an inline
+  script nothing else is needed; after adding a new kind of resource (a CDN, an `iframe`, a
+  `fetch` to another origin), change the directives in `csp.ts` and its unit tests.
+- Limitation on Pages: a `<meta>` CSP cannot carry `frame-ancestors` (nor `report-uri`/`sandbox`),
+  so the Pages site can be framed by other sites; the Docker image forbids it by header. The meta
+  tag also only governs content after it, which is why it is placed first in `<head>`.
+- Checks: unit tests (`apps/web/src/security/*.test.ts`); `e2e/csp.spec.ts` fails on any
+  `securitypolicyviolation` event or CSP console error (home, a lab lesson, `/en/lab/aes/`, search);
+  the CI docker job greps the header for the hashed `script-src` and `frame-ancestors 'none'` and
+  fails on `'unsafe-inline'` in `script-src`.
+
+### License check
+
+`pnpm licenses:check` (`packages/tools/src/licenses/check.ts`) reads `pnpm licenses list --json
+--recursive` (production and dev dependencies) and fails on any license that is neither on the
+allowlist nor a reviewed per-package exception (`packages/tools/src/licenses/policy.ts`, each with
+its reason). It runs in the CI `verify` job. Bundled data and code from third parties are listed in
+`THIRD_PARTY_NOTICES.md`.
 
 ---
 
@@ -326,6 +371,6 @@ Notes:
 
 ### Not yet supported (planned in PLAN 7b)
 
-- CSP `<meta>` tag for GitHub Pages; PR preview deployments.
+- PR preview deployments.
 - Trivy image scan, image-size budget check and Playwright run against the container in CI.
 - Compose `classroom` profile (live-quiz).

@@ -1,6 +1,6 @@
 ---
 title: Betriebsmodi
-description: Warum eine Blockchiffre einen Betriebsmodus braucht und wie ECB, CBC und CTR aus einem einzelnen 16-Byte-Block ganze Nachrichten machen.
+description: Warum eine Blockchiffre einen Betriebsmodus braucht, wie ECB, CBC und CTR aus einem einzelnen 16-Byte-Block ganze Nachrichten machen und wie GCM ein Authentifizierungs-Tag hinzufügt.
 lessonId: block-ciphers/modes/overview
 track: block-ciphers
 phase: 1
@@ -11,7 +11,7 @@ refs:
   - NIST SP 800-38A, Anhang B (Generation of Counter Blocks)
   - NIST SP 800-38A, Anhang C (Generation of Initialization Vectors)
   - NIST SP 800-38D (Galois/Counter Mode)
-sourceHash: sha256:c35d65fe95287d1699aacd497c32a9ed0ce0422a161a287643b633d39e364729
+sourceHash: sha256:65b18da8d57b0dce4b9136542eee9b46aecfc5507153162200f00302d450dec7
 translation:
   status: ai-reviewed
   reviewedAt: '2026-10-03'
@@ -22,13 +22,18 @@ import Lens from '../../../../../components/lesson/Lens.astro';
 
 AES verschlüsselt genau einen 128-Bit-Block. Ein **Betriebsmodus** (engl. *mode of operation*) legt
 fest, wie du damit eine Nachricht aus vielen Blöcken verschlüsselst. NIST SP 800-38A (§6) definiert
-fünf Betriebsmodi für die Vertraulichkeit; diese Gruppe behandelt drei davon:
+fünf Betriebsmodi für die Vertraulichkeit; diese Gruppe behandelt drei davon und ergänzt dann GHASH und GCM:
 
 | Betriebsmodus | Regel (SP 800-38A) | Benötigt | Gleiche Klartextblöcke |
 |---|---|---|---|
 | [ECB](./ecb/) | `Cⱼ = E_K(Pⱼ)` (§6.1) | Padding | ergeben gleiche Geheimtextblöcke |
 | [CBC](./cbc/) | `Cⱼ = E_K(Pⱼ ⊕ Cⱼ₋₁)`, `C₀ = IV` (§6.2) | Padding, unvorhersagbarer IV | ergeben verschiedene Blöcke |
 | [CTR](./ctr/) | `Cⱼ = Pⱼ ⊕ E_K(Tⱼ)` (§6.5) | eindeutige Zählerblöcke, kein Padding | ergeben verschiedene Blöcke |
+
+Keiner dieser drei Betriebsmodi erkennt Änderungen am Geheimtext. Das leistet erst
+**authentifizierte Verschlüsselung**: [GHASH](./ghash/) ist ein schlüsselabhängiger Hash über
+GF(2¹²⁸) (NIST SP 800-38D, §6.4), und [GCM](./gcm/) kombiniert die CTR-Verschlüsselung mit einem
+Authentifizierungs-Tag auf Basis von GHASH (SP 800-38D, §7).
 
 <Lens only="story">
 

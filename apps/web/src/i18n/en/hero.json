@@ -1,0 +1,16 @@
+{
+  "ui.hero.heading": "Encrypt your own text",
+  "ui.hero.intro": "Type up to 16 bytes and follow AES-128 round by round, with the example key from FIPS 197. Nothing plays on its own: use the step buttons or drag the timeline.",
+  "ui.hero.startAdventure": "Continue with the prologue",
+  "ui.hero.aesLesson": "The AES lesson",
+  "ui.hero.textLabel": "Type your own text",
+  "ui.hero.textPlaceholder": "e.g. Hello, AES!",
+  "ui.hero.blockLabel": "Plaintext block, {{size}} bytes",
+  "ui.hero.paddingByte": "Padding: zero byte",
+  "ui.hero.exampleNote": "Showing the example plaintext from FIPS 197, App. C.1. Type above to encrypt your own text.",
+  "ui.hero.paddingNote_one": "+ 1 zero byte of padding (marked) fills the block to 16 bytes.",
+  "ui.hero.paddingNote_other": "+ {{count}} zero bytes of padding (marked) fill the block to 16 bytes.",
+  "ui.hero.noPadding": "No padding: your text fills the whole 16-byte block.",
+  "ui.hero.keyLabel": "Key (FIPS 197, App. C.1, fixed here)",
+  "ui.hero.keyLabelCustom": "Key (from the link, read-only here)"
+}

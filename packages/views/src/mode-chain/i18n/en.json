@@ -20,5 +20,14 @@
   "view.mode-chain.legendCurrent": "computed in this step",
   "view.mode-chain.legendPending": "dashed: not computed yet",
   "view.mode-chain.legendSame": "same letter: equal blocks, so the pattern shows through",
-  "view.mode-chain.readoutPending": "not computed yet"
+  "view.mode-chain.readoutPending": "not computed yet",
+  "view.mode-chain.diagramHash_one": "Dataflow of {{count}} block, one lane per block, plus the GHASH lane that computes the authentication tag. Use the arrow keys to move between values.",
+  "view.mode-chain.diagramHash_other": "Dataflow of {{count}} blocks, one lane per block, plus the GHASH lane that computes the authentication tag. Use the arrow keys to move between values.",
+  "view.mode-chain.laneHash": "GHASH and tag",
+  "view.mode-chain.nodeNameHash": "{{label}}, GHASH lane",
+  "view.mode-chain.zoomCipher": "Zoom into this encryption",
+  "view.mode-chain.role.tag": "authentication tag",
+  "view.mode-chain.role.aad": "additional authenticated data (AAD): authenticated, not encrypted",
+  "view.mode-chain.role.hash": "GHASH accumulator: ⊕ the block, then multiply by H",
+  "view.mode-chain.role.length": "length block: len(A) ‖ len(C) in bits"
 }

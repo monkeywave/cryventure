@@ -1,9 +1,26 @@
-import { memo, useEffect, useMemo, useRef, useState, type KeyboardEvent } from 'react';
+import { memo, useEffect, useMemo, useRef, useState, type KeyboardEvent, type RefObject } from 'react';
 import { m, useReducedMotion } from 'motion/react';
 import { chainActiveNodesAt, type ChainFacet, type ChainNode, type Lens, type Translate } from '@cryventure/core';
 import { ViewStatus, useFacet, useLab, useLabActions, useLabLayout, useT, type ViewProps } from '@cryventure/viz';
-import { centredScrollLeft, layoutChain, neighbour, spanOf, type ChainLayout, type EdgePath, type LayoutMetrics, type NodeBox } from './chainLayout.ts';
-import { abbreviatedHex, groupLetter, groupsChangeStep, hexLines, labelSegments, nodeRole, plainLabel, sameGroups, sourceIds, spacedHex, type SameGroup } from './chainModel.ts';
+import { centredScrollLeft, fittedHeight, laneSpanOf, laneStartScrollLeft, layoutChain, neighbour, spanOf, type ChainLayout, type EdgePath, type LayoutMetrics, type NodeBox, type Span } from './chainLayout.ts';
+import {
+  abbreviatedHex,
+  GCM_ROLE_GLYPHS,
+  gcmRolesOf,
+  groupLetter,
+  groupsChangeStep,
+  hashLanes,
+  hexLines,
+  isGcmRole,
+  labelSegments,
+  nodeRole,
+  plainLabel,
+  sameGroups,
+  sourceIds,
+  spacedHex,
+  type GcmRole,
+  type SameGroup,
+} from './chainModel.ts';
 import './modeChain.css';
 
 /**
@@ -15,7 +32,10 @@ import './modeChain.css';
  * subscripted block indices. Cipher nodes link into the block cipher's own lab when the host can
  * build such links (Enter on the node follows it). Nodes use a roving tabindex (arrow keys, Home/End);
  * each node's accessible name says where its inputs come from, since the edges are drawn only. The
- * scroller keeps the lane computed in this step centred.
+ * scroller keeps the lane computed in this step in view (GCM: from the lane's start, and only as tall
+ * as the lanes in view need). GCM (docs/M4.md §3f): AAD, the GHASH
+ * accumulator, the length block and the tag get their own role colour, border and glyph (◇✓ ⊗ ‖ ✓,
+ * also said in words and listed in the legend); the GHASH lane is headed as such, not as a block.
  */
 const STATUS_KEYS = { loading: 'view.mode-chain.loading', missing: 'view.mode-chain.missing' } as const;
 
@@ -56,16 +76,25 @@ interface NodeViewProps {
   sameNames: string;
   /** Screen names of the nodes feeding this one, joined ('' for none). */
   sources: string;
+  /** In GCM's GHASH lane: named by that lane, not by a block number. */
+  inHashLane: boolean;
   tabbable: boolean;
   onFocusNode: (id: string) => void;
 }
 
-function useNodeAriaLabel({ box, status, lens, same, sameNames, sources }: Pick<NodeViewProps, 'box' | 'status' | 'lens' | 'same' | 'sameNames' | 'sources'>): string {
+/** A node's screen name: its label, plus the block it belongs to (not for lane −1 or the GHASH lane). */
+function nodeScreenName(t: Translate, node: ChainNode, label: string, inHashLane: boolean): string {
+  if (inHashLane) return t('view.mode-chain.nodeNameHash', { label });
+  return node.block < 0 ? label : t('view.mode-chain.nodeName', { label, n: node.block + 1 });
+}
+
+function useNodeAriaLabel({ box, facet, status, lens, same, sameNames, sources, inHashLane }: Pick<NodeViewProps, 'box' | 'facet' | 'status' | 'lens' | 'same' | 'sameNames' | 'sources' | 'inHashLane'>): string {
   const t = useT();
   const { node } = box;
-  const label = plainLabel(t(node.label));
-  const name = node.block < 0 ? label : t('view.mode-chain.nodeName', { label, n: node.block + 1 });
+  const name = nodeScreenName(t, node, plainLabel(t(node.label)), inHashLane);
   const parts = [status === 'pending' ? t('view.mode-chain.nodePending', { name }) : lens === 'story' ? name : t('view.mode-chain.nodeValue', { name, hex: spacedHex(node.bytes) })];
+  const role = nodeRole(node, facet.direction);
+  if (isGcmRole(role)) parts.push(t(`view.mode-chain.role.${role}`));
   if (status === 'current') parts.push(t('view.mode-chain.nodeCurrent'));
   if (same !== undefined) parts.push(t('view.mode-chain.sameAs', { others: sameNames }));
   if (sources !== '') parts.push(t('view.mode-chain.from', { sources }));
@@ -73,10 +102,11 @@ function useNodeAriaLabel({ box, status, lens, same, sameNames, sources }: Pick<
 }
 
 const NodeView = memo(function NodeView(props: NodeViewProps) {
-  const { box, facet, status, lens, compact, same, tabbable, onFocusNode } = props;
+  const { box, facet, status, lens, compact, same, tabbable, onFocusNode, inHashLane } = props;
   const t = useT();
   const { node } = box;
   const href = useZoomHref(node);
+  const role = nodeRole(node, facet.direction);
   const linkRef = useRef<HTMLAnchorElement>(null);
   const label = t(node.label);
   const showHex = lens !== 'story';
@@ -91,7 +121,7 @@ const NodeView = memo(function NodeView(props: NodeViewProps) {
       title={showHex && status !== 'pending' ? `${plainLabel(label)}: ${spacedHex(node.bytes)}` : undefined}
       data-node={node.id}
       data-kind={node.kind}
-      data-role={nodeRole(node, facet.direction)}
+      data-role={role}
       data-status={status}
       data-same={same?.index}
       onFocus={() => onFocusNode(node.id)}
@@ -101,6 +131,7 @@ const NodeView = memo(function NodeView(props: NodeViewProps) {
     >
       <span className="cv-chain__label" aria-hidden="true">
         {status === 'current' && <span className="cv-chain__glyph">{CURRENT_GLYPH}</span>}
+        {isGcmRole(role) && <span className="cv-chain__role-glyph">{GCM_ROLE_GLYPHS[role]}</span>}
         <Label text={label} blockIndices={lens === 'cryptographer'} />
         {same !== undefined && (
           <span className="cv-chain__same">
@@ -118,7 +149,7 @@ const NodeView = memo(function NodeView(props: NodeViewProps) {
       )}
       {href !== undefined && (
         <a ref={linkRef} className="cv-chain__zoom" href={href} tabIndex={tabbable ? 0 : -1}>
-          {t('view.mode-chain.zoom', { n: node.block + 1 })}
+          {node.block < 0 || inHashLane ? t('view.mode-chain.zoomCipher') : t('view.mode-chain.zoom', { n: node.block + 1 })}
         </a>
       )}
     </div>
@@ -175,13 +206,18 @@ function Edges({ layout, step }: { layout: ChainLayout; step: number }) {
   );
 }
 
-function LaneHeaders({ layout }: { layout: ChainLayout }) {
+function laneTitle(t: Translate, lane: number, hash: ReadonlySet<number>): string {
+  if (lane < 0) return t('view.mode-chain.laneStart');
+  return hash.has(lane) ? t('view.mode-chain.laneHash') : t('view.mode-chain.lane', { n: lane + 1 });
+}
+
+function LaneHeaders({ layout, hash }: { layout: ChainLayout; hash: ReadonlySet<number> }) {
   const t = useT();
   return (
     <>
       {layout.lanes.map(({ lane, x, width }) => (
-        <span key={lane} className="cv-chain__lane" style={{ left: x, width }} aria-hidden="true">
-          {lane < 0 ? t('view.mode-chain.laneStart') : t('view.mode-chain.lane', { n: lane + 1 })}
+        <span key={lane} className="cv-chain__lane" style={{ left: x, width }} data-hash={hash.has(lane) || undefined} aria-hidden="true">
+          {laneTitle(t, lane, hash)}
         </span>
       ))}
     </>
@@ -218,34 +254,68 @@ function useMetrics(lens: Lens, compact: boolean, hasLinks: boolean): LayoutMetr
 }
 
 /**
- * Keeps the nodes computed in this step centred in the scroller (instantly under reduced motion).
- * Only the scroller moves (scrollTo), never the page.
+ * Keeps the nodes computed in this step in view (instantly under reduced motion): centred for the
+ * classic modes; with `laneStart` (GCM's wide lanes) their lane is shown from its start, so no node
+ * on its left is cut in half. Only the scroller moves (scrollTo), never the page.
  */
-function useCentredCurrentLane(layout: ChainLayout, step: number) {
+function useCurrentLaneInView(layout: ChainLayout, step: number, laneStart: boolean) {
   const scrollerRef = useRef<HTMLDivElement>(null);
   const reduceMotion = useReducedMotion() ?? false;
-  const span = spanOf(layout.boxes.filter((box) => statusAt(box.node.activeAt, step) === 'current'));
+  const current = layout.boxes.filter((box) => statusAt(box.node.activeAt, step) === 'current');
+  const span = laneStart ? laneSpanOf(layout, current) : spanOf(current);
   const left = span?.left;
   const right = span?.right;
   useEffect(() => {
     const scroller = scrollerRef.current;
     if (scroller === null || left === undefined || right === undefined) return;
-    const target = centredScrollLeft({ left, right }, scroller.clientWidth, scroller.scrollWidth);
+    const scrollLeftOf = laneStart ? laneStartScrollLeft : centredScrollLeft;
+    const target = scrollLeftOf({ left, right }, scroller.clientWidth, scroller.scrollWidth);
     if (typeof scroller.scrollTo === 'function') scroller.scrollTo({ left: target, behavior: reduceMotion ? 'auto' : 'smooth' });
     else scroller.scrollLeft = target;
-  }, [left, right, reduceMotion]);
+  }, [left, right, reduceMotion, laneStart]);
   return scrollerRef;
 }
 
-/** Screen-reader names of nodes: the label, plus the block where the label alone is ambiguous (⊕, E K). */
-function screenNames(facet: ChainFacet, labels: ReadonlyMap<string, string>, t: Translate): Map<string, string> {
+/**
+ * The canvas height for what the scroller shows: with `fit` (GCM, whose GHASH lane runs far deeper
+ * than the block lanes) only as tall as the lanes in view need, re-measured on scroll and resize;
+ * otherwise (and before the first measurement) the full layout height.
+ */
+function useFittedHeight(scrollerRef: RefObject<HTMLDivElement | null>, layout: ChainLayout, fit: boolean): number {
+  const [view, setView] = useState<Span | undefined>(undefined);
+  useEffect(() => {
+    const scroller = scrollerRef.current;
+    if (!fit || scroller === null) return;
+    let frame = 0;
+    const measure = () => {
+      frame = 0;
+      if (scroller.clientWidth > 0) setView({ left: scroller.scrollLeft, right: scroller.scrollLeft + scroller.clientWidth });
+    };
+    const schedule = () => {
+      if (frame === 0) frame = requestAnimationFrame(measure);
+    };
+    measure();
+    scroller.addEventListener('scroll', schedule, { passive: true });
+    const resize = typeof ResizeObserver === 'function' ? new ResizeObserver(schedule) : undefined;
+    resize?.observe(scroller);
+    return () => {
+      scroller.removeEventListener('scroll', schedule);
+      resize?.disconnect();
+      if (frame !== 0) cancelAnimationFrame(frame);
+    };
+  }, [scrollerRef, fit]);
+  return fit && view !== undefined ? fittedHeight(layout, view) : layout.height;
+}
+
+/** Screen-reader names of nodes: the label, plus the block (or GHASH lane) where the label alone is ambiguous (⊕, E K). */
+function screenNames(facet: ChainFacet, labels: ReadonlyMap<string, string>, t: Translate, hash: ReadonlySet<number>): Map<string, string> {
   const counts = new Map<string, number>();
   for (const label of labels.values()) counts.set(label, (counts.get(label) ?? 0) + 1);
   return new Map(
     facet.nodes.map((node) => {
       const label = labels.get(node.id) ?? '';
       const ambiguous = (counts.get(label) ?? 0) > 1 && node.block >= 0;
-      return [node.id, ambiguous ? t('view.mode-chain.nodeName', { label, n: node.block + 1 }) : label];
+      return [node.id, ambiguous ? nodeScreenName(t, node, label, hash.has(node.block)) : label];
     }),
   );
 }
@@ -255,14 +325,14 @@ function screenNames(facet: ChainFacet, labels: ReadonlyMap<string, string>, t: 
  * nodes feeding it, and the labels of the other members of its ≡ group (memoised per facet and
  * language, the group names per group change).
  */
-function useNodeRelations(facet: ChainFacet, groups: ReadonlyMap<string, SameGroup>): { sources: Map<string, string>; sameNames: Map<string, string> } {
+function useNodeRelations(facet: ChainFacet, groups: ReadonlyMap<string, SameGroup>, hash: ReadonlySet<number>): { sources: Map<string, string>; sameNames: Map<string, string> } {
   const t = useT();
   const labels = useMemo(() => new Map(facet.nodes.map((node) => [node.id, plainLabel(t(node.label))])), [facet, t]);
   const sources = useMemo(() => {
-    const names = screenNames(facet, labels, t);
+    const names = screenNames(facet, labels, t, hash);
     const separator = t('view.mode-chain.sourceSeparator');
     return new Map(facet.nodes.map((node) => [node.id, sourceIds(facet, node.id).map((id) => names.get(id) ?? '').join(separator)]));
-  }, [facet, labels, t]);
+  }, [facet, labels, t, hash]);
   const sameNames = useMemo(() => {
     const separator = t('view.mode-chain.separator');
     return new Map([...groups].map(([self, group]) => [self, group.ids.filter((id) => id !== self).map((id) => labels.get(id) ?? '').join(separator)]));
@@ -288,10 +358,18 @@ function Readout({ facet, id, step }: { facet: ChainFacet; id: string | null; st
   );
 }
 
-function Legend({ hasSame }: { hasSame: boolean }) {
+function Legend({ hasSame, roles }: { hasSame: boolean; roles: readonly GcmRole[] }) {
   const t = useT();
   return (
     <p className="cv-chain__legend">
+      {roles.map((role) => (
+        <span key={role} data-role={role}>
+          <span className="cv-chain__role-glyph" aria-hidden="true">
+            {GCM_ROLE_GLYPHS[role]}
+          </span>
+          {t(`view.mode-chain.role.${role}`)}
+        </span>
+      ))}
       <span>
         <span aria-hidden="true">{CURRENT_GLYPH} </span>
         {t('view.mode-chain.legendCurrent')}
@@ -319,8 +397,12 @@ function ModeChain({ facet, lens }: { facet: ChainFacet; lens: Lens }) {
   const groupsStep = groupsChangeStep(facet, step);
   const groups = useMemo(() => sameGroups(facet, chainActiveNodesAt(facet, groupsStep)), [facet, groupsStep]);
   const { canvasRef, tabbableId, focusedId, setFocusedId, onKeyDown } = useRovingFocus(layout);
-  const scrollerRef = useCentredCurrentLane(layout, step);
-  const { sources, sameNames } = useNodeRelations(facet, groups);
+  const hash = useMemo(() => hashLanes(facet), [facet]);
+  const scrollerRef = useCurrentLaneInView(layout, step, hash.size > 0);
+  const canvasHeight = useFittedHeight(scrollerRef, layout, hash.size > 0);
+  const roles = useMemo(() => gcmRolesOf(facet), [facet]);
+  const { sources, sameNames } = useNodeRelations(facet, groups, hash);
+  const blockLanes = layout.lanes.filter(({ lane }) => lane >= 0 && !hash.has(lane)).length;
   return (
     <section className="cv-view cv-chain" aria-label={t('view.mode-chain.title')} data-lens={lens}>
       {lens === 'cryptographer' && (
@@ -328,16 +410,16 @@ function ModeChain({ facet, lens }: { facet: ChainFacet; lens: Lens }) {
           <Label text={t(facet.formula)} blockIndices={false} />
         </p>
       )}
-      <div ref={scrollerRef} className="cv-chain__scroll cv-scroll-shadow">
+      <div ref={scrollerRef} className="cv-chain__scroll cv-scroll-shadow" data-fitted={hash.size > 0 ? '' : undefined}>
         <div
           ref={canvasRef}
           role="group"
-          aria-label={t('view.mode-chain.diagram', { count: layout.lanes.filter(({ lane }) => lane >= 0).length })}
+          aria-label={t(hash.size > 0 ? 'view.mode-chain.diagramHash' : 'view.mode-chain.diagram', { count: blockLanes })}
           className="cv-chain__canvas"
-          style={{ width: layout.width, height: layout.height }}
+          style={{ width: layout.width, height: canvasHeight }}
           onKeyDown={onKeyDown}
         >
-          <LaneHeaders layout={layout} />
+          <LaneHeaders layout={layout} hash={hash} />
           <Edges layout={layout} step={step} />
           {layout.boxes.map((box) => (
             <NodeView
@@ -352,12 +434,13 @@ function ModeChain({ facet, lens }: { facet: ChainFacet; lens: Lens }) {
               sources={sources.get(box.node.id) ?? ''}
               tabbable={box.node.id === tabbableId}
               onFocusNode={setFocusedId}
+              inHashLane={hash.has(box.node.block)}
             />
           ))}
         </div>
       </div>
       {lens !== 'story' && <Readout facet={facet} id={focusedId} step={step} />}
-      <Legend hasSame={groups.size > 0} />
+      <Legend hasSame={groups.size > 0} roles={roles} />
     </section>
   );
 }

@@ -17,7 +17,8 @@
   "view.wire.role.ciphertext": "ciphertext",
   "view.wire.role.plaintext": "plaintext",
   "view.wire.role.padding": "padding",
-  "view.wire.role.tag": "tag",
+  "view.wire.role.tag": "authentication tag",
+  "view.wire.role.aad": "additional authenticated data (AAD)",
   "view.wire.legendActive": "heavy border: in focus this step",
   "view.wire.legendPending": "dashed ··: not sent yet",
   "view.wire.legendFlip": "flipped bits (changing them yourself comes with the attack labs)"

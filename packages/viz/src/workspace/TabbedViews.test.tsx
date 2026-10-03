@@ -25,6 +25,23 @@ describe('TabbedViews', () => {
     expect(screen.getByRole('tabpanel', { name: 'Beta' })).toBeTruthy();
   });
 
+  it('keeps the chosen view selected when the view list changes (derived views appear), else falls back to the first', async () => {
+    const tabs = (manifests: ReturnType<typeof fakeView>[]) => (
+      <I18nProvider messages={messages}>
+        <TabbedViews manifests={manifests} labId="lab" lens="story" />
+      </I18nProvider>
+    );
+    const { rerender } = render(tabs([fakeView('a'), fakeView('b')]));
+    await userEvent.click(screen.getByRole('tab', { name: 'Beta' }));
+    rerender(tabs([fakeView('c'), fakeView('a'), fakeView('b')]));
+    expect(screen.getByRole('tab', { name: 'Beta' }).getAttribute('aria-selected')).toBe('true');
+    expect(screen.getByRole('tabpanel', { name: 'Beta' })).toBeTruthy();
+    expect(await screen.findByText('view b (lab/story)')).toBeTruthy();
+    rerender(tabs([fakeView('c'), fakeView('a')]));
+    expect(screen.getByRole('tab', { name: 'Gamma' }).getAttribute('aria-selected')).toBe('true');
+    expect(await screen.findByText('view c (lab/story)')).toBeTruthy();
+  });
+
   it('moves between tabs with arrow keys, Home and End (wrapping)', () => {
     render(
       <I18nProvider messages={messages}>

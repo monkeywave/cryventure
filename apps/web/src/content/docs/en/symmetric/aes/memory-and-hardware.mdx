@@ -1,6 +1,6 @@
 ---
 title: AES in memory and hardware
-description: A preview of how CPUs execute AES rounds (AES-NI, ARMv8) and how libraries such as OpenSSL store round keys.
+description: An overview of how CPUs execute AES rounds (AES-NI, ARMv8) and how libraries such as OpenSSL store round keys, with links to the two detailed lessons.
 lessonId: block-ciphers/aes/memory-and-hardware
 track: block-ciphers
 phase: 1
@@ -12,16 +12,18 @@ refs:
   - FIPS 197, Section 5.1 (Cipher)
   - FIPS 197, Section 5.2 (Key Expansion)
   - Intel, Advanced Encryption Standard (AES) New Instructions Set, White Paper (Gueron)
+  - Intel 64 and IA-32 Architectures Software Developer's Manual, Vol. 2A, AESENC
   - Arm Architecture Reference Manual, AESE / AESMC
-  - OpenSSL, include/openssl/aes.h (struct aes_key_st)
+  - OpenSSL 3.5.9, include/openssl/aes.h:33–43 (struct aes_key_st)
+  - OpenSSL 3.5.9, crypto/aes/aes_core.c:3067 (GETU32 words)
+  - OpenSSL 3.5.9, crypto/aes/asm/aesni-x86_64.pl:4394 (rounds − 1)
+  - Bernstein, Cache-timing attacks on AES (2005)
+  - Osvik, Shamir, Tromer, Cache Attacks and Countermeasures — the Case of AES (CT-RSA 2006)
 ---
 
 import CheckQuestion from '../../../../../components/lesson/CheckQuestion.astro';
-import ComingSoon from '../../../../../components/lesson/ComingSoon.astro';
 import Formula from '../../../../../components/lesson/Formula.astro';
 import LessonSection from '../../../../../components/lesson/LessonSection.astro';
-
-<ComingSoon />
 
 <LessonSection part="concept">
 
@@ -32,59 +34,79 @@ differently. CPUs bundle several steps into one instruction, and libraries pick 
 the expanded key. When you look at a debugger or a memory dump, you see these slices — not the
 textbook picture.
 
+This overview introduces both cuts. Two lessons go into detail:
+
+- [AES_KEY in memory](../memory-abi/): the struct layout on x86_64 and aarch64 Linux, byte order
+  and the `rounds` field.
+- [AES-NI and ARMv8 instructions](../aes-ni/): real compiler output, step by step next to the
+  registers.
+
 </LessonSection>
 
 <LessonSection part="playground">
+
+## Two labs to try
+
+This overview has no lab of its own. Each detailed lesson has one, and both run FIPS 197,
+Appendix C.1:
+
+| Lab | What you do | What you see |
+|---|---|---|
+| [AES_KEY in memory](../memory-abi/) | Switch the memory view between implementations and platforms | The first bytes of `key`: `03 02 01 00` in the C reference, `00 01 02 03` with AES-NI and ARMv8 |
+| [AES-NI and ARMv8 instructions](../aes-ni/) | Step through the listing on x86_64 or AArch64 | Which textbook steps each `aesenc`, `aese` and `aesmc` covers, next to the registers |
+
+</LessonSection>
+
+<LessonSection part="inside">
 
 ## Two instruction sets
 
 <Formula caption="AES-128 encryption with round keys k0 … k10.">
 {`x86 AES-NI                      ARMv8 Crypto Extensions
-PXOR       k0                   AESE  k0 ; AESMC      (rounds 1 … 9)
+PXOR       k0                   AESE  k0 … k8 ; AESMC  (rounds 1 … 9)
 AESENC     k1 … k9              AESE  k9               (final round)
 AESENCLAST k10                  EOR   k10`}
 </Formula>
 
 `AESENC` performs ShiftRows, SubBytes, MixColumns and *then* XORs the round key. `AESE` XORs the
 round key *first*, then ShiftRows and SubBytes; `AESMC` is a separate MixColumns. Hence ARM needs a
-plain `EOR` for the last key.
+plain `EOR` for the last key (Intel SDM Vol. 2A, AESENC; Arm ARM, AESE/AESMC). The
+[instruction lesson](../aes-ni/) steps through both listings.
 
 </LessonSection>
 
-<LessonSection part="inside">
+<LessonSection part="memory">
 
 ## OpenSSL's AES_KEY
 
 <Formula caption="include/openssl/aes.h (AES_MAXNR = 14).">
 {`struct aes_key_st {
     unsigned int rd_key[4 * (AES_MAXNR + 1)];  /* 60 × u32 = 240 bytes */
-    int rounds;                                /* 10, 12 or 14 */
+    int rounds;                                /* 10/12/14 (AES-NI: 9/11/13) */
 };`}
 </Formula>
 
 The portable C code loads key bytes big-endian (`GETU32`) and stores each word as a **host-endian**
-integer: on x86 the bytes of every word appear reversed in memory. The AES-NI path keeps the bytes in
-their natural order.
-
-</LessonSection>
-
-<LessonSection part="memory">
-
-## T-tables and the cache
-
-Classic software AES merges SubBytes, ShiftRows and MixColumns into four 1 KiB lookup tables
-(`Te0 … Te3`) indexed by secret bytes. Which cache lines get loaded depends on the key — Bernstein
-(2005) and Osvik, Shamir and Tromer (2006) recovered keys from timing alone. **Constant-time**
-code avoids secret-dependent lookups: hardware instructions, bitslicing, or vector-permute AES.
+integer (`aes_core.c:3067`): on little-endian x86_64 and aarch64 the bytes of every word appear
+reversed in memory. The AES-NI and ARMv8 code keeps the bytes in their natural order. The
+[AES_KEY lesson](../memory-abi/) shows all four combinations.
 
 </LessonSection>
 
 <LessonSection part="break">
 
-## Coming next
+## T-tables and the cache
 
-Later labs will let you scan a memory dump for an expanded key schedule and run a toy cache-timing
-attack against a T-table implementation.
+Classic software AES merges SubBytes, ShiftRows and MixColumns into four 1 KiB lookup tables
+(`Te0 … Te3`) indexed by secret bytes. Which cache lines get loaded depends on the key — Bernstein
+(2005) and Osvik, Shamir and Tromer (2006) recovered keys from cache timing. **Constant-time**
+code avoids secret-dependent lookups: hardware instructions, bitslicing, or vector-permute AES. The
+[instruction lesson](../aes-ni/) tells the story in its Break part.
+
+An expanded key that is never wiped stays in memory for anyone who can read it; the
+[AES_KEY lesson](../memory-abi/) shows why a plain `memset` is not enough. Later labs will let you
+scan a memory dump for an expanded key schedule and run a toy cache-timing attack against a T-table
+implementation.
 
 </LessonSection>
 
@@ -110,6 +132,16 @@ attack against a T-table implementation.
   answer={2}
 >
   60 32-bit words = 240 bytes, enough for AES-256; shorter keys leave the tail unused.
+</CheckQuestion>
+
+<CheckQuestion
+  id="aesenc-key-last"
+  number={3}
+  question="Which step does x86 AESENC perform last?"
+  options={['SubBytes', 'ShiftRows', 'MixColumns', 'XOR with the round key']}
+  answer={3}
+>
+  `AESENC` = ShiftRows, SubBytes, MixColumns, then ⊕ round key (Intel SDM Vol. 2A, AESENC).
 </CheckQuestion>
 
 </LessonSection>

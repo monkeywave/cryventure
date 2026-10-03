@@ -13,6 +13,7 @@ import {
   type AnyStateFacet,
   type DerivationFacet,
   type FacetKind,
+  type FieldFacet,
   type I18nRef,
   type MathFacet,
   type Messages,
@@ -186,16 +187,37 @@ export function jsonRoundTrip<T>(value: T): unknown {
 }
 
 /**
- * Math steps outside the state facet's steps −1..n−1 (views could never show them), and a step −1
- * math entry on a state facet without an `initialNarration` (the initial state must be narrated).
+ * Steps of a per-step facet (`math`, `field`) outside the state facet's steps −1..n−1 (views could
+ * never show them), and a step −1 entry on a state facet without an `initialNarration` (the initial
+ * state must be narrated). `kind` prefixes each problem.
  */
-export function mathStepRangeProblems(facet: MathFacet, state: Pick<AnyStateFacet, 'steps' | 'initialNarration'>): string[] {
+export function facetStepRangeProblems(kind: string, facet: { steps: readonly { step: number }[] }, state: Pick<AnyStateFacet, 'steps' | 'initialNarration'>): string[] {
   const last = state.steps.length - 1;
   return facet.steps.flatMap(({ step }) => {
-    if (step < INITIAL_STEP_INDEX || step > last) return [`math step ${step} has no state step (${INITIAL_STEP_INDEX}..${last})`];
-    if (step === INITIAL_STEP_INDEX && state.initialNarration === undefined) return [`math step ${step} (initial state) has no initialNarration on the state facet`];
+    if (step < INITIAL_STEP_INDEX || step > last) return [`${kind} step ${step} has no state step (${INITIAL_STEP_INDEX}..${last})`];
+    if (step === INITIAL_STEP_INDEX && state.initialNarration === undefined) return [`${kind} step ${step} (initial state) has no initialNarration on the state facet`];
     return [];
   });
+}
+
+/** `facetStepRangeProblems` for a math facet. */
+export function mathStepRangeProblems(facet: MathFacet, state: Pick<AnyStateFacet, 'steps' | 'initialNarration'>): string[] {
+  return facetStepRangeProblems('math', facet, state);
+}
+
+/** Every ref a field facet emits: each step's formula and term labels (deduplicated). */
+export function fieldFacetRefs(facet: FieldFacet): I18nRef[] {
+  return uniqueRefs(facet.steps.flatMap((step) => [step.formula, ...step.terms.map((term) => term.label)]));
+}
+
+/** Field term `valueRef`s that the bundle's `values` facet does not declare. */
+export function fieldValueRefProblems(facet: FieldFacet, values: Pick<ValuesFacet, 'values'> | undefined): string[] {
+  const known = new Set(values?.values.map((value) => value.id) ?? []);
+  return facet.steps.flatMap((step) =>
+    step.terms
+      .filter((term) => term.valueRef !== undefined && !known.has(term.valueRef))
+      .map((term) => `field step ${step.step} term "${term.id}": valueRef "${term.valueRef}" is not in the values facet`),
+  );
 }
 
 /**

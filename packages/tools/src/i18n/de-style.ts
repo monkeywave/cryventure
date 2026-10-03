@@ -21,6 +21,10 @@ export const GLOSSARY_RULES: readonly StyleRule[] = [
   { id: 'term', severity: 'error', pattern: /\bS-box\b|\bS[Bb]ox\b/g, message: 'write "S-Box" (glossary)' },
   { id: 'term', severity: 'error', pattern: /\bKonstantzeit\p{L}*/gu, message: 'use "konstante Laufzeit" (glossary: constant-time)' },
   { id: 'term', severity: 'error', pattern: /\bSchlüsselablaufplan\p{L}*/gu, message: 'use "Schlüsselplan" (glossary: key schedule)' },
+  { id: 'term', severity: 'error', pattern: /\bAuthentifizierungstag\p{L}*/gu, message: 'write "Authentifizierungs-Tag" (glossary: authentication tag)' },
+  { id: 'term', severity: 'error', pattern: /\bGalois-?[Ff]eld\p{L}*/gu, message: 'use "Galoiskörper" („Körper“, never „Feld“; glossary: Galois field)' },
+  { id: 'term', severity: 'warning', pattern: /\bGalois-Körper\p{L}*/gu, message: 'write "Galoiskörper" (glossary: Galois field)' },
+  { id: 'term', severity: 'warning', pattern: /\bByte-Reihenfolge\p{L}*/gu, message: 'write "Bytereihenfolge" (glossary: byte order)' },
   { id: 'term', severity: 'warning', pattern: /\bLabor\b/g, message: 'the glossary term is "das Lab"' },
 ];
 

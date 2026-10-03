@@ -1,0 +1,23 @@
+{
+  "view.instructions.title": "Befehle",
+  "view.instructions.loading": "Die Befehlsliste wird abgeleitet …",
+  "view.instructions.missing": "Dieses Lab hat keine Befehlsliste (dafür braucht es einen AES-Lauf mit einem Schritt pro Operation).",
+  "view.instructions.variant": "Befehlssatz",
+  "view.instructions.caption_one": "{{label}}: {{count}} Befehl",
+  "view.instructions.caption_other": "{{label}}: {{count}} Befehle",
+  "view.instructions.column.status": "Status",
+  "view.instructions.column.address": "Adresse",
+  "view.instructions.column.mnemonic": "Befehl",
+  "view.instructions.column.operands": "Operanden",
+  "view.instructions.column.does": "Führt aus",
+  "view.instructions.status.current": "aktueller Befehl",
+  "view.instructions.status.executed": "ausgeführt",
+  "view.instructions.status.pending": "noch nicht ausgeführt",
+  "view.instructions.coversLabel": "AES-Operationen dieses Befehls",
+  "view.instructions.hasNote": "Hinweis: wird angezeigt, wenn dieser Befehl der aktuelle ist.",
+  "view.instructions.valueRef": "{{label}} ({{id}})",
+  "view.instructions.source": "Übersetzt mit {{compiler}} ({{flags}}) für {{triple}}, Funktion {{function}}",
+  "view.instructions.compilerExplorer": "Im Compiler Explorer öffnen",
+  "view.instructions.compilerExplorerNewTab": "Im Compiler Explorer öffnen (öffnet sich in einem neuen Tab)",
+  "view.instructions.legend": "▶ aktueller Befehl · ✓ ausgeführt · abgeblendet: noch nicht ausgeführt · ※ Hinweis"
+}

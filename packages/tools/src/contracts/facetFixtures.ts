@@ -1,11 +1,13 @@
-import { availableFacetKinds, facetKey, getFacet, type FacetKind, type PrimitiveManifest, type TraceBundle } from '@cryventure/core';
+import { availableFacetKinds, facetKey, getFacet, type DeriverManifest, type FacetKind, type PrimitiveManifest, type TraceBundle } from '@cryventure/core';
+import { appliesToBundle } from './deriverChecks.ts';
 import { runOrThrow } from './primitiveContract.ts';
 import { producerRegistry, runOptionsFor } from './runWithPorts.ts';
 
 /**
  * Fixture bundles for rendering views in the contract kit. They are generated from the real
- * primitives (each run with its defaults), so every facet a view sees is one a lab really emits;
- * `fallbacks` supplies a facet per kind for kinds no primitive emits yet.
+ * primitives (each run with its defaults, plus the facets of every applicable deriver), so every
+ * facet a view sees is one a lab really emits or derives; `fallbacks` supplies a facet per kind
+ * for kinds nothing emits yet.
  */
 export type FallbackFacets = Partial<Record<FacetKind, unknown>>;
 
@@ -20,13 +22,27 @@ export interface NamedBundle {
 
 export type FixtureSelection = { ok: true; bundles: NamedBundle[] } | { ok: false; problem: string };
 
-/** One bundle per primitive, run with its defaults (port params resolve against `manifests`). */
-export async function primitiveFixtureBundles(manifests: readonly PrimitiveManifest[]): Promise<NamedBundle[]> {
+/**
+ * A copy of `bundle` whose facets also hold everything the applicable `derivers` derive (as the
+ * lab's lazy runtime would; docs/M4.md §1c). The bundle's own facets win on a key clash.
+ */
+export async function withDerivedFacets(bundle: TraceBundle, derivers: readonly DeriverManifest[]): Promise<TraceBundle> {
+  const applicable = derivers.filter((deriver) => appliesToBundle(deriver, bundle));
+  if (applicable.length === 0) return bundle;
+  const derived = await Promise.all(applicable.map(async (deriver) => (await deriver.load()).derive(bundle)));
+  return { ...bundle, facets: Object.assign({}, ...derived, bundle.facets) as TraceBundle['facets'] };
+}
+
+/**
+ * One bundle per primitive, run with its defaults (port params resolve against `manifests`), with
+ * the facets of the applicable `derivers` merged in.
+ */
+export async function primitiveFixtureBundles(manifests: readonly PrimitiveManifest[], derivers: readonly DeriverManifest[] = []): Promise<NamedBundle[]> {
   const producers = producerRegistry(manifests);
   return Promise.all(
     manifests.map(async (manifest) => {
       const [module, options] = await Promise.all([manifest.load(), runOptionsFor(manifest, manifest.defaults, producers)]);
-      return { name: manifest.id, bundle: runOrThrow(module, manifest.defaults, options) };
+      return { name: manifest.id, bundle: await withDerivedFacets(runOrThrow(module, manifest.defaults, options), derivers) };
     }),
   );
 }

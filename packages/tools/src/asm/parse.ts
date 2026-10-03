@@ -129,8 +129,9 @@ export function withoutTrailingPadding(
 
 /**
  * Pairs the compiler's listing with objdump's byte offsets (same instructions, same order).
- * Trailing alignment padding in the disassembly is ignored. Throws when the two disagree on count
- * or mnemonic, so a mismatch never ships silently.
+ * Offsets are rebased to the function's first instruction, so every listing starts at `0x0`
+ * wherever its function sits in `.text`. Trailing alignment padding in the disassembly is ignored.
+ * Throws when the two disagree on count or mnemonic, so a mismatch never ships silently.
  */
 export function attachAddresses(
   listing: readonly ParsedInstruction[],
@@ -143,6 +144,7 @@ export function attachAddresses(
       `listing has ${listing.length} instructions, disassembly has ${disassembly.length}`,
     );
   }
+  const functionStart = disassembly[0]?.offset ?? 0;
   return listing.map((instruction, index) => {
     const dumped = disassembly[index];
     if (dumped === undefined || dumped.mnemonic !== instruction.mnemonic) {
@@ -150,6 +152,6 @@ export function attachAddresses(
         `instruction ${index}: listing '${instruction.mnemonic}' vs disassembly '${dumped?.mnemonic}'`,
       );
     }
-    return { ...instruction, address: formatAddress(dumped.offset) };
+    return { ...instruction, address: formatAddress(dumped.offset - functionStart) };
   });
 }

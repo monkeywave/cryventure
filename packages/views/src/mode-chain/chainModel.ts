@@ -26,8 +26,34 @@ export function spacedHex(bytes: readonly number[]): string {
   return toHex(bytes, { group: 4 });
 }
 
-/** Semantic data role of a node (PLAN §3 tokens): what the bytes are, given the direction. */
-export type NodeRole = 'plaintext' | 'ciphertext' | 'nonce' | 'key' | 'state' | 'padding';
+/**
+ * Semantic data role of a node (PLAN §3 tokens): what the bytes are, given the direction. GCM adds
+ * the authentication tag, AAD (authenticated, never encrypted), the GHASH accumulator and the
+ * length block (docs/M4.md §3f).
+ */
+export type NodeRole = 'plaintext' | 'ciphertext' | 'nonce' | 'key' | 'state' | 'padding' | 'tag' | 'aad' | 'hash' | 'length';
+
+/** GCM roles, which carry a glyph beside their label and a legend entry. */
+export type GcmRole = Extract<NodeRole, 'tag' | 'aad' | 'hash' | 'length'>;
+
+/**
+ * Non-colour cue per GCM role (decorative; the role is also said in words): ✓ the tag that
+ * authenticates, ◇✓ AAD (sent in the clear, but authenticated), ⊗ the GHASH multiply by H (PLAN §3
+ * op glyphs), ‖ the length block len(A) ‖ len(C).
+ */
+export const GCM_ROLE_GLYPHS: Readonly<Record<GcmRole, string>> = {
+  tag: '✓',
+  aad: '◇✓',
+  hash: '⊗',
+  length: '‖',
+};
+
+/** Legend order of the GCM roles. */
+const GCM_ROLES: readonly GcmRole[] = ['aad', 'hash', 'length', 'tag'];
+
+export function isGcmRole(role: NodeRole): role is GcmRole {
+  return (GCM_ROLES as readonly NodeRole[]).includes(role);
+}
 
 const ROLE_BY_KIND: Readonly<Record<ChainNodeKind, NodeRole | 'in' | 'out'>> = {
   input: 'in',
@@ -38,11 +64,11 @@ const ROLE_BY_KIND: Readonly<Record<ChainNodeKind, NodeRole | 'in' | 'out'>> = {
   keystream: 'state',
   xor: 'state',
   pad: 'padding',
-  // GCM (docs/M4.md §3f); dedicated styles arrive with the GCM view work.
-  hash: 'state',
-  length: 'state',
-  aad: 'plaintext',
-  tag: 'ciphertext',
+  // GCM (docs/M4.md §3f).
+  hash: 'hash',
+  length: 'length',
+  aad: 'aad',
+  tag: 'tag',
 };
 
 export function nodeRole(node: ChainNode, direction: ChainFacet['direction']): NodeRole {
@@ -50,6 +76,17 @@ export function nodeRole(node: ChainNode, direction: ChainFacet['direction']): N
   if (role === 'in') return direction === 'encrypt' ? 'plaintext' : 'ciphertext';
   if (role === 'out') return direction === 'encrypt' ? 'ciphertext' : 'plaintext';
   return role;
+}
+
+/** The GCM roles a facet's nodes use, in legend order (empty for ECB/CBC/CTR). */
+export function gcmRolesOf(facet: ChainFacet): GcmRole[] {
+  const used = new Set(facet.nodes.map((node) => nodeRole(node, facet.direction)));
+  return GCM_ROLES.filter((role) => used.has(role));
+}
+
+/** Lanes holding a GHASH accumulator node: GCM's GHASH lane (which also holds the tag), not a block lane. */
+export function hashLanes(facet: ChainFacet): Set<number> {
+  return new Set(facet.nodes.filter((node) => node.kind === 'hash').map((node) => node.block));
 }
 
 /** Kinds compared for repetition: the blocks going in and coming out. */
@@ -63,12 +100,13 @@ export interface SameGroup {
 
 /**
  * Lanes whose input (or output) blocks are byte-for-byte equal, among the nodes that already have
- * their value (`active`): ECB's tell-tale repetition. Groups are numbered in node order.
+ * their value (`active`): ECB's tell-tale repetition. Nodes without bytes (GCM decrypt's withheld or
+ * discarded output) are never grouped. Groups are numbered in node order.
  */
 export function sameGroups(facet: ChainFacet, active: ReadonlySet<string>): Map<string, SameGroup> {
   const byValue = new Map<string, string[]>();
   for (const node of facet.nodes) {
-    if (node.block < 0 || !COMPARED_KINDS.has(node.kind) || !active.has(node.id)) continue;
+    if (node.block < 0 || node.bytes.length === 0 || !COMPARED_KINDS.has(node.kind) || !active.has(node.id)) continue;
     const key = `${node.kind}:${toHex(node.bytes)}`;
     byValue.set(key, [...(byValue.get(key) ?? []), node.id]);
   }

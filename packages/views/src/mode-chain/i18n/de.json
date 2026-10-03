@@ -20,5 +20,14 @@
   "view.mode-chain.legendCurrent": "in diesem Schritt berechnet",
   "view.mode-chain.legendPending": "gestrichelt: noch nicht berechnet",
   "view.mode-chain.legendSame": "gleicher Buchstabe: gleiche Blöcke, das Muster scheint durch",
-  "view.mode-chain.readoutPending": "noch nicht berechnet"
+  "view.mode-chain.readoutPending": "noch nicht berechnet",
+  "view.mode-chain.diagramHash_one": "Datenfluss eines Blocks, eine Spur pro Block, dazu die GHASH-Spur, die das Authentifizierungs-Tag berechnet. Mit den Pfeiltasten wechselst du zwischen den Werten.",
+  "view.mode-chain.diagramHash_other": "Datenfluss von {{count}} Blöcken, eine Spur pro Block, dazu die GHASH-Spur, die das Authentifizierungs-Tag berechnet. Mit den Pfeiltasten wechselst du zwischen den Werten.",
+  "view.mode-chain.laneHash": "GHASH und Tag",
+  "view.mode-chain.nodeNameHash": "{{label}}, GHASH-Spur",
+  "view.mode-chain.zoomCipher": "In diese Verschlüsselung hineinzoomen",
+  "view.mode-chain.role.tag": "Authentifizierungs-Tag",
+  "view.mode-chain.role.aad": "zusätzliche authentifizierte Daten (AAD): authentifiziert, nicht verschlüsselt",
+  "view.mode-chain.role.hash": "GHASH-Akkumulator: Block per XOR verknüpfen, dann mit H multiplizieren",
+  "view.mode-chain.role.length": "Längenblock: len(A) ‖ len(C) in Bit"
 }

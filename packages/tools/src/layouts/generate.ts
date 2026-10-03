@@ -1,7 +1,7 @@
-import { execFileSync } from 'node:child_process';
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { compilerVersion, pinnedLlvm, runCommand, type CommandRunner } from '../asm/llvm.ts';
 import { isEntryPoint } from '../fs/entryPoint.ts';
 import { REPO_ROOT } from '../fs/repoRoot.ts';
 import {
@@ -16,7 +16,7 @@ import {
  * OpenSSL's `struct aes_key_st` for every target triple in `targets.json` with
  * `clang -target <triple> -Xclang -fdump-record-layouts` and writes
  * `packages/derivers/src/memory/data/layouts/aes_key.<triple>.json` (docs/M4.md §3d, §4).
- * Set `CLANG` to pick the compiler binary (default `clang` on PATH).
+ * Uses the same pinned LLVM as `asm:generate` (`asm/llvm.ts`; `CLANG` still overrides the binary).
  */
 
 export interface SourceRef {
@@ -132,17 +132,18 @@ export function buildLayout(input: {
   };
 }
 
-function runClang(clang: string, args: string[], input?: string): string {
-  return execFileSync(clang, args, { encoding: 'utf8', ...(input === undefined ? {} : { input }) });
-}
-
-export function generateLayout(clang: string, triple: string, cSource: string): GeneratedLayout {
+/** Lays out `struct aes_key_st` for `triple` with `clang` (run through `run`, injectable for tests). */
+export function generateLayout(
+  triple: string,
+  cSource: string,
+  { clang = pinnedLlvm().clang, run = runCommand }: { clang?: string; run?: CommandRunner } = {},
+): GeneratedLayout {
   const args = clangArgs(triple);
-  const dump = parseRecordLayoutDump(runClang(clang, args, cSource));
+  const dump = parseRecordLayoutDump(run(clang, args, cSource));
   const probeDump = parseRecordLayoutDump(
-    runClang(clang, args, probeSource(cSource, findRecord(dump, AES_KEY_RECORD))),
+    run(clang, args, probeSource(cSource, findRecord(dump, AES_KEY_RECORD))),
   );
-  const version = runClang(clang, ['--version']).split('\n')[0]?.trim() ?? 'unknown';
+  const version = compilerVersion(run, clang) || 'unknown';
   return buildLayout({
     recordName: AES_KEY_RECORD,
     triple,
@@ -161,11 +162,10 @@ function readTriples(): string[] {
 }
 
 if (isEntryPoint(import.meta.url)) {
-  const clang = process.env.CLANG ?? 'clang';
   const cSource = readFileSync(C_SOURCE_PATH, 'utf8');
   mkdirSync(join(DATA_DIR, 'layouts'), { recursive: true });
   for (const triple of readTriples()) {
-    const layout = generateLayout(clang, triple, cSource);
+    const layout = generateLayout(triple, cSource);
     const outPath = join(DATA_DIR, 'layouts', `aes_key.${triple}.json`);
     writeFileSync(outPath, `${JSON.stringify(layout, null, 2)}\n`);
     console.log(`wrote ${outPath}  size=${layout.size} align=${layout.align}`);

@@ -28,6 +28,13 @@ export function formatScopePath(
     .join(t('ui.scope.separator'));
 }
 
+/** Params of the deepest declared scope level (`scopeParams`), when `scope` reaches it; else undefined. */
+export function deepestScopeParams(scope: readonly number[], levelKeys: readonly string[]): Record<string, number> | undefined {
+  const deepest = levelKeys.length - 1;
+  const index = deepest < 0 ? undefined : scope[deepest];
+  return index === undefined ? undefined : scopeParams(index, deepest);
+}
+
 /**
  * The producer's `scopeLevels` label keys; none when it declares no levels. A producer without
  * declared levels (e.g. a flat XOR or byte-order trace) gets no scope label at all — the player

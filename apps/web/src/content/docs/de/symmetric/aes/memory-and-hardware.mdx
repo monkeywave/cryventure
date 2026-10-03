@@ -1,6 +1,6 @@
 ---
 title: AES in Speicher und Hardware
-description: Eine Vorschau darauf, wie CPUs AES-Runden ausführen (AES-NI, ARMv8) und wie Bibliotheken wie OpenSSL Rundenschlüssel ablegen.
+description: Ein Überblick darüber, wie CPUs AES-Runden ausführen (AES-NI, ARMv8) und wie Bibliotheken wie OpenSSL Rundenschlüssel ablegen, mit Links zu den beiden ausführlichen Lektionen.
 lessonId: block-ciphers/aes/memory-and-hardware
 track: block-ciphers
 phase: 1
@@ -12,21 +12,23 @@ refs:
   - FIPS 197, Abschnitt 5.1 (Cipher)
   - FIPS 197, Abschnitt 5.2 (Key Expansion)
   - Intel, Advanced Encryption Standard (AES) New Instructions Set, White Paper (Gueron)
+  - Intel 64 and IA-32 Architectures Software Developer's Manual, Vol. 2A, AESENC
   - Arm Architecture Reference Manual, AESE / AESMC
-  - OpenSSL, include/openssl/aes.h (struct aes_key_st)
-sourceHash: sha256:144520c1b61c900a22b228ac4dbe109aaa5dc24b9b001355950cf7a2c97d75da
+  - OpenSSL 3.5.9, include/openssl/aes.h:33–43 (struct aes_key_st)
+  - OpenSSL 3.5.9, crypto/aes/aes_core.c:3067 (GETU32-Wörter)
+  - OpenSSL 3.5.9, crypto/aes/asm/aesni-x86_64.pl:4394 (rounds − 1)
+  - Bernstein, Cache-timing attacks on AES (2005)
+  - Osvik, Shamir, Tromer, Cache Attacks and Countermeasures — the Case of AES (CT-RSA 2006)
+sourceHash: sha256:1847e66621af35ef1903ded21b74dc7a77d816ab42ea9bb1d8e2a230ec3ce0db
 translation:
   status: ai-reviewed
-  reviewedAt: '2026-10-02'
+  reviewedAt: '2026-10-03'
   reviewer: AI editorial review (Claude)
 ---
 
 import CheckQuestion from '../../../../../components/lesson/CheckQuestion.astro';
-import ComingSoon from '../../../../../components/lesson/ComingSoon.astro';
 import Formula from '../../../../../components/lesson/Formula.astro';
 import LessonSection from '../../../../../components/lesson/LessonSection.astro';
-
-<ComingSoon />
 
 <LessonSection part="concept">
 
@@ -37,59 +39,80 @@ unterschiedlich zu. CPUs bündeln mehrere Schritte in einem Befehl, und Biblioth
 Speicherlayout für den expandierten Schlüssel. Wenn du in einen Debugger oder ein Speicherabbild
 schaust, siehst du diese Zuschnitte – nicht das Lehrbuchbild.
 
+Dieser Überblick stellt beide Zuschnitte vor. Zwei Lektionen gehen ins Detail:
+
+- [AES_KEY im Speicher](../memory-abi/): das Struct-Layout unter x86_64- und aarch64-Linux, die
+  Bytereihenfolge und das Feld `rounds`.
+- [AES-NI- und ARMv8-Befehle](../aes-ni/): echte Compilerausgabe, Schritt für Schritt neben den
+  Registern.
+
 </LessonSection>
 
 <LessonSection part="playground">
+
+## Zwei Labs zum Ausprobieren
+
+Dieser Überblick hat kein eigenes Lab. Jede der beiden Detail-Lektionen hat eines, und beide
+rechnen FIPS 197, Anhang C.1 durch:
+
+| Lab | Was du tust | Was du siehst |
+|---|---|---|
+| [AES_KEY im Speicher](../memory-abi/) | Die Speicheransicht zwischen Implementierungen und Plattformen umschalten | Die ersten Bytes von `key`: `03 02 01 00` in der C-Referenz, `00 01 02 03` bei AES-NI und ARMv8 |
+| [AES-NI- und ARMv8-Befehle](../aes-ni/) | Das Listing auf x86_64 oder AArch64 Schritt für Schritt durchgehen | Welche Lehrbuchschritte jedes `aesenc`, `aese` und `aesmc` abdeckt, neben den Registern |
+
+</LessonSection>
+
+<LessonSection part="inside">
 
 ## Zwei Befehlssätze
 
 <Formula caption="AES-128-Verschlüsselung mit den Rundenschlüsseln k0 … k10.">
 {`x86 AES-NI                      ARMv8 Crypto Extensions
-PXOR       k0                   AESE  k0 ; AESMC      (Runden 1 … 9)
+PXOR       k0                   AESE  k0 … k8 ; AESMC  (Runden 1 … 9)
 AESENC     k1 … k9              AESE  k9               (Schlussrunde)
 AESENCLAST k10                  EOR   k10`}
 </Formula>
 
 `AESENC` führt ShiftRows, SubBytes und MixColumns aus und verknüpft *danach* den Rundenschlüssel
 per XOR. `AESE` verknüpft den Rundenschlüssel *zuerst*, dann folgen ShiftRows und SubBytes;
-`AESMC` ist ein separater MixColumns-Befehl. Deshalb braucht ARM für den letzten Schlüssel ein schlichtes `EOR`.
+`AESMC` ist ein separater MixColumns-Befehl. Deshalb braucht ARM für den letzten Schlüssel ein
+schlichtes `EOR` (Intel SDM Vol. 2A, AESENC; Arm ARM, AESE/AESMC). Die
+[Lektion zu den Befehlen](../aes-ni/) geht beide Listings Schritt für Schritt durch.
 
 </LessonSection>
 
-<LessonSection part="inside">
+<LessonSection part="memory">
 
 ## AES_KEY in OpenSSL
 
 <Formula caption="include/openssl/aes.h (AES_MAXNR = 14).">
 {`struct aes_key_st {
     unsigned int rd_key[4 * (AES_MAXNR + 1)];  /* 60 × u32 = 240 Byte */
-    int rounds;                                /* 10, 12 oder 14 */
+    int rounds;                                /* 10/12/14 (AES-NI: 9/11/13) */
 };`}
 </Formula>
 
 Der portable C-Code liest die Schlüsselbytes in Big-Endian-Reihenfolge ein (`GETU32`) und speichert jedes Wort als
-Ganzzahl in der **Bytereihenfolge des Hosts**: Auf x86 erscheinen die Bytes jedes Worts im Speicher
-umgedreht. Der AES-NI-Pfad belässt die Bytes in ihrer natürlichen Reihenfolge.
-
-</LessonSection>
-
-<LessonSection part="memory">
-
-## T-Tabellen und der Cache
-
-Klassisches Software-AES fasst SubBytes, ShiftRows und MixColumns in vier Nachschlagetabellen zu je
-1 KiB zusammen (`Te0 … Te3`), die mit geheimen Bytes indiziert werden. Welche Cache-Zeilen geladen werden, hängt
-vom Schlüssel ab – Bernstein (2005) sowie Osvik, Shamir und Tromer (2006) rekonstruierten Schlüssel allein
-aus Zeitmessungen. Code mit **konstanter Laufzeit** (constant-time) vermeidet geheimnisabhängige
-Zugriffe: durch Hardwarebefehle, Bitslicing oder Vector-Permute-AES.
+Ganzzahl in der **Bytereihenfolge des Hosts** (`aes_core.c:3067`): Auf den Little-Endian-Plattformen
+x86_64 und aarch64 erscheinen die Bytes jedes Worts im Speicher umgedreht. Der AES-NI- und der
+ARMv8-Code belassen die Bytes in ihrer natürlichen Reihenfolge. Die
+[Lektion zu AES_KEY](../memory-abi/) zeigt alle vier Kombinationen.
 
 </LessonSection>
 
 <LessonSection part="break">
 
-## Als Nächstes
+## T-Tabellen und der Cache
 
-Spätere Labs lassen dich ein Speicherabbild nach einem expandierten Schlüsselplan durchsuchen
+Klassisches Software-AES fasst SubBytes, ShiftRows und MixColumns in vier Nachschlagetabellen zu je
+1 KiB zusammen (`Te0 … Te3`), die mit geheimen Bytes indiziert werden. Welche Cache-Zeilen geladen werden, hängt
+vom Schlüssel ab – Bernstein (2005) sowie Osvik, Shamir und Tromer (2006) rekonstruierten Schlüssel aus
+Cache-Zeitmessungen. Code mit **konstanter Laufzeit** (constant-time) vermeidet geheimnisabhängige
+Zugriffe: durch Hardwarebefehle, Bitslicing oder Vector-Permute-AES. Die
+[Lektion zu den Befehlen](../aes-ni/) erzählt die Geschichte in ihrem Teil „Knack es“.
+
+Ein expandierter Schlüssel, der nie gelöscht wird, bleibt für jeden im Speicher, der ihn lesen kann;
+die [Lektion zu AES_KEY](../memory-abi/) zeigt, warum ein schlichtes `memset` nicht genügt. Spätere Labs lassen dich ein Speicherabbild nach einem expandierten Schlüsselplan durchsuchen
 und einen vereinfachten Cache-Timing-Angriff auf eine T-Tabellen-Implementierung ausführen.
 
 </LessonSection>
@@ -116,6 +139,16 @@ und einen vereinfachten Cache-Timing-Angriff auf eine T-Tabellen-Implementierung
   answer={2}
 >
   60 Wörter zu 32 Bit = 240 Byte, genug für AES-256; kürzere Schlüssel lassen das Ende ungenutzt.
+</CheckQuestion>
+
+<CheckQuestion
+  id="aesenc-key-last"
+  number={3}
+  question="Welchen Schritt führt der x86-Befehl AESENC zuletzt aus?"
+  options={['SubBytes', 'ShiftRows', 'MixColumns', 'XOR mit dem Rundenschlüssel']}
+  answer={3}
+>
+  `AESENC` = ShiftRows, SubBytes, MixColumns, dann ⊕ Rundenschlüssel (Intel SDM Vol. 2A, AESENC).
 </CheckQuestion>
 
 </LessonSection>

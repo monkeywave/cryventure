@@ -1,0 +1,1598 @@
+{
+  "source": "derivers/src/memory derive() over FIPS 197 C.1 (AES-128)",
+  "stepCount": 43,
+  "facets": {
+    "memory@x86_64-linux-gnu+c-ref": {
+      "kind": "memory",
+      "schemaVersion": 1,
+      "label": {
+        "key": "deriver.memory.variant.x86_64-linux-gnu.c-ref"
+      },
+      "provenance": "modeled",
+      "target": {
+        "triple": "x86_64-linux-gnu",
+        "dataModel": "LP64",
+        "ptrSize": 8,
+        "endian": "little"
+      },
+      "impl": {
+        "id": "c-ref",
+        "label": {
+          "key": "deriver.memory.impl.c-ref"
+        }
+      },
+      "allocations": [
+        {
+          "id": "in",
+          "space": "stack",
+          "addr": "0x7ffc5e3a0ff0",
+          "size": 16,
+          "align": 16,
+          "label": {
+            "key": "deriver.memory.allocation.in"
+          },
+          "allocatedAt": -1,
+          "valueRef": "plaintext"
+        },
+        {
+          "id": "out",
+          "space": "stack",
+          "addr": "0x7ffc5e3a0fe0",
+          "size": 16,
+          "align": 16,
+          "label": {
+            "key": "deriver.memory.allocation.out"
+          },
+          "allocatedAt": -1,
+          "valueRef": "ciphertext"
+        },
+        {
+          "id": "key",
+          "space": "stack",
+          "addr": "0x7ffc5e3a0ee0",
+          "size": 244,
+          "align": 4,
+          "label": {
+            "key": "deriver.memory.allocation.key"
+          },
+          "allocatedAt": -1,
+          "layout": {
+            "name": "aes_key_st",
+            "impl": "c-ref",
+            "triple": "x86_64-linux-gnu",
+            "size": 244,
+            "align": 4,
+            "source": {
+              "lib": "OpenSSL",
+              "version": "openssl-3.5.9",
+              "path": "include/openssl/aes.h",
+              "line": 36
+            },
+            "fields": [
+              {
+                "name": "rd_key",
+                "offset": 0,
+                "size": 240,
+                "type": "unsigned int[60]",
+                "count": 60,
+                "elemSize": 4,
+                "encoding": "host-endian-u32"
+              },
+              {
+                "name": "rounds",
+                "offset": 240,
+                "size": 4,
+                "type": "int",
+                "encoding": "int"
+              }
+            ]
+          },
+          "refs": [
+            {
+              "offset": 0,
+              "size": 16,
+              "valueRef": "0/roundKey"
+            },
+            {
+              "offset": 16,
+              "size": 16,
+              "valueRef": "1/roundKey"
+            },
+            {
+              "offset": 32,
+              "size": 16,
+              "valueRef": "2/roundKey"
+            },
+            {
+              "offset": 48,
+              "size": 16,
+              "valueRef": "3/roundKey"
+            },
+            {
+              "offset": 64,
+              "size": 16,
+              "valueRef": "4/roundKey"
+            },
+            {
+              "offset": 80,
+              "size": 16,
+              "valueRef": "5/roundKey"
+            },
+            {
+              "offset": 96,
+              "size": 16,
+              "valueRef": "6/roundKey"
+            },
+            {
+              "offset": 112,
+              "size": 16,
+              "valueRef": "7/roundKey"
+            },
+            {
+              "offset": 128,
+              "size": 16,
+              "valueRef": "8/roundKey"
+            },
+            {
+              "offset": 144,
+              "size": 16,
+              "valueRef": "9/roundKey"
+            },
+            {
+              "offset": 160,
+              "size": 16,
+              "valueRef": "10/roundKey"
+            }
+          ],
+          "valueRef": "key"
+        }
+      ],
+      "writes": [
+        {
+          "align": {
+            "first": -1,
+            "last": -1
+          },
+          "addr": "0x7ffc5e3a0ff0",
+          "bytes": [
+            0,
+            17,
+            34,
+            51,
+            68,
+            85,
+            102,
+            119,
+            136,
+            153,
+            170,
+            187,
+            204,
+            221,
+            238,
+            255
+          ],
+          "valueRef": "plaintext"
+        },
+        {
+          "align": {
+            "first": 1,
+            "last": 1
+          },
+          "addr": "0x7ffc5e3a0ee0",
+          "bytes": [
+            3,
+            2,
+            1,
+            0,
+            7,
+            6,
+            5,
+            4,
+            11,
+            10,
+            9,
+            8,
+            15,
+            14,
+            13,
+            12,
+            253,
+            116,
+            170,
+            214,
+            250,
+            114,
+            175,
+            210,
+            241,
+            120,
+            166,
+            218,
+            254,
+            118,
+            171,
+            214,
+            11,
+            207,
+            146,
+            182,
+            241,
+            189,
+            61,
+            100,
+            0,
+            197,
+            155,
+            190,
+            254,
+            179,
+            48,
+            104,
+            78,
+            116,
+            255,
+            182,
+            191,
+            201,
+            194,
+            210,
+            191,
+            12,
+            89,
+            108,
+            65,
+            191,
+            105,
+            4,
+            188,
+            247,
+            247,
+            71,
+            3,
+            62,
+            53,
+            149,
+            188,
+            50,
+            108,
+            249,
+            253,
+            141,
+            5,
+            253,
+            232,
+            163,
+            170,
+            60,
+            235,
+            157,
+            159,
+            169,
+            87,
+            175,
+            243,
+            80,
+            170,
+            34,
+            246,
+            173,
+            125,
+            15,
+            57,
+            94,
+            150,
+            146,
+            166,
+            247,
+            193,
+            61,
+            85,
+            167,
+            107,
+            31,
+            163,
+            10,
+            26,
+            112,
+            249,
+            20,
+            140,
+            226,
+            95,
+            227,
+            77,
+            223,
+            10,
+            68,
+            38,
+            192,
+            169,
+            78,
+            53,
+            135,
+            67,
+            71,
+            185,
+            101,
+            28,
+            164,
+            244,
+            186,
+            22,
+            224,
+            210,
+            122,
+            191,
+            174,
+            209,
+            50,
+            153,
+            84,
+            104,
+            87,
+            133,
+            240,
+            156,
+            237,
+            147,
+            16,
+            78,
+            151,
+            44,
+            190,
+            127,
+            29,
+            17,
+            19,
+            23,
+            74,
+            148,
+            227,
+            139,
+            167,
+            7,
+            243,
+            197,
+            48,
+            43,
+            77
+          ]
+        },
+        {
+          "align": {
+            "first": 1,
+            "last": 1
+          },
+          "addr": "0x7ffc5e3a0fd0",
+          "bytes": [
+            10,
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "align": {
+            "first": 42,
+            "last": 42
+          },
+          "addr": "0x7ffc5e3a0fe0",
+          "bytes": [
+            105,
+            196,
+            224,
+            216,
+            106,
+            123,
+            4,
+            48,
+            216,
+            205,
+            183,
+            128,
+            112,
+            180,
+            197,
+            90
+          ],
+          "valueRef": "ciphertext"
+        }
+      ]
+    },
+    "memory@x86_64-linux-gnu+aesni": {
+      "kind": "memory",
+      "schemaVersion": 1,
+      "label": {
+        "key": "deriver.memory.variant.x86_64-linux-gnu.aesni"
+      },
+      "provenance": "modeled",
+      "target": {
+        "triple": "x86_64-linux-gnu",
+        "dataModel": "LP64",
+        "ptrSize": 8,
+        "endian": "little"
+      },
+      "impl": {
+        "id": "aesni",
+        "label": {
+          "key": "deriver.memory.impl.aesni"
+        }
+      },
+      "allocations": [
+        {
+          "id": "in",
+          "space": "stack",
+          "addr": "0x7ffc5e3a0ff0",
+          "size": 16,
+          "align": 16,
+          "label": {
+            "key": "deriver.memory.allocation.in"
+          },
+          "allocatedAt": -1,
+          "valueRef": "plaintext"
+        },
+        {
+          "id": "out",
+          "space": "stack",
+          "addr": "0x7ffc5e3a0fe0",
+          "size": 16,
+          "align": 16,
+          "label": {
+            "key": "deriver.memory.allocation.out"
+          },
+          "allocatedAt": -1,
+          "valueRef": "ciphertext"
+        },
+        {
+          "id": "key",
+          "space": "stack",
+          "addr": "0x7ffc5e3a0ee0",
+          "size": 244,
+          "align": 4,
+          "label": {
+            "key": "deriver.memory.allocation.key"
+          },
+          "allocatedAt": -1,
+          "layout": {
+            "name": "aes_key_st",
+            "impl": "aesni",
+            "triple": "x86_64-linux-gnu",
+            "size": 244,
+            "align": 4,
+            "source": {
+              "lib": "OpenSSL",
+              "version": "openssl-3.5.9",
+              "path": "include/openssl/aes.h",
+              "line": 36
+            },
+            "fields": [
+              {
+                "name": "rd_key",
+                "offset": 0,
+                "size": 240,
+                "type": "unsigned int[60]",
+                "count": 60,
+                "elemSize": 4,
+                "encoding": "raw-bytes"
+              },
+              {
+                "name": "rounds",
+                "offset": 240,
+                "size": 4,
+                "type": "int",
+                "encoding": "int"
+              }
+            ]
+          },
+          "refs": [
+            {
+              "offset": 0,
+              "size": 16,
+              "valueRef": "0/roundKey"
+            },
+            {
+              "offset": 16,
+              "size": 16,
+              "valueRef": "1/roundKey"
+            },
+            {
+              "offset": 32,
+              "size": 16,
+              "valueRef": "2/roundKey"
+            },
+            {
+              "offset": 48,
+              "size": 16,
+              "valueRef": "3/roundKey"
+            },
+            {
+              "offset": 64,
+              "size": 16,
+              "valueRef": "4/roundKey"
+            },
+            {
+              "offset": 80,
+              "size": 16,
+              "valueRef": "5/roundKey"
+            },
+            {
+              "offset": 96,
+              "size": 16,
+              "valueRef": "6/roundKey"
+            },
+            {
+              "offset": 112,
+              "size": 16,
+              "valueRef": "7/roundKey"
+            },
+            {
+              "offset": 128,
+              "size": 16,
+              "valueRef": "8/roundKey"
+            },
+            {
+              "offset": 144,
+              "size": 16,
+              "valueRef": "9/roundKey"
+            },
+            {
+              "offset": 160,
+              "size": 16,
+              "valueRef": "10/roundKey"
+            }
+          ],
+          "valueRef": "key"
+        }
+      ],
+      "writes": [
+        {
+          "align": {
+            "first": -1,
+            "last": -1
+          },
+          "addr": "0x7ffc5e3a0ff0",
+          "bytes": [
+            0,
+            17,
+            34,
+            51,
+            68,
+            85,
+            102,
+            119,
+            136,
+            153,
+            170,
+            187,
+            204,
+            221,
+            238,
+            255
+          ],
+          "valueRef": "plaintext"
+        },
+        {
+          "align": {
+            "first": 1,
+            "last": 1
+          },
+          "addr": "0x7ffc5e3a0ee0",
+          "bytes": [
+            0,
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8,
+            9,
+            10,
+            11,
+            12,
+            13,
+            14,
+            15,
+            214,
+            170,
+            116,
+            253,
+            210,
+            175,
+            114,
+            250,
+            218,
+            166,
+            120,
+            241,
+            214,
+            171,
+            118,
+            254,
+            182,
+            146,
+            207,
+            11,
+            100,
+            61,
+            189,
+            241,
+            190,
+            155,
+            197,
+            0,
+            104,
+            48,
+            179,
+            254,
+            182,
+            255,
+            116,
+            78,
+            210,
+            194,
+            201,
+            191,
+            108,
+            89,
+            12,
+            191,
+            4,
+            105,
+            191,
+            65,
+            71,
+            247,
+            247,
+            188,
+            149,
+            53,
+            62,
+            3,
+            249,
+            108,
+            50,
+            188,
+            253,
+            5,
+            141,
+            253,
+            60,
+            170,
+            163,
+            232,
+            169,
+            159,
+            157,
+            235,
+            80,
+            243,
+            175,
+            87,
+            173,
+            246,
+            34,
+            170,
+            94,
+            57,
+            15,
+            125,
+            247,
+            166,
+            146,
+            150,
+            167,
+            85,
+            61,
+            193,
+            10,
+            163,
+            31,
+            107,
+            20,
+            249,
+            112,
+            26,
+            227,
+            95,
+            226,
+            140,
+            68,
+            10,
+            223,
+            77,
+            78,
+            169,
+            192,
+            38,
+            71,
+            67,
+            135,
+            53,
+            164,
+            28,
+            101,
+            185,
+            224,
+            22,
+            186,
+            244,
+            174,
+            191,
+            122,
+            210,
+            84,
+            153,
+            50,
+            209,
+            240,
+            133,
+            87,
+            104,
+            16,
+            147,
+            237,
+            156,
+            190,
+            44,
+            151,
+            78,
+            19,
+            17,
+            29,
+            127,
+            227,
+            148,
+            74,
+            23,
+            243,
+            7,
+            167,
+            139,
+            77,
+            43,
+            48,
+            197
+          ]
+        },
+        {
+          "align": {
+            "first": 1,
+            "last": 1
+          },
+          "addr": "0x7ffc5e3a0fd0",
+          "bytes": [
+            9,
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "align": {
+            "first": 42,
+            "last": 42
+          },
+          "addr": "0x7ffc5e3a0fe0",
+          "bytes": [
+            105,
+            196,
+            224,
+            216,
+            106,
+            123,
+            4,
+            48,
+            216,
+            205,
+            183,
+            128,
+            112,
+            180,
+            197,
+            90
+          ],
+          "valueRef": "ciphertext"
+        }
+      ]
+    },
+    "memory@aarch64-linux-gnu+c-ref": {
+      "kind": "memory",
+      "schemaVersion": 1,
+      "label": {
+        "key": "deriver.memory.variant.aarch64-linux-gnu.c-ref"
+      },
+      "provenance": "modeled",
+      "target": {
+        "triple": "aarch64-linux-gnu",
+        "dataModel": "LP64",
+        "ptrSize": 8,
+        "endian": "little"
+      },
+      "impl": {
+        "id": "c-ref",
+        "label": {
+          "key": "deriver.memory.impl.c-ref"
+        }
+      },
+      "allocations": [
+        {
+          "id": "in",
+          "space": "stack",
+          "addr": "0xffffd2c4eff0",
+          "size": 16,
+          "align": 16,
+          "label": {
+            "key": "deriver.memory.allocation.in"
+          },
+          "allocatedAt": -1,
+          "valueRef": "plaintext"
+        },
+        {
+          "id": "out",
+          "space": "stack",
+          "addr": "0xffffd2c4efe0",
+          "size": 16,
+          "align": 16,
+          "label": {
+            "key": "deriver.memory.allocation.out"
+          },
+          "allocatedAt": -1,
+          "valueRef": "ciphertext"
+        },
+        {
+          "id": "key",
+          "space": "stack",
+          "addr": "0xffffd2c4eee0",
+          "size": 244,
+          "align": 4,
+          "label": {
+            "key": "deriver.memory.allocation.key"
+          },
+          "allocatedAt": -1,
+          "layout": {
+            "name": "aes_key_st",
+            "impl": "c-ref",
+            "triple": "aarch64-linux-gnu",
+            "size": 244,
+            "align": 4,
+            "source": {
+              "lib": "OpenSSL",
+              "version": "openssl-3.5.9",
+              "path": "include/openssl/aes.h",
+              "line": 36
+            },
+            "fields": [
+              {
+                "name": "rd_key",
+                "offset": 0,
+                "size": 240,
+                "type": "unsigned int[60]",
+                "count": 60,
+                "elemSize": 4,
+                "encoding": "host-endian-u32"
+              },
+              {
+                "name": "rounds",
+                "offset": 240,
+                "size": 4,
+                "type": "int",
+                "encoding": "int"
+              }
+            ]
+          },
+          "refs": [
+            {
+              "offset": 0,
+              "size": 16,
+              "valueRef": "0/roundKey"
+            },
+            {
+              "offset": 16,
+              "size": 16,
+              "valueRef": "1/roundKey"
+            },
+            {
+              "offset": 32,
+              "size": 16,
+              "valueRef": "2/roundKey"
+            },
+            {
+              "offset": 48,
+              "size": 16,
+              "valueRef": "3/roundKey"
+            },
+            {
+              "offset": 64,
+              "size": 16,
+              "valueRef": "4/roundKey"
+            },
+            {
+              "offset": 80,
+              "size": 16,
+              "valueRef": "5/roundKey"
+            },
+            {
+              "offset": 96,
+              "size": 16,
+              "valueRef": "6/roundKey"
+            },
+            {
+              "offset": 112,
+              "size": 16,
+              "valueRef": "7/roundKey"
+            },
+            {
+              "offset": 128,
+              "size": 16,
+              "valueRef": "8/roundKey"
+            },
+            {
+              "offset": 144,
+              "size": 16,
+              "valueRef": "9/roundKey"
+            },
+            {
+              "offset": 160,
+              "size": 16,
+              "valueRef": "10/roundKey"
+            }
+          ],
+          "valueRef": "key"
+        }
+      ],
+      "writes": [
+        {
+          "align": {
+            "first": -1,
+            "last": -1
+          },
+          "addr": "0xffffd2c4eff0",
+          "bytes": [
+            0,
+            17,
+            34,
+            51,
+            68,
+            85,
+            102,
+            119,
+            136,
+            153,
+            170,
+            187,
+            204,
+            221,
+            238,
+            255
+          ],
+          "valueRef": "plaintext"
+        },
+        {
+          "align": {
+            "first": 1,
+            "last": 1
+          },
+          "addr": "0xffffd2c4eee0",
+          "bytes": [
+            3,
+            2,
+            1,
+            0,
+            7,
+            6,
+            5,
+            4,
+            11,
+            10,
+            9,
+            8,
+            15,
+            14,
+            13,
+            12,
+            253,
+            116,
+            170,
+            214,
+            250,
+            114,
+            175,
+            210,
+            241,
+            120,
+            166,
+            218,
+            254,
+            118,
+            171,
+            214,
+            11,
+            207,
+            146,
+            182,
+            241,
+            189,
+            61,
+            100,
+            0,
+            197,
+            155,
+            190,
+            254,
+            179,
+            48,
+            104,
+            78,
+            116,
+            255,
+            182,
+            191,
+            201,
+            194,
+            210,
+            191,
+            12,
+            89,
+            108,
+            65,
+            191,
+            105,
+            4,
+            188,
+            247,
+            247,
+            71,
+            3,
+            62,
+            53,
+            149,
+            188,
+            50,
+            108,
+            249,
+            253,
+            141,
+            5,
+            253,
+            232,
+            163,
+            170,
+            60,
+            235,
+            157,
+            159,
+            169,
+            87,
+            175,
+            243,
+            80,
+            170,
+            34,
+            246,
+            173,
+            125,
+            15,
+            57,
+            94,
+            150,
+            146,
+            166,
+            247,
+            193,
+            61,
+            85,
+            167,
+            107,
+            31,
+            163,
+            10,
+            26,
+            112,
+            249,
+            20,
+            140,
+            226,
+            95,
+            227,
+            77,
+            223,
+            10,
+            68,
+            38,
+            192,
+            169,
+            78,
+            53,
+            135,
+            67,
+            71,
+            185,
+            101,
+            28,
+            164,
+            244,
+            186,
+            22,
+            224,
+            210,
+            122,
+            191,
+            174,
+            209,
+            50,
+            153,
+            84,
+            104,
+            87,
+            133,
+            240,
+            156,
+            237,
+            147,
+            16,
+            78,
+            151,
+            44,
+            190,
+            127,
+            29,
+            17,
+            19,
+            23,
+            74,
+            148,
+            227,
+            139,
+            167,
+            7,
+            243,
+            197,
+            48,
+            43,
+            77
+          ]
+        },
+        {
+          "align": {
+            "first": 1,
+            "last": 1
+          },
+          "addr": "0xffffd2c4efd0",
+          "bytes": [
+            10,
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "align": {
+            "first": 42,
+            "last": 42
+          },
+          "addr": "0xffffd2c4efe0",
+          "bytes": [
+            105,
+            196,
+            224,
+            216,
+            106,
+            123,
+            4,
+            48,
+            216,
+            205,
+            183,
+            128,
+            112,
+            180,
+            197,
+            90
+          ],
+          "valueRef": "ciphertext"
+        }
+      ]
+    },
+    "memory@aarch64-linux-gnu+armv8": {
+      "kind": "memory",
+      "schemaVersion": 1,
+      "label": {
+        "key": "deriver.memory.variant.aarch64-linux-gnu.armv8"
+      },
+      "provenance": "modeled",
+      "target": {
+        "triple": "aarch64-linux-gnu",
+        "dataModel": "LP64",
+        "ptrSize": 8,
+        "endian": "little"
+      },
+      "impl": {
+        "id": "armv8",
+        "label": {
+          "key": "deriver.memory.impl.armv8"
+        }
+      },
+      "allocations": [
+        {
+          "id": "in",
+          "space": "stack",
+          "addr": "0xffffd2c4eff0",
+          "size": 16,
+          "align": 16,
+          "label": {
+            "key": "deriver.memory.allocation.in"
+          },
+          "allocatedAt": -1,
+          "valueRef": "plaintext"
+        },
+        {
+          "id": "out",
+          "space": "stack",
+          "addr": "0xffffd2c4efe0",
+          "size": 16,
+          "align": 16,
+          "label": {
+            "key": "deriver.memory.allocation.out"
+          },
+          "allocatedAt": -1,
+          "valueRef": "ciphertext"
+        },
+        {
+          "id": "key",
+          "space": "stack",
+          "addr": "0xffffd2c4eee0",
+          "size": 244,
+          "align": 4,
+          "label": {
+            "key": "deriver.memory.allocation.key"
+          },
+          "allocatedAt": -1,
+          "layout": {
+            "name": "aes_key_st",
+            "impl": "armv8",
+            "triple": "aarch64-linux-gnu",
+            "size": 244,
+            "align": 4,
+            "source": {
+              "lib": "OpenSSL",
+              "version": "openssl-3.5.9",
+              "path": "include/openssl/aes.h",
+              "line": 36
+            },
+            "fields": [
+              {
+                "name": "rd_key",
+                "offset": 0,
+                "size": 240,
+                "type": "unsigned int[60]",
+                "count": 60,
+                "elemSize": 4,
+                "encoding": "raw-bytes"
+              },
+              {
+                "name": "rounds",
+                "offset": 240,
+                "size": 4,
+                "type": "int",
+                "encoding": "int"
+              }
+            ]
+          },
+          "refs": [
+            {
+              "offset": 0,
+              "size": 16,
+              "valueRef": "0/roundKey"
+            },
+            {
+              "offset": 16,
+              "size": 16,
+              "valueRef": "1/roundKey"
+            },
+            {
+              "offset": 32,
+              "size": 16,
+              "valueRef": "2/roundKey"
+            },
+            {
+              "offset": 48,
+              "size": 16,
+              "valueRef": "3/roundKey"
+            },
+            {
+              "offset": 64,
+              "size": 16,
+              "valueRef": "4/roundKey"
+            },
+            {
+              "offset": 80,
+              "size": 16,
+              "valueRef": "5/roundKey"
+            },
+            {
+              "offset": 96,
+              "size": 16,
+              "valueRef": "6/roundKey"
+            },
+            {
+              "offset": 112,
+              "size": 16,
+              "valueRef": "7/roundKey"
+            },
+            {
+              "offset": 128,
+              "size": 16,
+              "valueRef": "8/roundKey"
+            },
+            {
+              "offset": 144,
+              "size": 16,
+              "valueRef": "9/roundKey"
+            },
+            {
+              "offset": 160,
+              "size": 16,
+              "valueRef": "10/roundKey"
+            }
+          ],
+          "valueRef": "key"
+        }
+      ],
+      "writes": [
+        {
+          "align": {
+            "first": -1,
+            "last": -1
+          },
+          "addr": "0xffffd2c4eff0",
+          "bytes": [
+            0,
+            17,
+            34,
+            51,
+            68,
+            85,
+            102,
+            119,
+            136,
+            153,
+            170,
+            187,
+            204,
+            221,
+            238,
+            255
+          ],
+          "valueRef": "plaintext"
+        },
+        {
+          "align": {
+            "first": 1,
+            "last": 1
+          },
+          "addr": "0xffffd2c4eee0",
+          "bytes": [
+            0,
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8,
+            9,
+            10,
+            11,
+            12,
+            13,
+            14,
+            15,
+            214,
+            170,
+            116,
+            253,
+            210,
+            175,
+            114,
+            250,
+            218,
+            166,
+            120,
+            241,
+            214,
+            171,
+            118,
+            254,
+            182,
+            146,
+            207,
+            11,
+            100,
+            61,
+            189,
+            241,
+            190,
+            155,
+            197,
+            0,
+            104,
+            48,
+            179,
+            254,
+            182,
+            255,
+            116,
+            78,
+            210,
+            194,
+            201,
+            191,
+            108,
+            89,
+            12,
+            191,
+            4,
+            105,
+            191,
+            65,
+            71,
+            247,
+            247,
+            188,
+            149,
+            53,
+            62,
+            3,
+            249,
+            108,
+            50,
+            188,
+            253,
+            5,
+            141,
+            253,
+            60,
+            170,
+            163,
+            232,
+            169,
+            159,
+            157,
+            235,
+            80,
+            243,
+            175,
+            87,
+            173,
+            246,
+            34,
+            170,
+            94,
+            57,
+            15,
+            125,
+            247,
+            166,
+            146,
+            150,
+            167,
+            85,
+            61,
+            193,
+            10,
+            163,
+            31,
+            107,
+            20,
+            249,
+            112,
+            26,
+            227,
+            95,
+            226,
+            140,
+            68,
+            10,
+            223,
+            77,
+            78,
+            169,
+            192,
+            38,
+            71,
+            67,
+            135,
+            53,
+            164,
+            28,
+            101,
+            185,
+            224,
+            22,
+            186,
+            244,
+            174,
+            191,
+            122,
+            210,
+            84,
+            153,
+            50,
+            209,
+            240,
+            133,
+            87,
+            104,
+            16,
+            147,
+            237,
+            156,
+            190,
+            44,
+            151,
+            78,
+            19,
+            17,
+            29,
+            127,
+            227,
+            148,
+            74,
+            23,
+            243,
+            7,
+            167,
+            139,
+            77,
+            43,
+            48,
+            197
+          ]
+        },
+        {
+          "align": {
+            "first": 1,
+            "last": 1
+          },
+          "addr": "0xffffd2c4efd0",
+          "bytes": [
+            10,
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "align": {
+            "first": 42,
+            "last": 42
+          },
+          "addr": "0xffffd2c4efe0",
+          "bytes": [
+            105,
+            196,
+            224,
+            216,
+            106,
+            123,
+            4,
+            48,
+            216,
+            205,
+            183,
+            128,
+            112,
+            180,
+            197,
+            90
+          ],
+          "valueRef": "ciphertext"
+        }
+      ]
+    }
+  }
+}

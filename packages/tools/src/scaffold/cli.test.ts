@@ -16,6 +16,7 @@ describe('planScaffold', () => {
   it('maps commands to folders and templates', () => {
     expect(planScaffold({ kind: 'primitive', id: 'a', family: 'hash' }).folder).toBe('packages/primitives/src/a');
     expect(planScaffold({ kind: 'view', id: 'b', requires: ['state'] }).files).toHaveLength(6);
+    expect(planScaffold({ kind: 'deriver', id: 'c', from: ['state'], provides: 'demo-steps' })).toMatchObject({ folder: 'packages/derivers/src/c', files: expect.arrayContaining([expect.objectContaining({ path: 'packages/derivers/src/c/module.ts' })]) });
   });
 });
 
@@ -34,6 +35,12 @@ describe('main', () => {
     expect(main(['new', 'primitive', 'demo-xor'], root, log, vi.fn())).toBe(0);
     expect(existsSync(join(root, 'packages/primitives/src/demo-xor/module.ts'))).toBe(true);
     expect(log).toHaveBeenCalledWith('created packages/primitives/src/demo-xor/manifest.ts');
+  });
+
+  it('scaffolds a deriver', () => {
+    const log = vi.fn();
+    expect(main(['new', 'deriver', 'demo-trace', '--provides', 'demo-steps'], root, log, vi.fn())).toBe(0);
+    expect(log).toHaveBeenCalledWith('created packages/derivers/src/demo-trace/i18n/de.json');
   });
 
   it('returns 1 with a message for bad arguments or existing folders', () => {

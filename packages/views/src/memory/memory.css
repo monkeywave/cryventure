@@ -1,0 +1,456 @@
+/*
+ * Memory view styles. Imported by the view component, so it ships in the view's lazy chunk.
+ * Colours come only from the semantic tokens (--cv-*, --sl-color-*); fallbacks keep it usable standalone.
+ * Every highlight pairs colour with a glyph, border style or weight.
+ */
+
+.cv-memory {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 0.75rem;
+  min-width: 0;
+  font-size: 0.9rem;
+  container-type: inline-size;
+}
+
+/* ---------- Header: badge, pickers, words toggle ---------- */
+.cv-memory__header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem 1rem;
+  min-width: 0;
+}
+
+.cv-memory__header > * {
+  min-width: 0;
+  max-width: 100%;
+}
+
+/* Provenance: always visible; dashed border = "modeled" (not a recorded process). */
+.cv-memory__badge {
+  padding: 0.1rem 0.5rem;
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--cv-text, CanvasText);
+  background: var(--cv-surface-elevated, Canvas);
+  border: 2px dashed var(--sl-color-accent, Highlight);
+  border-radius: 999px;
+}
+
+.cv-memory__badge[data-provenance='recorded'] {
+  border-style: solid;
+}
+
+.cv-memory__pickers {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem 0.75rem;
+}
+
+.cv-memory__picker {
+  display: inline-flex;
+  flex-wrap: wrap;
+  min-width: 0;
+  max-width: 100%;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: 0.8rem;
+  color: var(--cv-text-muted, GrayText);
+}
+
+.cv-memory__picker select {
+  min-height: 2rem;
+  min-width: 0;
+  max-width: 100%;
+  font: inherit;
+  color: var(--cv-text, CanvasText);
+  background: var(--cv-surface-elevated, Canvas);
+  border: 1px solid var(--cv-border, ButtonBorder);
+  border-radius: 0.375rem;
+}
+
+.cv-memory__words {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.35rem 0.6rem;
+}
+
+.cv-memory__toggle {
+  min-height: 2rem;
+  padding: 0.2rem 0.6rem;
+  font: inherit;
+  font-size: 0.8rem;
+  color: inherit;
+  background: var(--cv-surface-elevated, ButtonFace);
+  border: 1px solid var(--cv-border, ButtonBorder);
+  border-radius: 0.375rem;
+  cursor: pointer;
+}
+
+/* Pressed: heavy accent border and bold text (not colour alone). */
+.cv-memory__toggle[aria-pressed='true'] {
+  font-weight: 700;
+  border: 2px solid var(--sl-color-accent, Highlight);
+}
+
+.cv-memory__note {
+  margin: 0;
+  overflow-wrap: anywhere;
+  font-size: 0.8rem;
+  color: var(--cv-text-muted, GrayText);
+}
+
+/* ---------- Allocations ---------- */
+.cv-memory__allocations {
+  display: grid;
+  gap: 1rem;
+  min-width: 0;
+}
+
+.cv-memory__allocation,
+.cv-memory__block {
+  min-width: 0;
+  margin: 0;
+}
+
+.cv-memory__caption {
+  display: flex;
+  overflow-wrap: anywhere;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.15rem 0.75rem;
+  margin: 0 0 0.35rem;
+}
+
+.cv-memory__label {
+  font-weight: 600;
+}
+
+.cv-memory__addr,
+.cv-memory__counters {
+  font-family: var(--sl-font-mono, ui-monospace, monospace);
+  font-size: 0.8em;
+  color: var(--cv-text-muted, GrayText);
+}
+
+.cv-memory__counters {
+  display: inline-flex;
+  gap: 0.75rem;
+}
+
+.cv-memory__legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.15rem 1rem;
+  margin: 0 0 0.35rem;
+  padding: 0;
+  list-style: none;
+  font-family: var(--sl-font-mono, ui-monospace, monospace);
+  font-size: 0.75rem;
+  color: var(--cv-text-muted, GrayText);
+}
+
+.cv-memory__legend li {
+  display: inline-flex;
+  min-width: 0;
+  overflow-wrap: anywhere;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  padding-inline-start: 0.35rem;
+  border-inline-start: 3px solid var(--cv-key, GrayText);
+}
+
+.cv-memory__legend li[data-padding] {
+  border-inline-start-color: var(--cv-border-subtle, GrayText);
+  background-image: repeating-linear-gradient(
+    135deg,
+    var(--cv-border-subtle, transparent) 0 3px,
+    transparent 3px 7px
+  );
+}
+
+.cv-memory__encoding {
+  font-style: italic;
+}
+
+.cv-memory__value {
+  color: var(--cv-text, CanvasText);
+}
+
+/* ---------- Hex grid: scrolls inside the panel on phones, never the page ---------- */
+.cv-memory__scroll {
+  /* Containing block for the cells' visually hidden texts, so they stay clipped here. */
+  position: relative;
+  max-inline-size: 100%;
+  overflow-x: auto;
+  overscroll-behavior-inline: contain;
+  padding: 3px;
+}
+
+.cv-memory__grid {
+  --cv-memory-gutter: 15ch;
+  --cv-memory-box: 1.9rem;
+  display: inline-grid;
+  gap: 2px;
+  min-inline-size: max-content;
+  font-family: var(--sl-font-mono, ui-monospace, monospace);
+}
+
+.cv-memory[data-lens='cryptographer'] .cv-memory__grid {
+  --cv-memory-gutter: 20ch;
+}
+
+.cv-memory__row {
+  display: grid;
+  grid-template-columns: var(--cv-memory-gutter) repeat(16, var(--cv-memory-box));
+  gap: 2px;
+  align-items: center;
+}
+
+.cv-memory__gutter,
+.cv-memory__colhead {
+  font-size: 0.75rem;
+  color: var(--cv-text-muted, GrayText);
+}
+
+.cv-memory__gutter {
+  display: flex;
+  gap: 0.5ch;
+  align-items: baseline;
+  padding-inline-end: 0.5ch;
+}
+
+.cv-memory__colhead {
+  text-align: center;
+}
+
+/* Heads the second half of a row on narrow panels only (see the container queries below). */
+.cv-memory__gutter--half {
+  display: none;
+}
+
+.cv-memory__reftag {
+  padding-inline: 0.3ch;
+  font-weight: 700;
+  color: var(--cv-subkey, var(--cv-key, CanvasText));
+  border: 1px solid var(--cv-subkey, var(--cv-key, GrayText));
+  border-radius: 3px;
+}
+
+.cv-memory__unit {
+  position: relative;
+  box-sizing: border-box;
+  display: grid;
+  place-items: center;
+  height: 1.7rem;
+  font-size: 0.75rem;
+  color: var(--cv-text, CanvasText);
+  background-color: var(--cv-surface-elevated, Canvas);
+  border: 1px solid var(--cv-border-subtle, GrayText);
+  border-radius: 3px;
+  cursor: default;
+}
+
+/* u32 words and ints span the four byte columns they occupy. */
+.cv-memory__unit[data-kind='word'],
+.cv-memory__unit[data-kind='int'] {
+  grid-column: span 4;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+}
+
+.cv-memory__unit:focus-visible {
+  outline: 2px solid var(--sl-color-accent, Highlight);
+  outline-offset: 1px;
+}
+
+/* Field overlay: key-coloured fields, heavy start border at a field, thin one at each rd_key[i] word. */
+.cv-memory__unit[data-field] {
+  border-color: var(--cv-key, GrayText);
+}
+
+.cv-memory__unit[data-elem-start] {
+  border-inline-start-width: 2px;
+}
+
+.cv-memory__unit[data-field-start] {
+  border-inline-start-width: 4px;
+}
+
+.cv-memory__unit[data-padding] {
+  background-image: repeating-linear-gradient(
+    135deg,
+    var(--cv-border-subtle, transparent) 0 3px,
+    transparent 3px 7px
+  );
+}
+
+/* Never written: dashed and dimmed through tokens (never opacity), value withheld. */
+.cv-memory__unit[data-unwritten] {
+  color: var(--cv-cell-dim-fg, GrayText);
+  background-color: var(--cv-cell-dim-bg, Canvas);
+  border-style: dashed;
+}
+
+/* Written at the playhead: heavy border, bold, ✎ glyph. */
+.cv-memory__unit[data-written] {
+  font-weight: 700;
+  border-width: 3px;
+  border-color: var(--sl-color-accent, Highlight);
+}
+
+.cv-memory__glyph {
+  position: absolute;
+  inset-block-start: -0.15em;
+  inset-inline-end: 1px;
+  font-size: 0.65rem;
+  line-height: 1;
+  color: var(--sl-color-accent, Highlight);
+}
+
+/* Linked to the selection (e.g. a round key picked elsewhere): double border plus glow. */
+.cv-memory__unit[data-linked] {
+  border: 3px double var(--cv-subkey, var(--cv-key, CanvasText));
+  background-color: var(--cv-cell-focus-bg, Canvas);
+  box-shadow: inset 0 0 0 100vmax var(--cv-glow-key, transparent);
+}
+
+.cv-memory__legend-line {
+  display: flex;
+  overflow-wrap: anywhere;
+  flex-wrap: wrap;
+  gap: 0.25rem 1rem;
+  margin: 0;
+  font-size: 0.8em;
+  color: var(--cv-text-muted, GrayText);
+}
+
+.cv-memory__legend-line [data-linked] {
+  border-block-end: 3px double var(--cv-subkey, var(--cv-key, CanvasText));
+}
+
+/*
+ * Narrow panels (one half of a split lab): compact cells and a shorter address gutter, so all 16
+ * columns still fit.
+ */
+@container (max-width: 44rem) {
+  /* Readable floor: 11px on phones, 12px on wider screens (the dump scrolls when it does not fit). */
+  .cv-memory__grid {
+    --cv-memory-gutter: 15ch;
+    --cv-memory-box: 1.45rem;
+    --cv-memory-small-font: 0.6875rem;
+    font-size: var(--cv-memory-small-font);
+  }
+
+  .cv-memory[data-lens='cryptographer'] .cv-memory__grid {
+    --cv-memory-gutter: 21ch;
+  }
+
+  .cv-memory__gutter,
+  .cv-memory__colhead {
+    font-size: 1em;
+  }
+
+  .cv-memory__unit {
+    height: 1.5rem;
+    font-size: var(--cv-memory-small-font);
+  }
+}
+
+/*
+ * Narrower still (phones, small splits): each 16-byte row wraps into two lines of 8 bytes, the
+ * second headed by its own address (the row header's address + 8), and the ruler shows +0…+7. The
+ * hidden ruler labels stay in the grid for assistive technology.
+ */
+@container (max-width: 34rem) {
+  .cv-memory__row {
+    grid-template-columns: var(--cv-memory-gutter) repeat(8, var(--cv-memory-box));
+  }
+
+  .cv-memory__gutter--half {
+    display: flex;
+  }
+
+  .cv-memory__ruler > .cv-memory__colhead:nth-child(n + 10) {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+
+  /* The round-key tag sits under the address, so the gutter stays narrow. */
+  .cv-memory[data-lens='cryptographer'] .cv-memory__grid {
+    --cv-memory-gutter: 15ch;
+  }
+
+  .cv-memory__gutter {
+    flex-wrap: wrap;
+    row-gap: 1px;
+  }
+}
+
+/* ---------- Story lens: labelled blocks without hex ---------- */
+.cv-memory__segments {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.cv-memory__segment {
+  display: grid;
+  gap: 0.15rem;
+  flex-basis: 6rem;
+  min-width: 6rem;
+  padding: 0.4rem 0.5rem;
+  font-size: 0.8rem;
+  background: var(--cv-surface-elevated, Canvas);
+  border: 1px solid var(--cv-key, GrayText);
+  border-inline-start-width: 4px;
+  border-radius: 3px;
+}
+
+.cv-memory__segment[data-written='none'] {
+  color: var(--cv-cell-dim-fg, GrayText);
+  background: var(--cv-cell-dim-bg, Canvas);
+  border-style: dashed;
+}
+
+.cv-memory__segment[data-written='some'] {
+  border-style: solid dashed dashed solid;
+}
+
+.cv-memory__segment[data-padding] {
+  border-color: var(--cv-border-subtle, GrayText);
+  background-image: repeating-linear-gradient(
+    135deg,
+    var(--cv-border-subtle, transparent) 0 3px,
+    transparent 3px 7px
+  );
+}
+
+.cv-memory__block[data-linked] .cv-memory__segment {
+  border-style: double;
+  border-width: 3px;
+  border-color: var(--cv-subkey, var(--cv-key, CanvasText));
+}
+
+.cv-memory__fill {
+  font-size: 0.75rem;
+  color: var(--cv-text-muted, GrayText);
+}
+
+/* Wider screens: the compact (split-panel) dump keeps the 12px floor too. */
+@media (min-width: 48rem) {
+  .cv-memory__grid {
+    --cv-memory-small-font: 0.75rem;
+  }
+}

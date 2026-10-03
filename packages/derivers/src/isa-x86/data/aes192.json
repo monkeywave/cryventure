@@ -7,20 +7,20 @@
   "compilerExplorerUrl": "https://godbolt.org/clientstate/eyJzZXNzaW9ucyI6W3siaWQiOjEsImxhbmd1YWdlIjoiYyIsInNvdXJjZSI6Ii8qXG4gKiBBRVMtTkkgYmxvY2sgZW5jcnlwdGlvbiAoeDg2LTY0KSwgY29tcGlsZWQgYnkgcGFja2FnZXMvdG9vbHMvc3JjL2FzbS9nZW5lcmF0ZS50cy5cbiAqIFJvdW5kIGtleXMgYXJlIHJlYWQgZnJvbSBrZXktPnJkX2tleSBhcyAxNi1ieXRlIHZlY3RvcnMgaW4gcmF3IGJ5dGUgb3JkZXIuXG4gKi9cbiNpbmNsdWRlIDxzdGRpbnQuaD5cbiNpbmNsdWRlIDx3bW1pbnRyaW4uaD5cblxuLyogVW5yb2xsZWQsIHN0cmFpZ2h0LWxpbmUgY29kZTogZWFjaCBmdW5jdGlvbiBoYXMgYSBmaXhlZCByb3VuZCBjb3VudCBOciAoMTAvMTIvMTQpLiAqL1xudHlwZWRlZiBzdHJ1Y3QgYWVzX2tleV9zdCB7XG4gICAgdW5zaWduZWQgaW50IHJkX2tleVs2MF07XG4gICAgaW50IHJvdW5kcztcbn0gQUVTX0tFWTtcblxudm9pZCBhZXNfZW5jcnlwdF9ibG9ja18xOTIoY29uc3QgdWludDhfdCAqaW4sIHVpbnQ4X3QgKm91dCwgY29uc3QgQUVTX0tFWSAqa2V5KSB7XG4gICAgY29uc3QgX19tMTI4aSAqcmsgPSAoY29uc3QgX19tMTI4aSAqKWtleS0-cmRfa2V5O1xuICAgIF9fbTEyOGkgcyA9IF9tbV9sb2FkdV9zaTEyOCgoY29uc3QgX19tMTI4aSAqKWluKTtcbiAgICBzID0gX21tX3hvcl9zaTEyOChzLCBfbW1fbG9hZHVfc2kxMjgocmsgKyAwKSk7XG4gICAgcyA9IF9tbV9hZXNlbmNfc2kxMjgocywgX21tX2xvYWR1X3NpMTI4KHJrICsgMSkpO1xuICAgIHMgPSBfbW1fYWVzZW5jX3NpMTI4KHMsIF9tbV9sb2FkdV9zaTEyOChyayArIDIpKTtcbiAgICBzID0gX21tX2Flc2VuY19zaTEyOChzLCBfbW1fbG9hZHVfc2kxMjgocmsgKyAzKSk7XG4gICAgcyA9IF9tbV9hZXNlbmNfc2kxMjgocywgX21tX2xvYWR1X3NpMTI4KHJrICsgNCkpO1xuICAgIHMgPSBfbW1fYWVzZW5jX3NpMTI4KHMsIF9tbV9sb2FkdV9zaTEyOChyayArIDUpKTtcbiAgICBzID0gX21tX2Flc2VuY19zaTEyOChzLCBfbW1fbG9hZHVfc2kxMjgocmsgKyA2KSk7XG4gICAgcyA9IF9tbV9hZXNlbmNfc2kxMjgocywgX21tX2xvYWR1X3NpMTI4KHJrICsgNykpO1xuICAgIHMgPSBfbW1fYWVzZW5jX3NpMTI4KHMsIF9tbV9sb2FkdV9zaTEyOChyayArIDgpKTtcbiAgICBzID0gX21tX2Flc2VuY19zaTEyOChzLCBfbW1fbG9hZHVfc2kxMjgocmsgKyA5KSk7XG4gICAgcyA9IF9tbV9hZXNlbmNfc2kxMjgocywgX21tX2xvYWR1X3NpMTI4KHJrICsgMTApKTtcbiAgICBzID0gX21tX2Flc2VuY19zaTEyOChzLCBfbW1fbG9hZHVfc2kxMjgocmsgKyAxMSkpO1xuICAgIHMgPSBfbW1fYWVzZW5jbGFzdF9zaTEyOChzLCBfbW1fbG9hZHVfc2kxMjgocmsgKyAxMikpO1xuICAgIF9tbV9zdG9yZXVfc2kxMjgoKF9fbTEyOGkgKilvdXQsIHMpO1xufVxuIiwiY29tcGlsZXJzIjpbeyJpZCI6ImNjbGFuZ190cnVuayIsIm9wdGlvbnMiOiItTzIgLW1hZXMgLW1hc209aW50ZWwgLWZmcmVlc3RhbmRpbmcifV19XX0",
   "instructions": [
     {
-      "address": "0x80",
+      "address": "0x0",
       "mnemonic": "movdqu",
       "operands": ["xmm1", "xmmword ptr [rdi]"],
       "role": "loadState"
     },
     {
-      "address": "0x84",
+      "address": "0x4",
       "mnemonic": "movdqu",
       "operands": ["xmm0", "xmmword ptr [rdx]"],
       "role": "loadKey",
       "keyIndex": 0
     },
     {
-      "address": "0x88",
+      "address": "0x8",
       "mnemonic": "pxor",
       "operands": ["xmm0", "xmm1"],
       "role": "ark0",
@@ -28,14 +28,14 @@
       "keyIndex": 0
     },
     {
-      "address": "0x8c",
+      "address": "0xc",
       "mnemonic": "movdqu",
       "operands": ["xmm1", "xmmword ptr [rdx + 16]"],
       "role": "loadKey",
       "keyIndex": 1
     },
     {
-      "address": "0x91",
+      "address": "0x11",
       "mnemonic": "aesenc",
       "operands": ["xmm0", "xmm1"],
       "role": "round",
@@ -43,14 +43,14 @@
       "keyIndex": 1
     },
     {
-      "address": "0x96",
+      "address": "0x16",
       "mnemonic": "movdqu",
       "operands": ["xmm1", "xmmword ptr [rdx + 32]"],
       "role": "loadKey",
       "keyIndex": 2
     },
     {
-      "address": "0x9b",
+      "address": "0x1b",
       "mnemonic": "aesenc",
       "operands": ["xmm0", "xmm1"],
       "role": "round",
@@ -58,14 +58,14 @@
       "keyIndex": 2
     },
     {
-      "address": "0xa0",
+      "address": "0x20",
       "mnemonic": "movdqu",
       "operands": ["xmm1", "xmmword ptr [rdx + 48]"],
       "role": "loadKey",
       "keyIndex": 3
     },
     {
-      "address": "0xa5",
+      "address": "0x25",
       "mnemonic": "aesenc",
       "operands": ["xmm0", "xmm1"],
       "role": "round",
@@ -73,14 +73,14 @@
       "keyIndex": 3
     },
     {
-      "address": "0xaa",
+      "address": "0x2a",
       "mnemonic": "movdqu",
       "operands": ["xmm1", "xmmword ptr [rdx + 64]"],
       "role": "loadKey",
       "keyIndex": 4
     },
     {
-      "address": "0xaf",
+      "address": "0x2f",
       "mnemonic": "aesenc",
       "operands": ["xmm0", "xmm1"],
       "role": "round",
@@ -88,14 +88,14 @@
       "keyIndex": 4
     },
     {
-      "address": "0xb4",
+      "address": "0x34",
       "mnemonic": "movdqu",
       "operands": ["xmm1", "xmmword ptr [rdx + 80]"],
       "role": "loadKey",
       "keyIndex": 5
     },
     {
-      "address": "0xb9",
+      "address": "0x39",
       "mnemonic": "aesenc",
       "operands": ["xmm0", "xmm1"],
       "role": "round",
@@ -103,14 +103,14 @@
       "keyIndex": 5
     },
     {
-      "address": "0xbe",
+      "address": "0x3e",
       "mnemonic": "movdqu",
       "operands": ["xmm1", "xmmword ptr [rdx + 96]"],
       "role": "loadKey",
       "keyIndex": 6
     },
     {
-      "address": "0xc3",
+      "address": "0x43",
       "mnemonic": "aesenc",
       "operands": ["xmm0", "xmm1"],
       "role": "round",
@@ -118,14 +118,14 @@
       "keyIndex": 6
     },
     {
-      "address": "0xc8",
+      "address": "0x48",
       "mnemonic": "movdqu",
       "operands": ["xmm1", "xmmword ptr [rdx + 112]"],
       "role": "loadKey",
       "keyIndex": 7
     },
     {
-      "address": "0xcd",
+      "address": "0x4d",
       "mnemonic": "aesenc",
       "operands": ["xmm0", "xmm1"],
       "role": "round",
@@ -133,14 +133,14 @@
       "keyIndex": 7
     },
     {
-      "address": "0xd2",
+      "address": "0x52",
       "mnemonic": "movdqu",
       "operands": ["xmm1", "xmmword ptr [rdx + 128]"],
       "role": "loadKey",
       "keyIndex": 8
     },
     {
-      "address": "0xda",
+      "address": "0x5a",
       "mnemonic": "aesenc",
       "operands": ["xmm0", "xmm1"],
       "role": "round",
@@ -148,14 +148,14 @@
       "keyIndex": 8
     },
     {
-      "address": "0xdf",
+      "address": "0x5f",
       "mnemonic": "movdqu",
       "operands": ["xmm1", "xmmword ptr [rdx + 144]"],
       "role": "loadKey",
       "keyIndex": 9
     },
     {
-      "address": "0xe7",
+      "address": "0x67",
       "mnemonic": "aesenc",
       "operands": ["xmm0", "xmm1"],
       "role": "round",
@@ -163,14 +163,14 @@
       "keyIndex": 9
     },
     {
-      "address": "0xec",
+      "address": "0x6c",
       "mnemonic": "movdqu",
       "operands": ["xmm1", "xmmword ptr [rdx + 160]"],
       "role": "loadKey",
       "keyIndex": 10
     },
     {
-      "address": "0xf4",
+      "address": "0x74",
       "mnemonic": "aesenc",
       "operands": ["xmm0", "xmm1"],
       "role": "round",
@@ -178,14 +178,14 @@
       "keyIndex": 10
     },
     {
-      "address": "0xf9",
+      "address": "0x79",
       "mnemonic": "movdqu",
       "operands": ["xmm1", "xmmword ptr [rdx + 176]"],
       "role": "loadKey",
       "keyIndex": 11
     },
     {
-      "address": "0x101",
+      "address": "0x81",
       "mnemonic": "aesenc",
       "operands": ["xmm0", "xmm1"],
       "role": "round",
@@ -193,14 +193,14 @@
       "keyIndex": 11
     },
     {
-      "address": "0x106",
+      "address": "0x86",
       "mnemonic": "movdqu",
       "operands": ["xmm1", "xmmword ptr [rdx + 192]"],
       "role": "loadKey",
       "keyIndex": 12
     },
     {
-      "address": "0x10e",
+      "address": "0x8e",
       "mnemonic": "aesenclast",
       "operands": ["xmm0", "xmm1"],
       "role": "lastRound",
@@ -208,13 +208,13 @@
       "keyIndex": 12
     },
     {
-      "address": "0x113",
+      "address": "0x93",
       "mnemonic": "movdqu",
       "operands": ["xmmword ptr [rsi]", "xmm0"],
       "role": "store"
     },
     {
-      "address": "0x117",
+      "address": "0x97",
       "mnemonic": "ret",
       "operands": [],
       "role": "other"

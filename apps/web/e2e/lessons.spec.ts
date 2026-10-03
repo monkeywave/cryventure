@@ -23,6 +23,12 @@ const AES_LESSONS: readonly LessonPage[] = [
   },
   { slug: KEY_SCHEDULE_LAB.path, title: { en: 'Key expansion', de: 'Schlüsselexpansion' }, labId: KEY_SCHEDULE_LAB.labId },
   { slug: 'symmetric/aes/memory-and-hardware/', title: { en: 'AES in memory and hardware', de: 'AES in Speicher und Hardware' } },
+  { slug: 'symmetric/aes/memory-abi/', title: { en: 'AES_KEY in memory', de: 'AES_KEY im Speicher' }, labId: 'aes-memory' },
+  {
+    slug: 'symmetric/aes/aes-ni/',
+    title: { en: 'AES-NI and ARMv8 instructions', de: 'AES-NI- und ARMv8-Befehle' },
+    labId: 'aes-ni-registers',
+  },
 ];
 
 /** Lessons of the "Modes" group (docs/M3.md §10); the group overview is checked separately. */
@@ -30,6 +36,13 @@ const MODE_LESSONS: readonly LessonPage[] = [
   { slug: 'symmetric/modes/ecb/', code: 'ECB', title: { en: 'ECB: the codebook mode', de: 'ECB: der Codebuch-Modus' }, labId: 'ecb-blocks' },
   { slug: 'symmetric/modes/cbc/', code: 'CBC', title: { en: 'CBC: chaining blocks', de: 'CBC: Blöcke verketten' } },
   { slug: 'symmetric/modes/ctr/', code: 'CTR', title: { en: 'CTR: a block cipher as a stream cipher', de: 'CTR: Blockchiffre als Stromchiffre' } },
+  {
+    slug: 'symmetric/modes/ghash/',
+    code: 'GHASH',
+    title: { en: 'GHASH: multiplying in GF(2¹²⁸)', de: 'GHASH: Multiplizieren in GF(2¹²⁸)' },
+    labId: 'ghash-bits',
+  },
+  { slug: 'symmetric/modes/gcm/', code: 'GCM', title: { en: 'GCM: counter mode with a tag', de: 'GCM: Zählermodus mit Tag' }, labId: 'gcm-tc4' },
 ];
 
 const MODES_OVERVIEW = { slug: 'symmetric/modes/', title: { en: 'Modes of operation', de: 'Betriebsmodi' } } as const;

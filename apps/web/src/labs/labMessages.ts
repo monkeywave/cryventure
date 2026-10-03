@@ -1,10 +1,11 @@
 import { portNamespaces, type Messages, type PrimitiveManifest } from '@cryventure/core';
 import { loadCoreMessages } from '@cryventure/core/messages';
+import { loadDeriverMessages } from '@cryventure/derivers/messages';
 import { loadPrimitiveMessages } from '@cryventure/primitives/messages';
 import { loadViewMessages } from '@cryventure/views/messages';
 import { loadVizMessages } from '@cryventure/viz/messages';
 import { loadMessages, pickPrefix, toLocale } from '../i18n/loadMessages.ts';
-import { producerRegistry, viewsForFacets } from './registry.ts';
+import { deriversForFacets, producerRegistry, viewsForProducer } from './registry.ts';
 
 /**
  * Server-side only: assembles the exact message table one lab island needs for one locale,
@@ -21,10 +22,16 @@ export const APP_LAB_PREFIX = 'ui.lab.';
  */
 export type LabMessagesProducer = Pick<PrimitiveManifest, 'id' | 'i18nNamespace' | 'facets' | 'paramFields' | 'defaults'>;
 
-/** The `view.<id>.*` messages of the views this producer can feed (the lab's `viewsFor` selection). */
+/** The `view.<id>.*` messages of the views this producer can feed, directly or via a deriver (`viewsForProducer`). */
 function offeredViewMessages(locale: string, producer: LabMessagesProducer): Messages {
   const all = loadViewMessages(locale);
-  return Object.assign({}, ...viewsForFacets(producer.facets).map((view) => pickPrefix(all, `view.${view.id}.`)));
+  return Object.assign({}, ...viewsForProducer(producer).map((view) => pickPrefix(all, `view.${view.id}.`)));
+}
+
+/** The `deriver.<id>.*` messages of the derivers this producer can feed. */
+function offeredDeriverMessages(locale: string, producer: LabMessagesProducer): Messages {
+  const all = loadDeriverMessages(locale);
+  return Object.assign({}, ...deriversForFacets(producer.facets).map((deriver) => pickPrefix(all, `deriver.${deriver.id}.`)));
 }
 
 /** A producer's own `i18nNamespace` messages. */
@@ -43,12 +50,13 @@ function portProducerMessages(locale: string, producer: LabMessagesProducer): Me
   return Object.assign({}, ...options.map((option) => producerMessages(locale, option)));
 }
 
-/** viz `ui.*` + offered views' `view.*` + app `ui.lab.*` + `core.*` errors + port options' namespaces + the producer's own `i18nNamespace`. */
+/** viz `ui.*` + offered views' `view.*` + offered derivers' `deriver.*` + app `ui.lab.*` + `core.*` errors + port options' namespaces + the producer's own `i18nNamespace`. */
 export function labMessages(lang: string | undefined, producer: LabMessagesProducer): Messages {
   const locale = toLocale(lang);
   return {
     ...loadVizMessages(locale),
     ...offeredViewMessages(locale, producer),
+    ...offeredDeriverMessages(locale, producer),
     ...pickPrefix(loadMessages(locale, ['ui']), APP_LAB_PREFIX),
     ...loadCoreMessages(locale),
     ...portProducerMessages(locale, producer),

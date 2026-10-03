@@ -1,9 +1,10 @@
-import { getFacet, type ChoreographyModule, type I18nRef, type PrimitiveManifest, type TraceBundle } from '@cryventure/core';
+import { getFacet, type ChoreographyModule, type DeriverManifest, type I18nRef, type PrimitiveManifest, type Registry, type TraceBundle } from '@cryventure/core';
+import { deriverManifests } from '@cryventure/derivers';
 import { createLabStore, stateSteps, type AnyStateFacet, type BlockLabHrefBuilder, type LabHrefBuilder, type LabMode, type LabStore, type ReactViewManifest } from '@cryventure/viz';
 import type { LabLinkRead } from './deepLink.ts';
 import { createLabRunner, type LabRunner } from './labRunner.ts';
 import { mergeParams } from './paramFields.ts';
-import { producerRegistry, resolveLab, type LabRegistries } from './registry.ts';
+import { producerRegistry, resolveLab, viewRegistry, viewsForBundle, type LabRegistries } from './registry.ts';
 import { initialStep, type StartAt } from './startAt.ts';
 import { presetParams, resolveStartParams, type StartParams } from './startParams.ts';
 import { mapStepAcrossTraces } from './stepMapping.ts';
@@ -15,7 +16,12 @@ export type LabParams = Record<string, unknown>;
 export interface ReadySession {
   status: 'ready';
   producer: PrimitiveManifest<LabParams>;
+  /** The views the current bundle can feed (`viewsForBundle`); recomputed after every run and re-run. */
   views: ReactViewManifest[];
+  /** Every view the lab may offer, to recompute `views` for a new bundle. */
+  viewCatalog: Registry<ReactViewManifest>;
+  /** The derivers `LabRoot` may run lazily for this lab's views. */
+  derivers: readonly DeriverManifest[];
   store: LabStore;
   params: LabParams;
   notice: boolean;
@@ -38,6 +44,8 @@ export interface StartLabOptions {
   startAt?: StartAt;
   /** Preselected player mode (never starts playback by itself). */
   mode?: LabMode;
+  /** Initial lab-wide preferred facet variant, e.g. `x86_64-aesni` (docs/M4.md §1f). */
+  variant?: string;
   registries?: LabRegistries;
   /** The lab's runner, shared across resets (default: a fresh one over `registries.producers`). */
   runner?: LabRunner;
@@ -65,22 +73,24 @@ export async function preloadViews(views: readonly Pick<ReactViewManifest, 'load
  * manifest → start params (link / preset / defaults) → run (ports prepared, main thread or worker) → store in `mode`, seeked to the start step.
  * The producer module, its choreography and the views load in parallel, not one after another.
  */
-export async function startLab({ producerId, presetId, link, startAt, mode, registries, runner: givenRunner, labHref, blockLabHref }: StartLabOptions): Promise<SettledLabSession> {
+export async function startLab({ producerId, presetId, link, startAt, mode, variant, registries, runner: givenRunner, labHref, blockLabHref }: StartLabOptions): Promise<SettledLabSession> {
   const resolved = resolveLab(producerId, registries);
   if (!resolved.ok) return { status: 'error', error: resolved.error };
   const producer = resolved.lab.producer as PrimitiveManifest<LabParams>;
-  const { views } = resolved.lab;
+  const viewCatalog = registries?.views ?? viewRegistry;
+  const derivers = registries?.derivers ?? deriverManifests;
   const runner = givenRunner ?? createLabRunner({ producers: registries?.producers ?? producerRegistry });
   const [{ start, result }, choreography] = await Promise.all([
     runStartParams(runner, producer, resolveStartParams(producer, link, presetId), presetId),
     loadChoreographyModule(producer),
-    preloadViews(views),
+    preloadViews(resolved.lab.views),
   ]);
   if (!result.ok) return { status: 'error', error: result.error };
-  const store = createLabStore(result.trace, { labHref, blockLabHref });
+  const store = createLabStore(result.trace, { labHref, blockLabHref, preferredVariant: variant });
   if (mode !== undefined) store.getState().setMode(mode);
   store.getState().seek(initialStep(start.step, startAt, stateSteps(result.trace)));
-  return { status: 'ready', producer, views, store, params: start.params, notice: start.notice, choreography, runner };
+  const views = viewsForBundle(result.trace, viewCatalog, derivers);
+  return { status: 'ready', producer, views, viewCatalog, derivers, store, params: start.params, notice: start.notice, choreography, runner };
 }
 
 /**
@@ -121,7 +131,7 @@ export async function rerunLab(session: ReadySession, params: LabParams, isCurre
   const nextStep = mapStepAcrossTraces(stateFacet(bundle), step, stateFacet(result.trace));
   setBundle(result.trace, { preserveDebugContext: true });
   seek(nextStep);
-  return { ok: true, session: { ...session, params } };
+  return { ok: true, session: { ...session, params, views: sameViewsOr(session.views, viewsForBundle(result.trace, session.viewCatalog, session.derivers)) } };
 }
 
 /** Merges `patch` into the session's params, validates with the producer, then re-runs (`rerunLab`); invalid patches never reach the producer. */
@@ -129,6 +139,12 @@ export async function requestLabParams(session: ReadySession, patch: Readonly<Re
   const merged = mergeParams(session.producer, session.params, patch);
   if (!merged.ok) return merged;
   return rerunLab(session, merged.value, isCurrent);
+}
+
+/** Keeps `previous` when `next` offers the same view ids in the same order, so the workspace sees no new prop. */
+export function sameViewsOr(previous: ReactViewManifest[], next: ReactViewManifest[]): ReactViewManifest[] {
+  const unchanged = previous.length === next.length && previous.every((view, index) => view.id === next[index]?.id);
+  return unchanged ? previous : next;
 }
 
 function stateFacet(bundle: TraceBundle | null): AnyStateFacet | undefined {

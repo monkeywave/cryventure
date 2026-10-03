@@ -1,0 +1,42 @@
+---
+/**
+ * The static, translated poster of a lab (title, example, start params) that the lab islands show
+ * until they are ready. Used by `Lab.astro` for both lab islands.
+ */
+import { createTranslator, paramFieldsOf, type Messages, type PrimitiveManifest } from '@cryventure/core';
+import { choiceLabelKey } from '../labs/paramFields';
+import { producerRegistry } from '../labs/registry';
+import { presetParams } from '../labs/startParams';
+
+interface Props {
+  producer: PrimitiveManifest;
+  presetId?: string;
+  messages: Messages;
+  lang: string;
+}
+
+const { producer, presetId, messages, lang } = Astro.props;
+const t = createTranslator(messages, { locale: lang });
+const preset = producer.presets.find((entry) => entry.id === presetId);
+const startParams = presetParams(producer, presetId) as Record<string, unknown>;
+const posterFields = paramFieldsOf(producer);
+const registered = producerRegistry.list();
+/** A choice (`select` / `port`) shows its translated label; anything else its raw value. */
+const posterChoice = (field: (typeof posterFields)[number]) => choiceLabelKey(field, startParams[field.name], registered);
+---
+
+<div class="cv-lab-poster" aria-busy="true">
+  <p class="cv-lab__title">{t(producer.titleKey)}</p>
+  {preset && <p>{t('ui.lab.posterPreset', { preset: t(preset.labelKey) })}</p>}
+  <dl class="cv-lab-poster__params">
+    {
+      posterFields.map((field) => (
+        <div>
+          <dt>{t(field.labelKey)}</dt>
+          <dd>{field.kind === 'select' || field.kind === 'port' ? t(posterChoice(field) ?? String(startParams[field.name])) : <code>{String(startParams[field.name])}</code>}</dd>
+        </div>
+      ))
+    }
+  </dl>
+  <p class="cv-lab-poster__loading" role="status">{t('ui.lab.loading')}</p>
+</div>

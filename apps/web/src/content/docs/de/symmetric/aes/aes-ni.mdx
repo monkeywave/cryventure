@@ -1,0 +1,221 @@
+---
+title: AES-NI- und ARMv8-Befehle
+description: Wie x86 AESENC und ARMv8 AESE/AESMC die AES-Runden zuschneiden, gelesen aus echter Ausgabe von clang -O2, und warum kein Register je einen Zustand nur nach SubBytes enthält.
+lessonId: block-ciphers/aes/aes-ni
+track: block-ciphers
+phase: 1
+sidebar:
+  order: 7
+tableOfContents: false
+prereqs:
+  - block-ciphers/aes/memory-abi
+labs:
+  - aes-ni-registers
+  - aes-ni-memory
+refs:
+  - FIPS 197, Abschnitt 5.1 (Cipher, Abbildung 5)
+  - FIPS 197, Anhang C.1 (AES-128, Nk = 4)
+  - Intel 64 and IA-32 Architectures Software Developer's Manual, Vol. 2A, AESENC und AESENCLAST
+  - Gueron, Intel Advanced Encryption Standard (AES) New Instructions Set, White Paper
+  - Arm Architecture Reference Manual for A-profile (DDI 0487), AESE, AESMC und EOR (vector)
+  - Arm, Cortex-A72 Software Optimization Guide (UAN 0016A), Abschnitt 4.10 (AES Encryption/Decryption)
+  - LLVM-Review D33836, Enable FeatureFuseAES for the generic processor model
+  - OpenSSL 3.5.9, crypto/aes/aes_core.c (Te0 … Te3)
+  - Bernstein, Cache-timing attacks on AES (2005)
+  - Osvik, Shamir, Tromer, Cache Attacks and Countermeasures — the Case of AES (CT-RSA 2006)
+sourceHash: sha256:c02d9c16e44ad4b0f201e0ad98aa620a9a2b6d741c04ad785bcd27a3af413e10
+translation:
+  status: ai-reviewed
+  reviewedAt: '2026-10-03'
+  reviewer: AI editorial review (Claude)
+---
+
+import Lab from '../../../../../components/Lab.astro';
+import CheckQuestion from '../../../../../components/lesson/CheckQuestion.astro';
+import Formula from '../../../../../components/lesson/Formula.astro';
+import Lens from '../../../../../components/lesson/Lens.astro';
+import LessonSection from '../../../../../components/lesson/LessonSection.astro';
+import WhyBox from '../../../../../components/lesson/WhyBox.astro';
+
+<LessonSection part="concept">
+
+## Ein Befehl pro Runde
+
+Der x86-Befehl `AESENC xmm1, xmm2` führt eine vollständige mittlere Runde aus: ShiftRows, SubBytes,
+MixColumns, dann XOR mit dem Rundenschlüssel in `xmm2` (Intel SDM Vol. 2A, AESENC). `AESENCLAST` ist
+die Schlussrunde ohne MixColumns. ShiftRows verschiebt nur Bytes, und SubBytes wirkt
+auf jedes Byte für sich; daher sind beide vertauschbar, und es ändert nichts, mit ShiftRows zu
+beginnen (Gueron, AES-NI-White-Paper).
+
+ARMv8 schneidet anders zu. `AESE Vd, Vn` verknüpft `Vn` *zuerst* per XOR mit `Vd` und wendet dann
+SubBytes und ShiftRows an; `AESMC` ist allein MixColumns (Arm ARM, AESE/AESMC). AES-128 braucht nach
+dem letzten `AESE` deshalb noch eine Schlüssel-XOR-Verknüpfung: ein schlichtes `EOR` mit `k10`.
+
+<Formula caption="AES-128 mit den Rundenschlüsseln k0 … k10.">
+{`x86 AES-NI                      ARMv8 Crypto Extension
+PXOR       k0                   AESE  k0 … k8 ; AESMC  (Runden 1 … 9)
+AESENC     k1 … k9              AESE  k9               (Runde 10)
+AESENCLAST k10                  EOR   k10`}
+</Formula>
+
+<Lens only="story">
+
+Intel hat eine Maschine gebaut, die eine ganze Runde auf einmal erledigt. Arm hat zwei kleinere gebaut
+und den Schlüssel nach vorn gezogen, sodass am Ende ein Schlüssel übrig bleibt.
+
+</Lens>
+
+<Lens level="cryptographer">
+
+Beides sind Umgruppierungen derselben Folge. FIPS 197 rechnet `ARK₀ (SB SR MC ARK)⁹ SB SR ARK`; ARM
+liest sie als `(ARK SB SR MC)⁹ ARK SB SR ARK₁₀`.
+
+</Lens>
+
+</LessonSection>
+
+<LessonSection part="playground">
+
+## Geh das Listing Schritt für Schritt durch
+
+Das Lab rechnet FIPS 197, Anhang C.1 durch und startet in Runde 1 bei SubBytes auf x86_64. Wählst du
+in einer der beiden Ansichten einen Befehlssatz, wechseln beide. Der aktuelle Befehl ist gerade in
+Ausführung, und sein Zielregister zeigt noch den Wert von *vor* dem Befehl.
+
+- **x86_64:** Das erste `aesenc` bleibt über ShiftRows, MixColumns und AddRoundKey hinweg aktuell.
+  Erst danach wechselt `xmm0` zu `89d810e8855ace682d1843d8cb128fe4`, dem Wert `round[2].start` aus C.1.
+- **AArch64:** Das erste `aese` endet bei ShiftRows und hinterlässt `6353e08c…` (C.1
+  `round[1].s_row`) in `v1`; der nächste Schritt, `aesmc`, macht daraus `5f726415…` (`m_col`).
+
+<Lab labId="aes-ni-registers" producerId="aes" presetId="fips197-c1" variant="x86_64-aesni" startAt="round:1,op:subBytes" layout="instructions:50|registers:50" />
+
+</LessonSection>
+
+<LessonSection part="inside">
+
+## Echte Compilerausgabe lesen
+
+Beide Listings sind echte Ausgabe von Homebrew clang 23.1.0 mit `-O2` (`-maes` für x86_64,
+`-march=armv8-a+crypto` für aarch64), übersetzt aus C mit Intrinsics wie `_mm_aesenc_si128` und
+`vaeseq_u8`/`vaesmcq_u8`. Ausschnitt, AES-128:
+
+<Formula caption="x86_64: in = rdi, out = rsi, key = rdx.">
+{`0x00 movdqu xmm1, xmmword ptr [rdi]        ; in
+0x04 movdqu xmm0, xmmword ptr [rdx]        ; k0
+0x08 pxor   xmm0, xmm1                     ; round 0: ⊕ k0
+0x0c movdqu xmm1, xmmword ptr [rdx + 16]   ; k1
+0x11 aesenc xmm0, xmm1                     ; round 1
+ …
+0x74 aesenclast xmm0, xmm1                 ; round 10
+0x79 movdqu xmmword ptr [rsi], xmm0        ; out`}
+</Formula>
+
+<Formula caption="aarch64: in = x0, out = x1, key = x2.">
+{`0x00 ldp   q1, q2, [x2]              ; k0, k1
+0x04 ldr   q0, [x0]                  ; in
+0x08 aese  v1.16b, v0.16b            ; ⊕ k0, SubBytes, ShiftRows
+0x0c aesmc v1.16b, v1.16b            ; MixColumns: round 1 done
+ …
+0x60 aese  v2.16b, v0.16b            ; ⊕ k9, SubBytes, ShiftRows
+0x64 ldr   q0, [x2, #160]            ; k10
+0x68 eor   v0.16b, v0.16b, v2.16b    ; ⊕ k10: ciphertext`}
+</Formula>
+
+<WhyBox constant="16 · r" title="die Offsets der Rundenschlüssel">
+  Rundenschlüssel `r` wird als ein 16-Byte-Vektor von `key + 16·r` gelesen. Das funktioniert, weil die
+  Schlüsselexpansionen für AES-NI und ARMv8 rohe Bytes speichern; die byteweise umgedrehten Wörter der
+  C-Schlüsselexpansion würden nicht passen ([AES_KEY im Speicher](../memory-abi/)).
+</WhyBox>
+
+Auf jedes `aese` folgt direkt sein `aesmc`. Laut Arms Cortex-A72-Leitfaden (§4.10) laufen abhängige
+AESE/AESMC-Paare schneller, wenn sie direkt aufeinanderfolgen und in dieser Reihenfolge stehen; LLVM
+modelliert solche Paare als fusioniert (`FeatureFuseAES`, D33836).
+
+</LessonSection>
+
+<LessonSection part="memory">
+
+## Spannen über Rundengrenzen hinweg
+
+Die Schritte des Labs sind die Lehrbuchschritte aus FIPS 197; jeder Befehl deckt eine Spanne davon ab.
+`aesenc` in Runde `r` deckt SubBytes `r` … AddRoundKey `r` ab. `aese` in Runde `r` deckt
+AddRoundKey `r−1`, SubBytes `r` und ShiftRows `r` ab: Es beginnt in der vorherigen Runde, weil ARM die
+Schlüssel-XOR-Verknüpfung nach vorn gezogen hat. `aesmc` deckt allein MixColumns `r` ab.
+
+Solange ein Befehl in Ausführung ist, zeigen seine Register die Werte von vor dem Befehl. Deshalb
+enthält kein Register je die `s_box`-Zeile aus C.1 (`63cab704…`): AESENC erledigt alle vier Schritte auf
+einmal, und nach dem ersten `aese` enthält `v1` schon `s_row` (`6353e08c…`), nach `aesmc` dann
+`m_col` (`5f726415…`).
+
+Das zweite Lab stellt das Listing neben den modellierten Stackframe aus der
+[Lektion zu AES_KEY](../memory-abi/): Die Ladebefehle lesen `key`, und der abschließende
+Speicherbefehl füllt `out`.
+
+<Lab labId="aes-ni-memory" producerId="aes" presetId="fips197-c1" variant="x86_64-aesni" layout="instructions:50|memory:50" />
+
+</LessonSection>
+
+<LessonSection part="break">
+
+## Vor AES-NI: Tabellen, die Informationen preisgeben
+
+Schnelles Software-AES fasst SubBytes, ShiftRows und MixColumns in vier Tabellen aus je 256
+32-Bit-Wörtern zusammen, `Te0 … Te3`, je 1 KiB (OpenSSL `crypto/aes/aes_core.c`). Sie werden mit
+Bytes des Zustands indiziert, und in Runde 1 ist ein Zustandsbyte `plaintext ⊕ key`. Welche
+Cache-Zeilen geladen werden, hängt also vom Schlüssel ab.
+
+Bernstein (2005) rekonstruierte einen vollständigen AES-Schlüssel aus den Antwortzeiten eines
+Servers, der auf OpenSSL aufsetzt. Osvik, Shamir und Tromer (2006) tasteten den Cache aus einem
+anderen Prozess ab und extrahierten Schlüssel, unter anderem aus Linux dm-crypt.
+
+`AESENC` und `AESE` verwenden keine Nachschlagetabellen im Speicher und laufen in datenunabhängiger
+Zeit, was diesen Seitenkanal schließt (Gueron, AES-NI-White-Paper). Ein Lab zu Cache-Timing-Angriffen
+folgt in einem späteren Meilenstein.
+
+<Lens level="cryptographer">
+
+Eine Cache-Zeile mit 64 Byte fasst 16 Tabelleneinträge, daher verrät eine Beobachtung in der ersten
+Runde nur die oberen vier Bit jedes `pᵢ ⊕ kᵢ`. Osvik, Shamir und Tromer nutzen Zugriffe in der zweiten
+Runde, um den Rest zu rekonstruieren.
+
+</Lens>
+
+</LessonSection>
+
+<LessonSection part="check">
+
+## Teste dich selbst
+
+<CheckQuestion
+  id="aesenc-step-order"
+  number={1}
+  question="In welcher Reihenfolge führt der x86-Befehl AESENC seine Schritte aus?"
+  options={['⊕k, SubBytes, ShiftRows, MixColumns', 'ShiftRows, SubBytes, MixColumns, ⊕k', 'MixColumns, ShiftRows, SubBytes, ⊕k', 'SubBytes, ⊕k, ShiftRows, MixColumns']}
+  answer={1}
+>
+  Intel SDM Vol. 2A, AESENC: ShiftRows, SubBytes, MixColumns, dann XOR mit dem Rundenschlüssel.
+</CheckQuestion>
+
+<CheckQuestion
+  id="armv8-final-eor"
+  number={2}
+  question="Warum endet AES-128 auf ARMv8 mit einem schlichten EOR?"
+  options={['Um das letzte MixColumns rückgängig zu machen', 'AESE verknüpft seinen Schlüssel vor der S-Box, daher fehlt k10 nach dem letzten AESE noch', 'EOR schreibt den Geheimtext in den Speicher', 'Damit der Code eine konstante Laufzeit hat']}
+  answer={1}
+>
+  `AESE` mit `k9` deckt AddRoundKey 9, SubBytes 10 und ShiftRows 10 ab; übrig bleibt AddRoundKey 10,
+  und das erledigt `EOR` mit `k10` (Arm ARM, AESE).
+</CheckQuestion>
+
+<CheckQuestion
+  id="aese-span"
+  number={3}
+  question="Welche Lehrbuchschritte deckt das aese aus Runde 2 im Lab ab?"
+  options={['SubBytes 2, ShiftRows 2, MixColumns 2', 'AddRoundKey 1, SubBytes 2, ShiftRows 2', 'Nur AddRoundKey 2', 'MixColumns 1, AddRoundKey 1']}
+  answer={1}
+>
+  `AESE` verknüpft den Schlüssel zuerst per XOR, daher beginnt seine Spanne mit dem AddRoundKey der
+  vorherigen Runde; MixColumns 2 gehört zum folgenden `aesmc`.
+</CheckQuestion>
+
+</LessonSection>

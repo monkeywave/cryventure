@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import type { ChoreographyModule, PrimitiveManifest } from '@cryventure/core';
+import type { ChoreographyModule, DeriverManifest, PrimitiveManifest, TraceBundle } from '@cryventure/core';
 import { ecbManifest } from '@cryventure/primitives/ecb';
 import { stateSteps } from '@cryventure/viz';
 import { encodeJsonBase64Url } from './base64url.ts';
@@ -8,6 +8,7 @@ import { loadChoreographyModule, preloadViews, requestLabParams, rerunLab, runPr
 import { parseStartAt } from './startAt.ts';
 import { createLabRunner } from './labRunner.ts';
 import { toyComposite, toyProducers } from './testProducers.ts';
+import { buildRegistry, producerRegistry } from './registry.ts';
 
 const C1 = { keyHex: '000102030405060708090a0b0c0d0e0f', plaintextHex: '00112233445566778899aabbccddeeff', detail: 'op' };
 const C1_CIPHERTEXT = [0x69, 0xc4, 0xe0, 0xd8, 0x6a, 0x7b, 0x04, 0x30, 0xd8, 0xcd, 0xb7, 0x80, 0x70, 0xb4, 0xc5, 0x5a];
@@ -127,6 +128,11 @@ describe('startLab', () => {
     expect(state.step).toBe(step.steps.findIndex((candidate) => candidate.op === 'subBytes'));
     expect(state.mode).toBe('story');
     expect(state.playing).toBe(false);
+  });
+
+  it('starts with the lesson\'s preferred variant (lab-wide), none by default', async () => {
+    expect((await readyAes(undefined, { variant: 'x86_64-aesni' })).store.getState().preferredVariants).toEqual(['x86_64-aesni']);
+    expect((await readyAes()).store.getState().preferredVariants).toEqual([]);
   });
 
   it("lets the deep link's step win over startAt", async () => {
@@ -352,5 +358,44 @@ describe('startLab / rerunLab with ports and a runner', () => {
     if (session.status !== 'ready') throw new Error('expected ready');
     expect(session.runner).toBe(runner);
     expect(session.store.getState().labHref?.('toy', {})).toBe('/en/lab/toy/');
+  });
+});
+
+describe('startLab / rerunLab view list with derivers', () => {
+  const view = (id: string, requires: string[]) => ({ kind: 'view' as const, id, apiVersion: 1 as const, titleKey: `view.${id}.title`, icon: 'x', requires, load: async () => ({ default: () => null }) });
+  const opDetailOnly: DeriverManifest = {
+    kind: 'deriver',
+    id: 'demo',
+    apiVersion: 1,
+    from: ['state'],
+    provides: ['demo'],
+    appliesTo: (bundle: TraceBundle) => (bundle.params as { detail?: string }).detail === 'op',
+    load: async () => ({ derive: () => ({}) }),
+  };
+  const registries = { producers: producerRegistry, views: buildRegistry('v', [view('state', ['state']), view('demo', ['demo'])]), derivers: [opDetailOnly] };
+  const ids = (session: ReadySession) => session.views.map((entry) => entry.id);
+
+  it('offers derived views the bundle can feed, and recomputes them after every re-run', async () => {
+    const session = await readyAes(readLabLink('', 'x'), { registries });
+    expect(ids(session)).toEqual(['demo', 'state']);
+    expect(session.derivers).toEqual([opDetailOnly]);
+
+    const roundDetail = await rerunLab(session, { ...C1, detail: 'round' });
+    if (!roundDetail.ok) throw new Error('expected ok');
+    expect(ids(roundDetail.session)).toEqual(['state']);
+
+    const back = await rerunLab(roundDetail.session, C1);
+    expect(back.ok && ids(back.session)).toEqual(['demo', 'state']);
+  });
+
+  it('keeps the same views array when a re-run offers the same view ids (no workspace re-render)', async () => {
+    const session = await readyAes(readLabLink('', 'x'), { registries });
+    const same = await rerunLab(session, { ...C1, plaintextHex: '00'.repeat(16) });
+    if (!same.ok) throw new Error('expected ok');
+    expect(same.session.views).toBe(session.views);
+
+    const changed = await rerunLab(same.session, { ...C1, detail: 'round' });
+    if (!changed.ok) throw new Error('expected ok');
+    expect(changed.session.views).not.toBe(session.views);
   });
 });

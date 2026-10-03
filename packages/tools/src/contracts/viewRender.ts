@@ -1,5 +1,6 @@
 import { supportedLocales, type Lens, type Locale, type Messages, type TraceBundle } from '@cryventure/core';
 import { loadCoreMessages } from '@cryventure/core/messages';
+import { loadDeriverMessages } from '@cryventure/derivers/messages';
 import { loadPrimitiveMessages } from '@cryventure/primitives/messages';
 import { loadViewMessages } from '@cryventure/views/messages';
 import { createLabStore, type ViewComponent } from '@cryventure/viz';
@@ -10,8 +11,8 @@ import { representativeSteps } from './facetFixtures.ts';
 /** Every lens a view may be shown in (core `Lens`). */
 export const LENSES: readonly Lens[] = ['story', 'engineer', 'cryptographer'];
 
-/** An untranslated message key leaking into the DOM, e.g. `view.state.title` or `plugin.aes.op.sub`. */
-export const RAW_KEY_PATTERN = /\b(?:view|plugin|ui|core)\.[a-z0-9-]+\.[A-Za-z0-9.-]*[A-Za-z0-9]/g;
+/** An untranslated message key leaking into the DOM, e.g. `view.state.title`, `plugin.aes.op.sub` or `deriver.memory.label`. */
+export const RAW_KEY_PATTERN = /\b(?:view|plugin|deriver|ui|core)\.[a-z0-9-]+\.[A-Za-z0-9.-]*[A-Za-z0-9]/g;
 
 const TEXT_ATTRIBUTES = ['aria-label', 'aria-description', 'aria-valuetext', 'title', 'alt', 'placeholder'];
 
@@ -30,10 +31,10 @@ export function rawKeysIn(root: Element): string[] {
   return [...new Set(texts.flatMap((text) => text.match(RAW_KEY_PATTERN) ?? []))];
 }
 
-/** The catalogs a lab of `producerIds` loads in `locale` (viz, views, core and the producers' plugin keys). */
+/** The catalogs a lab of `producerIds` loads in `locale` (viz, views, core, every deriver's and the producers' plugin keys). */
 export function labMessages(locale: Locale, producerIds: readonly string[]): Messages {
   const plugins = producerIds.map((id) => loadPrimitiveMessages(id, locale));
-  return Object.assign({}, loadVizMessages(locale), loadViewMessages(locale), loadCoreMessages(locale), ...plugins);
+  return Object.assign({}, loadVizMessages(locale), loadViewMessages(locale), loadCoreMessages(locale), loadDeriverMessages(locale), ...plugins);
 }
 
 /** The lens a view that declares no `lenses` is rendered in: the most detailed one. */

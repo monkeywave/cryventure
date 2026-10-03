@@ -1,16 +1,31 @@
 import { createContext, useContext, type ReactNode } from 'react';
 import { useStore } from 'zustand';
+import type { DeriverManifest } from '@cryventure/core';
 import type { LabActions, LabState, LabStore } from './createLabStore.ts';
 
 const LabContext = createContext<LabStore | null>(null);
 
+const NO_DERIVERS: readonly DeriverManifest[] = [];
+const DeriversContext = createContext<readonly DeriverManifest[]>(NO_DERIVERS);
+
 export interface LabProviderProps {
   store: LabStore;
+  /** The derivers `useFacet` may run lazily for this lab (default: none). */
+  derivers?: readonly DeriverManifest[];
   children: ReactNode;
 }
 
-export function LabProvider({ store, children }: LabProviderProps) {
-  return <LabContext.Provider value={store}>{children}</LabContext.Provider>;
+export function LabProvider({ store, derivers = NO_DERIVERS, children }: LabProviderProps) {
+  return (
+    <LabContext.Provider value={store}>
+      <DeriversContext.Provider value={derivers}>{children}</DeriversContext.Provider>
+    </LabContext.Provider>
+  );
+}
+
+/** The lab's derivers (`LabRoot`'s `derivers` prop); empty outside a provider that sets them. */
+export function useDerivers(): readonly DeriverManifest[] {
+  return useContext(DeriversContext);
 }
 
 /** The lab's store itself, for imperative access (`getState()`) in effects and handlers. */

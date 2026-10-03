@@ -1,0 +1,225 @@
+---
+title: 'GCM: Zählermodus mit Tag'
+description: Wie GCM mit CTR verschlüsselt und mit GHASH authentifiziert – vom Hash-Teilschlüssel H und dem Vorzählerblock J0 bis zum Tag T –, warum die Entschlüsselung das Tag prüft, bevor sie Klartext herausgibt, und warum sich eine Nonce nie wiederholen darf.
+lessonId: block-ciphers/modes/gcm
+track: block-ciphers
+phase: 1
+sidebar:
+  order: 5
+tableOfContents: false
+prereqs:
+  - block-ciphers/modes/ctr
+  - block-ciphers/modes/ghash
+labs:
+  - gcm-tc4
+  - gcm-forged-tag
+  - gcm-gmac
+refs:
+  - NIST SP 800-38D, Abschnitt 1 (Purpose, GMAC)
+  - NIST SP 800-38D, Abschnitt 5.2.1.1 (Input Data, Längen von IV und Klartext)
+  - NIST SP 800-38D, Abschnitt 5.2.1.2 (Output Data, Tag-Längen)
+  - NIST SP 800-38D, Abschnitt 6.2 (Incrementing Function, inc32)
+  - NIST SP 800-38D, Abschnitt 6.5 (GCTR Function)
+  - NIST SP 800-38D, Abschnitt 7.1 (Algorithm for the Authenticated Encryption Function)
+  - NIST SP 800-38D, Abschnitt 7.2 (Algorithm for the Authenticated Decryption Function)
+  - NIST SP 800-38D, Abschnitt 8 (Uniqueness Requirement on IVs and Keys) und Abschnitt 8.3 (Constraints on the Number of Invocations)
+  - NIST SP 800-38D, Anhang C (Requirements and Guidelines for Using Short Tags)
+  - McGrew & Viega, The Galois/Counter Mode of Operation (GCM), überarbeitete Fassung 2005, Anhang B (Testfälle 4 und 6)
+  - N. Ferguson, Authentication weaknesses in GCM, Kommentar an das NIST, 2005
+  - A. Joux, Authentication Failures in NIST version of GCM, Kommentar an das NIST, 2006
+  - Böck, Zauner, Devlin, Somorovsky, Jovanovic, Nonce-Disrespecting Adversaries, Practical Forgery Attacks on GCM in TLS, USENIX WOOT 2016
+  - RFC 8446, Abschnitte 5.2 und 5.3 (Datensatzschutz in TLS 1.3 und Nonce pro Datensatz)
+  - RFC 8452 (AES-GCM-SIV, authentifizierte Verschlüsselung, die gegen Nonce-Missbrauch resistent ist)
+sourceHash: sha256:53d460141032cc67d6147d323ee463eb87b17abc77ca42235c73e558560d1e5f
+translation:
+  status: ai-reviewed
+  reviewedAt: '2026-10-03'
+  reviewer: AI editorial review (Claude)
+---
+
+import Lab from '../../../../../components/Lab.astro';
+import CheckQuestion from '../../../../../components/lesson/CheckQuestion.astro';
+import Formula from '../../../../../components/lesson/Formula.astro';
+import KeyFact from '../../../../../components/lesson/KeyFact.astro';
+import KeyFacts from '../../../../../components/lesson/KeyFacts.astro';
+import Lens from '../../../../../components/lesson/Lens.astro';
+import LessonSection from '../../../../../components/lesson/LessonSection.astro';
+import WhyBox from '../../../../../components/lesson/WhyBox.astro';
+
+<LessonSection part="concept">
+
+## Mit CTR verschlüsseln, mit GHASH authentifizieren
+
+ECB, CBC und CTR verschlüsseln Daten, können aber nicht erkennen, ob jemand sie verändert hat.
+**GCM**, der Galois/Counter Mode, ergänzt genau diese Prüfung: Er verschlüsselt mit [CTR](../ctr/)
+und authentifiziert mit [GHASH](../ghash/) (NIST SP 800-38D, §7.1). Seine Eingaben sind ein
+Schlüssel `K`, ein IV (die Nonce), der Klartext `P` und **zusätzliche authentifizierte Daten (AAD)**
+`A`, etwa ein Header, der lesbar bleibt, sich aber nicht ändern darf. Er gibt den Geheimtext `C` und
+ein **Authentifizierungs-Tag** `T` aus.
+
+<Formula caption="Authentifizierte Verschlüsselung mit GCM, NIST SP 800-38D §7.1 (Algorithmus 4).">
+{`H  = E_K(0¹²⁸)                 Hash-Teilschlüssel
+J0 = aus dem IV                Vorzählerblock
+C  = GCTR_K(inc32(J0), P)      CTR-Verschlüsselung
+S  = GHASH_H(A, C, Längen)
+T  = MSB_t(E_K(J0) ⊕ S)`}
+</Formula>
+
+Alles stammt aus einem einzigen Schlüssel und der Chiffre in Vorwärtsrichtung `E_K`: der
+Hash-Teilschlüssel, der Schlüsselstrom und die Maske für das Tag.
+
+<KeyFacts>
+  <KeyFact label="Blockchiffre" value="128-Bit-Block" kind="key" />
+  <KeyFact label="IV (empfohlen)" value="96 Bit" kind="constant" />
+  <KeyFact label="Tag t" value="128 … 96 Bit" kind="ciphertext" />
+  <KeyFact label="Zähler" value="32 Bit" kind="state" />
+</KeyFacts>
+
+</LessonSection>
+
+<LessonSection part="playground">
+
+## Testfall 4, Schritt für Schritt
+
+Das Lab rechnet Testfall 4 von McGrew und Viega (überarbeitete GCM-Spezifikation, Anhang B):
+AES-128 mit dem Schlüssel `feffe9928665731c6d6a8f9467308308`, dem 96-Bit-IV
+`cafebabefacedbaddecaf888`, 20 Byte AAD und 60 Byte Klartext. Es leitet
+`H = b83b533708bf535d0aa6e52980d53b78` und `J0` ab, verschlüsselt vier Zählerblöcke (den letzten
+gekürzt auf 12 Byte), hasht sieben Blöcke mit GHASH (zwei aus den AAD, vier aus dem Geheimtext,
+einen Längenblock) und endet mit dem Tag `5bc94fbc3221a5db94fae95ae7121a47`.
+
+<Lab labId="gcm-tc4" producerId="gcm" presetId="mcgrew-viega-tc4" layout="mode-chain:60|narration:40" />
+
+</LessonSection>
+
+<LessonSection part="inside">
+
+## J0, die Zähler und das Tag
+
+Der **Vorzählerblock** `J0` entsteht aus dem IV (SP 800-38D, §7.1). Ein 96-Bit-IV nimmt den
+schnellen Weg, jede andere Länge wird gehasht:
+
+<Formula caption="Die Regel für J0, NIST SP 800-38D §7.1, mit s = 128·⌈len(IV)/128⌉ − len(IV).">
+{`len(IV) = 96:   J0 = IV ‖ 0³¹ ‖ 1
+sonst:          J0 = GHASH_H(IV ‖ 0ˢ⁺⁶⁴ ‖ [len(IV)]₆₄)`}
+</Formula>
+
+In Testfall 4 ist `J0 = cafebabefacedbaddecaf888 00000001`. `inc32` addiert 1 zu den rechten
+32 Bit, modulo 2³² (§6.2), also endet der erste Zählerblock auf `00000002`. GHASH über `A ‖ 0ᵛ ‖ C ‖
+0ᵘ ‖ [len(A)]₆₄ ‖ [len(C)]₆₄` ergibt `S = 698e57f70e6ecc7fd9463b7260a9ae5f`; per XOR verknüpft mit
+`E_K(J0) = 3247184b3c4f69a44dbcd22887bbb418` ergibt sich daraus das Tag.
+
+**Die Entschlüsselung prüft zuerst** (§7.2): Sie berechnet das Tag aus `A` und `C` neu und gibt `P`
+nur heraus, wenn es mit dem empfangenen Tag übereinstimmt; andernfalls gibt sie nur FAIL zurück.
+Hier ist ein Bit des Tags gekippt:
+
+<Lab labId="gcm-forged-tag" producerId="gcm" presetId="decrypt-forged" startAt="op:verify" layout="mode-chain:60|narration:40" />
+
+<WhyBox constant="J0 = IV ‖ 0³¹ ‖ 1" title="warum der Schlüsselstrom bei inc32(J0) beginnt">
+  `J0` selbst ist für die Tag-Maske `E_K(J0)` reserviert, deshalb beginnt die Verschlüsselung einen
+  Zähler später. Bei einem 96-Bit-IV bleiben so 2³² − 2 Blöcke pro Nachricht: genau die Obergrenze
+  von 2³⁹ − 256 Bit Klartext (SP 800-38D, §5.2.1.1).
+</WhyBox>
+
+</LessonSection>
+
+<LessonSection part="memory">
+
+## Bei der Übertragung: Nonce, AAD, Geheimtext, Tag
+
+Der Empfänger braucht den IV, die AAD, den Geheimtext und das Tag. Der Geheimtext ist genau so lang
+wie der Klartext (GCTR, SP 800-38D §6.5); das Tag kommt mit `t/8` Byte dazu. Testfall 4 überträgt
+12 + 20 + 60 + 16 = 108 Byte. TLS 1.3 überträgt keinen IV: Die Nonce jedes Datensatzes (engl.
+*record*) ist ein statischer IV, per XOR mit der Sequenznummer des Datensatzes verknüpft
+(RFC 8446, §5.3). Als AAD dient der Header des Datensatzes, der ohnehin übertragen wird (§5.2).
+
+Bei **leerem Klartext** verschlüsselt GCM nichts und authentifiziert nur `A`. SP 800-38D (§1) nennt
+diesen Spezialfall **GMAC**. Das Lab nutzt Schlüssel, IV und AAD aus Testfall 4; das Tag lautet dann
+`346434fd51d5cd0c5887ec63e39b907a`.
+
+<Lab labId="gcm-gmac" producerId="gcm" presetId="gmac" layout="mode-chain:45|wire:25|narration:30" />
+
+</LessonSection>
+
+<LessonSection part="break">
+
+## Mallory wartet auf eine wiederholte Nonce
+
+GCM beruht auf einer Regel: **Unter demselben Schlüssel darf sich ein IV nie wiederholen**
+(SP 800-38D, §8). Mit zufälligen 96-Bit-IVs darf ein Schlüssel höchstens 2³²-mal zum Verschlüsseln
+verwendet werden (§8.3).
+
+Eine wiederholte Nonce hat zwei Folgen. Der CTR-Schlüsselstrom wiederholt sich, also verraten die
+Geheimtexte das XOR der Klartexte, wie bei [CTR](../ctr/). Und auch die Tag-Maske `E_K(J0)`
+wiederholt sich. Damit kann ein Angreifer `H` auf wenige Kandidaten eingrenzen, oft auf einen
+einzigen, und anschließend unter diesem Schlüssel Tags fälschen: Verloren geht nicht nur die Vertraulichkeit, sondern auch die Authentizität
+(Joux 2006).
+
+**Kurze Tags.** Ein blind geratenes `t`-Bit-Tag ist pro Versuch mit einer Wahrscheinlichkeit von
+etwa 2⁻ᵗ richtig. Für Tags mit 64 und 32 Bit begrenzt Anhang C deshalb zusätzlich die
+Nachrichtenlänge und die Zahl der Entschlüsselungen pro Schlüssel.
+
+| Jahr | Was geschah |
+|---|---|
+| 2005 | Fergusons Kommentar an das NIST: Kurze Tags sind bei langen Nachrichten schwächer, und jede Fälschung verrät mehr über `H`. |
+| 2006 | Joux’ Kommentar an das NIST, der „verbotene Angriff“ (engl. *forbidden attack*): Eine wiederholte Nonce grenzt `H` auf wenige Kandidaten ein, oft auf einen einzigen. |
+| 2016 | Böck, Zauner, Devlin, Somorovsky und Jovanovic (USENIX WOOT) finden HTTPS-Server, die GCM-Nonces wiederholen. |
+| 2019 | RFC 8452 spezifiziert AES-GCM-SIV, das bei einer wiederholten Nonce nicht katastrophal versagt. |
+
+<Lens level="cryptographer">
+
+Für IVs, die nicht 96 Bit lang sind, stammt `J0` aus GHASH, sodass zwei verschiedene IVs auf
+denselben `J0` kollidieren können. Deshalb begrenzt §8.3 auch diese Verwendungen auf 2³².
+
+</Lens>
+
+</LessonSection>
+
+<LessonSection part="check">
+
+## Teste dich selbst
+
+<CheckQuestion
+  id="gcm-j0-96bit"
+  number={1}
+  question="Eine GCM-Nachricht verwendet einen 96-Bit-IV. Wie lautet der Vorzählerblock J0?"
+  options={['E_K(IV)', 'IV ‖ 0³¹ ‖ 1', 'GHASH_H(IV)', 'IV ‖ 0³²']}
+  answer={1}
+>
+  Bei 96-Bit-IVs hängt SP 800-38D §7.1 31 Nullbits und eine Eins an. Nur IVs anderer Länge laufen
+  durch GHASH.
+</CheckQuestion>
+
+<CheckQuestion
+  id="gcm-forged-tag"
+  number={2}
+  question="Beim Entschlüsseln weicht das neu berechnete Tag vom empfangenen ab. Was gibt GCM zurück?"
+  options={[
+    'Den Klartext mit einer Warnung',
+    'Nur FAIL, keinen Klartext',
+    'Den Klartext der Blöcke vor dem Fehler',
+    'Das korrigierte Tag',
+  ]}
+  answer={1}
+>
+  Algorithmus 5 gibt `P` nur zurück, wenn die Tags gleich sind, und sonst FAIL (SP 800-38D §7.2).
+</CheckQuestion>
+
+<CheckQuestion
+  id="gcm-nonce-reuse"
+  number={3}
+  question="Ein Sender verwendet eine GCM-Nonce unter demselben Schlüssel erneut. Was ist in Gefahr?"
+  options={[
+    'Nichts, das Tag schützt die Nachricht',
+    'Nur die Länge der Nachrichten',
+    'Vertraulichkeit und Authentizität',
+    'Nur die Vertraulichkeit',
+  ]}
+  answer={2}
+>
+  Der wiederholte Schlüsselstrom verrät das XOR der Klartexte, und mit der wiederholten Tag-Maske
+  kann ein Angreifer `H` auf wenige Kandidaten eingrenzen und Tags fälschen (SP 800-38D §8;
+  Joux 2006).
+</CheckQuestion>
+
+</LessonSection>

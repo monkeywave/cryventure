@@ -1,0 +1,226 @@
+/* FlyThrough (docs/M4.md §8). Tokens only, so light and dark themes both work. */
+
+.cv-fly {
+  margin-block: 1.5rem;
+  padding: 1rem;
+  border: 1px solid var(--cv-border);
+  border-radius: 0.5rem;
+  background: var(--cv-surface);
+  color: var(--cv-text);
+}
+
+.cv-fly p {
+  margin: 0;
+}
+
+.cv-fly__title {
+  font-weight: 600;
+  font-size: var(--sl-text-lg, 1.125rem);
+}
+
+.cv-fly__controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem 1rem;
+  margin-block: 0.5rem 0.75rem !important;
+}
+
+.cv-fly__choice {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem 1rem;
+  margin: 0;
+  padding: 0.4rem 0.6rem;
+  border: 1px solid var(--cv-border-subtle);
+  border-radius: 0.375rem;
+  min-inline-size: 0;
+}
+
+.cv-fly__choice legend {
+  padding-inline: 0.25rem;
+  font-weight: 600;
+}
+
+.cv-fly__choice label {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  cursor: pointer;
+}
+
+.cv-fly__choice input {
+  margin: 0;
+  accent-color: var(--sl-color-accent);
+}
+
+.cv-fly__scroll {
+  overflow-x: auto;
+}
+
+.cv-fly__svg {
+  display: block;
+  inline-size: 100%;
+  block-size: auto;
+  max-inline-size: 48rem;
+  margin-block: 0.25rem;
+  margin-inline: auto;
+  font-family: var(--sl-font-mono, ui-monospace, monospace);
+}
+
+.cv-fly__label {
+  fill: var(--cv-text);
+  font-family: var(--sl-font, system-ui, sans-serif);
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.cv-fly__index,
+.cv-fly__group {
+  fill: var(--cv-text-muted);
+  font-size: 13px;
+}
+
+.cv-fly__group {
+  font-size: 13px;
+}
+
+/*
+ * Text sizes are SVG units. The wide layout is drawn at 560 px or more (scale ≥ 0.875), so 13 units
+ * stay ≥ 11 px. The narrow layout (phones) never scales below 1:1, so its 11-unit titles fit one line
+ * of the 300-unit viewBox and stay 11 px or larger.
+ */
+.cv-fly__svg[data-layout='narrow'] .cv-fly__label,
+.cv-fly__svg[data-layout='narrow'] .cv-fly__index {
+  font-size: 11px;
+}
+
+.cv-fly__slot {
+  fill: var(--cv-bg);
+  stroke: var(--cv-border);
+  stroke-dasharray: 3 3;
+}
+
+.cv-fly__glyph {
+  stroke: var(--cv-key);
+  stroke-width: 2;
+  fill: var(--cv-key);
+}
+
+.cv-fly__glyph path {
+  fill: none;
+}
+
+.cv-fly__tokens {
+  --cv-fly-role: var(--cv-state);
+}
+
+.cv-fly__tokens[data-role='key'] {
+  --cv-fly-role: var(--cv-key);
+}
+
+.cv-fly__byte {
+  transition: transform 700ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.cv-fly__byte rect {
+  fill: var(--cv-surface-elevated);
+  stroke: var(--cv-fly-role);
+  stroke-width: 2;
+}
+
+.cv-fly__byte text {
+  fill: var(--cv-fly-role);
+  font-size: 14px;
+  font-weight: 700;
+}
+
+/* Key bytes carry a filled corner mark (the key glyph's head), so colour is not the only cue. */
+.cv-fly__mark {
+  display: none;
+  fill: var(--cv-key);
+}
+
+.cv-fly__tokens[data-role='key'] .cv-fly__mark {
+  display: inline;
+}
+
+.cv-fly__tokens--in {
+  animation: cv-fly-fade-in 400ms ease-out both;
+}
+
+.cv-fly__tokens--out {
+  animation: cv-fly-fade-out 400ms ease-out both;
+}
+
+@keyframes cv-fly-fade-in {
+  from {
+    opacity: 0;
+  }
+}
+
+@keyframes cv-fly-fade-out {
+  to {
+    opacity: 0;
+  }
+}
+
+.cv-fly[data-motion='reduce'] .cv-fly__byte {
+  transition: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cv-fly__byte {
+    transition: none;
+  }
+}
+
+.cv-fly__buttons {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 0.5rem;
+  margin-block: 0.75rem 0.25rem;
+}
+
+.cv-fly__button {
+  font: inherit;
+  color: var(--cv-text);
+  background: var(--cv-surface-elevated);
+  border: 1px solid var(--cv-border);
+  border-radius: 0.375rem;
+  padding: 0.35rem 0.9rem;
+  cursor: pointer;
+}
+
+.cv-fly__button:hover:not(:disabled) {
+  border-color: var(--sl-color-accent);
+}
+
+.cv-fly__button:focus-visible {
+  outline: 2px solid var(--sl-color-accent);
+  outline-offset: 2px;
+}
+
+.cv-fly__button:disabled {
+  cursor: default;
+  color: var(--cv-text-muted);
+}
+
+.cv-fly__button--primary {
+  border-color: var(--sl-color-accent);
+  font-weight: 600;
+}
+
+.cv-fly__beat {
+  text-align: center;
+  color: var(--cv-text-muted);
+  font-size: 0.875rem;
+}
+
+.cv-fly__caption {
+  min-block-size: 3em;
+  margin-block-start: 0.5rem !important;
+  padding: 0.5rem 0.75rem;
+  border-inline-start: 3px solid var(--sl-color-accent);
+  background: var(--cv-surface-elevated);
+}

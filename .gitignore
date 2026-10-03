@@ -8,3 +8,5 @@ test-results/
 .DS_Store
 .env*
 !.env.example
+# Build output of apps/web/scripts/csp-postbuild.ts (per-build CSP hashes)
+docker/generated/

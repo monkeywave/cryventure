@@ -1,6 +1,6 @@
 import { useEffect, type ReactNode } from 'react';
 import { LazyMotion, MotionConfig, domAnimation } from 'motion/react';
-import type { ChoreographyModule } from '@cryventure/core';
+import type { ChoreographyModule, DeriverManifest } from '@cryventure/core';
 import { OpLabelsContext, type OpLabelMap } from '../player/opLabel.ts';
 import { ChoreographyProvider } from '../choreography/ChoreographyContext.tsx';
 import { useT } from '../i18n/I18nProvider.tsx';
@@ -20,6 +20,8 @@ export interface LabRootProps {
   opLabels?: OpLabelMap;
   /** Host re-run for view-initiated param changes (`useLabActions().requestParams`); unwired = no-op. */
   onRequestParams?: ParamsRequestHandler;
+  /** Derivers `useFacet` may run lazily for facets the bundle lacks (default: none). */
+  derivers?: readonly DeriverManifest[];
   /** Frame clock for the playhead; injected by tests. */
   scheduler?: FrameScheduler;
   children: ReactNode;
@@ -49,10 +51,10 @@ function useParamsRequestHandler(store: LabStore, handler: ParamsRequestHandler 
  * One lab instance: store context, choreography, keyboard scope, playback clock, the lab's layout
  * (`useLabLayout`, measured on the lab container) and the motion runtime (`domAnimation` only; animations follow the user's reduced-motion preference).
  */
-export function LabRoot({ store, choreography, opLabels, onRequestParams, scheduler, children }: LabRootProps) {
+export function LabRoot({ store, choreography, opLabels, onRequestParams, derivers, scheduler, children }: LabRootProps) {
   useParamsRequestHandler(store, onRequestParams);
   return (
-    <LabProvider store={store}>
+    <LabProvider store={store} derivers={derivers}>
       <ChoreographyProvider module={choreography}>
         <OpLabelsContext.Provider value={opLabels}>
           <LazyMotion features={domAnimation}>

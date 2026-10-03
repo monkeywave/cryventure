@@ -32,7 +32,10 @@ export interface PlacedSegment {
   flippedCount: number;
 }
 
-/** Non-colour cue per role (PLAN §3: dice for nonce/IV randomness). Decorative only. */
+/**
+ * Non-colour cue per role (PLAN §3: dice for nonce/IV randomness). Decorative only. GCM: ✓ the tag
+ * that authenticates, ◇✓ AAD (sent in the clear like plaintext ◇, but authenticated), as in mode-chain.
+ */
 export const ROLE_GLYPHS: Readonly<Record<WireRole, string>> = {
   iv: '⚄',
   nonce: '⚄',
@@ -40,7 +43,7 @@ export const ROLE_GLYPHS: Readonly<Record<WireRole, string>> = {
   plaintext: '◇',
   padding: '░',
   tag: '✓',
-  aad: '⊡',
+  aad: '◇✓',
 };
 
 function flipMaskBytes(facet: WireFacet): number[] {

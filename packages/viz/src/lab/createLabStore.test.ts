@@ -156,6 +156,55 @@ describe('createLabStore', () => {
   });
 });
 
+describe('createLabStore setDerivedFacets', () => {
+  it('adds a batch of facets for the current bundle and keeps setDerivedFacet working', () => {
+    const bundle = createFixtureBundle();
+    const store = createLabStore(bundle);
+    store.getState().setDerivedFacet('demo@a', 1);
+    store.getState().setDerivedFacets(bundle, { 'demo@b': 2, 'demo@c': 3 });
+    expect(store.getState().derivedFacets).toEqual({ 'demo@a': 1, 'demo@b': 2, 'demo@c': 3 });
+  });
+
+  it('drops facets derived for a bundle the store has replaced', () => {
+    const old = createFixtureBundle();
+    const store = createLabStore(old);
+    store.getState().setBundle(createFixtureBundle());
+    store.getState().setDerivedFacets(old, { 'demo@a': 1 });
+    expect(store.getState().derivedFacets).toEqual({});
+  });
+
+  it('does not notify subscribers when the same facets are written again', () => {
+    const bundle = createFixtureBundle();
+    const store = createLabStore(bundle);
+    const facets = { 'demo@a': { n: 1 } };
+    store.getState().setDerivedFacets(bundle, facets);
+    const derived = store.getState().derivedFacets;
+    const listener = vi.fn();
+    store.subscribe(listener);
+    store.getState().setDerivedFacets(bundle, facets);
+    store.getState().setDerivedFacets(createFixtureBundle(), facets);
+    expect(listener).not.toHaveBeenCalled();
+    expect(store.getState().derivedFacets).toBe(derived);
+  });
+});
+
+describe('createLabStore setDerivedFacets per deriver', () => {
+  it('writes once per (bundle, deriver) and again after a new bundle', () => {
+    const bundle = createFixtureBundle();
+    const store = createLabStore(bundle);
+    store.getState().setDerivedFacets(bundle, { 'demo@a': 1 }, 'isa');
+    store.getState().setDerivedFacets(bundle, { 'demo@a': 2 }, 'isa');
+    expect(store.getState().derivedFacets).toEqual({ 'demo@a': 1 });
+    const next = createFixtureBundle();
+    store.getState().setBundle(next);
+    store.getState().setDerivedFacets(next, { 'demo@a': 3 }, 'isa');
+    expect(store.getState().derivedFacets).toEqual({ 'demo@a': 3 });
+    store.getState().setBundle(bundle);
+    store.getState().setDerivedFacets(bundle, { 'demo@a': 1 }, 'isa');
+    expect(store.getState().derivedFacets).toEqual({ 'demo@a': 1 });
+  });
+});
+
 describe('createLabStore requestParams', () => {
   it('forwards the patch to the installed handler', () => {
     const store = createLabStore(createFixtureBundle());

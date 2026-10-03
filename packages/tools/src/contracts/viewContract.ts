@@ -1,4 +1,5 @@
 import { assertManifestBasics, supportedLocales, type Locale, type Messages, type ViewManifest } from '@cryventure/core';
+import { deriverManifests } from '@cryventure/derivers';
 import { primitiveManifests } from '@cryventure/primitives';
 import type { ViewComponent } from '@cryventure/viz';
 import { beforeAll, describe, expect, it } from 'vitest';
@@ -10,7 +11,7 @@ import { labMessages, lensesToRender, renderViewProblems, viewRenderCases } from
 export interface ViewContractOptions {
   /** View EN/DE catalogs; defaults to `packages/views/src/<id>/i18n/{en,de}.json`. */
   catalogs?: LocaleCatalogs;
-  /** Fixture bundles to render against; defaults to every registered primitive run with its defaults. */
+  /** Fixture bundles to render against; defaults to every registered primitive run with its defaults, plus the applicable derivers' facets. */
   fixtures?: () => Promise<NamedBundle[]>;
   /** Facets for kinds no fixture bundle emits (see `fixtureBundlesFor`). */
   fallbacks?: FallbackFacets;
@@ -28,9 +29,9 @@ function messagesByLocale(producerIds: readonly string[]): Record<Locale, Messag
 
 let primitiveFixtures: Promise<NamedBundle[]> | undefined;
 
-/** The real primitives' default bundles, generated once per test file. */
+/** The real primitives' default bundles with the registered derivers' facets, generated once per test file. */
 function defaultFixtures(): Promise<NamedBundle[]> {
-  primitiveFixtures ??= primitiveFixtureBundles(primitiveManifests);
+  primitiveFixtures ??= primitiveFixtureBundles(primitiveManifests, deriverManifests);
   return primitiveFixtures;
 }
 

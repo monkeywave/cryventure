@@ -1,7 +1,7 @@
 # Extending CryVenture
 
-How to add a **primitive** (an algorithm that produces a trace) or a **view** (a React panel that
-renders facets of a trace). Background and the reasoning behind these rules: `docs/PLAN.md` §2b
+How to add a **primitive** (an algorithm that produces a trace), a **view** (a React panel that
+renders facets of a trace) or a **deriver** (extra facets computed from a finished trace). Background and the reasoning behind these rules: `docs/PLAN.md` §2b
 (Producers → Facets → Views) and §5 (i18n).
 
 ## The model in one paragraph
@@ -235,6 +235,65 @@ and are applied only when every panel has one; they are normalised to 100. Sizes
 over the preset. When the lab container is narrower than 720px, panels stack vertically
 (minus `'caption'` views, see above).
 
+## Add a deriver
+
+```sh
+pnpm cv new deriver demo-trace --from state --provides demo-steps
+```
+
+This creates `packages/derivers/src/demo-trace/` with `manifest.ts` (`defineDeriver`, lazily loaded
+module), `module.ts` (`derive(bundle)`), `module.test.ts` and `i18n/{en,de}.json` under
+`deriver.<id>.*`. The template derives one step per state step and passes the contract kit as
+generated; replace its facet with yours. `--from` must include `state` (the template reads it).
+`--provides` must name a **new** facet kind: the core kinds (`state`, `values`, `narration`,
+`instructions`, `registers`, `memory`, `derivation`, `messages`, `packets`, `filesystem`, `math`,
+`field`, `table`, `chain`, `wire`) have core schemas the demo facet would fail, so the CLI rejects
+them. To provide one, scaffold with a new kind, then reshape the facet to the core type and change
+`provides`. After scaffolding, run `pnpm golden:update` once to record the deriver's first golden
+fixture (see below).
+
+A **deriver** computes extra facets from a finished bundle, e.g. the x86 instructions, register
+file or memory layout of an AES run (docs/M4.md §1). It depends on `@cryventure/core` only and
+never on a producer's code:
+
+- **Contract:** `from` lists the facet kinds it reads, `provides` the kinds it returns (non-empty).
+  `appliesTo(bundle)` (optional, default true) decides on the real bundle, e.g.
+  `bundle.producer.id === 'aes'` plus a check of the state facet's ops. Read only the producer's
+  **published facet contract** (region ids, ops, `values` ids) and throw when it is broken: the
+  contract kit runs every deriver over every preset of every primitive, so a renamed region fails CI.
+- **`derive(bundle)`** returns every provided kind as `kind@variant` keys, all of them in one call.
+  It must be deterministic (no `Math.random`/`Date.now`, enforced by ESLint), JSON-only and must
+  not modify the bundle. Shared code goes into `packages/derivers/src/_lib/` (no manifest).
+- **Lazy, memoised:** the lab never runs a deriver eagerly. `useFacet(kind)` reports `loading` when
+  some deriver provides the kind, its `from` ⊆ the bundle's kinds and `appliesTo` holds; the viz
+  runtime then runs `derive` once per bundle and deriver (`deriveOnce`, a `WeakMap` cache) and
+  stores the result in one batch. A re-run starts a new cache. A deriver that throws or fails to
+  load leaves its facets `missing` and logs once; it is not retried for that bundle.
+- **Time (`align`):** derived facets keep their own steps (instructions, register writes, memory
+  writes). Each carries `align: { first, last }`, the inclusive range of state steps it covers
+  (−1 = the initial state). Step i is current iff `first ≤ p ≤ last`; its effects are visible iff
+  `p ≥ last`. Spans never decrease and lie in `[-1, stepCount − 1]` (`alignIssues` in core).
+- **Variants:** one deriver may return several variants of a kind (`instructions@x86_64-aesni`,
+  `memory@x86_64-linux-gnu+c-ref`). Each facet carries its own `label: I18nRef` and metadata; views
+  build their pickers from the data, not from the variant string. `useFacet(kind)` without a variant
+  returns `default` or else the first one.
+- **Namespace:** every key a deriver emits or ships lives under `deriver.<id>.*`. This is a
+  convention checked by the contract kit (the manifest has no namespace field).
+- **Golden fixtures (required):** `fixtures/<name>.golden.json` holds
+  `{ "producerId", "presetId", "facets" }`, the derived facets for one producer preset (`defaults`
+  for the defaults), e.g. FIPS 197 C.1. Every deriver needs at least one (docs/M4.md §7); the
+  contract fails with "no golden fixture" otherwise and compares the ones it finds. Without any,
+  `pnpm golden:update` records the first one, `fixtures/aes-fips197-c1.golden.json` when the deriver
+  applies to that preset, else the first applicable preset. To add more, create a file with
+  `producerId` and `presetId` only; `pnpm golden:update` regenerates the `facets` of every golden
+  file from the current output (review the diff before committing).
+- **Kit checks beyond the core schemas:** every array in which any item has an `align` object is a
+  span sequence, and its items without one are reported; memory writes must lie in their
+  allocation's lifetime (`align.first ≥ allocatedAt`, and `align.last < freedAt` when freed); the
+  known `I18nRef` fields of each core kind (`label`, `note`, `covers[]`, `formula`, `impl.label`,
+  `terms[].label`, …) must hold `{ key, params? }` refs. Elsewhere only objects of exactly
+  `{ key }` or `{ key, params }` count as refs.
+
 ## What the contract kit checks
 
 `packages/tools/src/contracts/all.contract.test.ts` runs for every discovered plugin as part of
@@ -278,6 +337,28 @@ over the preset. When the lab container is narrower than 720px, panels stack ver
   carries all its `requires`; if none does, one bundle is assembled per facet kind (`requires` +
   `optional`). A required kind no primitive emits fails the contract until a primitive emits it or
   a `fallbacks` facet is passed to `viewContract`. `all.contract.test.ts` runs in jsdom for this.
+  Each fixture bundle also carries the facets of every deriver that applies to it, so views of
+  derived kinds (`instructions`, `registers`, `memory`) render against real derived data, with all
+  `deriver.*` catalogs loaded.
+
+**Derivers** (`deriverContract`, over `defaults` and every preset of every registered primitive):
+- manifest basics, `kind: 'deriver'`, a non-empty `provides`, a `load` function
+- applies (`from` ⊆ the bundle's kinds and `appliesTo`) to at least one real preset
+- for every preset it applies to: loads and derives without throwing or modifying the bundle,
+  deterministically, with JSON-serializable facets
+- returns exactly its `provides` kinds (every one, keyed `kind@variant`)
+- each facet passes its core validator when its kind has one (`instructions`, `registers`,
+  `memory`, `field`, `math`, `table`); memory writes lie in their allocation's lifetime
+- every array of steps with `align` spans is monotonic and within the bundle's state steps
+  (`alignIssues`), and none of its items lacks an `align` span
+- every `valueRef` (operands, register writes, memory allocations, refs and writes, field terms,
+  …) exists in the bundle's `values` facet
+- the known `I18nRef` fields of each core kind hold well-formed refs; every `I18nRef` (those fields,
+  plus exact `{ key }` / `{ key, params }` objects anywhere in the facets) lies under
+  `deriver.<id>.*` and exists with matching `{{params}}` in EN and DE; every catalog key sits under
+  `deriver.<id>.*`
+- at least one `fixtures/*.golden.json` exists, and each matches the derived output for its
+  producer and preset
 
 ## i18n rules
 
@@ -287,7 +368,7 @@ over the preset. When the lab container is narrower than 720px, panels stack ver
   `pnpm i18n:check` checks this for every `i18n/{en,de}.json` under `packages/` and
   `apps/web/src/`, including `packages/core/i18n`. `[DE] ` stubs count as untranslated.
 - Namespaces: `core.*` (packages/core/i18n), `ui.*` (viz runtime and app), `view.<id>.*`,
-  `plugin.<id>.*`. A key belongs to the package that emits it.
+  `plugin.<id>.*`, `deriver.<id>.*`. A key belongs to the package that emits it.
 
 ### Message exports (server-side only)
 
@@ -301,6 +382,7 @@ server and passes it to the island as a prop:
 | `@cryventure/viz/messages` | `loadVizMessages(lang)` |
 | `@cryventure/views/messages` | `loadViewMessages(lang)`: all views, one locale |
 | `@cryventure/primitives/messages` | `loadPrimitiveMessages(id, lang)`: one plugin, one locale |
+| `@cryventure/derivers/messages` | `loadDeriverMessages(lang)`: all derivers, one locale |
 
 ESLint blocks these imports (and any `i18n/*.json`) inside `apps/web/src/islands`.
 

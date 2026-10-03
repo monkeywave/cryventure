@@ -24,6 +24,11 @@ describe('lintGermanCatalog', () => {
     expect(lintValue('das Chiffrat')).toEqual(['error:k:style: "Chiffrat": use "Geheimtext" (glossary: ciphertext)']);
     expect(lintValue('die S-box')).toEqual(['error:k:style: "S-box": write "S-Box" (glossary)']);
     expect(lintValue('Dieses Labor')).toEqual(['warning:k:style: "Labor": the glossary term is "das Lab"']);
+    expect(lintValue('das Authentifizierungstag')).toEqual(['error:k:style: "Authentifizierungstag": write "Authentifizierungs-Tag" (glossary: authentication tag)']);
+    expect(lintValue('das Galoisfeld')).toEqual(['error:k:style: "Galoisfeld": use "Galoiskörper" („Körper“, never „Feld“; glossary: Galois field)']);
+    expect(lintValue('der Galois-Körper')).toEqual(['warning:k:style: "Galois-Körper": write "Galoiskörper" (glossary: Galois field)']);
+    expect(lintValue('die Byte-Reihenfolge')).toEqual(['warning:k:style: "Byte-Reihenfolge": write "Bytereihenfolge" (glossary: byte order)']);
+    expect(lintValue('Authentifizierungs-Tag, Galoiskörper, Bytereihenfolge')).toEqual([]);
   });
 
   it('flags formal address mid-sentence but not sentence-initial "Sie" (they)', () => {

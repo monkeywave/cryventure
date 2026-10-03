@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { createFixtureBundle } from '../testing/fixtureBundle.ts';
 import {
+  withDerivedFacets,
   DEFAULT_SPEED,
   INITIAL_STEP,
   clampSpeed,
@@ -20,6 +21,7 @@ import {
   tick,
   toggleBreakpoint,
   toggleCurrentBreakpoint,
+  preferVariant,
   withBundle,
   withRerunBundle,
   type LabData,
@@ -175,3 +177,33 @@ describe('withRerunBundle', () => {
     expect(withRerunBundle(watched({ region: 'state', index: 0 }, ['sub']), null)).toMatchObject({ breakpoints: [], selection: { valueRefId: null, node: null } });
   });
 });
+
+describe('withDerivedFacets', () => {
+  it('merges facets for the current bundle', () => {
+    const bundle = createFixtureBundle();
+    expect(withDerivedFacets({ bundle, derivedFacets: { 'demo@a': 1 } }, bundle, { 'demo@b': 2 })).toEqual({ derivedFacets: { 'demo@a': 1, 'demo@b': 2 } });
+  });
+
+  it('ignores facets derived for a stale bundle', () => {
+    expect(withDerivedFacets({ bundle: createFixtureBundle(), derivedFacets: {} }, createFixtureBundle(), { 'demo@a': 1 })).toEqual({});
+  });
+
+  it('changes nothing when every key already holds the same value (no new derivedFacets object)', () => {
+    const bundle = createFixtureBundle();
+    const facet = { n: 1 };
+    expect(withDerivedFacets({ bundle, derivedFacets: { 'demo@a': facet, 'demo@b': 2 } }, bundle, { 'demo@a': facet })).toEqual({});
+    expect(withDerivedFacets({ bundle, derivedFacets: { 'demo@a': facet } }, bundle, {})).toEqual({});
+  });
+});
+
+describe('preferVariant', () => {
+  it('puts the chosen variant first, without duplicates', () => {
+    expect(preferVariant({ preferredVariants: [] }, 'x86')).toEqual({ preferredVariants: ['x86'] });
+    expect(preferVariant({ preferredVariants: ['arm', 'x86+ref', 'x86'] }, 'x86')).toEqual({ preferredVariants: ['x86', 'arm', 'x86+ref'] });
+  });
+
+  it('is kept by withBundle', () => {
+    expect(withBundle(null)).not.toHaveProperty('preferredVariants');
+  });
+});
+

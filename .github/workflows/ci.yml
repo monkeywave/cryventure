@@ -20,6 +20,7 @@ jobs:
       - run: pnpm lint
       - run: pnpm typecheck
       - run: pnpm i18n:check
+      - run: pnpm licenses:check
       - run: pnpm test --coverage
       - run: pnpm build
         # Previews never install a service worker (PLAN 7b); pages.yml and e2e still build the PWA.
@@ -52,4 +53,33 @@ jobs:
           curl -fsS http://localhost:8080/en/ | grep -q CryVenture
           curl -fsS http://localhost:8080/de/ | grep -q CryVenture
           curl -fsSI http://localhost:8080/en/ | grep -qi content-security-policy
+          # Generated CSP (docs/M4.md §9): hashed inline scripts, no 'unsafe-inline' scripts, header-only frame-ancestors.
+          csp=$(curl -fsSI http://localhost:8080/en/ | grep -i '^content-security-policy:')
+          echo "$csp" | grep -q "script-src 'self' 'wasm-unsafe-eval' 'sha256-"
+          echo "$csp" | grep -q "frame-ancestors 'none'"
+          if echo "$csp" | grep -Eq "script-src[^;]*'unsafe-inline'"; then echo "script-src allows 'unsafe-inline'"; exit 1; fi
           docker stop cv
+  # Same image built for a sub-path (GitHub Pages-style base). Separate job so it runs in parallel with `docker`.
+  docker-subpath:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - run: docker build -f docker/Dockerfile --build-arg CV_BASE=/cryventure/ -t cryventure:ci-subpath .
+      - name: Smoke test container (CV_BASE=/cryventure/)
+        run: |
+          docker run -d --rm --read-only --tmpfs /tmp -p 8080:8080 --name cv-sub cryventure:ci-subpath
+          for i in $(seq 1 20); do curl -fsS http://localhost:8080/healthz && break; sleep 1; done
+          page=$(curl -fsS http://localhost:8080/cryventure/en/)
+          echo "$page" | grep -q CryVenture
+          curl -fsS http://localhost:8080/cryventure/de/ | grep -q CryVenture
+          # The bare origin still answers (the built root redirect page).
+          curl -fsS -o /dev/null http://localhost:8080/
+          csp=$(curl -fsSI http://localhost:8080/cryventure/en/ | grep -i '^content-security-policy:')
+          echo "$csp" | grep -q "script-src 'self' 'wasm-unsafe-eval' 'sha256-"
+          echo "$csp" | grep -q "frame-ancestors 'none'"
+          # Hashes depend on CV_BASE: every hash in the page's own <meta> CSP must be in the header too.
+          meta=$(echo "$page" | grep -o '<meta http-equiv="Content-Security-Policy" content="[^"]*"')
+          for hash in $(echo "$meta" | grep -o "'sha256-[^']*'"); do
+            echo "$csp" | grep -qF -- "$hash" || { echo "header CSP lacks $hash"; exit 1; }
+          done
+          docker stop cv-sub

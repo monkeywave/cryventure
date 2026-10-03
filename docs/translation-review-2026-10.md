@@ -105,3 +105,59 @@ Smaller fixes: em dashes in titles → spaced en dash („AES – ein erster Bli
 8. **„verwürfelt“** in the 404 text („vielleicht hat Eve den Link verwürfelt“) – a pun on the
    technical term (*scrambling*); does it land?
 9. Lens names (no UI yet): „Erzählung / Technik / Kryptografie“ proposed in the glossary.
+
+## M4
+
+Scope (AI editorial review, 2026-10-03): new pages `de/symmetric/modes/{ghash,gcm}.mdx`, the
+updated `de/symmetric/modes/index.mdx`, and the DE catalogs `packages/primitives/src/{ghash,gcm}`,
+`packages/views/src/{field,instructions,registers,memory,mode-chain,wire}`, `packages/derivers/src/{isa-x86,isa-armv8,memory}`,
+`apps/web/src/i18n/de/{flyThrough,hero}.json`. Term decisions are in `docs/GLOSSARY.md` (sections
+„Modes of operation (M3)“, „GCM and GHASH (M4)“, „Memory, registers and instructions (M4)“).
+
+Fixed in this pass:
+
+- „Authentifizierungstag“ (ctr.mdx) → „Authentifizierungs-Tag“, as in the gcm/mode-chain/wire
+  catalogs; the lint now rejects the unhyphenated form.
+- flyThrough: „Big Endian“ → „Big-Endian“, „Byte-Reihenfolge“ → „Bytereihenfolge“, „128-Bit-Load“ →
+  „128-Bit-Ladebefehl“.
+- hero: „Null-Byte“ → „Nullbyte“ (as in the ecb/cbc/gcm catalogs).
+- `view.memory.wordsHint`: „host-endian u32“ → „u32-Felder in Host-Bytereihenfolge“.
+- `plugin.gcm.step.j0Fast`: incomplete clause („…, der schnelle Weg:“) → „also gilt der schnelle Weg:“.
+- `view.registers.legendInFlight`: unclear „es“ → „diesen Wert“.
+- hero: „Tippe bis zu 16 Byte“ / „Tippe deinen eigenen Text“ → „Gib … ein“; plural „+ n Nullbytes Padding“.
+- isa-armv8 fusion note now matches EN („Deshalb hält der Compiler die beiden direkt nebeneinander.“).
+- ghash.mdx: „modulo dem Körperpolynom“ → „modulo des Körperpolynoms“.
+
+Open questions for the human reviewer:
+
+1. **„Authentifizierungs-Tag“, „das Tag“**: hyphenated form and neuter article OK? („Authentifizierungsmarke“
+   would avoid the anglicism but is rare in practice.)
+2. **„Vorzählerblock J0“** for *pre-counter block*: natural, or keep „Pre-Counter-Block“?
+3. **„Hash-Teilschlüssel H“** vs. „Hash-Schlüssel H“ (simpler, but loses *sub*).
+4. ~~**„Rundflug“** for *fly-through* (`ui.flyThrough.title`)~~ – resolved: „Kamerafahrt“ (a sightseeing
+   flight returns to its start; a camera move follows the bytes one way). Glossary and catalog updated.
+5. **„Lane(s)“** in the registers view and fly-through: keep the SIMD anglicism, or „Spur“ (already
+   used for the mode-chain lanes, so it could be ambiguous)?
+6. **„modelliert“ vs. „aufgezeichnet“** for memory provenance: clear enough without a tooltip?
+7. **„schlüsselabhängiger Hash“** for *keyed hash* (ghash.mdx, index.mdx) vs. „Hash mit Schlüssel“.
+8. `view.field.more_{one,other}` („+ 1 weiterer“ / „+ 3 weitere“): the noun (Term) is implicit; add
+   „Term/Terme“?
+9. EN note (not changed): `plugin.gcm.field.*` uses `·` for the field product while `plugin.ghash.*`
+   and the lesson pages use `•` (SP 800-38D); align in EN and DE together.
+
+AES memory/ISA pages (AI editorial review, 2026-10-03): new `de/symmetric/aes/{memory-abi,aes-ni}.mdx`,
+updated `de/symmetric/aes/memory-and-hardware.mdx` (ComingSoon removed, links to both lessons, new
+question `aesenc-key-last`). Open questions:
+
+10. ~~**„Lernpfad“** for *track*~~ – resolved: the glossary now lists *track* → „Lernpfad“; the DE track
+    name „Geheimnisse im Speicher“ is fixed once the track exists.
+11. ~~**„toter Speicherzugriff (engl. *dead store*)“**~~ – resolved: „überflüssiger Schreibzugriff (engl.
+    *dead store*)“ (a dead store is a write, not any access).
+12. **„Ausrichtung“** for *align* in KeyFacts („244 B · Ausrichtung 4“) and „Zielplattform“ for
+    *target triple*: natural, or keep „Alignment“/„Triple“ next to `sizeof`/`alignof`?
+13. **„Schlüssel-XOR-Verknüpfung“** (aes-ni.mdx) for *key XOR*: clumsy? Alternative: „noch ein XOR mit
+    dem Schlüssel“.
+14. **„Spanne“** for an instruction's *span* of textbook steps (aes-ni.mdx, question `aese-span`):
+    matches the instructions view catalog?
+15. Code comments inside `<Formula>` listings (`; round 1`, `; ciphertext`, `offset field`) stay
+    English like the code itself; translate them?

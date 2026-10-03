@@ -1,0 +1,22 @@
+{
+  "view.registers.title": "Register",
+  "view.registers.loading": "Die Registerinhalte werden abgeleitet …",
+  "view.registers.missing": "Dieses Lab hat keine Registerspur (dafür braucht es einen AES-Lauf mit einem Schritt pro Operation).",
+  "view.registers.variant": "Befehlssatz",
+  "view.registers.laneLegend": "Lanes",
+  "view.registers.laneOption": "{{bits}} Bit",
+  "view.registers.orderLegend": "Bytereihenfolge",
+  "view.registers.order.memory": "Speicherreihenfolge",
+  "view.registers.order.msbFirst": "Registerschreibweise (höchstwertiges Byte zuerst)",
+  "view.registers.grid": "Registerinhalte, Bytes in {{order}}",
+  "view.registers.byteColumn": "Byte {{index}}",
+  "view.registers.row.written": "{{name}}, in diesem Schritt geschrieben",
+  "view.registers.row.inFlight": "{{name}}, wird gleich vom laufenden Befehl geschrieben",
+  "view.registers.row.unchanged": "{{name}}",
+  "view.registers.row.unwritten": "{{name}}, noch nicht geschrieben",
+  "view.registers.lanesCaption": "Lane-Werte ({{bits}}-Bit-Zahlen, höchstwertige Ziffer zuerst)",
+  "view.registers.lane": "Lane {{index}}",
+  "view.registers.legendWritten": "▸ •: in diesem Schritt geschrieben",
+  "view.registers.legendInFlight": "{{glyph}}: der laufende Befehl schreibt diesen Wert, sobald er fertig ist",
+  "view.registers.legendUnwritten": "{{placeholder}}: noch nicht geschrieben"
+}

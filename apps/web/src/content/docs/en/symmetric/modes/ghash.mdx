@@ -1,0 +1,211 @@
+---
+title: 'GHASH: multiplying in GF(2¹²⁸)'
+description: How GCM's hash GHASH folds 16-byte blocks into one by XOR and multiplication in GF(2^128), with the reflected bit order, the modulus x^128 + x^7 + x^2 + x + 1 and the constant R = 0xe1 ‖ 0^120.
+lessonId: block-ciphers/modes/ghash
+track: block-ciphers
+phase: 1
+sidebar:
+  order: 4
+tableOfContents: false
+prereqs:
+  - foundations/gf256
+  - block-ciphers/modes/ctr
+labs:
+  - ghash-bits
+  - ghash-blocks
+refs:
+  - NIST SP 800-38D, Section 6.3 (Multiplication Operation on Blocks, Algorithm 1)
+  - NIST SP 800-38D, Section 6.4 (GHASH Function, Algorithm 2)
+  - NIST SP 800-38D, Section 7.1 (Algorithm 4, hash subkey H)
+  - McGrew & Viega, The Galois/Counter Mode of Operation (GCM), revised 2005, Appendix B (test case 2)
+  - McGrew & Viega, The Security and Performance of the Galois/Counter Mode (GCM) of Operation, INDOCRYPT 2004
+---
+
+import Lab from '../../../../../components/Lab.astro';
+import CheckQuestion from '../../../../../components/lesson/CheckQuestion.astro';
+import Formula from '../../../../../components/lesson/Formula.astro';
+import KeyFact from '../../../../../components/lesson/KeyFact.astro';
+import KeyFacts from '../../../../../components/lesson/KeyFacts.astro';
+import Lens from '../../../../../components/lesson/Lens.astro';
+import LessonSection from '../../../../../components/lesson/LessonSection.astro';
+import WhyBox from '../../../../../components/lesson/WhyBox.astro';
+
+<LessonSection part="concept">
+
+## A hash made of XOR and one multiplication
+
+GCM authenticates with **GHASH**, a keyed hash over 16-byte blocks. Its key is the **hash subkey**
+`H = E_K(0¹²⁸)` (NIST SP 800-38D, §7.1). GHASH starts at zero and folds in one block at a time:
+XOR the block in, then multiply by `H` (§6.4, Algorithm 2).
+
+<Formula caption="GHASH, NIST SP 800-38D §6.4 (the spec calls the blocks Xᵢ; the lab calls them Bᵢ).">
+{`Y₀ = 0¹²⁸
+Yᵢ = (Yᵢ₋₁ ⊕ Bᵢ) • H        GHASH_H(B₁ … Bₘ) = Yₘ`}
+</Formula>
+
+The multiplication `•` lives in the field **GF(2¹²⁸)**: a block is a polynomial with 128 bits as
+coefficients, addition is XOR, and products are reduced modulo `x¹²⁸ + x⁷ + x² + x + 1` (§6.3). It
+works like [GF(2⁸)](../../../foundations/gf256/) in AES, only 16 times wider.
+
+<KeyFacts>
+  <KeyFact label="Block = element" value="128 bits" kind="state" />
+  <KeyFact label="Addition" value="XOR" kind="state" />
+  <KeyFact label="Modulus" value="x¹²⁸+x⁷+x²+x+1" kind="constant" />
+  <KeyFact label="Hash subkey H" value="E_K(0¹²⁸)" kind="key" />
+</KeyFacts>
+
+<Lens only="story">
+
+Think of a running total: add the next block, then stir with the secret `H`. After the last block,
+the total depends on every bit of every block.
+
+</Lens>
+
+</LessonSection>
+
+<LessonSection part="playground">
+
+## One block, 128 iterations
+
+The lab multiplies one block by `H` bit by bit. Both values come from McGrew–Viega test case 2
+(revised GCM spec, Appendix B): `H = 66e94bd4ef8a2c3b884cfa59ca342b2e` (AES-128 with the zero key on
+the zero block) and the block `C = 0388dace60b6a392f328c2b971b2fe78`. Step through the 128
+iterations of Algorithm 1 and watch `Z` collect the product.
+
+<Lab labId="ghash-bits" producerId="ghash" presetId="one-block-bits" layout="field:62|narration:38" />
+
+The result is `Y₁ = C • H = 5e2ec746917062882c85b0685353deb7`. Test case 2 then hashes a second
+block, the **length block** `[len(A)]₆₄ ‖ [len(C)]₆₄ = 0…0 ‖ 0…080` (no AAD, 128 bits of
+ciphertext). The block view below shows both: `GHASH = f38cbb1ad69223dcc3457ae5b6b0f885`, as in the
+spec.
+
+<Lab labId="ghash-blocks" producerId="ghash" presetId="mcgrew-viega-tc2" layout="field:60|state:40" />
+
+</LessonSection>
+
+<LessonSection part="inside">
+
+## Algorithm 1: shift right, reduce with R
+
+GCM numbers bits the "reflected" way: **bit 0 is the most significant bit of byte 0** and is the
+coefficient of `x⁰`; bit 127 is the LSB of byte 15 (SP 800-38D, §6.3). Multiplying by `x` therefore
+shifts the block **right**.
+
+<Formula caption="Algorithm 1, NIST SP 800-38D §6.3: X • Y, with x₀ … x₁₂₇ the bits of X. In each GHASH step the first factor is Yᵢ₋₁ ⊕ Bᵢ and the second is H.">
+{`Z₀ = 0¹²⁸,  V₀ = Y
+for i = 0 … 127:
+    Zᵢ₊₁ = Zᵢ ⊕ Vᵢ   if xᵢ = 1,   else Zᵢ
+    Vᵢ₊₁ = Vᵢ >> 1   if LSB₁(Vᵢ) = 0,   else (Vᵢ >> 1) ⊕ R
+return Z₁₂₈              R = 11100001 ‖ 0¹²⁰`}
+</Formula>
+
+`V` runs through `H, H•x, H•x², …`, and bit `xᵢ` decides whether `H•xⁱ` joins the sum. The lab's
+block starts with `0x03 = 00000011`, so `Z` stays 0 until iteration 6.
+
+<WhyBox constant="R = 0xe1 ‖ 0¹²⁰" title="the modulus, written backwards">
+  When `V`'s last bit (the `x¹²⁷` term) is 1, the shift would create `x¹²⁸`. Since
+  `x¹²⁸ ≡ x⁷ + x² + x + 1`, those terms are XORed back in: bits 0, 1, 2 and 7, which is the first
+  byte `11100001 = 0xe1` in GCM's reflected order (SP 800-38D §6.3).
+</WhyBox>
+
+<Lens level="cryptographer">
+
+Expanded, `Yₘ = B₁•Hᵐ ⊕ B₂•Hᵐ⁻¹ ⊕ … ⊕ Bₘ•H` (SP 800-38D §6.4): a polynomial in `H` with the blocks
+as coefficients.
+
+</Lens>
+
+</LessonSection>
+
+<LessonSection part="memory">
+
+## Bytes in, reflected bits inside
+
+GHASH takes blocks as byte strings, so its input needs no byte swapping: the byte order is the
+order on the wire. Only the bit numbering inside the field is reflected (SP 800-38D, §6.3), and
+`>> 1` shifts the whole 128-bit string. Code that holds a block in two 64-bit big-endian words
+must carry the bit that leaves the high word into the top of the low word.
+
+In GCM, GHASH's input is laid out as follows (§7.1); each part is zero-padded to whole blocks:
+
+<Formula caption="GHASH input in GCM, NIST SP 800-38D §7.1.">
+{`A ‖ 0ᵛ ‖ C ‖ 0ᵘ ‖ [len(A)]₆₄ ‖ [len(C)]₆₄`}
+</Formula>
+
+The final **length block** stores both lengths in bits, as 64-bit integers (§7.1). Without it, a
+message and the same message with extra zero blocks in front would hash alike: `Y` stays 0 while
+zero blocks are folded in (§6.4).
+
+</LessonSection>
+
+<LessonSection part="break">
+
+## Why GHASH alone is not a MAC
+
+GHASH is **linear** in its input: for inputs of equal length, `GHASH_H(X ⊕ X′) = GHASH_H(X) ⊕
+GHASH_H(X′)`, because each block is just multiplied by a fixed power of `H` (SP 800-38D §6.4). Anyone
+who knows `H` can compute GHASH for any message, so `H` must stay secret; that is why it is derived
+from the key as `E_K(0¹²⁸)` (§7.1).
+
+Even with `H` secret, bare GHASH values would expose linear relations between inputs. GCM therefore
+never sends GHASH directly: it masks it with `E_K(J0)`, which depends on the nonce (§7.1). The [GCM lesson](../gcm/) shows that step and why the nonce must never
+repeat.
+
+<Lens level="cryptographer">
+
+GHASH is an almost-XOR-universal hash: for distinct inputs of `m` blocks, their difference is a
+nonzero polynomial of degree ≤ `m` in `H`, so at most `m` of the 2¹²⁸ values of `H` make them
+collide (McGrew–Viega, INDOCRYPT 2004). That bound holds only while `H` is unknown.
+
+</Lens>
+
+</LessonSection>
+
+<LessonSection part="check">
+
+## Check yourself
+
+<CheckQuestion
+  id="ghash-bit-zero"
+  number={1}
+  question="In GCM's bit order, which bit of a block is the coefficient of x⁰?"
+  options={['The least significant bit of byte 15', 'The most significant bit of byte 0', 'The least significant bit of byte 0', 'The most significant bit of byte 15']}
+  answer={1}
+>
+  SP 800-38D §6.3 numbers bit 0 as the leftmost bit of the block, the MSB of byte 0. That is why
+  multiplying by `x` is a right shift.
+</CheckQuestion>
+
+<CheckQuestion
+  id="ghash-r-constant"
+  number={2}
+  question="Why does Algorithm 1 XOR in R = 0xe1 ‖ 0¹²⁰ when the last bit of V is 1?"
+  options={[
+    'It is a random constant that hides H',
+    'It adds x⁷ + x² + x + 1, which equals x¹²⁸ modulo the field polynomial',
+    'It undoes the right shift',
+    'It encodes the block length',
+  ]}
+  answer={1}
+>
+  The shift pushes the `x¹²⁷` term to `x¹²⁸`, which reduces to `x⁷ + x² + x + 1`. In reflected order
+  those are bits 0, 1, 2, 7, the byte `0xe1` (SP 800-38D §6.3).
+</CheckQuestion>
+
+<CheckQuestion
+  id="ghash-not-a-mac"
+  number={3}
+  question="Why can GHASH not be used as a MAC on its own?"
+  options={[
+    'It is too slow',
+    'It is linear in the message, and anyone who knows H can compute it',
+    'It only accepts one block',
+    'Its output is shorter than a block',
+  ]}
+  answer={1}
+>
+  GHASH is a polynomial in `H` with the blocks as coefficients (SP 800-38D §6.4). GCM keeps `H` secret
+  and masks the hash with `E_K(J0)` (§7.1).
+</CheckQuestion>
+
+</LessonSection>

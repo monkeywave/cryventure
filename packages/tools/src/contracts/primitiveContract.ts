@@ -3,9 +3,11 @@ import {
   getFacet,
   paramFieldKeys,
   paramFieldsOf,
+  validateFieldFacet,
   validateMathFacet,
   validateTableFacet,
   type DerivationFacet,
+  type FieldFacet,
   type I18nRef,
   type MathFacet,
   type PrimitiveManifest,
@@ -13,6 +15,7 @@ import {
   type RunOptions,
   type TableFacet,
   type TraceBundle,
+  type ValuesFacet,
 } from '@cryventure/core';
 import { beforeAll, describe, expect, it } from 'vitest';
 import { loadPluginCatalogs, type LocaleCatalogs } from './catalogs.ts';
@@ -21,6 +24,9 @@ import { derivationProblems, stepChoreographyProblems } from './choreographyChec
 import {
   derivationGroupRefs,
   emittedNarration,
+  facetStepRangeProblems,
+  fieldFacetRefs,
+  fieldValueRefProblems,
   initialNarrationProblems,
   jsonRoundTrip,
   keysOutsideNamespace,
@@ -162,6 +168,22 @@ function optionalRunChecks<P>(manifest: PrimitiveManifest<P>, catalogs: LocaleCa
     facetChecks<TableFacet>('table', validateTableFacet, tableFacetRefs, catalogs, bundle);
     tableCrossChecks(manifest, bundle);
   }
+  if (manifest.facets.includes('field')) {
+    facetChecks<FieldFacet>('field', validateFieldFacet, fieldFacetRefs, catalogs, bundle);
+    fieldCrossChecks(bundle);
+  }
+}
+
+function fieldCrossChecks(bundle: () => TraceBundle): void {
+  it('aligns every field step with a state step or the narrated initial state (step −1)', () => {
+    const field = getFacet<FieldFacet>(bundle(), 'field');
+    const state = getFacet<AnyStateFacet>(bundle(), 'state') ?? { steps: [] };
+    expect(field === undefined ? [] : facetStepRangeProblems('field', field, state)).toEqual([]);
+  });
+  it('links field terms only to values in the values facet', () => {
+    const field = getFacet<FieldFacet>(bundle(), 'field');
+    expect(field === undefined ? [] : fieldValueRefProblems(field, getFacet<ValuesFacet>(bundle(), 'values'))).toEqual([]);
+  });
 }
 
 function mathCrossChecks(bundle: () => TraceBundle): void {

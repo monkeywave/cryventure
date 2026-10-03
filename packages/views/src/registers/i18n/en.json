@@ -1,0 +1,22 @@
+{
+  "view.registers.title": "Registers",
+  "view.registers.loading": "Deriving the register contents…",
+  "view.registers.missing": "This lab has no register trace (it needs an AES run with one step per operation).",
+  "view.registers.variant": "Instruction set",
+  "view.registers.laneLegend": "Lanes",
+  "view.registers.laneOption": "{{bits}} bit",
+  "view.registers.orderLegend": "Byte order",
+  "view.registers.order.memory": "memory order",
+  "view.registers.order.msbFirst": "register notation (MSB first)",
+  "view.registers.grid": "Register contents, bytes in {{order}}",
+  "view.registers.byteColumn": "byte {{index}}",
+  "view.registers.row.written": "{{name}}, written in this step",
+  "view.registers.row.inFlight": "{{name}}, about to be written by the instruction in flight",
+  "view.registers.row.unchanged": "{{name}}",
+  "view.registers.row.unwritten": "{{name}}, not written yet",
+  "view.registers.lanesCaption": "Lane values ({{bits}}-bit numbers, most significant digit first)",
+  "view.registers.lane": "lane {{index}}",
+  "view.registers.legendWritten": "▸ •: written in this step",
+  "view.registers.legendInFlight": "{{glyph}}: the instruction in flight writes it when it finishes",
+  "view.registers.legendUnwritten": "{{placeholder}}: not written yet"
+}

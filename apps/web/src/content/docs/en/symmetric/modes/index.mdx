@@ -1,6 +1,6 @@
 ---
 title: Modes of operation
-description: Why a block cipher needs a mode, and how ECB, CBC and CTR turn one 16-byte block into whole messages.
+description: Why a block cipher needs a mode, how ECB, CBC and CTR turn one 16-byte block into whole messages, and how GCM adds an authentication tag.
 lessonId: block-ciphers/modes/overview
 track: block-ciphers
 phase: 1
@@ -16,13 +16,17 @@ refs:
 import Lens from '../../../../../components/lesson/Lens.astro';
 
 AES encrypts exactly one 128-bit block. A **mode of operation** says how to use it on a message of
-many blocks. NIST SP 800-38A (§6) specifies five confidentiality modes; this group covers three:
+many blocks. NIST SP 800-38A (§6) specifies five confidentiality modes; this group covers three of them, then adds GHASH and GCM:
 
 | Mode | Rule (SP 800-38A) | Needs | Equal plaintext blocks |
 |---|---|---|---|
 | [ECB](./ecb/) | `Cⱼ = E_K(Pⱼ)` (§6.1) | padding | give equal ciphertext blocks |
 | [CBC](./cbc/) | `Cⱼ = E_K(Pⱼ ⊕ Cⱼ₋₁)`, `C₀ = IV` (§6.2) | padding, unpredictable IV | give different blocks |
 | [CTR](./ctr/) | `Cⱼ = Pⱼ ⊕ E_K(Tⱼ)` (§6.5) | unique counter blocks, no padding | give different blocks |
+
+None of these three detects changes to the ciphertext. **Authenticated encryption** adds that:
+[GHASH](./ghash/) is a keyed hash over GF(2¹²⁸) (NIST SP 800-38D, §6.4), and [GCM](./gcm/) combines
+CTR encryption with a GHASH-based authentication tag (SP 800-38D, §7).
 
 <Lens only="story">
 

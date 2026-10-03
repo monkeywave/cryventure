@@ -18,7 +18,7 @@ const pwaEnabled = import.meta.env.PROD && isPwaEnabled(process.env);
 {pwaEnabled && <PwaRegistration />}
 
 {/*
-  Inlined (CSP allows it) so the stored lens applies before first paint. Values travel as data-*
+  Inlined (allowed by its hash: scripts/csp-postbuild.ts, docs/DEPLOY.md) so the stored lens applies before first paint. Values travel as data-*
   attributes rather than define:vars, which would wrap the script and confuse type checking. It reads
   only the schema-independent lens key, which the progress store keeps in sync (and seeds from v1/v2).
 */}

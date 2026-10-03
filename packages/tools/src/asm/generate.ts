@@ -1,12 +1,11 @@
 /**
  * Dev-only generator for the precomputed AES listings (docs/M4.md §5):
  *   pnpm asm:generate
- * Compiles aes_x86.c / aes_armv8.c with the pinned Homebrew clang, parses each function's assembly,
+ * Compiles aes_x86.c / aes_armv8.c with the pinned LLVM (`llvm.ts`), parses each function's assembly,
  * takes real byte offsets from `llvm-objdump`, annotates roles, and writes
  * packages/derivers/src/isa-{x86,armv8}/data/aes{128,192,256}.json. CI never runs this; tests read
  * the committed JSON.
  */
-import { execFileSync } from 'node:child_process';
 import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
@@ -21,6 +20,13 @@ import {
   type IsaProfile,
 } from './annotate.ts';
 import {
+  compilerVersion,
+  pinnedLlvm,
+  runCommand,
+  type CommandRunner,
+  type LlvmTools,
+} from './llvm.ts';
+import {
   attachAddresses,
   parseAsmFunction,
   parseObjdumpFunction,
@@ -28,9 +34,6 @@ import {
 } from './parse.ts';
 import { compilerExplorerUrl, extractCFunction, extractPreamble } from './source.ts';
 
-const LLVM_BIN = process.env['CV_LLVM_BIN'] ?? '/opt/homebrew/opt/llvm/bin';
-const CLANG = join(LLVM_BIN, 'clang');
-const OBJDUMP = join(LLVM_BIN, 'llvm-objdump');
 const ASM_DIR = dirname(fileURLToPath(import.meta.url));
 const KEY_BITS = [128, 192, 256] as const;
 
@@ -80,12 +83,10 @@ export interface AsmListing {
   instructions: AnnotatedInstruction[];
 }
 
-function run(command: string, args: readonly string[]): string {
-  return execFileSync(command, args, { encoding: 'utf8' });
-}
-
-function compilerVersionLine(): string {
-  return run(CLANG, ['--version']).split('\n')[0]?.trim() ?? '';
+/** How the generator reaches the compiler: injectable so tests never need one. */
+export interface GenerateOptions {
+  run?: CommandRunner;
+  tools?: LlvmTools;
 }
 
 interface CompiledTarget {
@@ -93,16 +94,20 @@ interface CompiledTarget {
   dump: string;
 }
 
-function compile(target: Target, workDir: string): CompiledTarget {
+function compile(
+  target: Target,
+  workDir: string,
+  run: CommandRunner,
+  tools: LlvmTools,
+): CompiledTarget {
   const input = join(ASM_DIR, target.sourceFile);
   const base = ['-target', target.triple, ...target.flags];
-  const asmPath = join(workDir, `${target.directory}.s`);
   const objectPath = join(workDir, `${target.directory}.o`);
-  run(CLANG, [...base, '-S', input, '-o', asmPath]);
-  run(CLANG, [...base, '-c', input, '-o', objectPath]);
+  const asm = run(tools.clang, [...base, '-S', input, '-o', '-']);
+  run(tools.clang, [...base, '-c', input, '-o', objectPath]);
   return {
-    asm: readFileSync(asmPath, 'utf8'),
-    dump: run(OBJDUMP, ['-d', '--no-show-raw-insn', ...target.objdumpFlags, objectPath]),
+    asm,
+    dump: run(tools.objdump, ['-d', '--no-show-raw-insn', ...target.objdumpFlags, objectPath]),
   };
 }
 
@@ -139,33 +144,45 @@ function outputPath(target: Target, bits: number): string {
 }
 
 /** Runs the repo's Prettier over the written JSON so a regeneration is format-stable. */
-function formatWithPrettier(paths: readonly string[]): void {
+function formatWithPrettier(run: CommandRunner, paths: readonly string[]): void {
   run(join(REPO_ROOT, 'node_modules/.bin/prettier'), ['--write', '--log-level', 'warn', ...paths]);
 }
 
-/** Compiles every target and writes the six listings (Prettier-formatted); returns the paths written. */
-export function generateListings(): string[] {
-  const compiler = compilerVersionLine();
+export interface GeneratedListing {
+  path: string;
+  listing: AsmListing;
+}
+
+/** Compiles every target and builds the six listings, without writing anything. */
+export function buildListings({
+  run = runCommand,
+  tools = pinnedLlvm(),
+}: GenerateOptions = {}): GeneratedListing[] {
+  const compiler = compilerVersion(run, tools.clang);
   const workDir = mkdtempSync(join(tmpdir(), 'cv-asm-'));
   try {
-    const paths = TARGETS.flatMap((target) => {
-      const compiled = compile(target, workDir);
+    return TARGETS.flatMap((target) => {
+      const compiled = compile(target, workDir, run, tools);
       const cSource = readFileSync(join(ASM_DIR, target.sourceFile), 'utf8');
-      return KEY_BITS.map((bits) => {
-        const path = outputPath(target, bits);
-        mkdirSync(dirname(path), { recursive: true });
-        writeFileSync(
-          path,
-          `${JSON.stringify(buildListing(target, compiled, cSource, compiler, bits), null, 2)}\n`,
-        );
-        return path;
-      });
+      return KEY_BITS.map((bits) => ({
+        path: outputPath(target, bits),
+        listing: buildListing(target, compiled, cSource, compiler, bits),
+      }));
     });
-    formatWithPrettier(paths);
-    return paths;
   } finally {
     rmSync(workDir, { recursive: true, force: true });
   }
+}
+
+/** Compiles every target and writes the six listings (Prettier-formatted); returns the paths written. */
+export function generateListings(options: GenerateOptions = {}): string[] {
+  const paths = buildListings(options).map(({ path, listing }) => {
+    mkdirSync(dirname(path), { recursive: true });
+    writeFileSync(path, `${JSON.stringify(listing, null, 2)}\n`);
+    return path;
+  });
+  formatWithPrettier(options.run ?? runCommand, paths);
+  return paths;
 }
 
 if (isEntryPoint(import.meta.url)) {

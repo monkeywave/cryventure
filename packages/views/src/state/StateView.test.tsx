@@ -1,15 +1,28 @@
 import { act, render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it } from 'vitest';
-import type { AnyStateFacet, ChoreographyModule } from '@cryventure/core';
+import type { AnyStateFacet, ChoreographyModule, TraceBundle } from '@cryventure/core';
 import { I18nProvider, LabRoot, createLabStore } from '@cryventure/viz';
 import { vizMessages } from '@cryventure/viz/messages';
 import { createFixtureBundle, createManualScheduler, fixtureMessages, renderLab } from '@cryventure/viz/testing';
 import { loadViewMessages } from '../messages.ts';
 import StateView from './StateView.tsx';
+import aesFixture from './fixtures/aes128-state.json';
 
 const messages = { ...loadViewMessages('en'), ...fixtureMessages };
 const renderState = (bundle = createFixtureBundle()) => renderLab(<StateView labId="fixture" lens="engineer" />, { bundle, messages });
+
+/** A bundle with the state facet of a real AES run (FIPS 197 C.1), from the tools-kept JSON snapshot. */
+function aesBundle(): TraceBundle {
+  return {
+    schemaVersion: 1,
+    producer: { kind: 'primitive', id: 'aes', apiVersion: 1 },
+    provenance: 'modeled',
+    params: {},
+    facets: { 'state@default': aesFixture.state as AnyStateFacet },
+    output: {},
+  };
+}
 
 describe('StateView', () => {
   it('shows each region at the initial state without highlights', () => {
@@ -66,9 +79,26 @@ describe('StateView', () => {
     expect(within(grid()).getByRole('gridcell', { name: 'row 1, column 1, value 0x10, written' })).toBeTruthy();
   });
 
-  it('keeps meaningful initial values (no blank regions, e.g. AES) as values', () => {
+  it('keeps meaningful initial values (regions without the blank flag) as values', () => {
     renderState();
     expect(document.querySelectorAll('[data-blank]')).toHaveLength(0);
+  });
+
+  it('shows a real AES run as not yet written before its input step, then the plaintext', () => {
+    const { store } = renderLab(<StateView labId="aes" lens="engineer" />, { bundle: aesBundle(), messages: { ...messages, ...aesFixture.labels.en } });
+    const grid = (name: string) => screen.getByRole('grid', { name });
+    expect(within(grid('State')).getAllByRole('gridcell', { name: /value not yet written$/ })).toHaveLength(16);
+    expect(within(grid('State')).getAllByText('··')).toHaveLength(16);
+    expect(within(grid('Round key')).getAllByText('··')).toHaveLength(16);
+    expect(within(grid('Key schedule w[i]')).getAllByText('··')).toHaveLength(176);
+
+    act(() => store.getState().seek(0));
+    expect(within(grid('State')).queryAllByText('··')).toHaveLength(0);
+    const plaintext = [0x00, 0x11, 0x22, 0x33, 0x44, 0x55, 0x66, 0x77, 0x88, 0x99, 0xaa, 0xbb, 0xcc, 0xdd, 0xee, 0xff];
+    plaintext.forEach((byte, i) => {
+      const name = `row ${(i % 4) + 1}, column ${Math.floor(i / 4) + 1}, value 0x${byte.toString(16).padStart(2, '0')}, written`;
+      expect(within(grid('State')).getByRole('gridcell', { name })).toBeTruthy();
+    });
   });
 
   it('explains when there is no state facet or no bundle yet', () => {

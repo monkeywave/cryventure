@@ -1,4 +1,4 @@
-import { stateAt, toHex } from '@cryventure/core';
+import { stateAt, toHex, unwrittenAt } from '@cryventure/core';
 import fc from 'fast-check';
 import { describe, expect, it } from 'vitest';
 import type { AesOp, AesRegion } from './aesTrace.ts';
@@ -123,6 +123,31 @@ describe('properties', () => {
       }),
       { numRuns: 30 },
     );
+  });
+});
+
+describe('blank initial regions', () => {
+  const unwrittenCounts = (facet: AesStateFacet, step: number) =>
+    Object.fromEntries([...unwrittenAt(facet, step)].map(([region, indices]) => [region, indices.size]));
+
+  it('starts with every region not yet written (nothing is loaded before the input step)', () => {
+    expect(unwrittenCounts(recordEncryption(appendixB.key, appendixB.input), -1)).toEqual({ state: 16, roundKey: 16, w: 176 });
+  });
+
+  it('has written each region by the step that first reads it (input, key expansion, first AddRoundKey)', () => {
+    const facet = recordEncryption(appendixB.key, appendixB.input);
+    expect(unwrittenAt(facet, stepIndex(facet, 0, 'input')).get('state')?.size).toBe(0);
+    expect(unwrittenAt(facet, stepIndex(facet, 0, 'keyExpansion')).get('w')?.size).toBe(0);
+    expect(unwrittenCounts(facet, stepIndex(facet, 0, 'addRoundKey'))).toEqual({ state: 0, roundKey: 0, w: 0 });
+  });
+
+  it('is fully written by the first AddRoundKey when decrypting too', () => {
+    const key = hexBytes(appendixB.key);
+    const tracer = recordingTracerFor(key.length);
+    decryptBlock(key, hexBytes(appendixB.output), tracer);
+    const facet = tracer.toFacet();
+    const firstAddRoundKey = facet.steps.findIndex((step) => step.op === 'addRoundKey');
+    expect(unwrittenCounts(facet, firstAddRoundKey)).toEqual({ state: 0, roundKey: 0, w: 0 });
   });
 });
 

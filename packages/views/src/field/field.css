@@ -1,0 +1,267 @@
+/*
+ * Field view styles (GF(2¹²⁸) terms). Imported by the view component, so it ships in the view's lazy chunk.
+ * Colours come only from the semantic tokens (--cv-*, --sl-color-*); fallbacks keep it usable standalone.
+ * Role colours follow the math view: operand = plaintext blue, intermediate = state slate, constant = teal,
+ * carry = nonce magenta, result = success green; emphasised bits = key amber plus outline, underline and the
+ * • marker on their byte (never colour alone).
+ *
+ * Reflow (container queries on .cv-field): 16 byte cells per row, 8 on narrow panels; bit groups wrap
+ * (4 bytes per line, 2 on narrow panels). The strips scroll inside the panel only as a last resort.
+ */
+
+.cv-field {
+  display: grid;
+  gap: 0.5rem;
+  min-width: 0;
+  container-type: inline-size;
+}
+
+.cv-field__formula,
+.cv-field__modulus,
+.cv-field__reduction,
+.cv-field__hint,
+.cv-field__empty,
+.cv-field__legend {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.cv-field__formula {
+  font-weight: 600;
+  color: var(--cv-text, CanvasText);
+}
+
+.cv-field__modulus,
+.cv-field__hint,
+.cv-field__empty,
+.cv-field__legend {
+  font-size: 0.85em;
+  color: var(--cv-text-muted, GrayText);
+}
+
+/* R is a constant: teal start border, like a constant term. */
+.cv-field__reduction {
+  padding-inline-start: 0.5rem;
+  font-size: 0.85em;
+  color: var(--cv-text, CanvasText);
+  border-inline-start: 3px double var(--cv-constant, CanvasText);
+}
+
+/* Exponents without a Unicode superscript form. */
+.cv-field sup {
+  font-size: 0.75em;
+  line-height: 0;
+}
+
+.cv-field__upcoming {
+  display: grid;
+  gap: 0.5rem;
+  padding: 0.5rem;
+  border: 1px dashed var(--cv-border, GrayText);
+  border-radius: 0.375rem;
+}
+
+.cv-field__upcoming .cv-field__formula,
+.cv-field__upcoming .cv-field__terms {
+  opacity: 0.6;
+}
+
+.cv-field__hint {
+  font-style: italic;
+}
+
+.cv-field__terms {
+  display: grid;
+  gap: 0.6rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.cv-field__term {
+  --cv-field-role: var(--cv-state, CanvasText);
+  display: grid;
+  gap: 0.25rem;
+  min-width: 0;
+  padding-inline-start: 0.4rem;
+  border-inline-start: 3px solid var(--cv-field-role);
+}
+
+.cv-field__term[data-role='operand'] {
+  --cv-field-role: var(--cv-plaintext, CanvasText);
+}
+
+.cv-field__term[data-role='constant'] {
+  --cv-field-role: var(--cv-constant, CanvasText);
+  border-inline-start-style: double;
+}
+
+.cv-field__term[data-role='carry'] {
+  --cv-field-role: var(--cv-nonce, CanvasText);
+  border-inline-start-style: dashed;
+}
+
+/* The result is set off by a rule above it and weight, not colour alone. */
+.cv-field__term[data-role='result'] {
+  --cv-field-role: var(--cv-success, CanvasText);
+  padding-block-start: 0.4rem;
+  border-block-start: 2px solid var(--cv-border, GrayText);
+  font-weight: 600;
+}
+
+.cv-field__head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.25rem 0.5rem;
+}
+
+.cv-field__op {
+  min-inline-size: 1.5em;
+  font-weight: 700;
+  color: var(--cv-field-role);
+}
+
+.cv-field__label {
+  font-weight: 500;
+  color: var(--cv-text, CanvasText);
+}
+
+.cv-field__toggle {
+  margin-inline-start: auto;
+  padding: 0.1rem 0.5rem;
+  font: inherit;
+  font-size: 0.8em;
+  color: var(--sl-color-accent, LinkText);
+  background: none;
+  border: 1px solid var(--cv-border, GrayText);
+  border-radius: 0.25rem;
+  cursor: pointer;
+}
+
+.cv-field__toggle:focus-visible {
+  outline: 2px solid var(--cv-cell-focus-border, Highlight);
+  outline-offset: 2px;
+}
+
+/* 16 byte cells, byte 0 first; last resort: scroll inside the panel, never the page. */
+.cv-field__bytes {
+  display: grid;
+  grid-template-columns: repeat(16, minmax(1.4rem, 1.75rem));
+  gap: 2px;
+  max-width: 100%;
+  overflow-x: auto;
+  overscroll-behavior-inline: contain;
+}
+
+.cv-field__byte {
+  position: relative;
+  box-sizing: border-box;
+  display: grid;
+  place-items: center;
+  block-size: 1.5rem;
+  font-family: var(--sl-font-mono, ui-monospace, monospace);
+  font-size: 0.72em;
+  font-weight: 400;
+  color: var(--cv-text, CanvasText);
+  background: var(--cv-surface-elevated, Canvas);
+  border: 1px solid var(--cv-field-role);
+  border-radius: 3px;
+}
+
+/* A byte holding emphasised bits: amber outline, underline and the • marker. */
+.cv-field__byte[data-emphasised] {
+  color: var(--cv-key, Highlight);
+  font-weight: 700;
+  outline: 2px solid var(--cv-key, Highlight);
+  outline-offset: 1px;
+  text-decoration: underline 2px;
+  text-underline-offset: 2px;
+}
+
+.cv-field__mark {
+  position: absolute;
+  inset-block-start: -0.55em;
+  inset-inline-end: -0.1em;
+  font-size: 1em;
+  line-height: 1;
+  color: var(--cv-key, Highlight);
+}
+
+/* Bits: one group of 8 per byte, 4 groups per line (bit 0 = x⁰ first). */
+.cv-field__bits {
+  display: grid;
+  grid-template-columns: repeat(4, max-content);
+  gap: 0.25rem 0.6rem;
+  max-width: 100%;
+  overflow-x: auto;
+  overscroll-behavior-inline: contain;
+}
+
+.cv-field__bitgroup {
+  display: inline-flex;
+  gap: 1px;
+}
+
+.cv-field__bit {
+  display: inline-grid;
+  place-items: center;
+  inline-size: 0.95rem;
+  block-size: 1.2rem;
+  font-family: var(--sl-font-mono, ui-monospace, monospace);
+  font-size: 0.75em;
+  font-weight: 400;
+  color: var(--cv-cell-dim-fg, GrayText);
+  background: var(--cv-cell-dim-bg, Canvas);
+  border: 1px solid var(--cv-border-subtle, GrayText);
+  border-radius: 2px;
+}
+
+.cv-field__bit[data-set] {
+  color: var(--cv-text, CanvasText);
+  background: var(--cv-surface-elevated, Canvas);
+  border-color: var(--cv-field-role);
+  font-weight: 700;
+}
+
+.cv-field__bit[data-emphasised] {
+  color: var(--cv-key, Highlight);
+  outline: 2px solid var(--cv-key, Highlight);
+  outline-offset: 1px;
+  text-decoration: underline 2px;
+  text-underline-offset: 2px;
+}
+
+.cv-field__poly {
+  margin: 0;
+  font-family: var(--sl-font-mono, ui-monospace, monospace);
+  font-size: 0.85em;
+  font-weight: 400;
+  color: var(--cv-field-role);
+  overflow-wrap: anywhere;
+}
+
+.cv-field__more {
+  margin-inline-start: 0.4em;
+  color: var(--cv-text-muted, GrayText);
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .cv-field__byte,
+  .cv-field__bit {
+    transition:
+      background-color 120ms ease-out,
+      outline-color 120ms ease-out;
+  }
+}
+
+/* Narrow panels (phones, side slots): two rows of 8 bytes, two bit groups per line. */
+@container (max-width: 30rem) {
+  .cv-field__bytes {
+    grid-template-columns: repeat(8, minmax(1.4rem, 1.75rem));
+  }
+
+  .cv-field__bits {
+    grid-template-columns: repeat(2, max-content);
+  }
+}

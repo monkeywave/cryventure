@@ -6,6 +6,7 @@ import type { ViewComponent } from '@cryventure/viz';
 import { createFixtureBundle } from '@cryventure/viz/testing';
 import { beforeAll, describe, expect, it } from 'vitest';
 import { primitiveFixtureBundles, type NamedBundle } from './facetFixtures.ts';
+import { loadDeriverMessages } from '@cryventure/derivers/messages';
 import { LENSES, RAW_KEY_PATTERN, labMessages, lensesToRender, rawKeysIn, renderViewProblems, viewRenderCases } from './viewRender.ts';
 
 const element = (html: string) => {
@@ -26,6 +27,10 @@ describe('rawKeysIn', () => {
     expect(rawKeysIn(element('<p class="cv-view.state">Round 1 · op 2. The view. 1.5 ui.x</p>'))).toEqual([]);
     expect('see plugin.aes.title.'.match(RAW_KEY_PATTERN)).toEqual(['plugin.aes.title']);
   });
+
+  it('also catches untranslated deriver keys', () => {
+    expect(rawKeysIn(element('<p>deriver.memory.label</p>'))).toEqual(['deriver.memory.label']);
+  });
 });
 
 describe('labMessages', () => {
@@ -36,6 +41,11 @@ describe('labMessages', () => {
     expect(en['plugin.xor.title']).toBeTruthy();
     expect(en['plugin.aes.title']).toBeUndefined();
     expect(de['view.state.title']).not.toBe(en['view.state.title']);
+  });
+
+  it('includes every deriver catalog (derived facets carry deriver.<id>.* labels)', () => {
+    const en = labMessages('en', ['xor']);
+    expect(Object.entries(loadDeriverMessages('en')).filter(([key, text]) => en[key] !== text)).toEqual([]);
   });
 });
 

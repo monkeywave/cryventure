@@ -16,6 +16,8 @@ export interface UseLabSessionOptions {
   /** `startAt` attribute text (validated at build time by `Lab.astro`). */
   startAt?: string;
   mode?: LabMode;
+  /** Initial lab-wide preferred facet variant (validated at build time by `Lab.astro`). */
+  variant?: string;
   /** Page locale, for links to standalone labs (`useLabActions().labHref`). */
   locale?: string;
 }
@@ -66,17 +68,17 @@ interface LabWiring {
 }
 
 /** Loads and runs the producer on mount and after every reset (a new `generation`); only the first start reads the deep link. */
-function useLabStart({ labId, producerId, presetId, startAt, mode }: UseLabSessionOptions, { runner, labHref, blockLabHref }: LabWiring, generation: number, setSession: (session: LabSession) => void): void {
+function useLabStart({ labId, producerId, presetId, startAt, mode, variant }: UseLabSessionOptions, { runner, labHref, blockLabHref }: LabWiring, generation: number, setSession: (session: LabSession) => void): void {
   useEffect(() => {
     let cancelled = false;
     const link = generation === 0 ? readLabLink(window.location.hash, labId) : ABSENT;
-    void startLab({ producerId, presetId, link, startAt: startAt === undefined ? undefined : parseStartAt(startAt), mode, runner, labHref, blockLabHref }).then((next) => {
+    void startLab({ producerId, presetId, link, startAt: startAt === undefined ? undefined : parseStartAt(startAt), mode, variant, runner, labHref, blockLabHref }).then((next) => {
       if (!cancelled) setSession(next);
     });
     return () => {
       cancelled = true;
     };
-  }, [labId, producerId, presetId, startAt, mode, runner, labHref, blockLabHref, generation, setSession]);
+  }, [labId, producerId, presetId, startAt, mode, variant, runner, labHref, blockLabHref, generation, setSession]);
 }
 
 interface PendingParams {
@@ -148,7 +150,7 @@ function useParamRuns(session: LabSession, setSession: (session: LabSession) => 
 }
 
 /** Client-only lifecycle: read the hash, load + run the producer, then re-run on param edits. */
-export function useLabSession({ labId, producerId, presetId, startAt, mode, locale }: UseLabSessionOptions): LabSessionApi {
+export function useLabSession({ labId, producerId, presetId, startAt, mode, variant, locale }: UseLabSessionOptions): LabSessionApi {
   const [session, setSession] = useState<LabSession>({ status: 'loading' });
   const [generation, setGeneration] = useState(0);
   const beginRun = useRunGuard();
@@ -166,7 +168,7 @@ export function useLabSession({ labId, producerId, presetId, startAt, mode, loca
     [setPendingParams],
   );
 
-  useLabStart({ labId, producerId, presetId, startAt, mode }, { runner, labHref, blockLabHref }, generation, settleStart);
+  useLabStart({ labId, producerId, presetId, startAt, mode, variant }, { runner, labHref, blockLabHref }, generation, settleStart);
 
   const reset = useCallback(() => {
     createLabHashWriter(labId, browserHashEnvironment()).clear();

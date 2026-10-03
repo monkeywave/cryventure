@@ -3,11 +3,13 @@ import { dirname, join } from 'node:path';
 import { isEntryPoint } from '../fs/entryPoint.ts';
 import { REPO_ROOT } from '../fs/repoRoot.ts';
 import { parseArgs, type ScaffoldCommand } from './args.ts';
+import { deriverFolder, deriverTemplate } from './deriverTemplate.ts';
 import { primitiveFolder, primitiveTemplate, viewFolder, viewTemplate, type ScaffoldFile } from './templates.ts';
 
 /** Target folder and files for a parsed command (pure). */
 export function planScaffold(command: ScaffoldCommand): { folder: string; files: ScaffoldFile[] } {
   if (command.kind === 'primitive') return { folder: primitiveFolder(command.id), files: primitiveTemplate(command.id, command.family) };
+  if (command.kind === 'deriver') return { folder: deriverFolder(command.id), files: deriverTemplate(command.id, command.from, command.provides) };
   return { folder: viewFolder(command.id), files: viewTemplate(command.id, command.requires) };
 }
 

@@ -7,15 +7,18 @@
  */
 import '@cryventure/viz/viz.css';
 import '../styles/lab.css';
-import { createTranslator, paramFieldsOf, type Lens, type Messages } from '@cryventure/core';
+import { paramFieldsOf, type Lens, type Messages } from '@cryventure/core';
+import { loadMessages, pickPrefix } from '../i18n/loadMessages';
+import HeroLabIsland from '../islands/hero/HeroLab.tsx';
 import LabIsland from '../islands/Lab.tsx';
 import { labMessages } from '../labs/labMessages';
-import { choiceLabelKey } from '../labs/paramFields';
-import { producerRegistry, resolveLab } from '../labs/registry';
-import { presetParams } from '../labs/startParams';
+import { resolveLab } from '../labs/registry';
 import { isLabMode, parseStartAt } from '../labs/startAt';
+import { isVariantName } from '../labs/variantName';
+import { LAB_VIEWS_OPTIONS, isLabViewsOption } from '../islands/lab/labViews';
 import Breakout from './Breakout.astro';
 import EducationalOnly from './EducationalOnly.astro';
+import LabPoster from './LabPoster.astro';
 
 interface Props {
   labId: string;
@@ -27,48 +30,55 @@ interface Props {
   startAt?: string;
   /** Preselected player mode: `"story"` or `"debugger"` (default). Playback still needs a user action. */
   mode?: string;
+  /** Initial lab-wide preferred facet variant, e.g. `"x86_64-aesni"`: views with that variant open on it. */
+  variant?: string;
   /** This lab's message table, when the page has already built it (`labMessages(lang, producer)`). */
   messages?: Messages;
+  /**
+   * Adds the home hero's "Type your own text" field (`islands/hero/HeroLab.tsx`): up to 16 UTF-8
+   * bytes, zero-padded, become `plaintextHex` via `useLabActions().requestParams`. Only for producers
+   * with a 16-byte `plaintextHex` param (AES). Same lab runtime otherwise.
+   */
+  textInput?: boolean;
+  /** `"all"` (default): every view the bundle can feed, as tabs; `"layout-only"`: only the views `layout` names (needs `layout`). */
+  views?: string;
+  /** `false` hides the generic inputs panel (default `true`), e.g. in the home hero where the text field is the only input. */
+  paramPanel?: boolean;
 }
 
-const { labId, producerId, presetId, layout, lens, startAt, mode, messages: givenMessages } = Astro.props;
+const { labId, producerId, presetId, layout, lens, startAt, mode, variant, messages: givenMessages, textInput = false, views, paramPanel } = Astro.props;
 const lang = Astro.currentLocale ?? 'en';
 const resolved = resolveLab(producerId);
 if (!resolved.ok) throw new Error(`<Lab labId="${labId}">: unknown producer "${producerId}"`);
 const { producer } = resolved.lab;
-const messages = givenMessages ?? labMessages(lang, producer);
-const t = createTranslator(messages, { locale: lang });
+if (textInput && !paramFieldsOf(producer).some((field) => field.name === 'plaintextHex')) throw new Error(`<Lab labId="${labId}">: textInput needs a producer with a plaintextHex param`);
+const baseMessages = givenMessages ?? labMessages(lang, producer);
+const messages = textInput ? { ...baseMessages, ...pickPrefix(loadMessages(lang, ['hero']), 'ui.hero.') } : baseMessages;
 const preset = producer.presets.find((entry) => entry.id === presetId);
 if (presetId !== undefined && preset === undefined) throw new Error(`<Lab labId="${labId}">: unknown preset "${presetId}"`);
 if (startAt !== undefined && parseStartAt(startAt) === undefined) throw new Error(`<Lab labId="${labId}">: invalid startAt "${startAt}"`);
+if (variant !== undefined && !isVariantName(variant)) throw new Error(`<Lab labId="${labId}">: invalid variant "${String(variant)}" (expected lower-case tokens joined by - + or ., e.g. "x86_64-aesni")`);
+if (views !== undefined && !isLabViewsOption(views)) throw new Error(`<Lab labId="${labId}">: unknown views "${String(views)}" (expected ${LAB_VIEWS_OPTIONS.map((option) => `"${option}"`).join(' or ')})`);
+if (views === 'layout-only' && (layout === undefined || layout.trim() === '')) throw new Error(`<Lab labId="${labId}">: views="layout-only" needs a layout`);
+if (paramPanel !== undefined && typeof paramPanel !== 'boolean') throw new Error(`<Lab labId="${labId}">: paramPanel must be true or false`);
 if (mode !== undefined && !isLabMode(mode)) throw new Error(`<Lab labId="${labId}">: unknown mode "${mode}"`);
-const startParams = presetParams(producer, presetId) as Record<string, unknown>;
-const posterFields = paramFieldsOf(producer);
-const registered = producerRegistry.list();
-/** A choice (`select` / `port`) shows its translated label; anything else its raw value. */
-const posterChoice = (field: (typeof posterFields)[number]) => choiceLabelKey(field, startParams[field.name], registered);
+const islandProps = { labId, producerId, presetId, layout, lens, startAt, mode: isLabMode(mode) ? mode : undefined, variant, views: isLabViewsOption(views) ? views : undefined, paramPanel, messages, locale: lang };
 ---
 
 <Breakout>
   <div class="cv-lab-host" data-pagefind-ignore>
     <EducationalOnly lang={lang} />
-    <LabIsland client:visible labId={labId} producerId={producerId} presetId={presetId} layout={layout} lens={lens} startAt={startAt} mode={isLabMode(mode) ? mode : undefined} messages={messages} locale={lang}>
-      <div class="cv-lab-poster" aria-busy="true">
-        <p class="cv-lab__title">{t(producer.titleKey)}</p>
-        {preset && <p>{t('ui.lab.posterPreset', { preset: t(preset.labelKey) })}</p>}
-        <dl class="cv-lab-poster__params">
-          {
-            posterFields.map((field) => (
-              <div>
-                <dt>{t(field.labelKey)}</dt>
-                <dd>{field.kind === 'select' || field.kind === 'port' ? t(posterChoice(field) ?? String(startParams[field.name])) : <code>{String(startParams[field.name])}</code>}</dd>
-              </div>
-            ))
-          }
-        </dl>
-        <p class="cv-lab-poster__loading" role="status">{t('ui.lab.loading')}</p>
-      </div>
-    </LabIsland>
+    {
+      textInput ? (
+        <HeroLabIsland client:visible {...islandProps}>
+          <LabPoster producer={producer} presetId={presetId} messages={messages} lang={lang} />
+        </HeroLabIsland>
+      ) : (
+        <LabIsland client:visible {...islandProps}>
+          <LabPoster producer={producer} presetId={presetId} messages={messages} lang={lang} />
+        </LabIsland>
+      )
+    }
   </div>
 </Breakout>
 

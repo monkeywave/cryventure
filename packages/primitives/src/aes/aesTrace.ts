@@ -37,7 +37,8 @@ const BYTES_PER_WORD = 4;
 
 /**
  * Region layout: state and round key as col-major 4×4 grids, the key schedule as one row per word,
- * shown as words w0 … w(4·Nr+3), four per round key.
+ * shown as words w0 … w(4·Nr+3), four per round key. All three start `initial: 'blank'`: nothing is
+ * loaded before the `input` step, so views show "not yet written" instead of the zero placeholders.
  */
 export function aesRegions(rounds: number): RegionSpec<AesRegion>[] {
   return [
@@ -48,6 +49,7 @@ export function aesRegions(rounds: number): RegionSpec<AesRegion>[] {
       shape: [STATE_ROWS, STATE_COLUMNS],
       order: 'col-major',
       layout: { kind: 'grid' },
+      initial: 'blank',
     },
     {
       id: 'roundKey',
@@ -56,6 +58,7 @@ export function aesRegions(rounds: number): RegionSpec<AesRegion>[] {
       shape: [STATE_ROWS, STATE_COLUMNS],
       order: 'col-major',
       layout: { kind: 'grid' },
+      initial: 'blank',
     },
     {
       id: 'w',
@@ -64,11 +67,12 @@ export function aesRegions(rounds: number): RegionSpec<AesRegion>[] {
       shape: [WORDS_PER_ROUND_KEY * (rounds + 1), BYTES_PER_WORD],
       order: 'row-major',
       layout: { kind: 'words', wordBytes: BYTES_PER_WORD, labelPrefix: 'w', wordsPerGroup: WORDS_PER_ROUND_KEY },
+      initial: 'blank',
     },
   ];
 }
 
-/** All-zero initial snapshot matching `aesRegions(rounds)`. */
+/** All-zero initial snapshot matching `aesRegions(rounds)` (placeholders: every region is blank). */
 export function emptySnapshot(rounds: number): Snapshot<AesRegion> {
   return zeroSnapshot(aesRegions(rounds));
 }

@@ -1,0 +1,1696 @@
+{
+  "producerId": "aes",
+  "presetId": "fips197-c1",
+  "facets": {
+    "instructions@x86_64-aesni": {
+      "kind": "instructions",
+      "schemaVersion": 1,
+      "isa": "x86_64",
+      "extension": "aesni",
+      "label": {
+        "key": "deriver.isa-x86.label"
+      },
+      "syntax": "intel",
+      "source": {
+        "compiler": "Homebrew clang version 23.1.0",
+        "flags": "-target x86_64-linux-gnu -O2 -maes -masm=intel -ffreestanding -S",
+        "triple": "x86_64-linux-gnu",
+        "function": "aes_encrypt_block_128",
+        "compilerExplorerUrl": "https://godbolt.org/clientstate/eyJzZXNzaW9ucyI6W3siaWQiOjEsImxhbmd1YWdlIjoiYyIsInNvdXJjZSI6Ii8qXG4gKiBBRVMtTkkgYmxvY2sgZW5jcnlwdGlvbiAoeDg2LTY0KSwgY29tcGlsZWQgYnkgcGFja2FnZXMvdG9vbHMvc3JjL2FzbS9nZW5lcmF0ZS50cy5cbiAqIFJvdW5kIGtleXMgYXJlIHJlYWQgZnJvbSBrZXktPnJkX2tleSBhcyAxNi1ieXRlIHZlY3RvcnMgaW4gcmF3IGJ5dGUgb3JkZXIuXG4gKi9cbiNpbmNsdWRlIDxzdGRpbnQuaD5cbiNpbmNsdWRlIDx3bW1pbnRyaW4uaD5cblxuLyogVW5yb2xsZWQsIHN0cmFpZ2h0LWxpbmUgY29kZTogZWFjaCBmdW5jdGlvbiBoYXMgYSBmaXhlZCByb3VuZCBjb3VudCBOciAoMTAvMTIvMTQpLiAqL1xudHlwZWRlZiBzdHJ1Y3QgYWVzX2tleV9zdCB7XG4gICAgdW5zaWduZWQgaW50IHJkX2tleVs2MF07XG4gICAgaW50IHJvdW5kcztcbn0gQUVTX0tFWTtcblxudm9pZCBhZXNfZW5jcnlwdF9ibG9ja18xMjgoY29uc3QgdWludDhfdCAqaW4sIHVpbnQ4X3QgKm91dCwgY29uc3QgQUVTX0tFWSAqa2V5KSB7XG4gICAgY29uc3QgX19tMTI4aSAqcmsgPSAoY29uc3QgX19tMTI4aSAqKWtleS0-cmRfa2V5O1xuICAgIF9fbTEyOGkgcyA9IF9tbV9sb2FkdV9zaTEyOCgoY29uc3QgX19tMTI4aSAqKWluKTtcbiAgICBzID0gX21tX3hvcl9zaTEyOChzLCBfbW1fbG9hZHVfc2kxMjgocmsgKyAwKSk7XG4gICAgcyA9IF9tbV9hZXNlbmNfc2kxMjgocywgX21tX2xvYWR1X3NpMTI4KHJrICsgMSkpO1xuICAgIHMgPSBfbW1fYWVzZW5jX3NpMTI4KHMsIF9tbV9sb2FkdV9zaTEyOChyayArIDIpKTtcbiAgICBzID0gX21tX2Flc2VuY19zaTEyOChzLCBfbW1fbG9hZHVfc2kxMjgocmsgKyAzKSk7XG4gICAgcyA9IF9tbV9hZXNlbmNfc2kxMjgocywgX21tX2xvYWR1X3NpMTI4KHJrICsgNCkpO1xuICAgIHMgPSBfbW1fYWVzZW5jX3NpMTI4KHMsIF9tbV9sb2FkdV9zaTEyOChyayArIDUpKTtcbiAgICBzID0gX21tX2Flc2VuY19zaTEyOChzLCBfbW1fbG9hZHVfc2kxMjgocmsgKyA2KSk7XG4gICAgcyA9IF9tbV9hZXNlbmNfc2kxMjgocywgX21tX2xvYWR1X3NpMTI4KHJrICsgNykpO1xuICAgIHMgPSBfbW1fYWVzZW5jX3NpMTI4KHMsIF9tbV9sb2FkdV9zaTEyOChyayArIDgpKTtcbiAgICBzID0gX21tX2Flc2VuY19zaTEyOChzLCBfbW1fbG9hZHVfc2kxMjgocmsgKyA5KSk7XG4gICAgcyA9IF9tbV9hZXNlbmNsYXN0X3NpMTI4KHMsIF9tbV9sb2FkdV9zaTEyOChyayArIDEwKSk7XG4gICAgX21tX3N0b3JldV9zaTEyOCgoX19tMTI4aSAqKW91dCwgcyk7XG59XG4iLCJjb21waWxlcnMiOlt7ImlkIjoiY2NsYW5nX3RydW5rIiwib3B0aW9ucyI6Ii1PMiAtbWFlcyAtbWFzbT1pbnRlbCAtZmZyZWVzdGFuZGluZyJ9XX1dfQ"
+      },
+      "instructions": [
+        {
+          "address": "0x0",
+          "mnemonic": "movdqu",
+          "operands": [
+            "xmm1",
+            "xmmword ptr [rdi]"
+          ],
+          "reads": [
+            {
+              "kind": "mem",
+              "base": "rdi",
+              "offset": 0,
+              "size": 16,
+              "valueRef": "plaintext"
+            }
+          ],
+          "writes": [
+            {
+              "kind": "reg",
+              "name": "xmm1",
+              "valueRef": "plaintext"
+            }
+          ],
+          "align": {
+            "first": 0,
+            "last": 0
+          }
+        },
+        {
+          "address": "0x4",
+          "mnemonic": "movdqu",
+          "operands": [
+            "xmm0",
+            "xmmword ptr [rdx]"
+          ],
+          "reads": [
+            {
+              "kind": "mem",
+              "base": "rdx",
+              "offset": 0,
+              "size": 16,
+              "valueRef": "0/roundKey"
+            }
+          ],
+          "writes": [
+            {
+              "kind": "reg",
+              "name": "xmm0",
+              "valueRef": "0/roundKey"
+            }
+          ],
+          "align": {
+            "first": 2,
+            "last": 2
+          }
+        },
+        {
+          "address": "0x8",
+          "mnemonic": "pxor",
+          "operands": [
+            "xmm0",
+            "xmm1"
+          ],
+          "reads": [
+            {
+              "kind": "reg",
+              "name": "xmm0",
+              "valueRef": "0/roundKey"
+            },
+            {
+              "kind": "reg",
+              "name": "xmm1"
+            }
+          ],
+          "writes": [
+            {
+              "kind": "reg",
+              "name": "xmm0"
+            }
+          ],
+          "align": {
+            "first": 2,
+            "last": 2
+          },
+          "covers": [
+            {
+              "key": "deriver.isa-x86.op.addRoundKey",
+              "params": {
+                "round": 0
+              }
+            }
+          ]
+        },
+        {
+          "address": "0xc",
+          "mnemonic": "movdqu",
+          "operands": [
+            "xmm1",
+            "xmmword ptr [rdx + 16]"
+          ],
+          "reads": [
+            {
+              "kind": "mem",
+              "base": "rdx",
+              "offset": 16,
+              "size": 16,
+              "valueRef": "1/roundKey"
+            }
+          ],
+          "writes": [
+            {
+              "kind": "reg",
+              "name": "xmm1",
+              "valueRef": "1/roundKey"
+            }
+          ],
+          "align": {
+            "first": 3,
+            "last": 3
+          }
+        },
+        {
+          "address": "0x11",
+          "mnemonic": "aesenc",
+          "operands": [
+            "xmm0",
+            "xmm1"
+          ],
+          "reads": [
+            {
+              "kind": "reg",
+              "name": "xmm0"
+            },
+            {
+              "kind": "reg",
+              "name": "xmm1",
+              "valueRef": "1/roundKey"
+            }
+          ],
+          "writes": [
+            {
+              "kind": "reg",
+              "name": "xmm0"
+            }
+          ],
+          "align": {
+            "first": 3,
+            "last": 6
+          },
+          "covers": [
+            {
+              "key": "deriver.isa-x86.op.subBytes",
+              "params": {
+                "round": 1
+              }
+            },
+            {
+              "key": "deriver.isa-x86.op.shiftRows",
+              "params": {
+                "round": 1
+              }
+            },
+            {
+              "key": "deriver.isa-x86.op.mixColumns",
+              "params": {
+                "round": 1
+              }
+            },
+            {
+              "key": "deriver.isa-x86.op.addRoundKey",
+              "params": {
+                "round": 1
+              }
+            }
+          ]
+        },
+        {
+          "address": "0x16",
+          "mnemonic": "movdqu",
+          "operands": [
+            "xmm1",
+            "xmmword ptr [rdx + 32]"
+          ],
+          "reads": [
+            {
+              "kind": "mem",
+              "base": "rdx",
+              "offset": 32,
+              "size": 16,
+              "valueRef": "2/roundKey"
+            }
+          ],
+          "writes": [
+            {
+              "kind": "reg",
+              "name": "xmm1",
+              "valueRef": "2/roundKey"
+            }
+          ],
+          "align": {
+            "first": 7,
+            "last": 7
+          }
+        },
+        {
+          "address": "0x1b",
+          "mnemonic": "aesenc",
+          "operands": [
+            "xmm0",
+            "xmm1"
+          ],
+          "reads": [
+            {
+              "kind": "reg",
+              "name": "xmm0"
+            },
+            {
+              "kind": "reg",
+              "name": "xmm1",
+              "valueRef": "2/roundKey"
+            }
+          ],
+          "writes": [
+            {
+              "kind": "reg",
+              "name": "xmm0"
+            }
+          ],
+          "align": {
+            "first": 7,
+            "last": 10
+          },
+          "covers": [
+            {
+              "key": "deriver.isa-x86.op.subBytes",
+              "params": {
+                "round": 2
+              }
+            },
+            {
+              "key": "deriver.isa-x86.op.shiftRows",
+              "params": {
+                "round": 2
+              }
+            },
+            {
+              "key": "deriver.isa-x86.op.mixColumns",
+              "params": {
+                "round": 2
+              }
+            },
+            {
+              "key": "deriver.isa-x86.op.addRoundKey",
+              "params": {
+                "round": 2
+              }
+            }
+          ]
+        },
+        {
+          "address": "0x20",
+          "mnemonic": "movdqu",
+          "operands": [
+            "xmm1",
+            "xmmword ptr [rdx + 48]"
+          ],
+          "reads": [
+            {
+              "kind": "mem",
+              "base": "rdx",
+              "offset": 48,
+              "size": 16,
+              "valueRef": "3/roundKey"
+            }
+          ],
+          "writes": [
+            {
+              "kind": "reg",
+              "name": "xmm1",
+              "valueRef": "3/roundKey"
+            }
+          ],
+          "align": {
+            "first": 11,
+            "last": 11
+          }
+        },
+        {
+          "address": "0x25",
+          "mnemonic": "aesenc",
+          "operands": [
+            "xmm0",
+            "xmm1"
+          ],
+          "reads": [
+            {
+              "kind": "reg",
+              "name": "xmm0"
+            },
+            {
+              "kind": "reg",
+              "name": "xmm1",
+              "valueRef": "3/roundKey"
+            }
+          ],
+          "writes": [
+            {
+              "kind": "reg",
+              "name": "xmm0"
+            }
+          ],
+          "align": {
+            "first": 11,
+            "last": 14
+          },
+          "covers": [
+            {
+              "key": "deriver.isa-x86.op.subBytes",
+              "params": {
+                "round": 3
+              }
+            },
+            {
+              "key": "deriver.isa-x86.op.shiftRows",
+              "params": {
+                "round": 3
+              }
+            },
+            {
+              "key": "deriver.isa-x86.op.mixColumns",
+              "params": {
+                "round": 3
+              }
+            },
+            {
+              "key": "deriver.isa-x86.op.addRoundKey",
+              "params": {
+                "round": 3
+              }
+            }
+          ]
+        },
+        {
+          "address": "0x2a",
+          "mnemonic": "movdqu",
+          "operands": [
+            "xmm1",
+            "xmmword ptr [rdx + 64]"
+          ],
+          "reads": [
+            {
+              "kind": "mem",
+              "base": "rdx",
+              "offset": 64,
+              "size": 16,
+              "valueRef": "4/roundKey"
+            }
+          ],
+          "writes": [
+            {
+              "kind": "reg",
+              "name": "xmm1",
+              "valueRef": "4/roundKey"
+            }
+          ],
+          "align": {
+            "first": 15,
+            "last": 15
+          }
+        },
+        {
+          "address": "0x2f",
+          "mnemonic": "aesenc",
+          "operands": [
+            "xmm0",
+            "xmm1"
+          ],
+          "reads": [
+            {
+              "kind": "reg",
+              "name": "xmm0"
+            },
+            {
+              "kind": "reg",
+              "name": "xmm1",
+              "valueRef": "4/roundKey"
+            }
+          ],
+          "writes": [
+            {
+              "kind": "reg",
+              "name": "xmm0"
+            }
+          ],
+          "align": {
+            "first": 15,
+            "last": 18
+          },
+          "covers": [
+            {
+              "key": "deriver.isa-x86.op.subBytes",
+              "params": {
+                "round": 4
+              }
+            },
+            {
+              "key": "deriver.isa-x86.op.shiftRows",
+              "params": {
+                "round": 4
+              }
+            },
+            {
+              "key": "deriver.isa-x86.op.mixColumns",
+              "params": {
+                "round": 4
+              }
+            },
+            {
+              "key": "deriver.isa-x86.op.addRoundKey",
+              "params": {
+                "round": 4
+              }
+            }
+          ]
+        },
+        {
+          "address": "0x34",
+          "mnemonic": "movdqu",
+          "operands": [
+            "xmm1",
+            "xmmword ptr [rdx + 80]"
+          ],
+          "reads": [
+            {
+              "kind": "mem",
+              "base": "rdx",
+              "offset": 80,
+              "size": 16,
+              "valueRef": "5/roundKey"
+            }
+          ],
+          "writes": [
+            {
+              "kind": "reg",
+              "name": "xmm1",
+              "valueRef": "5/roundKey"
+            }
+          ],
+          "align": {
+            "first": 19,
+            "last": 19
+          }
+        },
+        {
+          "address": "0x39",
+          "mnemonic": "aesenc",
+          "operands": [
+            "xmm0",
+            "xmm1"
+          ],
+          "reads": [
+            {
+              "kind": "reg",
+              "name": "xmm0"
+            },
+            {
+              "kind": "reg",
+              "name": "xmm1",
+              "valueRef": "5/roundKey"
+            }
+          ],
+          "writes": [
+            {
+              "kind": "reg",
+              "name": "xmm0"
+            }
+          ],
+          "align": {
+            "first": 19,
+            "last": 22
+          },
+          "covers": [
+            {
+              "key": "deriver.isa-x86.op.subBytes",
+              "params": {
+                "round": 5
+              }
+            },
+            {
+              "key": "deriver.isa-x86.op.shiftRows",
+              "params": {
+                "round": 5
+              }
+            },
+            {
+              "key": "deriver.isa-x86.op.mixColumns",
+              "params": {
+                "round": 5
+              }
+            },
+            {
+              "key": "deriver.isa-x86.op.addRoundKey",
+              "params": {
+                "round": 5
+              }
+            }
+          ]
+        },
+        {
+          "address": "0x3e",
+          "mnemonic": "movdqu",
+          "operands": [
+            "xmm1",
+            "xmmword ptr [rdx + 96]"
+          ],
+          "reads": [
+            {
+              "kind": "mem",
+              "base": "rdx",
+              "offset": 96,
+              "size": 16,
+              "valueRef": "6/roundKey"
+            }
+          ],
+          "writes": [
+            {
+              "kind": "reg",
+              "name": "xmm1",
+              "valueRef": "6/roundKey"
+            }
+          ],
+          "align": {
+            "first": 23,
+            "last": 23
+          }
+        },
+        {
+          "address": "0x43",
+          "mnemonic": "aesenc",
+          "operands": [
+            "xmm0",
+            "xmm1"
+          ],
+          "reads": [
+            {
+              "kind": "reg",
+              "name": "xmm0"
+            },
+            {
+              "kind": "reg",
+              "name": "xmm1",
+              "valueRef": "6/roundKey"
+            }
+          ],
+          "writes": [
+            {
+              "kind": "reg",
+              "name": "xmm0"
+            }
+          ],
+          "align": {
+            "first": 23,
+            "last": 26
+          },
+          "covers": [
+            {
+              "key": "deriver.isa-x86.op.subBytes",
+              "params": {
+                "round": 6
+              }
+            },
+            {
+              "key": "deriver.isa-x86.op.shiftRows",
+              "params": {
+                "round": 6
+              }
+            },
+            {
+              "key": "deriver.isa-x86.op.mixColumns",
+              "params": {
+                "round": 6
+              }
+            },
+            {
+              "key": "deriver.isa-x86.op.addRoundKey",
+              "params": {
+                "round": 6
+              }
+            }
+          ]
+        },
+        {
+          "address": "0x48",
+          "mnemonic": "movdqu",
+          "operands": [
+            "xmm1",
+            "xmmword ptr [rdx + 112]"
+          ],
+          "reads": [
+            {
+              "kind": "mem",
+              "base": "rdx",
+              "offset": 112,
+              "size": 16,
+              "valueRef": "7/roundKey"
+            }
+          ],
+          "writes": [
+            {
+              "kind": "reg",
+              "name": "xmm1",
+              "valueRef": "7/roundKey"
+            }
+          ],
+          "align": {
+            "first": 27,
+            "last": 27
+          }
+        },
+        {
+          "address": "0x4d",
+          "mnemonic": "aesenc",
+          "operands": [
+            "xmm0",
+            "xmm1"
+          ],
+          "reads": [
+            {
+              "kind": "reg",
+              "name": "xmm0"
+            },
+            {
+              "kind": "reg",
+              "name": "xmm1",
+              "valueRef": "7/roundKey"
+            }
+          ],
+          "writes": [
+            {
+              "kind": "reg",
+              "name": "xmm0"
+            }
+          ],
+          "align": {
+            "first": 27,
+            "last": 30
+          },
+          "covers": [
+            {
+              "key": "deriver.isa-x86.op.subBytes",
+              "params": {
+                "round": 7
+              }
+            },
+            {
+              "key": "deriver.isa-x86.op.shiftRows",
+              "params": {
+                "round": 7
+              }
+            },
+            {
+              "key": "deriver.isa-x86.op.mixColumns",
+              "params": {
+                "round": 7
+              }
+            },
+            {
+              "key": "deriver.isa-x86.op.addRoundKey",
+              "params": {
+                "round": 7
+              }
+            }
+          ]
+        },
+        {
+          "address": "0x52",
+          "mnemonic": "movdqu",
+          "operands": [
+            "xmm1",
+            "xmmword ptr [rdx + 128]"
+          ],
+          "reads": [
+            {
+              "kind": "mem",
+              "base": "rdx",
+              "offset": 128,
+              "size": 16,
+              "valueRef": "8/roundKey"
+            }
+          ],
+          "writes": [
+            {
+              "kind": "reg",
+              "name": "xmm1",
+              "valueRef": "8/roundKey"
+            }
+          ],
+          "align": {
+            "first": 31,
+            "last": 31
+          }
+        },
+        {
+          "address": "0x5a",
+          "mnemonic": "aesenc",
+          "operands": [
+            "xmm0",
+            "xmm1"
+          ],
+          "reads": [
+            {
+              "kind": "reg",
+              "name": "xmm0"
+            },
+            {
+              "kind": "reg",
+              "name": "xmm1",
+              "valueRef": "8/roundKey"
+            }
+          ],
+          "writes": [
+            {
+              "kind": "reg",
+              "name": "xmm0"
+            }
+          ],
+          "align": {
+            "first": 31,
+            "last": 34
+          },
+          "covers": [
+            {
+              "key": "deriver.isa-x86.op.subBytes",
+              "params": {
+                "round": 8
+              }
+            },
+            {
+              "key": "deriver.isa-x86.op.shiftRows",
+              "params": {
+                "round": 8
+              }
+            },
+            {
+              "key": "deriver.isa-x86.op.mixColumns",
+              "params": {
+                "round": 8
+              }
+            },
+            {
+              "key": "deriver.isa-x86.op.addRoundKey",
+              "params": {
+                "round": 8
+              }
+            }
+          ]
+        },
+        {
+          "address": "0x5f",
+          "mnemonic": "movdqu",
+          "operands": [
+            "xmm1",
+            "xmmword ptr [rdx + 144]"
+          ],
+          "reads": [
+            {
+              "kind": "mem",
+              "base": "rdx",
+              "offset": 144,
+              "size": 16,
+              "valueRef": "9/roundKey"
+            }
+          ],
+          "writes": [
+            {
+              "kind": "reg",
+              "name": "xmm1",
+              "valueRef": "9/roundKey"
+            }
+          ],
+          "align": {
+            "first": 35,
+            "last": 35
+          }
+        },
+        {
+          "address": "0x67",
+          "mnemonic": "aesenc",
+          "operands": [
+            "xmm0",
+            "xmm1"
+          ],
+          "reads": [
+            {
+              "kind": "reg",
+              "name": "xmm0"
+            },
+            {
+              "kind": "reg",
+              "name": "xmm1",
+              "valueRef": "9/roundKey"
+            }
+          ],
+          "writes": [
+            {
+              "kind": "reg",
+              "name": "xmm0"
+            }
+          ],
+          "align": {
+            "first": 35,
+            "last": 38
+          },
+          "covers": [
+            {
+              "key": "deriver.isa-x86.op.subBytes",
+              "params": {
+                "round": 9
+              }
+            },
+            {
+              "key": "deriver.isa-x86.op.shiftRows",
+              "params": {
+                "round": 9
+              }
+            },
+            {
+              "key": "deriver.isa-x86.op.mixColumns",
+              "params": {
+                "round": 9
+              }
+            },
+            {
+              "key": "deriver.isa-x86.op.addRoundKey",
+              "params": {
+                "round": 9
+              }
+            }
+          ]
+        },
+        {
+          "address": "0x6c",
+          "mnemonic": "movdqu",
+          "operands": [
+            "xmm1",
+            "xmmword ptr [rdx + 160]"
+          ],
+          "reads": [
+            {
+              "kind": "mem",
+              "base": "rdx",
+              "offset": 160,
+              "size": 16,
+              "valueRef": "10/roundKey"
+            }
+          ],
+          "writes": [
+            {
+              "kind": "reg",
+              "name": "xmm1",
+              "valueRef": "10/roundKey"
+            }
+          ],
+          "align": {
+            "first": 39,
+            "last": 39
+          }
+        },
+        {
+          "address": "0x74",
+          "mnemonic": "aesenclast",
+          "operands": [
+            "xmm0",
+            "xmm1"
+          ],
+          "reads": [
+            {
+              "kind": "reg",
+              "name": "xmm0"
+            },
+            {
+              "kind": "reg",
+              "name": "xmm1",
+              "valueRef": "10/roundKey"
+            }
+          ],
+          "writes": [
+            {
+              "kind": "reg",
+              "name": "xmm0",
+              "valueRef": "ciphertext"
+            }
+          ],
+          "align": {
+            "first": 39,
+            "last": 41
+          },
+          "covers": [
+            {
+              "key": "deriver.isa-x86.op.subBytes",
+              "params": {
+                "round": 10
+              }
+            },
+            {
+              "key": "deriver.isa-x86.op.shiftRows",
+              "params": {
+                "round": 10
+              }
+            },
+            {
+              "key": "deriver.isa-x86.op.addRoundKey",
+              "params": {
+                "round": 10
+              }
+            }
+          ]
+        },
+        {
+          "address": "0x79",
+          "mnemonic": "movdqu",
+          "operands": [
+            "xmmword ptr [rsi]",
+            "xmm0"
+          ],
+          "reads": [
+            {
+              "kind": "reg",
+              "name": "xmm0"
+            }
+          ],
+          "writes": [
+            {
+              "kind": "mem",
+              "base": "rsi",
+              "offset": 0,
+              "size": 16,
+              "valueRef": "ciphertext"
+            }
+          ],
+          "align": {
+            "first": 42,
+            "last": 42
+          }
+        },
+        {
+          "address": "0x7d",
+          "mnemonic": "ret",
+          "operands": [],
+          "reads": [],
+          "writes": [],
+          "align": {
+            "first": 42,
+            "last": 42
+          }
+        }
+      ]
+    },
+    "registers@x86_64-aesni": {
+      "kind": "registers",
+      "schemaVersion": 1,
+      "label": {
+        "key": "deriver.isa-x86.registers.label"
+      },
+      "file": {
+        "isa": "x86_64",
+        "byteOrder": "little",
+        "registers": [
+          {
+            "name": "xmm0",
+            "bits": 128,
+            "lanes": [
+              8,
+              16,
+              32,
+              64
+            ]
+          },
+          {
+            "name": "xmm1",
+            "bits": 128,
+            "lanes": [
+              8,
+              16,
+              32,
+              64
+            ]
+          }
+        ]
+      },
+      "steps": [
+        {
+          "align": {
+            "first": 0,
+            "last": 0
+          },
+          "writes": [
+            {
+              "reg": "xmm1",
+              "bytes": [
+                0,
+                17,
+                34,
+                51,
+                68,
+                85,
+                102,
+                119,
+                136,
+                153,
+                170,
+                187,
+                204,
+                221,
+                238,
+                255
+              ],
+              "valueRef": "plaintext"
+            }
+          ]
+        },
+        {
+          "align": {
+            "first": 2,
+            "last": 2
+          },
+          "writes": [
+            {
+              "reg": "xmm0",
+              "bytes": [
+                0,
+                1,
+                2,
+                3,
+                4,
+                5,
+                6,
+                7,
+                8,
+                9,
+                10,
+                11,
+                12,
+                13,
+                14,
+                15
+              ],
+              "valueRef": "0/roundKey"
+            }
+          ]
+        },
+        {
+          "align": {
+            "first": 2,
+            "last": 2
+          },
+          "writes": [
+            {
+              "reg": "xmm0",
+              "bytes": [
+                0,
+                16,
+                32,
+                48,
+                64,
+                80,
+                96,
+                112,
+                128,
+                144,
+                160,
+                176,
+                192,
+                208,
+                224,
+                240
+              ]
+            }
+          ]
+        },
+        {
+          "align": {
+            "first": 3,
+            "last": 3
+          },
+          "writes": [
+            {
+              "reg": "xmm1",
+              "bytes": [
+                214,
+                170,
+                116,
+                253,
+                210,
+                175,
+                114,
+                250,
+                218,
+                166,
+                120,
+                241,
+                214,
+                171,
+                118,
+                254
+              ],
+              "valueRef": "1/roundKey"
+            }
+          ]
+        },
+        {
+          "align": {
+            "first": 3,
+            "last": 6
+          },
+          "writes": [
+            {
+              "reg": "xmm0",
+              "bytes": [
+                137,
+                216,
+                16,
+                232,
+                133,
+                90,
+                206,
+                104,
+                45,
+                24,
+                67,
+                216,
+                203,
+                18,
+                143,
+                228
+              ]
+            }
+          ]
+        },
+        {
+          "align": {
+            "first": 7,
+            "last": 7
+          },
+          "writes": [
+            {
+              "reg": "xmm1",
+              "bytes": [
+                182,
+                146,
+                207,
+                11,
+                100,
+                61,
+                189,
+                241,
+                190,
+                155,
+                197,
+                0,
+                104,
+                48,
+                179,
+                254
+              ],
+              "valueRef": "2/roundKey"
+            }
+          ]
+        },
+        {
+          "align": {
+            "first": 7,
+            "last": 10
+          },
+          "writes": [
+            {
+              "reg": "xmm0",
+              "bytes": [
+                73,
+                21,
+                89,
+                143,
+                85,
+                229,
+                215,
+                160,
+                218,
+                202,
+                148,
+                250,
+                31,
+                10,
+                99,
+                247
+              ]
+            }
+          ]
+        },
+        {
+          "align": {
+            "first": 11,
+            "last": 11
+          },
+          "writes": [
+            {
+              "reg": "xmm1",
+              "bytes": [
+                182,
+                255,
+                116,
+                78,
+                210,
+                194,
+                201,
+                191,
+                108,
+                89,
+                12,
+                191,
+                4,
+                105,
+                191,
+                65
+              ],
+              "valueRef": "3/roundKey"
+            }
+          ]
+        },
+        {
+          "align": {
+            "first": 11,
+            "last": 14
+          },
+          "writes": [
+            {
+              "reg": "xmm0",
+              "bytes": [
+                250,
+                99,
+                106,
+                40,
+                37,
+                179,
+                57,
+                201,
+                64,
+                102,
+                138,
+                49,
+                87,
+                36,
+                77,
+                23
+              ]
+            }
+          ]
+        },
+        {
+          "align": {
+            "first": 15,
+            "last": 15
+          },
+          "writes": [
+            {
+              "reg": "xmm1",
+              "bytes": [
+                71,
+                247,
+                247,
+                188,
+                149,
+                53,
+                62,
+                3,
+                249,
+                108,
+                50,
+                188,
+                253,
+                5,
+                141,
+                253
+              ],
+              "valueRef": "4/roundKey"
+            }
+          ]
+        },
+        {
+          "align": {
+            "first": 15,
+            "last": 18
+          },
+          "writes": [
+            {
+              "reg": "xmm0",
+              "bytes": [
+                36,
+                114,
+                64,
+                35,
+                105,
+                102,
+                179,
+                250,
+                110,
+                210,
+                117,
+                50,
+                136,
+                66,
+                91,
+                108
+              ]
+            }
+          ]
+        },
+        {
+          "align": {
+            "first": 19,
+            "last": 19
+          },
+          "writes": [
+            {
+              "reg": "xmm1",
+              "bytes": [
+                60,
+                170,
+                163,
+                232,
+                169,
+                159,
+                157,
+                235,
+                80,
+                243,
+                175,
+                87,
+                173,
+                246,
+                34,
+                170
+              ],
+              "valueRef": "5/roundKey"
+            }
+          ]
+        },
+        {
+          "align": {
+            "first": 19,
+            "last": 22
+          },
+          "writes": [
+            {
+              "reg": "xmm0",
+              "bytes": [
+                200,
+                22,
+                119,
+                188,
+                155,
+                122,
+                201,
+                59,
+                37,
+                2,
+                121,
+                146,
+                176,
+                38,
+                25,
+                150
+              ]
+            }
+          ]
+        },
+        {
+          "align": {
+            "first": 23,
+            "last": 23
+          },
+          "writes": [
+            {
+              "reg": "xmm1",
+              "bytes": [
+                94,
+                57,
+                15,
+                125,
+                247,
+                166,
+                146,
+                150,
+                167,
+                85,
+                61,
+                193,
+                10,
+                163,
+                31,
+                107
+              ],
+              "valueRef": "6/roundKey"
+            }
+          ]
+        },
+        {
+          "align": {
+            "first": 23,
+            "last": 26
+          },
+          "writes": [
+            {
+              "reg": "xmm0",
+              "bytes": [
+                198,
+                47,
+                225,
+                9,
+                247,
+                94,
+                237,
+                195,
+                204,
+                121,
+                57,
+                93,
+                132,
+                249,
+                207,
+                93
+              ]
+            }
+          ]
+        },
+        {
+          "align": {
+            "first": 27,
+            "last": 27
+          },
+          "writes": [
+            {
+              "reg": "xmm1",
+              "bytes": [
+                20,
+                249,
+                112,
+                26,
+                227,
+                95,
+                226,
+                140,
+                68,
+                10,
+                223,
+                77,
+                78,
+                169,
+                192,
+                38
+              ],
+              "valueRef": "7/roundKey"
+            }
+          ]
+        },
+        {
+          "align": {
+            "first": 27,
+            "last": 30
+          },
+          "writes": [
+            {
+              "reg": "xmm0",
+              "bytes": [
+                209,
+                135,
+                108,
+                15,
+                121,
+                196,
+                48,
+                10,
+                180,
+                85,
+                148,
+                173,
+                214,
+                111,
+                244,
+                31
+              ]
+            }
+          ]
+        },
+        {
+          "align": {
+            "first": 31,
+            "last": 31
+          },
+          "writes": [
+            {
+              "reg": "xmm1",
+              "bytes": [
+                71,
+                67,
+                135,
+                53,
+                164,
+                28,
+                101,
+                185,
+                224,
+                22,
+                186,
+                244,
+                174,
+                191,
+                122,
+                210
+              ],
+              "valueRef": "8/roundKey"
+            }
+          ]
+        },
+        {
+          "align": {
+            "first": 31,
+            "last": 34
+          },
+          "writes": [
+            {
+              "reg": "xmm0",
+              "bytes": [
+                253,
+                227,
+                186,
+                210,
+                5,
+                229,
+                208,
+                215,
+                53,
+                71,
+                150,
+                78,
+                241,
+                254,
+                55,
+                241
+              ]
+            }
+          ]
+        },
+        {
+          "align": {
+            "first": 35,
+            "last": 35
+          },
+          "writes": [
+            {
+              "reg": "xmm1",
+              "bytes": [
+                84,
+                153,
+                50,
+                209,
+                240,
+                133,
+                87,
+                104,
+                16,
+                147,
+                237,
+                156,
+                190,
+                44,
+                151,
+                78
+              ],
+              "valueRef": "9/roundKey"
+            }
+          ]
+        },
+        {
+          "align": {
+            "first": 35,
+            "last": 38
+          },
+          "writes": [
+            {
+              "reg": "xmm0",
+              "bytes": [
+                189,
+                110,
+                124,
+                61,
+                242,
+                181,
+                119,
+                158,
+                11,
+                97,
+                33,
+                110,
+                139,
+                16,
+                182,
+                137
+              ]
+            }
+          ]
+        },
+        {
+          "align": {
+            "first": 39,
+            "last": 39
+          },
+          "writes": [
+            {
+              "reg": "xmm1",
+              "bytes": [
+                19,
+                17,
+                29,
+                127,
+                227,
+                148,
+                74,
+                23,
+                243,
+                7,
+                167,
+                139,
+                77,
+                43,
+                48,
+                197
+              ],
+              "valueRef": "10/roundKey"
+            }
+          ]
+        },
+        {
+          "align": {
+            "first": 39,
+            "last": 41
+          },
+          "writes": [
+            {
+              "reg": "xmm0",
+              "bytes": [
+                105,
+                196,
+                224,
+                216,
+                106,
+                123,
+                4,
+                48,
+                216,
+                205,
+                183,
+                128,
+                112,
+                180,
+                197,
+                90
+              ],
+              "valueRef": "ciphertext"
+            }
+          ]
+        }
+      ]
+    }
+  }
+}

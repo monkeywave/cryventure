@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { extractParams } from '@cryventure/core';
 import { loadCoreMessages } from '@cryventure/core/messages';
-import { producerRegistry, viewsForFacets } from './registry.ts';
+import { producerRegistry, viewsForProducer } from './registry.ts';
 import { labMessages } from './labMessages.ts';
 
 const AES = producerRegistry.require('aes');
@@ -12,7 +12,7 @@ describe('labMessages', () => {
 
   it('contains exactly the namespaces a lab needs', () => {
     const namespaces = new Set(Object.keys(en).map((key) => key.split('.').slice(0, 2).join('.')));
-    expect([...namespaces].every((ns) => /^(ui|view|core|plugin)\./.test(ns))).toBe(true);
+    expect([...namespaces].every((ns) => /^(ui|view|deriver|core|plugin)\./.test(ns))).toBe(true);
     expect(en).toHaveProperty('ui.player.next');
     expect(en).toHaveProperty('view.narration.title');
     expect(en).toHaveProperty('ui.lab.params.title');
@@ -35,7 +35,7 @@ describe('labMessages', () => {
     const viewNamespaces = (messages: Record<string, string>) => new Set(Object.keys(messages).filter((key) => key.startsWith('view.')).map((key) => key.split('.')[1]));
     for (const producerId of ['xor', 'aes']) {
       const producer = producerRegistry.require(producerId);
-      const offered = viewsForFacets(producer.facets).map((view) => view.id);
+      const offered = viewsForProducer(producer).map((view) => view.id);
       expect([...viewNamespaces(labMessages('en', producer))].sort()).toEqual([...offered].sort());
     }
     expect(viewNamespaces(labMessages('en', producerRegistry.require('xor')))).not.toContain('key-schedule');

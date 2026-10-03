@@ -1,0 +1,2141 @@
+{
+  "producerId": "aes",
+  "presetId": "fips197-c1",
+  "facets": {
+    "instructions@aarch64-armv8-ce": {
+      "kind": "instructions",
+      "schemaVersion": 1,
+      "isa": "aarch64",
+      "extension": "armv8-ce",
+      "label": {
+        "key": "deriver.isa-armv8.label"
+      },
+      "syntax": "arm",
+      "source": {
+        "compiler": "Homebrew clang version 23.1.0",
+        "flags": "-target aarch64-linux-gnu -march=armv8-a+crypto -O2 -ffreestanding -S",
+        "triple": "aarch64-linux-gnu",
+        "function": "aes_encrypt_block_128",
+        "compilerExplorerUrl": "https://godbolt.org/clientstate/eyJzZXNzaW9ucyI6W3siaWQiOjEsImxhbmd1YWdlIjoiYyIsInNvdXJjZSI6Ii8qXG4gKiBBUk12OCBDcnlwdG8gRXh0ZW5zaW9ucyBibG9jayBlbmNyeXB0aW9uIChBQXJjaDY0KSwgY29tcGlsZWQgYnkgcGFja2FnZXMvdG9vbHMvc3JjL2FzbS9nZW5lcmF0ZS50cy5cbiAqIFJvdW5kIGtleXMgYXJlIHJlYWQgZnJvbSBrZXktPnJkX2tleSBhcyAxNi1ieXRlIHZlY3RvcnMgaW4gcmF3IGJ5dGUgb3JkZXIuXG4gKiBhZXNlKHMsIGspID0gU3ViQnl0ZXMoU2hpZnRSb3dzKHMgXiBrKSk7IGFlc21jID0gTWl4Q29sdW1ucy5cbiAqL1xuI2luY2x1ZGUgPHN0ZGludC5oPlxuI2luY2x1ZGUgPGFybV9uZW9uLmg-XG5cbi8qIFVucm9sbGVkLCBzdHJhaWdodC1saW5lIGNvZGU6IGVhY2ggZnVuY3Rpb24gaGFzIGEgZml4ZWQgcm91bmQgY291bnQgTnIgKDEwLzEyLzE0KS4gKi9cbnR5cGVkZWYgc3RydWN0IGFlc19rZXlfc3Qge1xuICAgIHVuc2lnbmVkIGludCByZF9rZXlbNjBdO1xuICAgIGludCByb3VuZHM7XG59IEFFU19LRVk7XG5cbnZvaWQgYWVzX2VuY3J5cHRfYmxvY2tfMTI4KGNvbnN0IHVpbnQ4X3QgKmluLCB1aW50OF90ICpvdXQsIGNvbnN0IEFFU19LRVkgKmtleSkge1xuICAgIGNvbnN0IHVpbnQ4X3QgKnJrID0gKGNvbnN0IHVpbnQ4X3QgKilrZXktPnJkX2tleTtcbiAgICB1aW50OHgxNl90IHMgPSB2bGQxcV91OChpbik7XG4gICAgcyA9IHZhZXNtY3FfdTgodmFlc2VxX3U4KHMsIHZsZDFxX3U4KHJrICsgMCAqIDE2KSkpO1xuICAgIHMgPSB2YWVzbWNxX3U4KHZhZXNlcV91OChzLCB2bGQxcV91OChyayArIDEgKiAxNikpKTtcbiAgICBzID0gdmFlc21jcV91OCh2YWVzZXFfdTgocywgdmxkMXFfdTgocmsgKyAyICogMTYpKSk7XG4gICAgcyA9IHZhZXNtY3FfdTgodmFlc2VxX3U4KHMsIHZsZDFxX3U4KHJrICsgMyAqIDE2KSkpO1xuICAgIHMgPSB2YWVzbWNxX3U4KHZhZXNlcV91OChzLCB2bGQxcV91OChyayArIDQgKiAxNikpKTtcbiAgICBzID0gdmFlc21jcV91OCh2YWVzZXFfdTgocywgdmxkMXFfdTgocmsgKyA1ICogMTYpKSk7XG4gICAgcyA9IHZhZXNtY3FfdTgodmFlc2VxX3U4KHMsIHZsZDFxX3U4KHJrICsgNiAqIDE2KSkpO1xuICAgIHMgPSB2YWVzbWNxX3U4KHZhZXNlcV91OChzLCB2bGQxcV91OChyayArIDcgKiAxNikpKTtcbiAgICBzID0gdmFlc21jcV91OCh2YWVzZXFfdTgocywgdmxkMXFfdTgocmsgKyA4ICogMTYpKSk7XG4gICAgcyA9IHZhZXNlcV91OChzLCB2bGQxcV91OChyayArIDkgKiAxNikpO1xuICAgIHMgPSB2ZW9ycV91OChzLCB2bGQxcV91OChyayArIDEwICogMTYpKTtcbiAgICB2c3QxcV91OChvdXQsIHMpO1xufVxuIiwiY29tcGlsZXJzIjpbeyJpZCI6ImFybXY4LWNjbGFuZy10cnVuayIsIm9wdGlvbnMiOiItbWFyY2g9YXJtdjgtYStjcnlwdG8gLU8yIC1mZnJlZXN0YW5kaW5nIn1dfV19"
+      },
+      "instructions": [
+        {
+          "address": "0x0",
+          "mnemonic": "ldp",
+          "operands": [
+            "q1",
+            "q2",
+            "[x2]"
+          ],
+          "reads": [
+            {
+              "kind": "mem",
+              "base": "x2",
+              "offset": 0,
+              "size": 16,
+              "valueRef": "0/roundKey"
+            },
+            {
+              "kind": "mem",
+              "base": "x2",
+              "offset": 16,
+              "size": 16,
+              "valueRef": "1/roundKey"
+            }
+          ],
+          "writes": [
+            {
+              "kind": "reg",
+              "name": "v1",
+              "valueRef": "0/roundKey"
+            },
+            {
+              "kind": "reg",
+              "name": "v2",
+              "valueRef": "1/roundKey"
+            }
+          ],
+          "align": {
+            "first": -1,
+            "last": -1
+          }
+        },
+        {
+          "address": "0x4",
+          "mnemonic": "ldr",
+          "operands": [
+            "q0",
+            "[x0]"
+          ],
+          "reads": [
+            {
+              "kind": "mem",
+              "base": "x0",
+              "offset": 0,
+              "size": 16,
+              "valueRef": "plaintext"
+            }
+          ],
+          "writes": [
+            {
+              "kind": "reg",
+              "name": "v0",
+              "valueRef": "plaintext"
+            }
+          ],
+          "align": {
+            "first": 0,
+            "last": 0
+          }
+        },
+        {
+          "address": "0x8",
+          "mnemonic": "aese",
+          "operands": [
+            "v1.16b",
+            "v0.16b"
+          ],
+          "reads": [
+            {
+              "kind": "reg",
+              "name": "v1",
+              "valueRef": "0/roundKey"
+            },
+            {
+              "kind": "reg",
+              "name": "v0"
+            }
+          ],
+          "writes": [
+            {
+              "kind": "reg",
+              "name": "v1"
+            }
+          ],
+          "align": {
+            "first": 2,
+            "last": 4
+          },
+          "covers": [
+            {
+              "key": "deriver.isa-armv8.op.addRoundKey",
+              "params": {
+                "round": 0
+              }
+            },
+            {
+              "key": "deriver.isa-armv8.op.subBytes",
+              "params": {
+                "round": 1
+              }
+            },
+            {
+              "key": "deriver.isa-armv8.op.shiftRows",
+              "params": {
+                "round": 1
+              }
+            }
+          ],
+          "note": {
+            "key": "deriver.isa-armv8.note.fusion"
+          }
+        },
+        {
+          "address": "0xc",
+          "mnemonic": "aesmc",
+          "operands": [
+            "v1.16b",
+            "v1.16b"
+          ],
+          "reads": [
+            {
+              "kind": "reg",
+              "name": "v1"
+            }
+          ],
+          "writes": [
+            {
+              "kind": "reg",
+              "name": "v1"
+            }
+          ],
+          "align": {
+            "first": 5,
+            "last": 5
+          },
+          "covers": [
+            {
+              "key": "deriver.isa-armv8.op.mixColumns",
+              "params": {
+                "round": 1
+              }
+            }
+          ],
+          "note": {
+            "key": "deriver.isa-armv8.note.fusion"
+          }
+        },
+        {
+          "address": "0x10",
+          "mnemonic": "aese",
+          "operands": [
+            "v2.16b",
+            "v1.16b"
+          ],
+          "reads": [
+            {
+              "kind": "reg",
+              "name": "v2",
+              "valueRef": "1/roundKey"
+            },
+            {
+              "kind": "reg",
+              "name": "v1"
+            }
+          ],
+          "writes": [
+            {
+              "kind": "reg",
+              "name": "v2"
+            }
+          ],
+          "align": {
+            "first": 6,
+            "last": 8
+          },
+          "covers": [
+            {
+              "key": "deriver.isa-armv8.op.addRoundKey",
+              "params": {
+                "round": 1
+              }
+            },
+            {
+              "key": "deriver.isa-armv8.op.subBytes",
+              "params": {
+                "round": 2
+              }
+            },
+            {
+              "key": "deriver.isa-armv8.op.shiftRows",
+              "params": {
+                "round": 2
+              }
+            }
+          ],
+          "note": {
+            "key": "deriver.isa-armv8.note.fusion"
+          }
+        },
+        {
+          "address": "0x14",
+          "mnemonic": "aesmc",
+          "operands": [
+            "v2.16b",
+            "v2.16b"
+          ],
+          "reads": [
+            {
+              "kind": "reg",
+              "name": "v2"
+            }
+          ],
+          "writes": [
+            {
+              "kind": "reg",
+              "name": "v2"
+            }
+          ],
+          "align": {
+            "first": 9,
+            "last": 9
+          },
+          "covers": [
+            {
+              "key": "deriver.isa-armv8.op.mixColumns",
+              "params": {
+                "round": 2
+              }
+            }
+          ],
+          "note": {
+            "key": "deriver.isa-armv8.note.fusion"
+          }
+        },
+        {
+          "address": "0x18",
+          "mnemonic": "ldp",
+          "operands": [
+            "q0",
+            "q1",
+            "[x2, #32]"
+          ],
+          "reads": [
+            {
+              "kind": "mem",
+              "base": "x2",
+              "offset": 32,
+              "size": 16,
+              "valueRef": "2/roundKey"
+            },
+            {
+              "kind": "mem",
+              "base": "x2",
+              "offset": 48,
+              "size": 16,
+              "valueRef": "3/roundKey"
+            }
+          ],
+          "writes": [
+            {
+              "kind": "reg",
+              "name": "v0",
+              "valueRef": "2/roundKey"
+            },
+            {
+              "kind": "reg",
+              "name": "v1",
+              "valueRef": "3/roundKey"
+            }
+          ],
+          "align": {
+            "first": 10,
+            "last": 10
+          }
+        },
+        {
+          "address": "0x1c",
+          "mnemonic": "aese",
+          "operands": [
+            "v0.16b",
+            "v2.16b"
+          ],
+          "reads": [
+            {
+              "kind": "reg",
+              "name": "v0",
+              "valueRef": "2/roundKey"
+            },
+            {
+              "kind": "reg",
+              "name": "v2"
+            }
+          ],
+          "writes": [
+            {
+              "kind": "reg",
+              "name": "v0"
+            }
+          ],
+          "align": {
+            "first": 10,
+            "last": 12
+          },
+          "covers": [
+            {
+              "key": "deriver.isa-armv8.op.addRoundKey",
+              "params": {
+                "round": 2
+              }
+            },
+            {
+              "key": "deriver.isa-armv8.op.subBytes",
+              "params": {
+                "round": 3
+              }
+            },
+            {
+              "key": "deriver.isa-armv8.op.shiftRows",
+              "params": {
+                "round": 3
+              }
+            }
+          ],
+          "note": {
+            "key": "deriver.isa-armv8.note.fusion"
+          }
+        },
+        {
+          "address": "0x20",
+          "mnemonic": "aesmc",
+          "operands": [
+            "v0.16b",
+            "v0.16b"
+          ],
+          "reads": [
+            {
+              "kind": "reg",
+              "name": "v0"
+            }
+          ],
+          "writes": [
+            {
+              "kind": "reg",
+              "name": "v0"
+            }
+          ],
+          "align": {
+            "first": 13,
+            "last": 13
+          },
+          "covers": [
+            {
+              "key": "deriver.isa-armv8.op.mixColumns",
+              "params": {
+                "round": 3
+              }
+            }
+          ],
+          "note": {
+            "key": "deriver.isa-armv8.note.fusion"
+          }
+        },
+        {
+          "address": "0x24",
+          "mnemonic": "aese",
+          "operands": [
+            "v1.16b",
+            "v0.16b"
+          ],
+          "reads": [
+            {
+              "kind": "reg",
+              "name": "v1",
+              "valueRef": "3/roundKey"
+            },
+            {
+              "kind": "reg",
+              "name": "v0"
+            }
+          ],
+          "writes": [
+            {
+              "kind": "reg",
+              "name": "v1"
+            }
+          ],
+          "align": {
+            "first": 14,
+            "last": 16
+          },
+          "covers": [
+            {
+              "key": "deriver.isa-armv8.op.addRoundKey",
+              "params": {
+                "round": 3
+              }
+            },
+            {
+              "key": "deriver.isa-armv8.op.subBytes",
+              "params": {
+                "round": 4
+              }
+            },
+            {
+              "key": "deriver.isa-armv8.op.shiftRows",
+              "params": {
+                "round": 4
+              }
+            }
+          ],
+          "note": {
+            "key": "deriver.isa-armv8.note.fusion"
+          }
+        },
+        {
+          "address": "0x28",
+          "mnemonic": "aesmc",
+          "operands": [
+            "v1.16b",
+            "v1.16b"
+          ],
+          "reads": [
+            {
+              "kind": "reg",
+              "name": "v1"
+            }
+          ],
+          "writes": [
+            {
+              "kind": "reg",
+              "name": "v1"
+            }
+          ],
+          "align": {
+            "first": 17,
+            "last": 17
+          },
+          "covers": [
+            {
+              "key": "deriver.isa-armv8.op.mixColumns",
+              "params": {
+                "round": 4
+              }
+            }
+          ],
+          "note": {
+            "key": "deriver.isa-armv8.note.fusion"
+          }
+        },
+        {
+          "address": "0x2c",
+          "mnemonic": "ldp",
+          "operands": [
+            "q0",
+            "q2",
+            "[x2, #64]"
+          ],
+          "reads": [
+            {
+              "kind": "mem",
+              "base": "x2",
+              "offset": 64,
+              "size": 16,
+              "valueRef": "4/roundKey"
+            },
+            {
+              "kind": "mem",
+              "base": "x2",
+              "offset": 80,
+              "size": 16,
+              "valueRef": "5/roundKey"
+            }
+          ],
+          "writes": [
+            {
+              "kind": "reg",
+              "name": "v0",
+              "valueRef": "4/roundKey"
+            },
+            {
+              "kind": "reg",
+              "name": "v2",
+              "valueRef": "5/roundKey"
+            }
+          ],
+          "align": {
+            "first": 18,
+            "last": 18
+          }
+        },
+        {
+          "address": "0x30",
+          "mnemonic": "aese",
+          "operands": [
+            "v0.16b",
+            "v1.16b"
+          ],
+          "reads": [
+            {
+              "kind": "reg",
+              "name": "v0",
+              "valueRef": "4/roundKey"
+            },
+            {
+              "kind": "reg",
+              "name": "v1"
+            }
+          ],
+          "writes": [
+            {
+              "kind": "reg",
+              "name": "v0"
+            }
+          ],
+          "align": {
+            "first": 18,
+            "last": 20
+          },
+          "covers": [
+            {
+              "key": "deriver.isa-armv8.op.addRoundKey",
+              "params": {
+                "round": 4
+              }
+            },
+            {
+              "key": "deriver.isa-armv8.op.subBytes",
+              "params": {
+                "round": 5
+              }
+            },
+            {
+              "key": "deriver.isa-armv8.op.shiftRows",
+              "params": {
+                "round": 5
+              }
+            }
+          ],
+          "note": {
+            "key": "deriver.isa-armv8.note.fusion"
+          }
+        },
+        {
+          "address": "0x34",
+          "mnemonic": "aesmc",
+          "operands": [
+            "v0.16b",
+            "v0.16b"
+          ],
+          "reads": [
+            {
+              "kind": "reg",
+              "name": "v0"
+            }
+          ],
+          "writes": [
+            {
+              "kind": "reg",
+              "name": "v0"
+            }
+          ],
+          "align": {
+            "first": 21,
+            "last": 21
+          },
+          "covers": [
+            {
+              "key": "deriver.isa-armv8.op.mixColumns",
+              "params": {
+                "round": 5
+              }
+            }
+          ],
+          "note": {
+            "key": "deriver.isa-armv8.note.fusion"
+          }
+        },
+        {
+          "address": "0x38",
+          "mnemonic": "aese",
+          "operands": [
+            "v2.16b",
+            "v0.16b"
+          ],
+          "reads": [
+            {
+              "kind": "reg",
+              "name": "v2",
+              "valueRef": "5/roundKey"
+            },
+            {
+              "kind": "reg",
+              "name": "v0"
+            }
+          ],
+          "writes": [
+            {
+              "kind": "reg",
+              "name": "v2"
+            }
+          ],
+          "align": {
+            "first": 22,
+            "last": 24
+          },
+          "covers": [
+            {
+              "key": "deriver.isa-armv8.op.addRoundKey",
+              "params": {
+                "round": 5
+              }
+            },
+            {
+              "key": "deriver.isa-armv8.op.subBytes",
+              "params": {
+                "round": 6
+              }
+            },
+            {
+              "key": "deriver.isa-armv8.op.shiftRows",
+              "params": {
+                "round": 6
+              }
+            }
+          ],
+          "note": {
+            "key": "deriver.isa-armv8.note.fusion"
+          }
+        },
+        {
+          "address": "0x3c",
+          "mnemonic": "aesmc",
+          "operands": [
+            "v2.16b",
+            "v2.16b"
+          ],
+          "reads": [
+            {
+              "kind": "reg",
+              "name": "v2"
+            }
+          ],
+          "writes": [
+            {
+              "kind": "reg",
+              "name": "v2"
+            }
+          ],
+          "align": {
+            "first": 25,
+            "last": 25
+          },
+          "covers": [
+            {
+              "key": "deriver.isa-armv8.op.mixColumns",
+              "params": {
+                "round": 6
+              }
+            }
+          ],
+          "note": {
+            "key": "deriver.isa-armv8.note.fusion"
+          }
+        },
+        {
+          "address": "0x40",
+          "mnemonic": "ldp",
+          "operands": [
+            "q0",
+            "q1",
+            "[x2, #96]"
+          ],
+          "reads": [
+            {
+              "kind": "mem",
+              "base": "x2",
+              "offset": 96,
+              "size": 16,
+              "valueRef": "6/roundKey"
+            },
+            {
+              "kind": "mem",
+              "base": "x2",
+              "offset": 112,
+              "size": 16,
+              "valueRef": "7/roundKey"
+            }
+          ],
+          "writes": [
+            {
+              "kind": "reg",
+              "name": "v0",
+              "valueRef": "6/roundKey"
+            },
+            {
+              "kind": "reg",
+              "name": "v1",
+              "valueRef": "7/roundKey"
+            }
+          ],
+          "align": {
+            "first": 26,
+            "last": 26
+          }
+        },
+        {
+          "address": "0x44",
+          "mnemonic": "aese",
+          "operands": [
+            "v0.16b",
+            "v2.16b"
+          ],
+          "reads": [
+            {
+              "kind": "reg",
+              "name": "v0",
+              "valueRef": "6/roundKey"
+            },
+            {
+              "kind": "reg",
+              "name": "v2"
+            }
+          ],
+          "writes": [
+            {
+              "kind": "reg",
+              "name": "v0"
+            }
+          ],
+          "align": {
+            "first": 26,
+            "last": 28
+          },
+          "covers": [
+            {
+              "key": "deriver.isa-armv8.op.addRoundKey",
+              "params": {
+                "round": 6
+              }
+            },
+            {
+              "key": "deriver.isa-armv8.op.subBytes",
+              "params": {
+                "round": 7
+              }
+            },
+            {
+              "key": "deriver.isa-armv8.op.shiftRows",
+              "params": {
+                "round": 7
+              }
+            }
+          ],
+          "note": {
+            "key": "deriver.isa-armv8.note.fusion"
+          }
+        },
+        {
+          "address": "0x48",
+          "mnemonic": "aesmc",
+          "operands": [
+            "v0.16b",
+            "v0.16b"
+          ],
+          "reads": [
+            {
+              "kind": "reg",
+              "name": "v0"
+            }
+          ],
+          "writes": [
+            {
+              "kind": "reg",
+              "name": "v0"
+            }
+          ],
+          "align": {
+            "first": 29,
+            "last": 29
+          },
+          "covers": [
+            {
+              "key": "deriver.isa-armv8.op.mixColumns",
+              "params": {
+                "round": 7
+              }
+            }
+          ],
+          "note": {
+            "key": "deriver.isa-armv8.note.fusion"
+          }
+        },
+        {
+          "address": "0x4c",
+          "mnemonic": "aese",
+          "operands": [
+            "v1.16b",
+            "v0.16b"
+          ],
+          "reads": [
+            {
+              "kind": "reg",
+              "name": "v1",
+              "valueRef": "7/roundKey"
+            },
+            {
+              "kind": "reg",
+              "name": "v0"
+            }
+          ],
+          "writes": [
+            {
+              "kind": "reg",
+              "name": "v1"
+            }
+          ],
+          "align": {
+            "first": 30,
+            "last": 32
+          },
+          "covers": [
+            {
+              "key": "deriver.isa-armv8.op.addRoundKey",
+              "params": {
+                "round": 7
+              }
+            },
+            {
+              "key": "deriver.isa-armv8.op.subBytes",
+              "params": {
+                "round": 8
+              }
+            },
+            {
+              "key": "deriver.isa-armv8.op.shiftRows",
+              "params": {
+                "round": 8
+              }
+            }
+          ],
+          "note": {
+            "key": "deriver.isa-armv8.note.fusion"
+          }
+        },
+        {
+          "address": "0x50",
+          "mnemonic": "aesmc",
+          "operands": [
+            "v1.16b",
+            "v1.16b"
+          ],
+          "reads": [
+            {
+              "kind": "reg",
+              "name": "v1"
+            }
+          ],
+          "writes": [
+            {
+              "kind": "reg",
+              "name": "v1"
+            }
+          ],
+          "align": {
+            "first": 33,
+            "last": 33
+          },
+          "covers": [
+            {
+              "key": "deriver.isa-armv8.op.mixColumns",
+              "params": {
+                "round": 8
+              }
+            }
+          ],
+          "note": {
+            "key": "deriver.isa-armv8.note.fusion"
+          }
+        },
+        {
+          "address": "0x54",
+          "mnemonic": "ldp",
+          "operands": [
+            "q0",
+            "q2",
+            "[x2, #128]"
+          ],
+          "reads": [
+            {
+              "kind": "mem",
+              "base": "x2",
+              "offset": 128,
+              "size": 16,
+              "valueRef": "8/roundKey"
+            },
+            {
+              "kind": "mem",
+              "base": "x2",
+              "offset": 144,
+              "size": 16,
+              "valueRef": "9/roundKey"
+            }
+          ],
+          "writes": [
+            {
+              "kind": "reg",
+              "name": "v0",
+              "valueRef": "8/roundKey"
+            },
+            {
+              "kind": "reg",
+              "name": "v2",
+              "valueRef": "9/roundKey"
+            }
+          ],
+          "align": {
+            "first": 34,
+            "last": 34
+          }
+        },
+        {
+          "address": "0x58",
+          "mnemonic": "aese",
+          "operands": [
+            "v0.16b",
+            "v1.16b"
+          ],
+          "reads": [
+            {
+              "kind": "reg",
+              "name": "v0",
+              "valueRef": "8/roundKey"
+            },
+            {
+              "kind": "reg",
+              "name": "v1"
+            }
+          ],
+          "writes": [
+            {
+              "kind": "reg",
+              "name": "v0"
+            }
+          ],
+          "align": {
+            "first": 34,
+            "last": 36
+          },
+          "covers": [
+            {
+              "key": "deriver.isa-armv8.op.addRoundKey",
+              "params": {
+                "round": 8
+              }
+            },
+            {
+              "key": "deriver.isa-armv8.op.subBytes",
+              "params": {
+                "round": 9
+              }
+            },
+            {
+              "key": "deriver.isa-armv8.op.shiftRows",
+              "params": {
+                "round": 9
+              }
+            }
+          ],
+          "note": {
+            "key": "deriver.isa-armv8.note.fusion"
+          }
+        },
+        {
+          "address": "0x5c",
+          "mnemonic": "aesmc",
+          "operands": [
+            "v0.16b",
+            "v0.16b"
+          ],
+          "reads": [
+            {
+              "kind": "reg",
+              "name": "v0"
+            }
+          ],
+          "writes": [
+            {
+              "kind": "reg",
+              "name": "v0"
+            }
+          ],
+          "align": {
+            "first": 37,
+            "last": 37
+          },
+          "covers": [
+            {
+              "key": "deriver.isa-armv8.op.mixColumns",
+              "params": {
+                "round": 9
+              }
+            }
+          ],
+          "note": {
+            "key": "deriver.isa-armv8.note.fusion"
+          }
+        },
+        {
+          "address": "0x60",
+          "mnemonic": "aese",
+          "operands": [
+            "v2.16b",
+            "v0.16b"
+          ],
+          "reads": [
+            {
+              "kind": "reg",
+              "name": "v2",
+              "valueRef": "9/roundKey"
+            },
+            {
+              "kind": "reg",
+              "name": "v0"
+            }
+          ],
+          "writes": [
+            {
+              "kind": "reg",
+              "name": "v2"
+            }
+          ],
+          "align": {
+            "first": 38,
+            "last": 40
+          },
+          "covers": [
+            {
+              "key": "deriver.isa-armv8.op.addRoundKey",
+              "params": {
+                "round": 9
+              }
+            },
+            {
+              "key": "deriver.isa-armv8.op.subBytes",
+              "params": {
+                "round": 10
+              }
+            },
+            {
+              "key": "deriver.isa-armv8.op.shiftRows",
+              "params": {
+                "round": 10
+              }
+            }
+          ]
+        },
+        {
+          "address": "0x64",
+          "mnemonic": "ldr",
+          "operands": [
+            "q0",
+            "[x2, #160]"
+          ],
+          "reads": [
+            {
+              "kind": "mem",
+              "base": "x2",
+              "offset": 160,
+              "size": 16,
+              "valueRef": "10/roundKey"
+            }
+          ],
+          "writes": [
+            {
+              "kind": "reg",
+              "name": "v0",
+              "valueRef": "10/roundKey"
+            }
+          ],
+          "align": {
+            "first": 41,
+            "last": 41
+          }
+        },
+        {
+          "address": "0x68",
+          "mnemonic": "eor",
+          "operands": [
+            "v0.16b",
+            "v0.16b",
+            "v2.16b"
+          ],
+          "reads": [
+            {
+              "kind": "reg",
+              "name": "v0",
+              "valueRef": "10/roundKey"
+            },
+            {
+              "kind": "reg",
+              "name": "v2"
+            }
+          ],
+          "writes": [
+            {
+              "kind": "reg",
+              "name": "v0",
+              "valueRef": "ciphertext"
+            }
+          ],
+          "align": {
+            "first": 41,
+            "last": 41
+          },
+          "covers": [
+            {
+              "key": "deriver.isa-armv8.op.addRoundKey",
+              "params": {
+                "round": 10
+              }
+            }
+          ]
+        },
+        {
+          "address": "0x6c",
+          "mnemonic": "str",
+          "operands": [
+            "q0",
+            "[x1]"
+          ],
+          "reads": [
+            {
+              "kind": "reg",
+              "name": "v0"
+            }
+          ],
+          "writes": [
+            {
+              "kind": "mem",
+              "base": "x1",
+              "offset": 0,
+              "size": 16,
+              "valueRef": "ciphertext"
+            }
+          ],
+          "align": {
+            "first": 42,
+            "last": 42
+          }
+        },
+        {
+          "address": "0x70",
+          "mnemonic": "ret",
+          "operands": [],
+          "reads": [],
+          "writes": [],
+          "align": {
+            "first": 42,
+            "last": 42
+          }
+        }
+      ]
+    },
+    "registers@aarch64-armv8-ce": {
+      "kind": "registers",
+      "schemaVersion": 1,
+      "label": {
+        "key": "deriver.isa-armv8.registers.label"
+      },
+      "file": {
+        "isa": "aarch64",
+        "byteOrder": "little",
+        "registers": [
+          {
+            "name": "v0",
+            "bits": 128,
+            "lanes": [
+              8,
+              16,
+              32,
+              64
+            ]
+          },
+          {
+            "name": "v1",
+            "bits": 128,
+            "lanes": [
+              8,
+              16,
+              32,
+              64
+            ]
+          },
+          {
+            "name": "v2",
+            "bits": 128,
+            "lanes": [
+              8,
+              16,
+              32,
+              64
+            ]
+          }
+        ]
+      },
+      "steps": [
+        {
+          "align": {
+            "first": -1,
+            "last": -1
+          },
+          "writes": [
+            {
+              "reg": "v1",
+              "bytes": [
+                0,
+                1,
+                2,
+                3,
+                4,
+                5,
+                6,
+                7,
+                8,
+                9,
+                10,
+                11,
+                12,
+                13,
+                14,
+                15
+              ],
+              "valueRef": "0/roundKey"
+            },
+            {
+              "reg": "v2",
+              "bytes": [
+                214,
+                170,
+                116,
+                253,
+                210,
+                175,
+                114,
+                250,
+                218,
+                166,
+                120,
+                241,
+                214,
+                171,
+                118,
+                254
+              ],
+              "valueRef": "1/roundKey"
+            }
+          ]
+        },
+        {
+          "align": {
+            "first": 0,
+            "last": 0
+          },
+          "writes": [
+            {
+              "reg": "v0",
+              "bytes": [
+                0,
+                17,
+                34,
+                51,
+                68,
+                85,
+                102,
+                119,
+                136,
+                153,
+                170,
+                187,
+                204,
+                221,
+                238,
+                255
+              ],
+              "valueRef": "plaintext"
+            }
+          ]
+        },
+        {
+          "align": {
+            "first": 2,
+            "last": 4
+          },
+          "writes": [
+            {
+              "reg": "v1",
+              "bytes": [
+                99,
+                83,
+                224,
+                140,
+                9,
+                96,
+                225,
+                4,
+                205,
+                112,
+                183,
+                81,
+                186,
+                202,
+                208,
+                231
+              ]
+            }
+          ]
+        },
+        {
+          "align": {
+            "first": 5,
+            "last": 5
+          },
+          "writes": [
+            {
+              "reg": "v1",
+              "bytes": [
+                95,
+                114,
+                100,
+                21,
+                87,
+                245,
+                188,
+                146,
+                247,
+                190,
+                59,
+                41,
+                29,
+                185,
+                249,
+                26
+              ]
+            }
+          ]
+        },
+        {
+          "align": {
+            "first": 6,
+            "last": 8
+          },
+          "writes": [
+            {
+              "reg": "v2",
+              "bytes": [
+                167,
+                190,
+                26,
+                105,
+                151,
+                173,
+                115,
+                155,
+                216,
+                201,
+                202,
+                69,
+                31,
+                97,
+                139,
+                97
+              ]
+            }
+          ]
+        },
+        {
+          "align": {
+            "first": 9,
+            "last": 9
+          },
+          "writes": [
+            {
+              "reg": "v2",
+              "bytes": [
+                255,
+                135,
+                150,
+                132,
+                49,
+                216,
+                106,
+                81,
+                100,
+                81,
+                81,
+                250,
+                119,
+                58,
+                208,
+                9
+              ]
+            }
+          ]
+        },
+        {
+          "align": {
+            "first": 10,
+            "last": 10
+          },
+          "writes": [
+            {
+              "reg": "v0",
+              "bytes": [
+                182,
+                146,
+                207,
+                11,
+                100,
+                61,
+                189,
+                241,
+                190,
+                155,
+                197,
+                0,
+                104,
+                48,
+                179,
+                254
+              ],
+              "valueRef": "2/roundKey"
+            },
+            {
+              "reg": "v1",
+              "bytes": [
+                182,
+                255,
+                116,
+                78,
+                210,
+                194,
+                201,
+                191,
+                108,
+                89,
+                12,
+                191,
+                4,
+                105,
+                191,
+                65
+              ],
+              "valueRef": "3/roundKey"
+            }
+          ]
+        },
+        {
+          "align": {
+            "first": 10,
+            "last": 12
+          },
+          "writes": [
+            {
+              "reg": "v0",
+              "bytes": [
+                59,
+                217,
+                34,
+                104,
+                252,
+                116,
+                251,
+                115,
+                87,
+                103,
+                203,
+                224,
+                192,
+                89,
+                14,
+                45
+              ]
+            }
+          ]
+        },
+        {
+          "align": {
+            "first": 13,
+            "last": 13
+          },
+          "writes": [
+            {
+              "reg": "v0",
+              "bytes": [
+                76,
+                156,
+                30,
+                102,
+                247,
+                113,
+                240,
+                118,
+                44,
+                63,
+                134,
+                142,
+                83,
+                77,
+                242,
+                86
+              ]
+            }
+          ]
+        },
+        {
+          "align": {
+            "first": 14,
+            "last": 16
+          },
+          "writes": [
+            {
+              "reg": "v1",
+              "bytes": [
+                45,
+                109,
+                126,
+                240,
+                63,
+                51,
+                227,
+                52,
+                9,
+                54,
+                2,
+                221,
+                91,
+                251,
+                18,
+                199
+              ]
+            }
+          ]
+        },
+        {
+          "align": {
+            "first": 17,
+            "last": 17
+          },
+          "writes": [
+            {
+              "reg": "v1",
+              "bytes": [
+                99,
+                133,
+                183,
+                159,
+                252,
+                83,
+                141,
+                249,
+                151,
+                190,
+                71,
+                142,
+                117,
+                71,
+                214,
+                145
+              ]
+            }
+          ]
+        },
+        {
+          "align": {
+            "first": 18,
+            "last": 18
+          },
+          "writes": [
+            {
+              "reg": "v0",
+              "bytes": [
+                71,
+                247,
+                247,
+                188,
+                149,
+                53,
+                62,
+                3,
+                249,
+                108,
+                50,
+                188,
+                253,
+                5,
+                141,
+                253
+              ],
+              "valueRef": "4/roundKey"
+            },
+            {
+              "reg": "v2",
+              "bytes": [
+                60,
+                170,
+                163,
+                232,
+                169,
+                159,
+                157,
+                235,
+                80,
+                243,
+                175,
+                87,
+                173,
+                246,
+                34,
+                170
+              ],
+              "valueRef": "5/roundKey"
+            }
+          ]
+        },
+        {
+          "align": {
+            "first": 18,
+            "last": 20
+          },
+          "writes": [
+            {
+              "reg": "v0",
+              "bytes": [
+                54,
+                51,
+                157,
+                80,
+                249,
+                181,
+                57,
+                38,
+                159,
+                44,
+                9,
+                45,
+                196,
+                64,
+                109,
+                35
+              ]
+            }
+          ]
+        },
+        {
+          "align": {
+            "first": 21,
+            "last": 21
+          },
+          "writes": [
+            {
+              "reg": "v0",
+              "bytes": [
+                244,
+                188,
+                212,
+                84,
+                50,
+                229,
+                84,
+                208,
+                117,
+                241,
+                214,
+                197,
+                29,
+                208,
+                59,
+                60
+              ]
+            }
+          ]
+        },
+        {
+          "align": {
+            "first": 22,
+            "last": 24
+          },
+          "writes": [
+            {
+              "reg": "v2",
+              "bytes": [
+                232,
+                218,
+                182,
+                144,
+                20,
+                119,
+                212,
+                101,
+                63,
+                247,
+                245,
+                226,
+                231,
+                71,
+                221,
+                79
+              ]
+            }
+          ]
+        },
+        {
+          "align": {
+            "first": 25,
+            "last": 25
+          },
+          "writes": [
+            {
+              "reg": "v2",
+              "bytes": [
+                152,
+                22,
+                238,
+                116,
+                0,
+                248,
+                127,
+                85,
+                107,
+                44,
+                4,
+                156,
+                142,
+                90,
+                208,
+                54
+              ]
+            }
+          ]
+        },
+        {
+          "align": {
+            "first": 26,
+            "last": 26
+          },
+          "writes": [
+            {
+              "reg": "v0",
+              "bytes": [
+                94,
+                57,
+                15,
+                125,
+                247,
+                166,
+                146,
+                150,
+                167,
+                85,
+                61,
+                193,
+                10,
+                163,
+                31,
+                107
+              ],
+              "valueRef": "6/roundKey"
+            },
+            {
+              "reg": "v1",
+              "bytes": [
+                20,
+                249,
+                112,
+                26,
+                227,
+                95,
+                226,
+                140,
+                68,
+                10,
+                223,
+                77,
+                78,
+                169,
+                192,
+                38
+              ],
+              "valueRef": "7/roundKey"
+            }
+          ]
+        },
+        {
+          "align": {
+            "first": 26,
+            "last": 28
+          },
+          "writes": [
+            {
+              "reg": "v0",
+              "bytes": [
+                180,
+                88,
+                18,
+                76,
+                104,
+                182,
+                138,
+                1,
+                75,
+                153,
+                248,
+                46,
+                95,
+                21,
+                85,
+                76
+              ]
+            }
+          ]
+        },
+        {
+          "align": {
+            "first": 29,
+            "last": 29
+          },
+          "writes": [
+            {
+              "reg": "v0",
+              "bytes": [
+                197,
+                126,
+                28,
+                21,
+                154,
+                155,
+                210,
+                134,
+                240,
+                95,
+                75,
+                224,
+                152,
+                198,
+                52,
+                57
+              ]
+            }
+          ]
+        },
+        {
+          "align": {
+            "first": 30,
+            "last": 32
+          },
+          "writes": [
+            {
+              "reg": "v1",
+              "bytes": [
+                62,
+                28,
+                34,
+                192,
+                182,
+                252,
+                191,
+                118,
+                141,
+                168,
+                80,
+                103,
+                246,
+                23,
+                4,
+                149
+              ]
+            }
+          ]
+        },
+        {
+          "align": {
+            "first": 33,
+            "last": 33
+          },
+          "writes": [
+            {
+              "reg": "v1",
+              "bytes": [
+                186,
+                160,
+                61,
+                231,
+                161,
+                249,
+                181,
+                110,
+                213,
+                81,
+                44,
+                186,
+                95,
+                65,
+                77,
+                35
+              ]
+            }
+          ]
+        },
+        {
+          "align": {
+            "first": 34,
+            "last": 34
+          },
+          "writes": [
+            {
+              "reg": "v0",
+              "bytes": [
+                71,
+                67,
+                135,
+                53,
+                164,
+                28,
+                101,
+                185,
+                224,
+                22,
+                186,
+                244,
+                174,
+                191,
+                122,
+                210
+              ],
+              "valueRef": "8/roundKey"
+            },
+            {
+              "reg": "v2",
+              "bytes": [
+                84,
+                153,
+                50,
+                209,
+                240,
+                133,
+                87,
+                104,
+                16,
+                147,
+                237,
+                156,
+                190,
+                44,
+                151,
+                78
+              ],
+              "valueRef": "9/roundKey"
+            }
+          ]
+        },
+        {
+          "align": {
+            "first": 34,
+            "last": 36
+          },
+          "writes": [
+            {
+              "reg": "v0",
+              "bytes": [
+                84,
+                217,
+                144,
+                161,
+                107,
+                160,
+                154,
+                181,
+                150,
+                187,
+                244,
+                14,
+                161,
+                17,
+                112,
+                47
+              ]
+            }
+          ]
+        },
+        {
+          "align": {
+            "first": 37,
+            "last": 37
+          },
+          "writes": [
+            {
+              "reg": "v0",
+              "bytes": [
+                233,
+                247,
+                78,
+                236,
+                2,
+                48,
+                32,
+                246,
+                27,
+                242,
+                204,
+                242,
+                53,
+                60,
+                33,
+                199
+              ]
+            }
+          ]
+        },
+        {
+          "align": {
+            "first": 38,
+            "last": 40
+          },
+          "writes": [
+            {
+              "reg": "v2",
+              "bytes": [
+                122,
+                213,
+                253,
+                167,
+                137,
+                239,
+                78,
+                39,
+                43,
+                202,
+                16,
+                11,
+                61,
+                159,
+                245,
+                159
+              ]
+            }
+          ]
+        },
+        {
+          "align": {
+            "first": 41,
+            "last": 41
+          },
+          "writes": [
+            {
+              "reg": "v0",
+              "bytes": [
+                19,
+                17,
+                29,
+                127,
+                227,
+                148,
+                74,
+                23,
+                243,
+                7,
+                167,
+                139,
+                77,
+                43,
+                48,
+                197
+              ],
+              "valueRef": "10/roundKey"
+            }
+          ]
+        },
+        {
+          "align": {
+            "first": 41,
+            "last": 41
+          },
+          "writes": [
+            {
+              "reg": "v0",
+              "bytes": [
+                105,
+                196,
+                224,
+                216,
+                106,
+                123,
+                4,
+                48,
+                216,
+                205,
+                183,
+                128,
+                112,
+                180,
+                197,
+                90
+              ],
+              "valueRef": "ciphertext"
+            }
+          ]
+        }
+      ]
+    }
+  }
+}

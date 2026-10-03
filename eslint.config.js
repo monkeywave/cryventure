@@ -82,7 +82,7 @@ const pluginIsolationPolicies = [
 /**
  * `packages/<family>/src/_lib/` holds code the plugins of one package share (it has no manifest, so
  * the discovery glob skips it). Only that package's plugins (and `_lib` itself) may import it, and
- * `_lib` may import `@cryventure/core` only. Manifests still import core only (see manifestPolicies).
+ * `_lib` may import `@cryventure/core` only (the views' `_lib` also React and viz). Manifests may import only their own package's `_lib/applicability.ts` (see manifestPolicies).
  */
 const pluginLibPolicies = PLUGIN_FAMILIES.flatMap((family) => [
   {
@@ -103,6 +103,14 @@ const pluginLibPolicies = PLUGIN_FAMILIES.flatMap((family) => [
   },
   { from: { element: { type: 'plugin-lib' } }, allow: { to: { module: { source: workspaceSource('core') } } } },
   { from: { element: { type: 'plugin-lib' } }, allow: { dependency: { relationship: { to: 'internal' } } } },
+  // The views' `_lib` holds shared React pieces (e.g. the facet-variant picker), so it may also use
+  // what every view uses: React and the viz runtime.
+  {
+    from: { element: { type: 'plugin-lib', path: 'packages/views/**' } },
+    allow: { to: { module: { source: ['react', workspaceSource('viz')] } } },
+  },
+  // `_lib` tests use the test runner like every other test file.
+  { from: { element: { type: 'plugin-lib' }, file: { path: TEST_FILES } }, allow: { to: { module: { source: 'vitest' } } } },
 ]);
 
 /**
@@ -115,7 +123,7 @@ const manifestPolicies = [
     from: { element: { type: 'plugin' }, file: { categories: 'manifest' } },
     disallow: { dependency: { kind: '*' } },
     message:
-      'manifest.ts may import only @cryventure/core; load the implementation lazily via `load: () => import(\'./module.ts\')` (got {{dependency.source}}).',
+      'manifest.ts may import only @cryventure/core (and its package\'s _lib/applicability.ts); load the implementation lazily via `load: () => import(\'./module.ts\')` (got {{dependency.source}}).',
   },
   {
     from: { element: { type: 'plugin' }, file: { categories: 'manifest' } },
@@ -125,6 +133,14 @@ const manifestPolicies = [
     from: { element: { type: 'plugin' }, file: { categories: 'manifest' } },
     allow: { dependency: { nodeKind: 'dynamic-import', relationship: { to: 'internal' } } },
   },
+  // A manifest may share tiny, core-only applicability rules (`appliesTo`) through its package's
+  // `_lib/applicability.ts`, and nothing else of `_lib` (fixtures and implementation stay lazy).
+  ...PLUGIN_FAMILIES.map((family) => ({
+    from: { element: { type: 'plugin', path: `packages/${family}/**` }, file: { categories: 'manifest' } },
+    allow: {
+      to: { element: { type: 'plugin-lib', path: `packages/${family}/**` }, file: { path: '**/_lib/applicability.ts' } },
+    },
+  })),
   // View manifests type their component with `ViewComponent` from viz. A type-only import is erased
   // at compile time, so it adds nothing to the eager bundle and keeps the manifest contract typed.
   {

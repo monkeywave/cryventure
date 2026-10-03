@@ -1,9 +1,10 @@
-import type { ReactNode } from 'react';
+import { useMemo, type ComponentType, type ReactNode } from 'react';
 import { i18nRef, type I18nRef, type Lens, type Messages } from '@cryventure/core';
 import { ErrorBoundary, I18nProvider, LabRoot, Workspace, useT, type LabMode, type ParamsRequestHandler } from '@cryventure/viz';
 import type { LabParams, ReadySession } from '../labs/labSession.ts';
 import { useLabLens } from '../progress/useLabLens.ts';
 import { InvalidLinkNotice, LabError } from './lab/LabMessages.tsx';
+import { viewsToShow, type LabViewsOption } from './lab/labViews.ts';
 import { OutputPanel } from './lab/OutputPanel.tsx';
 import { ParamPanel } from './lab/ParamPanel.tsx';
 import { PlayerBar } from './lab/PlayerBar.tsx';
@@ -23,12 +24,28 @@ export interface LabProps {
   startAt?: string;
   /** Preselected player mode (default: debugger). Never starts playback on its own. */
   mode?: LabMode;
+  /** Initial lab-wide preferred facet variant, e.g. `x86_64-aesni`; the reader's pick overrides it. */
+  variant?: string;
   /** Only the namespaces this lab needs, in the page's locale (assembled by `Lab.astro`). */
   messages: Messages;
   /** Page locale (e.g. `de`), used for plural forms and links to standalone labs. */
   locale?: string;
   /** Static poster rendered on the server and shown until the lab is ready. */
   children?: ReactNode;
+  /**
+   * Extra controls rendered inside the lab (above the inputs) once it is ready, e.g. the home hero's
+   * text field (`hero/HeroLab.tsx`). They may use `useLabActions().requestParams` to re-run the lab.
+   */
+  toolbar?: ComponentType<LabToolbarProps>;
+  /** `"all"` (default): every view the bundle can feed; `"layout-only"`: only the views `layout` names. */
+  views?: LabViewsOption;
+  /** Shows the generic inputs panel (default `true`); the home hero hides it so its text field is the only input. */
+  paramPanel?: boolean;
+}
+
+/** What a `toolbar` sees: the params of the latest requested run. */
+export interface LabToolbarProps {
+  params: LabParams;
 }
 
 interface ReadyLabProps {
@@ -43,30 +60,35 @@ interface ReadyLabProps {
   onRequestParams: ParamsRequestHandler;
   /** Why the last view request was rejected, shown in the ParamPanel. */
   requestError: I18nRef | null;
+  toolbar?: ComponentType<LabToolbarProps>;
+  views?: LabViewsOption;
+  paramPanel: boolean;
 }
 
-function ReadyLab({ labId, layout, lens, session, params, onParams, onRequestParams, requestError }: ReadyLabProps) {
+function ReadyLab({ labId, layout, lens, session, params, onParams, onRequestParams, requestError, toolbar: Toolbar, views: viewsOption, paramPanel }: ReadyLabProps) {
   const t = useT();
+  const views = useMemo(() => viewsToShow(session.views, layout, viewsOption), [session.views, layout, viewsOption]);
   useHashSync(labId, session.store, session.params, { clearLink: session.notice });
   return (
-    <LabRoot store={session.store} choreography={session.choreography} opLabels={session.producer.ops} onRequestParams={onRequestParams}>
+    <LabRoot store={session.store} choreography={session.choreography} opLabels={session.producer.ops} onRequestParams={onRequestParams} derivers={session.derivers}>
       <p className="cv-lab__title">{t(session.producer.titleKey)}</p>
       {session.notice && <InvalidLinkNotice />}
-      <ParamPanel producer={session.producer} params={params} onApply={onParams} requestError={requestError} />
+      {Toolbar && <Toolbar params={params} />}
+      {paramPanel && <ParamPanel producer={session.producer} params={params} onApply={onParams} requestError={requestError} />}
       <PlayerBar />
-      <Workspace views={session.views} layout={layout} labId={labId} lens={lens} />
+      <Workspace views={views} layout={layout} labId={labId} lens={lens} />
       <OutputPanel producer={session.producer} />
     </LabRoot>
   );
 }
 
-function LabBody({ labId, producerId, presetId, startAt, mode, locale, layout, lens, children }: Omit<LabProps, 'messages' | 'lens'> & { lens: Lens }) {
-  const { session, pendingParams, applyParams, requestParams, requestError, reset } = useLabSession({ labId, producerId, presetId, startAt, mode, locale });
+function LabBody({ labId, producerId, presetId, startAt, mode, variant, locale, layout, lens, toolbar, views, paramPanel = true, children }: Omit<LabProps, 'messages' | 'lens'> & { lens: Lens }) {
+  const { session, pendingParams, applyParams, requestParams, requestError, reset } = useLabSession({ labId, producerId, presetId, startAt, mode, variant, locale });
   if (session.status === 'loading') return <>{children}</>;
   if (session.status === 'error') return <LabError error={session.error} onReset={reset} />;
   return (
     <ErrorBoundary fallback={(resetBoundary) => <LabError error={i18nRef('ui.lab.error.crashed')} onReset={() => { reset(); resetBoundary(); }} />}>
-      <ReadyLab labId={labId} layout={layout} lens={lens} session={session} params={pendingParams ?? session.params} onParams={applyParams} onRequestParams={requestParams} requestError={requestError} />
+      <ReadyLab labId={labId} layout={layout} lens={lens} session={session} params={pendingParams ?? session.params} onParams={applyParams} onRequestParams={requestParams} requestError={requestError} toolbar={toolbar} views={views} paramPanel={paramPanel} />
     </ErrorBoundary>
   );
 }

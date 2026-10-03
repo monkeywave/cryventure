@@ -1,7 +1,7 @@
 import { primitiveManifests } from '@cryventure/primitives';
-import type { PrimitiveManifest, RunOptions, TraceBundle } from '@cryventure/core';
+import type { DeriverManifest, PrimitiveManifest, RunOptions, TraceBundle } from '@cryventure/core';
 import { beforeAll, describe, expect, it } from 'vitest';
-import { ASSEMBLED, facetKindsOf, fixtureBundlesFor, primitiveFixtureBundles, representativeSteps, type NamedBundle } from './facetFixtures.ts';
+import { ASSEMBLED, facetKindsOf, fixtureBundlesFor, primitiveFixtureBundles, representativeSteps, withDerivedFacets, type NamedBundle } from './facetFixtures.ts';
 
 const bundleWith = (id: string, kinds: string[]): NamedBundle => ({
   name: id,
@@ -40,6 +40,39 @@ describe('primitiveFixtureBundles', () => {
   it('covers every facet kind the shipped views require', () => {
     const kinds = new Set(bundles.flatMap(({ bundle }) => [...facetKindsOf(bundle)]));
     ['state', 'values', 'narration', 'derivation', 'math', 'table'].forEach((kind) => expect(kinds.has(kind), kind).toBe(true));
+  });
+});
+
+const demoDeriver = (id: string, provides: string, appliesTo?: (bundle: TraceBundle) => boolean): DeriverManifest => ({
+  kind: 'deriver',
+  id,
+  apiVersion: 1,
+  from: ['state'],
+  provides: [provides],
+  ...(appliesTo === undefined ? {} : { appliesTo }),
+  load: async () => ({ derive: (bundle) => ({ [`${provides}@${id}`]: { kind: provides, from: bundle.producer.id }, 'state@default': 'clobbered' }) }),
+});
+
+describe('withDerivedFacets', () => {
+  const source = bundleWith('aes', ['state']).bundle;
+
+  it('merges the facets of every applicable deriver into a copy, keeping the bundle\'s own facets', async () => {
+    const derived = await withDerivedFacets(source, [demoDeriver('x', 'registers'), demoDeriver('y', 'memory'), demoDeriver('z', 'field', () => false)]);
+    expect(Object.keys(derived.facets)).toEqual(['registers@x', 'state@default', 'memory@y']);
+    expect(derived.facets['state@default']).toEqual({ kind: 'state', from: 'aes' });
+    expect(source.facets['registers@x']).toBeUndefined();
+  });
+
+  it('returns the bundle itself when no deriver applies (from not met)', async () => {
+    expect(await withDerivedFacets(bundleWith('aes', ['values']).bundle, [demoDeriver('x', 'registers')])).toEqual(bundleWith('aes', ['values']).bundle);
+  });
+});
+
+describe('primitiveFixtureBundles with derivers', () => {
+  it('adds the derived facets to the bundles the derivers apply to', async () => {
+    const manifests = primitiveManifests.filter((manifest) => manifest.id === 'aes' || manifest.id === 'xor');
+    const bundles = await primitiveFixtureBundles(manifests, [demoDeriver('demo', 'registers', (bundle) => bundle.producer.id === 'aes')]);
+    expect(bundles.map(({ name, bundle }) => [name, facetKindsOf(bundle).has('registers')])).toEqual([['aes', true], ['xor', false]]);
   });
 });
 

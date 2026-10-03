@@ -1,0 +1,23 @@
+{
+  "view.instructions.title": "Instructions",
+  "view.instructions.loading": "Deriving the instruction listing…",
+  "view.instructions.missing": "This lab has no instruction listing (it needs an AES run with one step per operation).",
+  "view.instructions.variant": "Instruction set",
+  "view.instructions.caption_one": "{{label}}: {{count}} instruction",
+  "view.instructions.caption_other": "{{label}}: {{count}} instructions",
+  "view.instructions.column.status": "Status",
+  "view.instructions.column.address": "Address",
+  "view.instructions.column.mnemonic": "Instruction",
+  "view.instructions.column.operands": "Operands",
+  "view.instructions.column.does": "Performs",
+  "view.instructions.status.current": "current instruction",
+  "view.instructions.status.executed": "executed",
+  "view.instructions.status.pending": "not executed yet",
+  "view.instructions.coversLabel": "AES operations of this instruction",
+  "view.instructions.hasNote": "Note: shown when this instruction is current.",
+  "view.instructions.valueRef": "{{label}} ({{id}})",
+  "view.instructions.source": "Compiled with {{compiler}} ({{flags}}) for {{triple}}, function {{function}}",
+  "view.instructions.compilerExplorer": "Open in Compiler Explorer",
+  "view.instructions.compilerExplorerNewTab": "Open in Compiler Explorer (opens in a new tab)",
+  "view.instructions.legend": "▶ current instruction · ✓ executed · dimmed: not executed yet · ※ note"
+}

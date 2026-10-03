@@ -23,8 +23,20 @@
   overscroll-behavior-inline: contain;
 }
 
+/* Fitted height (GCM): the canvas is only as tall as the lanes in view, so the deeper lanes out of
+   view are clipped vertically instead of adding a vertical scrollbar. */
+.cv-chain__scroll[data-fitted] {
+  overflow-y: hidden;
+}
+
 .cv-chain__canvas {
   position: relative;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .cv-chain__scroll[data-fitted] > .cv-chain__canvas {
+    transition: height 0.2s ease-out;
+  }
 }
 
 .cv-chain__lane {
@@ -219,4 +231,77 @@
   display: flex;
   flex-wrap: wrap;
   gap: 0.25rem 1rem;
+}
+
+/*
+ * GCM roles (docs/M4.md §3f): each pairs a token colour with a border style and a glyph beside the
+ * label (◇✓ AAD, ⊗ GHASH accumulator, ‖ length block, ✓ tag), so none relies on hue alone.
+ */
+.cv-chain__node[data-role='aad'] {
+  --cv-chain-role: var(--cv-plaintext);
+  --cv-chain-glow: var(--cv-glow-plaintext);
+  border-style: dotted;
+  border-width: 3px;
+}
+
+.cv-chain__node[data-role='hash'] {
+  --cv-chain-role: var(--cv-subkey, var(--cv-key));
+  --cv-chain-glow: var(--cv-glow-key);
+  border-style: double;
+  border-width: 4px;
+  border-radius: 12px;
+}
+
+.cv-chain__node[data-role='length'] {
+  --cv-chain-role: var(--cv-constant);
+  --cv-chain-glow: transparent;
+  border-radius: 2px;
+  border-inline-width: 5px;
+}
+
+.cv-chain__node[data-role='tag'] {
+  --cv-chain-role: var(--cv-success);
+  --cv-chain-glow: color-mix(in srgb, var(--cv-success) 14%, transparent);
+  border-width: 3px;
+  border-radius: 999px 6px 6px 999px;
+}
+
+.cv-chain__role-glyph {
+  color: var(--cv-chain-role, var(--cv-text-muted, GrayText));
+  font-weight: 700;
+}
+
+.cv-chain__legend [data-role] .cv-chain__role-glyph {
+  margin-inline-end: 0.3em;
+}
+
+.cv-chain__legend [data-role='aad'] .cv-chain__role-glyph {
+  color: var(--cv-plaintext);
+}
+
+.cv-chain__legend [data-role='hash'] .cv-chain__role-glyph {
+  color: var(--cv-subkey, var(--cv-key));
+}
+
+.cv-chain__legend [data-role='length'] .cv-chain__role-glyph {
+  color: var(--cv-constant);
+}
+
+.cv-chain__legend [data-role='tag'] .cv-chain__role-glyph {
+  color: var(--cv-success);
+}
+
+/* The GHASH lane header reads as a different kind of lane: double rule. */
+.cv-chain__lane[data-hash] {
+  border-bottom-style: double;
+  border-bottom-width: 3px;
+}
+
+/* Pending stays dashed whatever the role's own border style (the GCM roles above come later). */
+.cv-chain__node[data-status='pending'][data-role] {
+  border-style: dashed;
+}
+
+.cv-chain__node[data-status='pending'] .cv-chain__role-glyph {
+  color: var(--cv-cell-dim-fg, GrayText);
 }

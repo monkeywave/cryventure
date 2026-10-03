@@ -1,0 +1,16 @@
+{
+  "ui.hero.heading": "Verschlüssele deinen eigenen Text",
+  "ui.hero.intro": "Gib bis zu 16 Byte ein und verfolge AES-128 Runde für Runde, mit dem Beispielschlüssel aus FIPS 197. Nichts läuft von allein: Nutze die Schritt-Tasten oder zieh an der Zeitleiste.",
+  "ui.hero.startAdventure": "Weiter mit dem Prolog",
+  "ui.hero.aesLesson": "Zur AES-Lektion",
+  "ui.hero.textLabel": "Gib deinen eigenen Text ein",
+  "ui.hero.textPlaceholder": "z. B. Hallo, AES!",
+  "ui.hero.blockLabel": "Klartextblock, {{size}} Byte",
+  "ui.hero.paddingByte": "Padding: Nullbyte",
+  "ui.hero.exampleNote": "Gezeigt wird der Beispiel-Klartext aus FIPS 197, Anh. C.1. Tippe oben, um deinen eigenen Text zu verschlüsseln.",
+  "ui.hero.paddingNote_one": "+ 1 Nullbyte Padding (markiert) füllt den Block auf 16 Byte auf.",
+  "ui.hero.paddingNote_other": "+ {{count}} Nullbytes Padding (markiert) füllen den Block auf 16 Byte auf.",
+  "ui.hero.noPadding": "Kein Padding: Dein Text füllt den ganzen 16-Byte-Block.",
+  "ui.hero.keyLabel": "Schlüssel (FIPS 197, Anh. C.1, hier fest)",
+  "ui.hero.keyLabelCustom": "Schlüssel (aus dem Link, hier nur lesbar)"
+}

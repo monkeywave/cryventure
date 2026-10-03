@@ -1,0 +1,30 @@
+---
+/**
+ * Server wrapper for the FlyThrough island (docs/M4.md §8): passes only `ui.flyThrough.*` of the
+ * current locale and hydrates when scrolled into view. The server output already shows the first
+ * beat (the matrix) with its caption.
+ *
+ * Usage in a lesson: `<FlyThrough />`, `<FlyThrough impl="aesni" />` or `<FlyThrough target="out" />`.
+ */
+import '../islands/flythrough/flythrough.css';
+import { loadMessages, pickPrefix, toLocale } from '../i18n/loadMessages';
+import FlyThroughIsland from '../islands/flythrough/FlyThrough.tsx';
+import { FLY_IMPLS, FLY_TARGETS, type FlyImpl, type FlyTarget } from '../islands/flythrough/flyThroughModel.ts';
+
+interface Props {
+  /** Preselected implementation; default `c-ref`. */
+  impl?: FlyImpl;
+  /** Preselected destination; default `rd_key`. */
+  target?: FlyTarget;
+}
+
+const { impl, target } = Astro.props;
+if (impl !== undefined && !FLY_IMPLS.includes(impl)) throw new Error(`<FlyThrough>: unknown impl "${String(impl)}"`);
+if (target !== undefined && !FLY_TARGETS.includes(target)) throw new Error(`<FlyThrough>: unknown target "${String(target)}"`);
+const locale = toLocale(Astro.currentLocale);
+const messages = pickPrefix(loadMessages(locale, ['flyThrough']), 'ui.flyThrough.');
+---
+
+<div class="cv-fly-host not-content" data-pagefind-ignore>
+  <FlyThroughIsland client:visible messages={messages} locale={locale} initialImpl={impl} initialTarget={target} />
+</div>

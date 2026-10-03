@@ -122,6 +122,18 @@ describe('attachAddresses', () => {
     ).toEqual(['0x0', '0x4', '0x8']);
   });
 
+  it('rebases offsets to the function start (a later function in .text still starts at 0x0)', () => {
+    const shifted = parseObjdumpFunction(OBJDUMP, 'f').map((entry) => ({
+      ...entry,
+      offset: entry.offset + 0x80,
+    }));
+    expect(attachAddresses(listing, shifted).map((entry) => entry.address)).toEqual([
+      '0x0',
+      '0x4',
+      '0x8',
+    ]);
+  });
+
   it('throws on a count or mnemonic mismatch', () => {
     const dump = parseObjdumpFunction(OBJDUMP, 'f');
     expect(() => attachAddresses(listing.slice(1), dump)).toThrow(/instructions/);

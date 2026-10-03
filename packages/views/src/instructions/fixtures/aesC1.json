@@ -1,0 +1,2553 @@
+{
+  "_comment": "Test-only snapshot: the isa-x86 and isa-armv8 derivers run over the AES FIPS 197 C.1 bundle (packages/derivers/src/_lib/fixtures). Views may not import derivers, hence the JSON.",
+  "preset": "fips197-c1",
+  "stepCount": 43,
+  "facets": {
+    "values@default": {
+      "kind": "values",
+      "schemaVersion": 1,
+      "values": [
+        {
+          "id": "key",
+          "labelKey": "plugin.aes.value.key",
+          "role": "key",
+          "bytes": [
+            0,
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8,
+            9,
+            10,
+            11,
+            12,
+            13,
+            14,
+            15
+          ],
+          "createdAt": 0
+        },
+        {
+          "id": "plaintext",
+          "labelKey": "plugin.aes.value.plaintext",
+          "role": "plaintext",
+          "bytes": [
+            0,
+            17,
+            34,
+            51,
+            68,
+            85,
+            102,
+            119,
+            136,
+            153,
+            170,
+            187,
+            204,
+            221,
+            238,
+            255
+          ],
+          "createdAt": 0
+        },
+        {
+          "id": "0/roundKey",
+          "labelKey": "plugin.aes.value.roundKey",
+          "role": "subkey",
+          "bytes": [
+            0,
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8,
+            9,
+            10,
+            11,
+            12,
+            13,
+            14,
+            15
+          ],
+          "createdAt": 2
+        },
+        {
+          "id": "1/roundKey",
+          "labelKey": "plugin.aes.value.roundKey",
+          "role": "subkey",
+          "bytes": [
+            214,
+            170,
+            116,
+            253,
+            210,
+            175,
+            114,
+            250,
+            218,
+            166,
+            120,
+            241,
+            214,
+            171,
+            118,
+            254
+          ],
+          "createdAt": 6
+        },
+        {
+          "id": "2/roundKey",
+          "labelKey": "plugin.aes.value.roundKey",
+          "role": "subkey",
+          "bytes": [
+            182,
+            146,
+            207,
+            11,
+            100,
+            61,
+            189,
+            241,
+            190,
+            155,
+            197,
+            0,
+            104,
+            48,
+            179,
+            254
+          ],
+          "createdAt": 10
+        },
+        {
+          "id": "3/roundKey",
+          "labelKey": "plugin.aes.value.roundKey",
+          "role": "subkey",
+          "bytes": [
+            182,
+            255,
+            116,
+            78,
+            210,
+            194,
+            201,
+            191,
+            108,
+            89,
+            12,
+            191,
+            4,
+            105,
+            191,
+            65
+          ],
+          "createdAt": 14
+        },
+        {
+          "id": "4/roundKey",
+          "labelKey": "plugin.aes.value.roundKey",
+          "role": "subkey",
+          "bytes": [
+            71,
+            247,
+            247,
+            188,
+            149,
+            53,
+            62,
+            3,
+            249,
+            108,
+            50,
+            188,
+            253,
+            5,
+            141,
+            253
+          ],
+          "createdAt": 18
+        },
+        {
+          "id": "5/roundKey",
+          "labelKey": "plugin.aes.value.roundKey",
+          "role": "subkey",
+          "bytes": [
+            60,
+            170,
+            163,
+            232,
+            169,
+            159,
+            157,
+            235,
+            80,
+            243,
+            175,
+            87,
+            173,
+            246,
+            34,
+            170
+          ],
+          "createdAt": 22
+        },
+        {
+          "id": "6/roundKey",
+          "labelKey": "plugin.aes.value.roundKey",
+          "role": "subkey",
+          "bytes": [
+            94,
+            57,
+            15,
+            125,
+            247,
+            166,
+            146,
+            150,
+            167,
+            85,
+            61,
+            193,
+            10,
+            163,
+            31,
+            107
+          ],
+          "createdAt": 26
+        },
+        {
+          "id": "7/roundKey",
+          "labelKey": "plugin.aes.value.roundKey",
+          "role": "subkey",
+          "bytes": [
+            20,
+            249,
+            112,
+            26,
+            227,
+            95,
+            226,
+            140,
+            68,
+            10,
+            223,
+            77,
+            78,
+            169,
+            192,
+            38
+          ],
+          "createdAt": 30
+        },
+        {
+          "id": "8/roundKey",
+          "labelKey": "plugin.aes.value.roundKey",
+          "role": "subkey",
+          "bytes": [
+            71,
+            67,
+            135,
+            53,
+            164,
+            28,
+            101,
+            185,
+            224,
+            22,
+            186,
+            244,
+            174,
+            191,
+            122,
+            210
+          ],
+          "createdAt": 34
+        },
+        {
+          "id": "9/roundKey",
+          "labelKey": "plugin.aes.value.roundKey",
+          "role": "subkey",
+          "bytes": [
+            84,
+            153,
+            50,
+            209,
+            240,
+            133,
+            87,
+            104,
+            16,
+            147,
+            237,
+            156,
+            190,
+            44,
+            151,
+            78
+          ],
+          "createdAt": 38
+        },
+        {
+          "id": "10/roundKey",
+          "labelKey": "plugin.aes.value.roundKey",
+          "role": "subkey",
+          "bytes": [
+            19,
+            17,
+            29,
+            127,
+            227,
+            148,
+            74,
+            23,
+            243,
+            7,
+            167,
+            139,
+            77,
+            43,
+            48,
+            197
+          ],
+          "createdAt": 41
+        },
+        {
+          "id": "ciphertext",
+          "labelKey": "plugin.aes.value.ciphertext",
+          "role": "ciphertext",
+          "bytes": [
+            105,
+            196,
+            224,
+            216,
+            106,
+            123,
+            4,
+            48,
+            216,
+            205,
+            183,
+            128,
+            112,
+            180,
+            197,
+            90
+          ],
+          "createdAt": 42
+        }
+      ]
+    },
+    "instructions@x86_64-aesni": {
+      "kind": "instructions",
+      "schemaVersion": 1,
+      "isa": "x86_64",
+      "extension": "aesni",
+      "label": {
+        "key": "deriver.isa-x86.label"
+      },
+      "syntax": "intel",
+      "source": {
+        "compiler": "Homebrew clang version 23.1.0",
+        "flags": "-target x86_64-linux-gnu -O2 -maes -masm=intel -ffreestanding -S",
+        "triple": "x86_64-linux-gnu",
+        "function": "aes_encrypt_block_128",
+        "compilerExplorerUrl": "https://godbolt.org/clientstate/eyJzZXNzaW9ucyI6W3siaWQiOjEsImxhbmd1YWdlIjoiYyIsInNvdXJjZSI6Ii8qXG4gKiBBRVMtTkkgYmxvY2sgZW5jcnlwdGlvbiAoeDg2LTY0KSwgY29tcGlsZWQgYnkgcGFja2FnZXMvdG9vbHMvc3JjL2FzbS9nZW5lcmF0ZS50cy5cbiAqIFJvdW5kIGtleXMgYXJlIHJlYWQgZnJvbSBrZXktPnJkX2tleSBhcyAxNi1ieXRlIHZlY3RvcnMgaW4gcmF3IGJ5dGUgb3JkZXIuXG4gKi9cbiNpbmNsdWRlIDxzdGRpbnQuaD5cbiNpbmNsdWRlIDx3bW1pbnRyaW4uaD5cblxuLyogVW5yb2xsZWQsIHN0cmFpZ2h0LWxpbmUgY29kZTogZWFjaCBmdW5jdGlvbiBoYXMgYSBmaXhlZCByb3VuZCBjb3VudCBOciAoMTAvMTIvMTQpLiAqL1xudHlwZWRlZiBzdHJ1Y3QgYWVzX2tleV9zdCB7XG4gICAgdW5zaWduZWQgaW50IHJkX2tleVs2MF07XG4gICAgaW50IHJvdW5kcztcbn0gQUVTX0tFWTtcblxudm9pZCBhZXNfZW5jcnlwdF9ibG9ja18xMjgoY29uc3QgdWludDhfdCAqaW4sIHVpbnQ4X3QgKm91dCwgY29uc3QgQUVTX0tFWSAqa2V5KSB7XG4gICAgY29uc3QgX19tMTI4aSAqcmsgPSAoY29uc3QgX19tMTI4aSAqKWtleS0-cmRfa2V5O1xuICAgIF9fbTEyOGkgcyA9IF9tbV9sb2FkdV9zaTEyOCgoY29uc3QgX19tMTI4aSAqKWluKTtcbiAgICBzID0gX21tX3hvcl9zaTEyOChzLCBfbW1fbG9hZHVfc2kxMjgocmsgKyAwKSk7XG4gICAgcyA9IF9tbV9hZXNlbmNfc2kxMjgocywgX21tX2xvYWR1X3NpMTI4KHJrICsgMSkpO1xuICAgIHMgPSBfbW1fYWVzZW5jX3NpMTI4KHMsIF9tbV9sb2FkdV9zaTEyOChyayArIDIpKTtcbiAgICBzID0gX21tX2Flc2VuY19zaTEyOChzLCBfbW1fbG9hZHVfc2kxMjgocmsgKyAzKSk7XG4gICAgcyA9IF9tbV9hZXNlbmNfc2kxMjgocywgX21tX2xvYWR1X3NpMTI4KHJrICsgNCkpO1xuICAgIHMgPSBfbW1fYWVzZW5jX3NpMTI4KHMsIF9tbV9sb2FkdV9zaTEyOChyayArIDUpKTtcbiAgICBzID0gX21tX2Flc2VuY19zaTEyOChzLCBfbW1fbG9hZHVfc2kxMjgocmsgKyA2KSk7XG4gICAgcyA9IF9tbV9hZXNlbmNfc2kxMjgocywgX21tX2xvYWR1X3NpMTI4KHJrICsgNykpO1xuICAgIHMgPSBfbW1fYWVzZW5jX3NpMTI4KHMsIF9tbV9sb2FkdV9zaTEyOChyayArIDgpKTtcbiAgICBzID0gX21tX2Flc2VuY19zaTEyOChzLCBfbW1fbG9hZHVfc2kxMjgocmsgKyA5KSk7XG4gICAgcyA9IF9tbV9hZXNlbmNsYXN0X3NpMTI4KHMsIF9tbV9sb2FkdV9zaTEyOChyayArIDEwKSk7XG4gICAgX21tX3N0b3JldV9zaTEyOCgoX19tMTI4aSAqKW91dCwgcyk7XG59XG4iLCJjb21waWxlcnMiOlt7ImlkIjoiY2NsYW5nX3RydW5rIiwib3B0aW9ucyI6Ii1PMiAtbWFlcyAtbWFzbT1pbnRlbCAtZmZyZWVzdGFuZGluZyJ9XX1dfQ"
+      },
+      "instructions": [
+        {
+          "address": "0x0",
+          "mnemonic": "movdqu",
+          "operands": [
+            "xmm1",
+            "xmmword ptr [rdi]"
+          ],
+          "reads": [
+            {
+              "kind": "mem",
+              "base": "rdi",
+              "offset": 0,
+              "size": 16,
+              "valueRef": "plaintext"
+            }
+          ],
+          "writes": [
+            {
+              "kind": "reg",
+              "name": "xmm1",
+              "valueRef": "plaintext"
+            }
+          ],
+          "align": {
+            "first": 0,
+            "last": 0
+          }
+        },
+        {
+          "address": "0x4",
+          "mnemonic": "movdqu",
+          "operands": [
+            "xmm0",
+            "xmmword ptr [rdx]"
+          ],
+          "reads": [
+            {
+              "kind": "mem",
+              "base": "rdx",
+              "offset": 0,
+              "size": 16,
+              "valueRef": "0/roundKey"
+            }
+          ],
+          "writes": [
+            {
+              "kind": "reg",
+              "name": "xmm0",
+              "valueRef": "0/roundKey"
+            }
+          ],
+          "align": {
+            "first": 2,
+            "last": 2
+          }
+        },
+        {
+          "address": "0x8",
+          "mnemonic": "pxor",
+          "operands": [
+            "xmm0",
+            "xmm1"
+          ],
+          "reads": [
+            {
+              "kind": "reg",
+              "name": "xmm0",
+              "valueRef": "0/roundKey"
+            },
+            {
+              "kind": "reg",
+              "name": "xmm1"
+            }
+          ],
+          "writes": [
+            {
+              "kind": "reg",
+              "name": "xmm0"
+            }
+          ],
+          "align": {
+            "first": 2,
+            "last": 2
+          },
+          "covers": [
+            {
+              "key": "deriver.isa-x86.op.addRoundKey",
+              "params": {
+                "round": 0
+              }
+            }
+          ]
+        },
+        {
+          "address": "0xc",
+          "mnemonic": "movdqu",
+          "operands": [
+            "xmm1",
+            "xmmword ptr [rdx + 16]"
+          ],
+          "reads": [
+            {
+              "kind": "mem",
+              "base": "rdx",
+              "offset": 16,
+              "size": 16,
+              "valueRef": "1/roundKey"
+            }
+          ],
+          "writes": [
+            {
+              "kind": "reg",
+              "name": "xmm1",
+              "valueRef": "1/roundKey"
+            }
+          ],
+          "align": {
+            "first": 3,
+            "last": 3
+          }
+        },
+        {
+          "address": "0x11",
+          "mnemonic": "aesenc",
+          "operands": [
+            "xmm0",
+            "xmm1"
+          ],
+          "reads": [
+            {
+              "kind": "reg",
+              "name": "xmm0"
+            },
+            {
+              "kind": "reg",
+              "name": "xmm1",
+              "valueRef": "1/roundKey"
+            }
+          ],
+          "writes": [
+            {
+              "kind": "reg",
+              "name": "xmm0"
+            }
+          ],
+          "align": {
+            "first": 3,
+            "last": 6
+          },
+          "covers": [
+            {
+              "key": "deriver.isa-x86.op.subBytes",
+              "params": {
+                "round": 1
+              }
+            },
+            {
+              "key": "deriver.isa-x86.op.shiftRows",
+              "params": {
+                "round": 1
+              }
+            },
+            {
+              "key": "deriver.isa-x86.op.mixColumns",
+              "params": {
+                "round": 1
+              }
+            },
+            {
+              "key": "deriver.isa-x86.op.addRoundKey",
+              "params": {
+                "round": 1
+              }
+            }
+          ]
+        },
+        {
+          "address": "0x16",
+          "mnemonic": "movdqu",
+          "operands": [
+            "xmm1",
+            "xmmword ptr [rdx + 32]"
+          ],
+          "reads": [
+            {
+              "kind": "mem",
+              "base": "rdx",
+              "offset": 32,
+              "size": 16,
+              "valueRef": "2/roundKey"
+            }
+          ],
+          "writes": [
+            {
+              "kind": "reg",
+              "name": "xmm1",
+              "valueRef": "2/roundKey"
+            }
+          ],
+          "align": {
+            "first": 7,
+            "last": 7
+          }
+        },
+        {
+          "address": "0x1b",
+          "mnemonic": "aesenc",
+          "operands": [
+            "xmm0",
+            "xmm1"
+          ],
+          "reads": [
+            {
+              "kind": "reg",
+              "name": "xmm0"
+            },
+            {
+              "kind": "reg",
+              "name": "xmm1",
+              "valueRef": "2/roundKey"
+            }
+          ],
+          "writes": [
+            {
+              "kind": "reg",
+              "name": "xmm0"
+            }
+          ],
+          "align": {
+            "first": 7,
+            "last": 10
+          },
+          "covers": [
+            {
+              "key": "deriver.isa-x86.op.subBytes",
+              "params": {
+                "round": 2
+              }
+            },
+            {
+              "key": "deriver.isa-x86.op.shiftRows",
+              "params": {
+                "round": 2
+              }
+            },
+            {
+              "key": "deriver.isa-x86.op.mixColumns",
+              "params": {
+                "round": 2
+              }
+            },
+            {
+              "key": "deriver.isa-x86.op.addRoundKey",
+              "params": {
+                "round": 2
+              }
+            }
+          ]
+        },
+        {
+          "address": "0x20",
+          "mnemonic": "movdqu",
+          "operands": [
+            "xmm1",
+            "xmmword ptr [rdx + 48]"
+          ],
+          "reads": [
+            {
+              "kind": "mem",
+              "base": "rdx",
+              "offset": 48,
+              "size": 16,
+              "valueRef": "3/roundKey"
+            }
+          ],
+          "writes": [
+            {
+              "kind": "reg",
+              "name": "xmm1",
+              "valueRef": "3/roundKey"
+            }
+          ],
+          "align": {
+            "first": 11,
+            "last": 11
+          }
+        },
+        {
+          "address": "0x25",
+          "mnemonic": "aesenc",
+          "operands": [
+            "xmm0",
+            "xmm1"
+          ],
+          "reads": [
+            {
+              "kind": "reg",
+              "name": "xmm0"
+            },
+            {
+              "kind": "reg",
+              "name": "xmm1",
+              "valueRef": "3/roundKey"
+            }
+          ],
+          "writes": [
+            {
+              "kind": "reg",
+              "name": "xmm0"
+            }
+          ],
+          "align": {
+            "first": 11,
+            "last": 14
+          },
+          "covers": [
+            {
+              "key": "deriver.isa-x86.op.subBytes",
+              "params": {
+                "round": 3
+              }
+            },
+            {
+              "key": "deriver.isa-x86.op.shiftRows",
+              "params": {
+                "round": 3
+              }
+            },
+            {
+              "key": "deriver.isa-x86.op.mixColumns",
+              "params": {
+                "round": 3
+              }
+            },
+            {
+              "key": "deriver.isa-x86.op.addRoundKey",
+              "params": {
+                "round": 3
+              }
+            }
+          ]
+        },
+        {
+          "address": "0x2a",
+          "mnemonic": "movdqu",
+          "operands": [
+            "xmm1",
+            "xmmword ptr [rdx + 64]"
+          ],
+          "reads": [
+            {
+              "kind": "mem",
+              "base": "rdx",
+              "offset": 64,
+              "size": 16,
+              "valueRef": "4/roundKey"
+            }
+          ],
+          "writes": [
+            {
+              "kind": "reg",
+              "name": "xmm1",
+              "valueRef": "4/roundKey"
+            }
+          ],
+          "align": {
+            "first": 15,
+            "last": 15
+          }
+        },
+        {
+          "address": "0x2f",
+          "mnemonic": "aesenc",
+          "operands": [
+            "xmm0",
+            "xmm1"
+          ],
+          "reads": [
+            {
+              "kind": "reg",
+              "name": "xmm0"
+            },
+            {
+              "kind": "reg",
+              "name": "xmm1",
+              "valueRef": "4/roundKey"
+            }
+          ],
+          "writes": [
+            {
+              "kind": "reg",
+              "name": "xmm0"
+            }
+          ],
+          "align": {
+            "first": 15,
+            "last": 18
+          },
+          "covers": [
+            {
+              "key": "deriver.isa-x86.op.subBytes",
+              "params": {
+                "round": 4
+              }
+            },
+            {
+              "key": "deriver.isa-x86.op.shiftRows",
+              "params": {
+                "round": 4
+              }
+            },
+            {
+              "key": "deriver.isa-x86.op.mixColumns",
+              "params": {
+                "round": 4
+              }
+            },
+            {
+              "key": "deriver.isa-x86.op.addRoundKey",
+              "params": {
+                "round": 4
+              }
+            }
+          ]
+        },
+        {
+          "address": "0x34",
+          "mnemonic": "movdqu",
+          "operands": [
+            "xmm1",
+            "xmmword ptr [rdx + 80]"
+          ],
+          "reads": [
+            {
+              "kind": "mem",
+              "base": "rdx",
+              "offset": 80,
+              "size": 16,
+              "valueRef": "5/roundKey"
+            }
+          ],
+          "writes": [
+            {
+              "kind": "reg",
+              "name": "xmm1",
+              "valueRef": "5/roundKey"
+            }
+          ],
+          "align": {
+            "first": 19,
+            "last": 19
+          }
+        },
+        {
+          "address": "0x39",
+          "mnemonic": "aesenc",
+          "operands": [
+            "xmm0",
+            "xmm1"
+          ],
+          "reads": [
+            {
+              "kind": "reg",
+              "name": "xmm0"
+            },
+            {
+              "kind": "reg",
+              "name": "xmm1",
+              "valueRef": "5/roundKey"
+            }
+          ],
+          "writes": [
+            {
+              "kind": "reg",
+              "name": "xmm0"
+            }
+          ],
+          "align": {
+            "first": 19,
+            "last": 22
+          },
+          "covers": [
+            {
+              "key": "deriver.isa-x86.op.subBytes",
+              "params": {
+                "round": 5
+              }
+            },
+            {
+              "key": "deriver.isa-x86.op.shiftRows",
+              "params": {
+                "round": 5
+              }
+            },
+            {
+              "key": "deriver.isa-x86.op.mixColumns",
+              "params": {
+                "round": 5
+              }
+            },
+            {
+              "key": "deriver.isa-x86.op.addRoundKey",
+              "params": {
+                "round": 5
+              }
+            }
+          ]
+        },
+        {
+          "address": "0x3e",
+          "mnemonic": "movdqu",
+          "operands": [
+            "xmm1",
+            "xmmword ptr [rdx + 96]"
+          ],
+          "reads": [
+            {
+              "kind": "mem",
+              "base": "rdx",
+              "offset": 96,
+              "size": 16,
+              "valueRef": "6/roundKey"
+            }
+          ],
+          "writes": [
+            {
+              "kind": "reg",
+              "name": "xmm1",
+              "valueRef": "6/roundKey"
+            }
+          ],
+          "align": {
+            "first": 23,
+            "last": 23
+          }
+        },
+        {
+          "address": "0x43",
+          "mnemonic": "aesenc",
+          "operands": [
+            "xmm0",
+            "xmm1"
+          ],
+          "reads": [
+            {
+              "kind": "reg",
+              "name": "xmm0"
+            },
+            {
+              "kind": "reg",
+              "name": "xmm1",
+              "valueRef": "6/roundKey"
+            }
+          ],
+          "writes": [
+            {
+              "kind": "reg",
+              "name": "xmm0"
+            }
+          ],
+          "align": {
+            "first": 23,
+            "last": 26
+          },
+          "covers": [
+            {
+              "key": "deriver.isa-x86.op.subBytes",
+              "params": {
+                "round": 6
+              }
+            },
+            {
+              "key": "deriver.isa-x86.op.shiftRows",
+              "params": {
+                "round": 6
+              }
+            },
+            {
+              "key": "deriver.isa-x86.op.mixColumns",
+              "params": {
+                "round": 6
+              }
+            },
+            {
+              "key": "deriver.isa-x86.op.addRoundKey",
+              "params": {
+                "round": 6
+              }
+            }
+          ]
+        },
+        {
+          "address": "0x48",
+          "mnemonic": "movdqu",
+          "operands": [
+            "xmm1",
+            "xmmword ptr [rdx + 112]"
+          ],
+          "reads": [
+            {
+              "kind": "mem",
+              "base": "rdx",
+              "offset": 112,
+              "size": 16,
+              "valueRef": "7/roundKey"
+            }
+          ],
+          "writes": [
+            {
+              "kind": "reg",
+              "name": "xmm1",
+              "valueRef": "7/roundKey"
+            }
+          ],
+          "align": {
+            "first": 27,
+            "last": 27
+          }
+        },
+        {
+          "address": "0x4d",
+          "mnemonic": "aesenc",
+          "operands": [
+            "xmm0",
+            "xmm1"
+          ],
+          "reads": [
+            {
+              "kind": "reg",
+              "name": "xmm0"
+            },
+            {
+              "kind": "reg",
+              "name": "xmm1",
+              "valueRef": "7/roundKey"
+            }
+          ],
+          "writes": [
+            {
+              "kind": "reg",
+              "name": "xmm0"
+            }
+          ],
+          "align": {
+            "first": 27,
+            "last": 30
+          },
+          "covers": [
+            {
+              "key": "deriver.isa-x86.op.subBytes",
+              "params": {
+                "round": 7
+              }
+            },
+            {
+              "key": "deriver.isa-x86.op.shiftRows",
+              "params": {
+                "round": 7
+              }
+            },
+            {
+              "key": "deriver.isa-x86.op.mixColumns",
+              "params": {
+                "round": 7
+              }
+            },
+            {
+              "key": "deriver.isa-x86.op.addRoundKey",
+              "params": {
+                "round": 7
+              }
+            }
+          ]
+        },
+        {
+          "address": "0x52",
+          "mnemonic": "movdqu",
+          "operands": [
+            "xmm1",
+            "xmmword ptr [rdx + 128]"
+          ],
+          "reads": [
+            {
+              "kind": "mem",
+              "base": "rdx",
+              "offset": 128,
+              "size": 16,
+              "valueRef": "8/roundKey"
+            }
+          ],
+          "writes": [
+            {
+              "kind": "reg",
+              "name": "xmm1",
+              "valueRef": "8/roundKey"
+            }
+          ],
+          "align": {
+            "first": 31,
+            "last": 31
+          }
+        },
+        {
+          "address": "0x5a",
+          "mnemonic": "aesenc",
+          "operands": [
+            "xmm0",
+            "xmm1"
+          ],
+          "reads": [
+            {
+              "kind": "reg",
+              "name": "xmm0"
+            },
+            {
+              "kind": "reg",
+              "name": "xmm1",
+              "valueRef": "8/roundKey"
+            }
+          ],
+          "writes": [
+            {
+              "kind": "reg",
+              "name": "xmm0"
+            }
+          ],
+          "align": {
+            "first": 31,
+            "last": 34
+          },
+          "covers": [
+            {
+              "key": "deriver.isa-x86.op.subBytes",
+              "params": {
+                "round": 8
+              }
+            },
+            {
+              "key": "deriver.isa-x86.op.shiftRows",
+              "params": {
+                "round": 8
+              }
+            },
+            {
+              "key": "deriver.isa-x86.op.mixColumns",
+              "params": {
+                "round": 8
+              }
+            },
+            {
+              "key": "deriver.isa-x86.op.addRoundKey",
+              "params": {
+                "round": 8
+              }
+            }
+          ]
+        },
+        {
+          "address": "0x5f",
+          "mnemonic": "movdqu",
+          "operands": [
+            "xmm1",
+            "xmmword ptr [rdx + 144]"
+          ],
+          "reads": [
+            {
+              "kind": "mem",
+              "base": "rdx",
+              "offset": 144,
+              "size": 16,
+              "valueRef": "9/roundKey"
+            }
+          ],
+          "writes": [
+            {
+              "kind": "reg",
+              "name": "xmm1",
+              "valueRef": "9/roundKey"
+            }
+          ],
+          "align": {
+            "first": 35,
+            "last": 35
+          }
+        },
+        {
+          "address": "0x67",
+          "mnemonic": "aesenc",
+          "operands": [
+            "xmm0",
+            "xmm1"
+          ],
+          "reads": [
+            {
+              "kind": "reg",
+              "name": "xmm0"
+            },
+            {
+              "kind": "reg",
+              "name": "xmm1",
+              "valueRef": "9/roundKey"
+            }
+          ],
+          "writes": [
+            {
+              "kind": "reg",
+              "name": "xmm0"
+            }
+          ],
+          "align": {
+            "first": 35,
+            "last": 38
+          },
+          "covers": [
+            {
+              "key": "deriver.isa-x86.op.subBytes",
+              "params": {
+                "round": 9
+              }
+            },
+            {
+              "key": "deriver.isa-x86.op.shiftRows",
+              "params": {
+                "round": 9
+              }
+            },
+            {
+              "key": "deriver.isa-x86.op.mixColumns",
+              "params": {
+                "round": 9
+              }
+            },
+            {
+              "key": "deriver.isa-x86.op.addRoundKey",
+              "params": {
+                "round": 9
+              }
+            }
+          ]
+        },
+        {
+          "address": "0x6c",
+          "mnemonic": "movdqu",
+          "operands": [
+            "xmm1",
+            "xmmword ptr [rdx + 160]"
+          ],
+          "reads": [
+            {
+              "kind": "mem",
+              "base": "rdx",
+              "offset": 160,
+              "size": 16,
+              "valueRef": "10/roundKey"
+            }
+          ],
+          "writes": [
+            {
+              "kind": "reg",
+              "name": "xmm1",
+              "valueRef": "10/roundKey"
+            }
+          ],
+          "align": {
+            "first": 39,
+            "last": 39
+          }
+        },
+        {
+          "address": "0x74",
+          "mnemonic": "aesenclast",
+          "operands": [
+            "xmm0",
+            "xmm1"
+          ],
+          "reads": [
+            {
+              "kind": "reg",
+              "name": "xmm0"
+            },
+            {
+              "kind": "reg",
+              "name": "xmm1",
+              "valueRef": "10/roundKey"
+            }
+          ],
+          "writes": [
+            {
+              "kind": "reg",
+              "name": "xmm0",
+              "valueRef": "ciphertext"
+            }
+          ],
+          "align": {
+            "first": 39,
+            "last": 41
+          },
+          "covers": [
+            {
+              "key": "deriver.isa-x86.op.subBytes",
+              "params": {
+                "round": 10
+              }
+            },
+            {
+              "key": "deriver.isa-x86.op.shiftRows",
+              "params": {
+                "round": 10
+              }
+            },
+            {
+              "key": "deriver.isa-x86.op.addRoundKey",
+              "params": {
+                "round": 10
+              }
+            }
+          ]
+        },
+        {
+          "address": "0x79",
+          "mnemonic": "movdqu",
+          "operands": [
+            "xmmword ptr [rsi]",
+            "xmm0"
+          ],
+          "reads": [
+            {
+              "kind": "reg",
+              "name": "xmm0"
+            }
+          ],
+          "writes": [
+            {
+              "kind": "mem",
+              "base": "rsi",
+              "offset": 0,
+              "size": 16,
+              "valueRef": "ciphertext"
+            }
+          ],
+          "align": {
+            "first": 42,
+            "last": 42
+          }
+        },
+        {
+          "address": "0x7d",
+          "mnemonic": "ret",
+          "operands": [],
+          "reads": [],
+          "writes": [],
+          "align": {
+            "first": 42,
+            "last": 42
+          }
+        }
+      ]
+    },
+    "instructions@aarch64-armv8-ce": {
+      "kind": "instructions",
+      "schemaVersion": 1,
+      "isa": "aarch64",
+      "extension": "armv8-ce",
+      "label": {
+        "key": "deriver.isa-armv8.label"
+      },
+      "syntax": "arm",
+      "source": {
+        "compiler": "Homebrew clang version 23.1.0",
+        "flags": "-target aarch64-linux-gnu -march=armv8-a+crypto -O2 -ffreestanding -S",
+        "triple": "aarch64-linux-gnu",
+        "function": "aes_encrypt_block_128",
+        "compilerExplorerUrl": "https://godbolt.org/clientstate/eyJzZXNzaW9ucyI6W3siaWQiOjEsImxhbmd1YWdlIjoiYyIsInNvdXJjZSI6Ii8qXG4gKiBBUk12OCBDcnlwdG8gRXh0ZW5zaW9ucyBibG9jayBlbmNyeXB0aW9uIChBQXJjaDY0KSwgY29tcGlsZWQgYnkgcGFja2FnZXMvdG9vbHMvc3JjL2FzbS9nZW5lcmF0ZS50cy5cbiAqIFJvdW5kIGtleXMgYXJlIHJlYWQgZnJvbSBrZXktPnJkX2tleSBhcyAxNi1ieXRlIHZlY3RvcnMgaW4gcmF3IGJ5dGUgb3JkZXIuXG4gKiBhZXNlKHMsIGspID0gU3ViQnl0ZXMoU2hpZnRSb3dzKHMgXiBrKSk7IGFlc21jID0gTWl4Q29sdW1ucy5cbiAqL1xuI2luY2x1ZGUgPHN0ZGludC5oPlxuI2luY2x1ZGUgPGFybV9uZW9uLmg-XG5cbi8qIFVucm9sbGVkLCBzdHJhaWdodC1saW5lIGNvZGU6IGVhY2ggZnVuY3Rpb24gaGFzIGEgZml4ZWQgcm91bmQgY291bnQgTnIgKDEwLzEyLzE0KS4gKi9cbnR5cGVkZWYgc3RydWN0IGFlc19rZXlfc3Qge1xuICAgIHVuc2lnbmVkIGludCByZF9rZXlbNjBdO1xuICAgIGludCByb3VuZHM7XG59IEFFU19LRVk7XG5cbnZvaWQgYWVzX2VuY3J5cHRfYmxvY2tfMTI4KGNvbnN0IHVpbnQ4X3QgKmluLCB1aW50OF90ICpvdXQsIGNvbnN0IEFFU19LRVkgKmtleSkge1xuICAgIGNvbnN0IHVpbnQ4X3QgKnJrID0gKGNvbnN0IHVpbnQ4X3QgKilrZXktPnJkX2tleTtcbiAgICB1aW50OHgxNl90IHMgPSB2bGQxcV91OChpbik7XG4gICAgcyA9IHZhZXNtY3FfdTgodmFlc2VxX3U4KHMsIHZsZDFxX3U4KHJrICsgMCAqIDE2KSkpO1xuICAgIHMgPSB2YWVzbWNxX3U4KHZhZXNlcV91OChzLCB2bGQxcV91OChyayArIDEgKiAxNikpKTtcbiAgICBzID0gdmFlc21jcV91OCh2YWVzZXFfdTgocywgdmxkMXFfdTgocmsgKyAyICogMTYpKSk7XG4gICAgcyA9IHZhZXNtY3FfdTgodmFlc2VxX3U4KHMsIHZsZDFxX3U4KHJrICsgMyAqIDE2KSkpO1xuICAgIHMgPSB2YWVzbWNxX3U4KHZhZXNlcV91OChzLCB2bGQxcV91OChyayArIDQgKiAxNikpKTtcbiAgICBzID0gdmFlc21jcV91OCh2YWVzZXFfdTgocywgdmxkMXFfdTgocmsgKyA1ICogMTYpKSk7XG4gICAgcyA9IHZhZXNtY3FfdTgodmFlc2VxX3U4KHMsIHZsZDFxX3U4KHJrICsgNiAqIDE2KSkpO1xuICAgIHMgPSB2YWVzbWNxX3U4KHZhZXNlcV91OChzLCB2bGQxcV91OChyayArIDcgKiAxNikpKTtcbiAgICBzID0gdmFlc21jcV91OCh2YWVzZXFfdTgocywgdmxkMXFfdTgocmsgKyA4ICogMTYpKSk7XG4gICAgcyA9IHZhZXNlcV91OChzLCB2bGQxcV91OChyayArIDkgKiAxNikpO1xuICAgIHMgPSB2ZW9ycV91OChzLCB2bGQxcV91OChyayArIDEwICogMTYpKTtcbiAgICB2c3QxcV91OChvdXQsIHMpO1xufVxuIiwiY29tcGlsZXJzIjpbeyJpZCI6ImFybXY4LWNjbGFuZy10cnVuayIsIm9wdGlvbnMiOiItbWFyY2g9YXJtdjgtYStjcnlwdG8gLU8yIC1mZnJlZXN0YW5kaW5nIn1dfV19"
+      },
+      "instructions": [
+        {
+          "address": "0x0",
+          "mnemonic": "ldp",
+          "operands": [
+            "q1",
+            "q2",
+            "[x2]"
+          ],
+          "reads": [
+            {
+              "kind": "mem",
+              "base": "x2",
+              "offset": 0,
+              "size": 16,
+              "valueRef": "0/roundKey"
+            },
+            {
+              "kind": "mem",
+              "base": "x2",
+              "offset": 16,
+              "size": 16,
+              "valueRef": "1/roundKey"
+            }
+          ],
+          "writes": [
+            {
+              "kind": "reg",
+              "name": "v1",
+              "valueRef": "0/roundKey"
+            },
+            {
+              "kind": "reg",
+              "name": "v2",
+              "valueRef": "1/roundKey"
+            }
+          ],
+          "align": {
+            "first": -1,
+            "last": -1
+          }
+        },
+        {
+          "address": "0x4",
+          "mnemonic": "ldr",
+          "operands": [
+            "q0",
+            "[x0]"
+          ],
+          "reads": [
+            {
+              "kind": "mem",
+              "base": "x0",
+              "offset": 0,
+              "size": 16,
+              "valueRef": "plaintext"
+            }
+          ],
+          "writes": [
+            {
+              "kind": "reg",
+              "name": "v0",
+              "valueRef": "plaintext"
+            }
+          ],
+          "align": {
+            "first": 0,
+            "last": 0
+          }
+        },
+        {
+          "address": "0x8",
+          "mnemonic": "aese",
+          "operands": [
+            "v1.16b",
+            "v0.16b"
+          ],
+          "reads": [
+            {
+              "kind": "reg",
+              "name": "v1",
+              "valueRef": "0/roundKey"
+            },
+            {
+              "kind": "reg",
+              "name": "v0"
+            }
+          ],
+          "writes": [
+            {
+              "kind": "reg",
+              "name": "v1"
+            }
+          ],
+          "align": {
+            "first": 2,
+            "last": 4
+          },
+          "covers": [
+            {
+              "key": "deriver.isa-armv8.op.addRoundKey",
+              "params": {
+                "round": 0
+              }
+            },
+            {
+              "key": "deriver.isa-armv8.op.subBytes",
+              "params": {
+                "round": 1
+              }
+            },
+            {
+              "key": "deriver.isa-armv8.op.shiftRows",
+              "params": {
+                "round": 1
+              }
+            }
+          ],
+          "note": {
+            "key": "deriver.isa-armv8.note.fusion"
+          }
+        },
+        {
+          "address": "0xc",
+          "mnemonic": "aesmc",
+          "operands": [
+            "v1.16b",
+            "v1.16b"
+          ],
+          "reads": [
+            {
+              "kind": "reg",
+              "name": "v1"
+            }
+          ],
+          "writes": [
+            {
+              "kind": "reg",
+              "name": "v1"
+            }
+          ],
+          "align": {
+            "first": 5,
+            "last": 5
+          },
+          "covers": [
+            {
+              "key": "deriver.isa-armv8.op.mixColumns",
+              "params": {
+                "round": 1
+              }
+            }
+          ],
+          "note": {
+            "key": "deriver.isa-armv8.note.fusion"
+          }
+        },
+        {
+          "address": "0x10",
+          "mnemonic": "aese",
+          "operands": [
+            "v2.16b",
+            "v1.16b"
+          ],
+          "reads": [
+            {
+              "kind": "reg",
+              "name": "v2",
+              "valueRef": "1/roundKey"
+            },
+            {
+              "kind": "reg",
+              "name": "v1"
+            }
+          ],
+          "writes": [
+            {
+              "kind": "reg",
+              "name": "v2"
+            }
+          ],
+          "align": {
+            "first": 6,
+            "last": 8
+          },
+          "covers": [
+            {
+              "key": "deriver.isa-armv8.op.addRoundKey",
+              "params": {
+                "round": 1
+              }
+            },
+            {
+              "key": "deriver.isa-armv8.op.subBytes",
+              "params": {
+                "round": 2
+              }
+            },
+            {
+              "key": "deriver.isa-armv8.op.shiftRows",
+              "params": {
+                "round": 2
+              }
+            }
+          ],
+          "note": {
+            "key": "deriver.isa-armv8.note.fusion"
+          }
+        },
+        {
+          "address": "0x14",
+          "mnemonic": "aesmc",
+          "operands": [
+            "v2.16b",
+            "v2.16b"
+          ],
+          "reads": [
+            {
+              "kind": "reg",
+              "name": "v2"
+            }
+          ],
+          "writes": [
+            {
+              "kind": "reg",
+              "name": "v2"
+            }
+          ],
+          "align": {
+            "first": 9,
+            "last": 9
+          },
+          "covers": [
+            {
+              "key": "deriver.isa-armv8.op.mixColumns",
+              "params": {
+                "round": 2
+              }
+            }
+          ],
+          "note": {
+            "key": "deriver.isa-armv8.note.fusion"
+          }
+        },
+        {
+          "address": "0x18",
+          "mnemonic": "ldp",
+          "operands": [
+            "q0",
+            "q1",
+            "[x2, #32]"
+          ],
+          "reads": [
+            {
+              "kind": "mem",
+              "base": "x2",
+              "offset": 32,
+              "size": 16,
+              "valueRef": "2/roundKey"
+            },
+            {
+              "kind": "mem",
+              "base": "x2",
+              "offset": 48,
+              "size": 16,
+              "valueRef": "3/roundKey"
+            }
+          ],
+          "writes": [
+            {
+              "kind": "reg",
+              "name": "v0",
+              "valueRef": "2/roundKey"
+            },
+            {
+              "kind": "reg",
+              "name": "v1",
+              "valueRef": "3/roundKey"
+            }
+          ],
+          "align": {
+            "first": 10,
+            "last": 10
+          }
+        },
+        {
+          "address": "0x1c",
+          "mnemonic": "aese",
+          "operands": [
+            "v0.16b",
+            "v2.16b"
+          ],
+          "reads": [
+            {
+              "kind": "reg",
+              "name": "v0",
+              "valueRef": "2/roundKey"
+            },
+            {
+              "kind": "reg",
+              "name": "v2"
+            }
+          ],
+          "writes": [
+            {
+              "kind": "reg",
+              "name": "v0"
+            }
+          ],
+          "align": {
+            "first": 10,
+            "last": 12
+          },
+          "covers": [
+            {
+              "key": "deriver.isa-armv8.op.addRoundKey",
+              "params": {
+                "round": 2
+              }
+            },
+            {
+              "key": "deriver.isa-armv8.op.subBytes",
+              "params": {
+                "round": 3
+              }
+            },
+            {
+              "key": "deriver.isa-armv8.op.shiftRows",
+              "params": {
+                "round": 3
+              }
+            }
+          ],
+          "note": {
+            "key": "deriver.isa-armv8.note.fusion"
+          }
+        },
+        {
+          "address": "0x20",
+          "mnemonic": "aesmc",
+          "operands": [
+            "v0.16b",
+            "v0.16b"
+          ],
+          "reads": [
+            {
+              "kind": "reg",
+              "name": "v0"
+            }
+          ],
+          "writes": [
+            {
+              "kind": "reg",
+              "name": "v0"
+            }
+          ],
+          "align": {
+            "first": 13,
+            "last": 13
+          },
+          "covers": [
+            {
+              "key": "deriver.isa-armv8.op.mixColumns",
+              "params": {
+                "round": 3
+              }
+            }
+          ],
+          "note": {
+            "key": "deriver.isa-armv8.note.fusion"
+          }
+        },
+        {
+          "address": "0x24",
+          "mnemonic": "aese",
+          "operands": [
+            "v1.16b",
+            "v0.16b"
+          ],
+          "reads": [
+            {
+              "kind": "reg",
+              "name": "v1",
+              "valueRef": "3/roundKey"
+            },
+            {
+              "kind": "reg",
+              "name": "v0"
+            }
+          ],
+          "writes": [
+            {
+              "kind": "reg",
+              "name": "v1"
+            }
+          ],
+          "align": {
+            "first": 14,
+            "last": 16
+          },
+          "covers": [
+            {
+              "key": "deriver.isa-armv8.op.addRoundKey",
+              "params": {
+                "round": 3
+              }
+            },
+            {
+              "key": "deriver.isa-armv8.op.subBytes",
+              "params": {
+                "round": 4
+              }
+            },
+            {
+              "key": "deriver.isa-armv8.op.shiftRows",
+              "params": {
+                "round": 4
+              }
+            }
+          ],
+          "note": {
+            "key": "deriver.isa-armv8.note.fusion"
+          }
+        },
+        {
+          "address": "0x28",
+          "mnemonic": "aesmc",
+          "operands": [
+            "v1.16b",
+            "v1.16b"
+          ],
+          "reads": [
+            {
+              "kind": "reg",
+              "name": "v1"
+            }
+          ],
+          "writes": [
+            {
+              "kind": "reg",
+              "name": "v1"
+            }
+          ],
+          "align": {
+            "first": 17,
+            "last": 17
+          },
+          "covers": [
+            {
+              "key": "deriver.isa-armv8.op.mixColumns",
+              "params": {
+                "round": 4
+              }
+            }
+          ],
+          "note": {
+            "key": "deriver.isa-armv8.note.fusion"
+          }
+        },
+        {
+          "address": "0x2c",
+          "mnemonic": "ldp",
+          "operands": [
+            "q0",
+            "q2",
+            "[x2, #64]"
+          ],
+          "reads": [
+            {
+              "kind": "mem",
+              "base": "x2",
+              "offset": 64,
+              "size": 16,
+              "valueRef": "4/roundKey"
+            },
+            {
+              "kind": "mem",
+              "base": "x2",
+              "offset": 80,
+              "size": 16,
+              "valueRef": "5/roundKey"
+            }
+          ],
+          "writes": [
+            {
+              "kind": "reg",
+              "name": "v0",
+              "valueRef": "4/roundKey"
+            },
+            {
+              "kind": "reg",
+              "name": "v2",
+              "valueRef": "5/roundKey"
+            }
+          ],
+          "align": {
+            "first": 18,
+            "last": 18
+          }
+        },
+        {
+          "address": "0x30",
+          "mnemonic": "aese",
+          "operands": [
+            "v0.16b",
+            "v1.16b"
+          ],
+          "reads": [
+            {
+              "kind": "reg",
+              "name": "v0",
+              "valueRef": "4/roundKey"
+            },
+            {
+              "kind": "reg",
+              "name": "v1"
+            }
+          ],
+          "writes": [
+            {
+              "kind": "reg",
+              "name": "v0"
+            }
+          ],
+          "align": {
+            "first": 18,
+            "last": 20
+          },
+          "covers": [
+            {
+              "key": "deriver.isa-armv8.op.addRoundKey",
+              "params": {
+                "round": 4
+              }
+            },
+            {
+              "key": "deriver.isa-armv8.op.subBytes",
+              "params": {
+                "round": 5
+              }
+            },
+            {
+              "key": "deriver.isa-armv8.op.shiftRows",
+              "params": {
+                "round": 5
+              }
+            }
+          ],
+          "note": {
+            "key": "deriver.isa-armv8.note.fusion"
+          }
+        },
+        {
+          "address": "0x34",
+          "mnemonic": "aesmc",
+          "operands": [
+            "v0.16b",
+            "v0.16b"
+          ],
+          "reads": [
+            {
+              "kind": "reg",
+              "name": "v0"
+            }
+          ],
+          "writes": [
+            {
+              "kind": "reg",
+              "name": "v0"
+            }
+          ],
+          "align": {
+            "first": 21,
+            "last": 21
+          },
+          "covers": [
+            {
+              "key": "deriver.isa-armv8.op.mixColumns",
+              "params": {
+                "round": 5
+              }
+            }
+          ],
+          "note": {
+            "key": "deriver.isa-armv8.note.fusion"
+          }
+        },
+        {
+          "address": "0x38",
+          "mnemonic": "aese",
+          "operands": [
+            "v2.16b",
+            "v0.16b"
+          ],
+          "reads": [
+            {
+              "kind": "reg",
+              "name": "v2",
+              "valueRef": "5/roundKey"
+            },
+            {
+              "kind": "reg",
+              "name": "v0"
+            }
+          ],
+          "writes": [
+            {
+              "kind": "reg",
+              "name": "v2"
+            }
+          ],
+          "align": {
+            "first": 22,
+            "last": 24
+          },
+          "covers": [
+            {
+              "key": "deriver.isa-armv8.op.addRoundKey",
+              "params": {
+                "round": 5
+              }
+            },
+            {
+              "key": "deriver.isa-armv8.op.subBytes",
+              "params": {
+                "round": 6
+              }
+            },
+            {
+              "key": "deriver.isa-armv8.op.shiftRows",
+              "params": {
+                "round": 6
+              }
+            }
+          ],
+          "note": {
+            "key": "deriver.isa-armv8.note.fusion"
+          }
+        },
+        {
+          "address": "0x3c",
+          "mnemonic": "aesmc",
+          "operands": [
+            "v2.16b",
+            "v2.16b"
+          ],
+          "reads": [
+            {
+              "kind": "reg",
+              "name": "v2"
+            }
+          ],
+          "writes": [
+            {
+              "kind": "reg",
+              "name": "v2"
+            }
+          ],
+          "align": {
+            "first": 25,
+            "last": 25
+          },
+          "covers": [
+            {
+              "key": "deriver.isa-armv8.op.mixColumns",
+              "params": {
+                "round": 6
+              }
+            }
+          ],
+          "note": {
+            "key": "deriver.isa-armv8.note.fusion"
+          }
+        },
+        {
+          "address": "0x40",
+          "mnemonic": "ldp",
+          "operands": [
+            "q0",
+            "q1",
+            "[x2, #96]"
+          ],
+          "reads": [
+            {
+              "kind": "mem",
+              "base": "x2",
+              "offset": 96,
+              "size": 16,
+              "valueRef": "6/roundKey"
+            },
+            {
+              "kind": "mem",
+              "base": "x2",
+              "offset": 112,
+              "size": 16,
+              "valueRef": "7/roundKey"
+            }
+          ],
+          "writes": [
+            {
+              "kind": "reg",
+              "name": "v0",
+              "valueRef": "6/roundKey"
+            },
+            {
+              "kind": "reg",
+              "name": "v1",
+              "valueRef": "7/roundKey"
+            }
+          ],
+          "align": {
+            "first": 26,
+            "last": 26
+          }
+        },
+        {
+          "address": "0x44",
+          "mnemonic": "aese",
+          "operands": [
+            "v0.16b",
+            "v2.16b"
+          ],
+          "reads": [
+            {
+              "kind": "reg",
+              "name": "v0",
+              "valueRef": "6/roundKey"
+            },
+            {
+              "kind": "reg",
+              "name": "v2"
+            }
+          ],
+          "writes": [
+            {
+              "kind": "reg",
+              "name": "v0"
+            }
+          ],
+          "align": {
+            "first": 26,
+            "last": 28
+          },
+          "covers": [
+            {
+              "key": "deriver.isa-armv8.op.addRoundKey",
+              "params": {
+                "round": 6
+              }
+            },
+            {
+              "key": "deriver.isa-armv8.op.subBytes",
+              "params": {
+                "round": 7
+              }
+            },
+            {
+              "key": "deriver.isa-armv8.op.shiftRows",
+              "params": {
+                "round": 7
+              }
+            }
+          ],
+          "note": {
+            "key": "deriver.isa-armv8.note.fusion"
+          }
+        },
+        {
+          "address": "0x48",
+          "mnemonic": "aesmc",
+          "operands": [
+            "v0.16b",
+            "v0.16b"
+          ],
+          "reads": [
+            {
+              "kind": "reg",
+              "name": "v0"
+            }
+          ],
+          "writes": [
+            {
+              "kind": "reg",
+              "name": "v0"
+            }
+          ],
+          "align": {
+            "first": 29,
+            "last": 29
+          },
+          "covers": [
+            {
+              "key": "deriver.isa-armv8.op.mixColumns",
+              "params": {
+                "round": 7
+              }
+            }
+          ],
+          "note": {
+            "key": "deriver.isa-armv8.note.fusion"
+          }
+        },
+        {
+          "address": "0x4c",
+          "mnemonic": "aese",
+          "operands": [
+            "v1.16b",
+            "v0.16b"
+          ],
+          "reads": [
+            {
+              "kind": "reg",
+              "name": "v1",
+              "valueRef": "7/roundKey"
+            },
+            {
+              "kind": "reg",
+              "name": "v0"
+            }
+          ],
+          "writes": [
+            {
+              "kind": "reg",
+              "name": "v1"
+            }
+          ],
+          "align": {
+            "first": 30,
+            "last": 32
+          },
+          "covers": [
+            {
+              "key": "deriver.isa-armv8.op.addRoundKey",
+              "params": {
+                "round": 7
+              }
+            },
+            {
+              "key": "deriver.isa-armv8.op.subBytes",
+              "params": {
+                "round": 8
+              }
+            },
+            {
+              "key": "deriver.isa-armv8.op.shiftRows",
+              "params": {
+                "round": 8
+              }
+            }
+          ],
+          "note": {
+            "key": "deriver.isa-armv8.note.fusion"
+          }
+        },
+        {
+          "address": "0x50",
+          "mnemonic": "aesmc",
+          "operands": [
+            "v1.16b",
+            "v1.16b"
+          ],
+          "reads": [
+            {
+              "kind": "reg",
+              "name": "v1"
+            }
+          ],
+          "writes": [
+            {
+              "kind": "reg",
+              "name": "v1"
+            }
+          ],
+          "align": {
+            "first": 33,
+            "last": 33
+          },
+          "covers": [
+            {
+              "key": "deriver.isa-armv8.op.mixColumns",
+              "params": {
+                "round": 8
+              }
+            }
+          ],
+          "note": {
+            "key": "deriver.isa-armv8.note.fusion"
+          }
+        },
+        {
+          "address": "0x54",
+          "mnemonic": "ldp",
+          "operands": [
+            "q0",
+            "q2",
+            "[x2, #128]"
+          ],
+          "reads": [
+            {
+              "kind": "mem",
+              "base": "x2",
+              "offset": 128,
+              "size": 16,
+              "valueRef": "8/roundKey"
+            },
+            {
+              "kind": "mem",
+              "base": "x2",
+              "offset": 144,
+              "size": 16,
+              "valueRef": "9/roundKey"
+            }
+          ],
+          "writes": [
+            {
+              "kind": "reg",
+              "name": "v0",
+              "valueRef": "8/roundKey"
+            },
+            {
+              "kind": "reg",
+              "name": "v2",
+              "valueRef": "9/roundKey"
+            }
+          ],
+          "align": {
+            "first": 34,
+            "last": 34
+          }
+        },
+        {
+          "address": "0x58",
+          "mnemonic": "aese",
+          "operands": [
+            "v0.16b",
+            "v1.16b"
+          ],
+          "reads": [
+            {
+              "kind": "reg",
+              "name": "v0",
+              "valueRef": "8/roundKey"
+            },
+            {
+              "kind": "reg",
+              "name": "v1"
+            }
+          ],
+          "writes": [
+            {
+              "kind": "reg",
+              "name": "v0"
+            }
+          ],
+          "align": {
+            "first": 34,
+            "last": 36
+          },
+          "covers": [
+            {
+              "key": "deriver.isa-armv8.op.addRoundKey",
+              "params": {
+                "round": 8
+              }
+            },
+            {
+              "key": "deriver.isa-armv8.op.subBytes",
+              "params": {
+                "round": 9
+              }
+            },
+            {
+              "key": "deriver.isa-armv8.op.shiftRows",
+              "params": {
+                "round": 9
+              }
+            }
+          ],
+          "note": {
+            "key": "deriver.isa-armv8.note.fusion"
+          }
+        },
+        {
+          "address": "0x5c",
+          "mnemonic": "aesmc",
+          "operands": [
+            "v0.16b",
+            "v0.16b"
+          ],
+          "reads": [
+            {
+              "kind": "reg",
+              "name": "v0"
+            }
+          ],
+          "writes": [
+            {
+              "kind": "reg",
+              "name": "v0"
+            }
+          ],
+          "align": {
+            "first": 37,
+            "last": 37
+          },
+          "covers": [
+            {
+              "key": "deriver.isa-armv8.op.mixColumns",
+              "params": {
+                "round": 9
+              }
+            }
+          ],
+          "note": {
+            "key": "deriver.isa-armv8.note.fusion"
+          }
+        },
+        {
+          "address": "0x60",
+          "mnemonic": "aese",
+          "operands": [
+            "v2.16b",
+            "v0.16b"
+          ],
+          "reads": [
+            {
+              "kind": "reg",
+              "name": "v2",
+              "valueRef": "9/roundKey"
+            },
+            {
+              "kind": "reg",
+              "name": "v0"
+            }
+          ],
+          "writes": [
+            {
+              "kind": "reg",
+              "name": "v2"
+            }
+          ],
+          "align": {
+            "first": 38,
+            "last": 40
+          },
+          "covers": [
+            {
+              "key": "deriver.isa-armv8.op.addRoundKey",
+              "params": {
+                "round": 9
+              }
+            },
+            {
+              "key": "deriver.isa-armv8.op.subBytes",
+              "params": {
+                "round": 10
+              }
+            },
+            {
+              "key": "deriver.isa-armv8.op.shiftRows",
+              "params": {
+                "round": 10
+              }
+            }
+          ]
+        },
+        {
+          "address": "0x64",
+          "mnemonic": "ldr",
+          "operands": [
+            "q0",
+            "[x2, #160]"
+          ],
+          "reads": [
+            {
+              "kind": "mem",
+              "base": "x2",
+              "offset": 160,
+              "size": 16,
+              "valueRef": "10/roundKey"
+            }
+          ],
+          "writes": [
+            {
+              "kind": "reg",
+              "name": "v0",
+              "valueRef": "10/roundKey"
+            }
+          ],
+          "align": {
+            "first": 41,
+            "last": 41
+          }
+        },
+        {
+          "address": "0x68",
+          "mnemonic": "eor",
+          "operands": [
+            "v0.16b",
+            "v0.16b",
+            "v2.16b"
+          ],
+          "reads": [
+            {
+              "kind": "reg",
+              "name": "v0",
+              "valueRef": "10/roundKey"
+            },
+            {
+              "kind": "reg",
+              "name": "v2"
+            }
+          ],
+          "writes": [
+            {
+              "kind": "reg",
+              "name": "v0",
+              "valueRef": "ciphertext"
+            }
+          ],
+          "align": {
+            "first": 41,
+            "last": 41
+          },
+          "covers": [
+            {
+              "key": "deriver.isa-armv8.op.addRoundKey",
+              "params": {
+                "round": 10
+              }
+            }
+          ]
+        },
+        {
+          "address": "0x6c",
+          "mnemonic": "str",
+          "operands": [
+            "q0",
+            "[x1]"
+          ],
+          "reads": [
+            {
+              "kind": "reg",
+              "name": "v0"
+            }
+          ],
+          "writes": [
+            {
+              "kind": "mem",
+              "base": "x1",
+              "offset": 0,
+              "size": 16,
+              "valueRef": "ciphertext"
+            }
+          ],
+          "align": {
+            "first": 42,
+            "last": 42
+          }
+        },
+        {
+          "address": "0x70",
+          "mnemonic": "ret",
+          "operands": [],
+          "reads": [],
+          "writes": [],
+          "align": {
+            "first": 42,
+            "last": 42
+          }
+        }
+      ]
+    }
+  },
+  "labels": {
+    "en": {
+      "deriver.isa-armv8.label": "AArch64 · ARMv8 Crypto Extensions",
+      "deriver.isa-armv8.note.fusion": "aese and aesmc work as a pair: many ARM cores fuse an aese directly followed by an aesmc on the same register into a single operation. That is why the compiler keeps the two side by side.",
+      "deriver.isa-armv8.op.addRoundKey": "AddRoundKey (round {{round}})",
+      "deriver.isa-armv8.op.mixColumns": "MixColumns (round {{round}})",
+      "deriver.isa-armv8.op.shiftRows": "ShiftRows (round {{round}})",
+      "deriver.isa-armv8.op.subBytes": "SubBytes (round {{round}})",
+      "deriver.isa-armv8.registers.label": "AArch64 · ARMv8 Crypto Extensions · vector registers",
+      "deriver.isa-x86.label": "x86-64 · AES-NI",
+      "deriver.isa-x86.op.addRoundKey": "AddRoundKey (round {{round}})",
+      "deriver.isa-x86.op.mixColumns": "MixColumns (round {{round}})",
+      "deriver.isa-x86.op.shiftRows": "ShiftRows (round {{round}})",
+      "deriver.isa-x86.op.subBytes": "SubBytes (round {{round}})",
+      "deriver.isa-x86.registers.label": "x86-64 · AES-NI · XMM registers",
+      "plugin.aes.value.ciphertext": "Ciphertext",
+      "plugin.aes.value.key": "Cipher key",
+      "plugin.aes.value.plaintext": "Plaintext",
+      "plugin.aes.value.roundKey": "Round key"
+    },
+    "de": {
+      "deriver.isa-armv8.label": "AArch64 · ARMv8 Crypto Extensions",
+      "deriver.isa-armv8.note.fusion": "aese und aesmc arbeiten als Paar: Viele ARM-Kerne verschmelzen ein aese, auf das direkt ein aesmc auf demselben Register folgt, zu einer einzigen Operation („Fusion“). Deshalb hält der Compiler die beiden direkt nebeneinander.",
+      "deriver.isa-armv8.op.addRoundKey": "AddRoundKey (Runde {{round}})",
+      "deriver.isa-armv8.op.mixColumns": "MixColumns (Runde {{round}})",
+      "deriver.isa-armv8.op.shiftRows": "ShiftRows (Runde {{round}})",
+      "deriver.isa-armv8.op.subBytes": "SubBytes (Runde {{round}})",
+      "deriver.isa-armv8.registers.label": "AArch64 · ARMv8 Crypto Extensions · Vektorregister",
+      "deriver.isa-x86.label": "x86-64 · AES-NI",
+      "deriver.isa-x86.op.addRoundKey": "AddRoundKey (Runde {{round}})",
+      "deriver.isa-x86.op.mixColumns": "MixColumns (Runde {{round}})",
+      "deriver.isa-x86.op.shiftRows": "ShiftRows (Runde {{round}})",
+      "deriver.isa-x86.op.subBytes": "SubBytes (Runde {{round}})",
+      "deriver.isa-x86.registers.label": "x86-64 · AES-NI · XMM-Register",
+      "plugin.aes.value.ciphertext": "Geheimtext",
+      "plugin.aes.value.key": "Schlüssel",
+      "plugin.aes.value.plaintext": "Klartext",
+      "plugin.aes.value.roundKey": "Rundenschlüssel"
+    }
+  }
+}

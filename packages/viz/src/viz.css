@@ -188,10 +188,19 @@
 
 .cv-timeline__step {
   font-variant-numeric: tabular-nums;
+  white-space: nowrap;
 }
 
+/* Room below and after the text, so subscript letters from a fallback font (the ᵢ of "E_K(CBᵢ)")
+   that sit below the baseline or past the advance stay inside the row; long paths wrap. */
 .cv-timeline__scope {
+  min-width: 0;
+  padding-block-end: 0.2em;
+  padding-inline-end: 0.15em;
+  line-height: 1.5;
   color: var(--cv-text-muted, GrayText);
+  text-align: end;
+  overflow-wrap: break-word;
   justify-self: end;
 }
 

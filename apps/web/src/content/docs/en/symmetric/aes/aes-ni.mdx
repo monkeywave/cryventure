@@ -1,0 +1,210 @@
+---
+title: AES-NI and ARMv8 instructions
+description: How x86 AESENC and ARMv8 AESE/AESMC cut the AES rounds, read from real clang -O2 output, and why no register ever holds a SubBytes-only state.
+lessonId: block-ciphers/aes/aes-ni
+track: block-ciphers
+phase: 1
+sidebar:
+  order: 7
+tableOfContents: false
+prereqs:
+  - block-ciphers/aes/memory-abi
+labs:
+  - aes-ni-registers
+  - aes-ni-memory
+refs:
+  - FIPS 197, Section 5.1 (Cipher, Figure 5)
+  - FIPS 197, Appendix C.1 (AES-128, Nk = 4)
+  - Intel 64 and IA-32 Architectures Software Developer's Manual, Vol. 2A, AESENC and AESENCLAST
+  - Gueron, Intel Advanced Encryption Standard (AES) New Instructions Set, White Paper
+  - Arm Architecture Reference Manual for A-profile (DDI 0487), AESE, AESMC and EOR (vector)
+  - Arm, Cortex-A72 Software Optimization Guide (UAN 0016A), Section 4.10 (AES Encryption/Decryption)
+  - LLVM review D33836, Enable FeatureFuseAES for the generic processor model
+  - OpenSSL 3.5.9, crypto/aes/aes_core.c (Te0 … Te3)
+  - Bernstein, Cache-timing attacks on AES (2005)
+  - Osvik, Shamir, Tromer, Cache Attacks and Countermeasures — the Case of AES (CT-RSA 2006)
+---
+
+import Lab from '../../../../../components/Lab.astro';
+import CheckQuestion from '../../../../../components/lesson/CheckQuestion.astro';
+import Formula from '../../../../../components/lesson/Formula.astro';
+import Lens from '../../../../../components/lesson/Lens.astro';
+import LessonSection from '../../../../../components/lesson/LessonSection.astro';
+import WhyBox from '../../../../../components/lesson/WhyBox.astro';
+
+<LessonSection part="concept">
+
+## One instruction per round
+
+x86 `AESENC xmm1, xmm2` performs one full middle round: ShiftRows, SubBytes, MixColumns, then XOR
+with the round key in `xmm2` (Intel SDM Vol. 2A, AESENC). `AESENCLAST` is the final round without
+MixColumns. ShiftRows only moves bytes and SubBytes acts on each byte alone, so the two commute and
+starting with ShiftRows changes nothing (Gueron, AES-NI white paper).
+
+ARMv8 cuts differently. `AESE Vd, Vn` XORs `Vn` into `Vd` *first*, then applies SubBytes and
+ShiftRows; `AESMC` is MixColumns alone (Arm ARM, AESE/AESMC). AES-128 still needs one key XOR after
+the last `AESE`: a plain `EOR` with `k10`.
+
+<Formula caption="AES-128 with round keys k0 … k10.">
+{`x86 AES-NI                      ARMv8 Crypto Extension
+PXOR       k0                   AESE  k0 … k8 ; AESMC  (rounds 1 … 9)
+AESENC     k1 … k9              AESE  k9               (round 10)
+AESENCLAST k10                  EOR   k10`}
+</Formula>
+
+<Lens only="story">
+
+Intel built a machine that runs a whole round at once. Arm built two smaller ones and moved the key
+to the front, so one key is left over at the end.
+
+</Lens>
+
+<Lens level="cryptographer">
+
+Both are regroupings of the same sequence. FIPS 197 runs `ARK₀ (SB SR MC ARK)⁹ SB SR ARK`; ARM reads
+it as `(ARK SB SR MC)⁹ ARK SB SR ARK₁₀`.
+
+</Lens>
+
+</LessonSection>
+
+<LessonSection part="playground">
+
+## Step through the listing
+
+The lab runs FIPS 197, Appendix C.1 and opens at round 1, SubBytes, on x86_64. Picking an
+instruction set in either view switches both. The current instruction is in flight, and its target register
+still shows the value from *before* it.
+
+- **x86_64:** the first `aesenc` stays current through ShiftRows, MixColumns and AddRoundKey. Only
+  then does `xmm0` change to `89d810e8855ace682d1843d8cb128fe4`, the C.1 `round[2].start`.
+- **AArch64:** the first `aese` finishes at ShiftRows, leaving `6353e08c…` (C.1 `round[1].s_row`) in
+  `v1`; the next step, `aesmc`, turns it into `5f726415…` (`m_col`).
+
+<Lab labId="aes-ni-registers" producerId="aes" presetId="fips197-c1" variant="x86_64-aesni" startAt="round:1,op:subBytes" layout="instructions:50|registers:50" />
+
+</LessonSection>
+
+<LessonSection part="inside">
+
+## Reading real compiler output
+
+Both listings are real output of Homebrew clang 23.1.0 at `-O2` (`-maes` for x86_64,
+`-march=armv8-a+crypto` for aarch64), compiled from C with intrinsics such as `_mm_aesenc_si128` and
+`vaeseq_u8`/`vaesmcq_u8`. Excerpt, AES-128:
+
+<Formula caption="x86_64: in = rdi, out = rsi, key = rdx.">
+{`0x00 movdqu xmm1, xmmword ptr [rdi]        ; in
+0x04 movdqu xmm0, xmmword ptr [rdx]        ; k0
+0x08 pxor   xmm0, xmm1                     ; round 0: ⊕ k0
+0x0c movdqu xmm1, xmmword ptr [rdx + 16]   ; k1
+0x11 aesenc xmm0, xmm1                     ; round 1
+ …
+0x74 aesenclast xmm0, xmm1                 ; round 10
+0x79 movdqu xmmword ptr [rsi], xmm0        ; out`}
+</Formula>
+
+<Formula caption="aarch64: in = x0, out = x1, key = x2.">
+{`0x00 ldp   q1, q2, [x2]              ; k0, k1
+0x04 ldr   q0, [x0]                  ; in
+0x08 aese  v1.16b, v0.16b            ; ⊕ k0, SubBytes, ShiftRows
+0x0c aesmc v1.16b, v1.16b            ; MixColumns: round 1 done
+ …
+0x60 aese  v2.16b, v0.16b            ; ⊕ k9, SubBytes, ShiftRows
+0x64 ldr   q0, [x2, #160]            ; k10
+0x68 eor   v0.16b, v0.16b, v2.16b    ; ⊕ k10: ciphertext`}
+</Formula>
+
+<WhyBox constant="16 · r" title="the round key offsets">
+  Round key `r` is read from `key + 16·r` as one 16-byte vector. That works because the AES-NI and
+  ARMv8 key schedules store raw bytes; the C schedule's byte-reversed words would not fit
+  ([AES_KEY in memory](../memory-abi/)).
+</WhyBox>
+
+Every `aese` is directly followed by its `aesmc`. Arm's Cortex-A72 guide (§4.10) says dependent
+AESE/AESMC pairs perform better when adjacent and in this order; LLVM models such pairs as fused
+(`FeatureFuseAES`, D33836).
+
+</LessonSection>
+
+<LessonSection part="memory">
+
+## Spans that cross rounds
+
+The lab's steps are FIPS 197's textbook steps; each instruction covers a span of them. `aesenc` round
+`r` covers SubBytes `r` … AddRoundKey `r`. `aese` round `r` covers AddRoundKey `r−1`, SubBytes `r`
+and ShiftRows `r`: it starts in the previous round, because ARM put the key XOR first. `aesmc` covers
+MixColumns `r` alone.
+
+While an instruction is in flight, its registers show the values from before it. So no register ever
+holds C.1's `s_box` row (`63cab704…`): AESENC does all four steps at once, and after the first `aese`
+`v1` already holds `s_row` (`6353e08c…`), then `m_col` (`5f726415…`) after `aesmc`.
+
+The second lab puts the listing next to the modeled stack frame of the
+[AES_KEY lesson](../memory-abi/): the loads read `key`, and the final store fills `out`.
+
+<Lab labId="aes-ni-memory" producerId="aes" presetId="fips197-c1" variant="x86_64-aesni" layout="instructions:50|memory:50" />
+
+</LessonSection>
+
+<LessonSection part="break">
+
+## Before AES-NI: tables that leak
+
+Fast software AES merges SubBytes, ShiftRows and MixColumns into four tables of 256 32-bit words,
+`Te0 … Te3`, 1 KiB each (OpenSSL `crypto/aes/aes_core.c`). They are indexed by state bytes, and in
+round 1 a state byte is `plaintext ⊕ key`. Which cache lines get loaded therefore depends on the key.
+
+Bernstein (2005) recovered a full AES key from the timing of an OpenSSL-based server. Osvik, Shamir
+and Tromer (2006) probed the cache from another process and extracted keys, including from Linux
+dm-crypt.
+
+`AESENC` and `AESE` use no lookup tables in memory and run in data-independent time, which closes
+this channel (Gueron, AES-NI white paper). A cache-timing lab follows in a later milestone.
+
+<Lens level="cryptographer">
+
+A 64-byte cache line holds 16 table entries, so a first-round observation reveals only the upper four
+bits of each `pᵢ ⊕ kᵢ`. Osvik, Shamir and Tromer use second-round lookups to recover the rest.
+
+</Lens>
+
+</LessonSection>
+
+<LessonSection part="check">
+
+## Check yourself
+
+<CheckQuestion
+  id="aesenc-step-order"
+  number={1}
+  question="In which order does x86 AESENC apply its steps?"
+  options={['⊕k, SubBytes, ShiftRows, MixColumns', 'ShiftRows, SubBytes, MixColumns, ⊕k', 'MixColumns, ShiftRows, SubBytes, ⊕k', 'SubBytes, ⊕k, ShiftRows, MixColumns']}
+  answer={1}
+>
+  Intel SDM Vol. 2A, AESENC: ShiftRows, SubBytes, MixColumns, then XOR with the round key.
+</CheckQuestion>
+
+<CheckQuestion
+  id="armv8-final-eor"
+  number={2}
+  question="Why does ARMv8 AES-128 end with a plain EOR?"
+  options={['To undo the last MixColumns', 'AESE adds its key before the S-box, so k10 is still missing after the last AESE', 'EOR writes the ciphertext to memory', 'To make the code constant-time']}
+  answer={1}
+>
+  `AESE` with `k9` covers AddRoundKey 9, SubBytes 10 and ShiftRows 10; AddRoundKey 10 is left, and
+  `EOR` with `k10` does it (Arm ARM, AESE).
+</CheckQuestion>
+
+<CheckQuestion
+  id="aese-span"
+  number={3}
+  question="Which textbook steps does the round-2 aese cover in the lab?"
+  options={['SubBytes 2, ShiftRows 2, MixColumns 2', 'AddRoundKey 1, SubBytes 2, ShiftRows 2', 'AddRoundKey 2 only', 'MixColumns 1, AddRoundKey 1']}
+  answer={1}
+>
+  `AESE` XORs the key first, so its span starts with the previous round's AddRoundKey; MixColumns 2
+  belongs to the following `aesmc`.
+</CheckQuestion>
+
+</LessonSection>

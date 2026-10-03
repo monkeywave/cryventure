@@ -41,6 +41,18 @@ describe('Workspace', () => {
     expect(await screen.findByText('view state (aes/engineer)')).toBeTruthy();
   });
 
+  it('drops a layout panel whose view disappears after a re-run, without crashing', async () => {
+    const { rerender } = renderWorkspace({ layout: 'memory|state' });
+    expect(await screen.findByText('view memory (aes/engineer)')).toBeTruthy();
+    rerender(
+      <I18nProvider messages={messages}>
+        <Workspace labId="aes" lens="engineer" views={views.slice(0, 2)} layout="memory|state" />
+      </I18nProvider>,
+    );
+    expect(await screen.findByText('view state (aes/engineer)')).toBeTruthy();
+    expect(panelOrder()).not.toContain('memory');
+  });
+
   it('shows an empty-state message without views', () => {
     renderWorkspace({ views: [] });
     expect(screen.getByRole('status').textContent).toBe('No views are available for this lab.');

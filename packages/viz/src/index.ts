@@ -7,10 +7,12 @@ export { I18nProvider, useT, type I18nProviderProps } from './i18n/I18nProvider.
 export { INITIAL_STEP, LAB_MODES, selectStepCount, type LabMode } from './lab/labReducers.ts';
 export { createLabStore, type BlockLabHrefBuilder, type LabActions, type LabHrefBuilder, type LabState, type LabStoreOptions, type LabStore, type ParamsPatch, type ParamsRequestHandler, type SetBundleOptions } from './lab/createLabStore.ts';
 export { stateSteps, type AnyStateFacet, type AnyStateStep } from './lab/stateSteps.ts';
-export { useLab, useLabActions, useLabStore } from './lab/LabContext.tsx';
+export { useDerivers, useLab, useLabActions, useLabStore } from './lab/LabContext.tsx';
 export { LabRoot, type LabRootProps } from './lab/LabRoot.tsx';
 export { LabLayoutProvider, useLabLayout, type LabLayout, type LabLayoutProviderProps } from './lab/LabLayout.tsx';
-export { useFacet, type FacetResult } from './lab/useFacet.ts';
+export { facetData, useFacet, useFacetVariants, useVariantFacets, type FacetResult } from './lab/useFacet.ts';
+export { useVariantChoice, type FacetVariantChoice } from './lab/useVariantChoice.ts';
+export { deriveOnce, derivationCandidates, isDeriverApplicable, type DerivedFacets } from './lab/derive.ts';
 // choreography
 export { useActiveBeat, useChoreography, useFocusBeat, useStepProgress } from './choreography/ChoreographyContext.tsx';
 export { focusIn, tracksForRegion } from './choreography/nodeTracks.ts';
@@ -35,6 +37,7 @@ export { useGridNavigation } from './cells/useGridNavigation.ts';
 // workspace
 export type { ReactViewManifest, ViewComponent, ViewProps } from './workspace/viewTypes.ts';
 export { Workspace, type WorkspaceProps } from './workspace/Workspace.tsx';
+export { parseLayoutPreset } from './workspace/planPanels.ts';
 export { ViewStatus, type ViewStatusKind, type ViewStatusProps } from './workspace/ViewStatus.tsx';
 export { ErrorBoundary, type ErrorBoundaryProps } from './workspace/ErrorBoundary.tsx';
 export { safeStorage } from './workspace/safeStorage.ts';

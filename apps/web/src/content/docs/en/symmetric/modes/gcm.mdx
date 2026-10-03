@@ -1,0 +1,214 @@
+---
+title: 'GCM: counter mode with a tag'
+description: How GCM encrypts with CTR and authenticates with GHASH, from the hash subkey H and the pre-counter block J0 to the tag T, why decryption checks the tag before it releases plaintext, and why a nonce must never repeat.
+lessonId: block-ciphers/modes/gcm
+track: block-ciphers
+phase: 1
+sidebar:
+  order: 5
+tableOfContents: false
+prereqs:
+  - block-ciphers/modes/ctr
+  - block-ciphers/modes/ghash
+labs:
+  - gcm-tc4
+  - gcm-forged-tag
+  - gcm-gmac
+refs:
+  - NIST SP 800-38D, Section 1 (Purpose, GMAC)
+  - NIST SP 800-38D, Section 5.2.1.1 (Input Data, IV and plaintext lengths)
+  - NIST SP 800-38D, Section 5.2.1.2 (Output Data, tag lengths)
+  - NIST SP 800-38D, Section 6.2 (Incrementing Function inc32)
+  - NIST SP 800-38D, Section 6.5 (GCTR Function)
+  - NIST SP 800-38D, Section 7.1 (Algorithm for the Authenticated Encryption Function)
+  - NIST SP 800-38D, Section 7.2 (Algorithm for the Authenticated Decryption Function)
+  - NIST SP 800-38D, Section 8 (Uniqueness Requirement on IVs and Keys) and Section 8.3 (Constraints on the Number of Invocations)
+  - NIST SP 800-38D, Appendix C (Requirements and Guidelines for Using Short Tags)
+  - McGrew & Viega, The Galois/Counter Mode of Operation (GCM), revised 2005, Appendix B (test cases 4 and 6)
+  - N. Ferguson, Authentication weaknesses in GCM, comments to NIST, 2005
+  - A. Joux, Authentication Failures in NIST version of GCM, comments to NIST, 2006
+  - Böck, Zauner, Devlin, Somorovsky, Jovanovic, Nonce-Disrespecting Adversaries, Practical Forgery Attacks on GCM in TLS, USENIX WOOT 2016
+  - RFC 8446, Sections 5.2 and 5.3 (TLS 1.3 record protection and per-record nonce)
+  - RFC 8452 (AES-GCM-SIV, nonce misuse-resistant authenticated encryption)
+---
+
+import Lab from '../../../../../components/Lab.astro';
+import CheckQuestion from '../../../../../components/lesson/CheckQuestion.astro';
+import Formula from '../../../../../components/lesson/Formula.astro';
+import KeyFact from '../../../../../components/lesson/KeyFact.astro';
+import KeyFacts from '../../../../../components/lesson/KeyFacts.astro';
+import Lens from '../../../../../components/lesson/Lens.astro';
+import LessonSection from '../../../../../components/lesson/LessonSection.astro';
+import WhyBox from '../../../../../components/lesson/WhyBox.astro';
+
+<LessonSection part="concept">
+
+## Encrypt with CTR, authenticate with GHASH
+
+ECB, CBC and CTR encrypt data but cannot tell whether someone changed it. **GCM**, the Galois/Counter
+Mode, adds that check: it encrypts with [CTR](../ctr/) and authenticates with
+[GHASH](../ghash/) (NIST SP 800-38D, §7.1). Its inputs are a key `K`, an IV (the nonce), the
+plaintext `P` and **additional authenticated data** `A`, such as a header that stays readable but
+must not change. It outputs the ciphertext `C` and an **authentication tag** `T`.
+
+<Formula caption="GCM authenticated encryption, NIST SP 800-38D §7.1 (Algorithm 4).">
+{`H  = E_K(0¹²⁸)                 hash subkey
+J0 = from the IV               pre-counter block
+C  = GCTR_K(inc32(J0), P)      CTR encryption
+S  = GHASH_H(A, C, lengths)
+T  = MSB_t(E_K(J0) ⊕ S)`}
+</Formula>
+
+Everything comes from one key and the forward cipher `E_K`: the hash subkey, the keystream and the
+mask for the tag.
+
+<KeyFacts>
+  <KeyFact label="Block cipher" value="128-bit block" kind="key" />
+  <KeyFact label="IV (recommended)" value="96 bits" kind="constant" />
+  <KeyFact label="Tag t" value="128 … 96 bits" kind="ciphertext" />
+  <KeyFact label="Counter" value="32 bits" kind="state" />
+</KeyFacts>
+
+</LessonSection>
+
+<LessonSection part="playground">
+
+## Test case 4, step by step
+
+The lab runs McGrew–Viega test case 4 (revised GCM spec, Appendix B): AES-128 with key
+`feffe9928665731c6d6a8f9467308308`, the 96-bit IV `cafebabefacedbaddecaf888`, 20 bytes of AAD and
+60 bytes of plaintext. It derives `H = b83b533708bf535d0aa6e52980d53b78` and `J0`, encrypts four
+counter blocks (the last one cut to 12 bytes), hashes seven blocks with GHASH (two of AAD, four of
+ciphertext, one length block) and ends with the tag `5bc94fbc3221a5db94fae95ae7121a47`.
+
+<Lab labId="gcm-tc4" producerId="gcm" presetId="mcgrew-viega-tc4" layout="mode-chain:60|narration:40" />
+
+</LessonSection>
+
+<LessonSection part="inside">
+
+## J0, the counters and the tag
+
+The **pre-counter block** `J0` comes from the IV (SP 800-38D, §7.1). A 96-bit IV takes the fast
+path; any other length is hashed:
+
+<Formula caption="The J0 rule, NIST SP 800-38D §7.1, with s = 128·⌈len(IV)/128⌉ − len(IV).">
+{`len(IV) = 96:   J0 = IV ‖ 0³¹ ‖ 1
+otherwise:      J0 = GHASH_H(IV ‖ 0ˢ⁺⁶⁴ ‖ [len(IV)]₆₄)`}
+</Formula>
+
+For test case 4, `J0 = cafebabefacedbaddecaf888 00000001`. `inc32` adds 1 to the rightmost 32 bits
+modulo 2³² (§6.2), so the first counter block ends in `00000002`. GHASH over `A ‖ 0ᵛ ‖ C ‖ 0ᵘ ‖
+[len(A)]₆₄ ‖ [len(C)]₆₄` gives `S = 698e57f70e6ecc7fd9463b7260a9ae5f`; XORed with `E_K(J0) =
+3247184b3c4f69a44dbcd22887bbb418`, it is the tag.
+
+**Decryption verifies first** (§7.2): it recomputes the tag from `A` and `C` and returns `P` only
+if it equals the received tag; otherwise it returns only FAIL. Here one tag bit is flipped:
+
+<Lab labId="gcm-forged-tag" producerId="gcm" presetId="decrypt-forged" startAt="op:verify" layout="mode-chain:60|narration:40" />
+
+<WhyBox constant="J0 = IV ‖ 0³¹ ‖ 1" title="why the keystream starts at inc32(J0)">
+  `J0` itself is reserved for the tag mask `E_K(J0)`, so encryption begins one counter later. With
+  a 96-bit IV that leaves 2³² − 2 blocks per message: exactly the plaintext limit of 2³⁹ − 256 bits
+  (SP 800-38D, §5.2.1.1).
+</WhyBox>
+
+</LessonSection>
+
+<LessonSection part="memory">
+
+## On the wire: nonce, AAD, ciphertext, tag
+
+The receiver needs the IV, the AAD, the ciphertext and the tag. The ciphertext is exactly as long
+as the plaintext (GCTR, SP 800-38D §6.5); the tag adds `t/8` bytes. Test case 4 sends
+12 + 20 + 60 + 16 = 108 bytes. TLS 1.3 sends no IV: each record's nonce is a static IV XORed with
+the record sequence number (RFC 8446, §5.3). Its AAD is the record header, which is on the wire
+anyway (§5.2).
+
+With an **empty plaintext**, GCM encrypts nothing and only authenticates `A`. SP 800-38D (§1) calls
+this specialization **GMAC**. The lab uses test case 4's key, IV and AAD; the tag becomes
+`346434fd51d5cd0c5887ec63e39b907a`.
+
+<Lab labId="gcm-gmac" producerId="gcm" presetId="gmac" layout="mode-chain:45|wire:25|narration:30" />
+
+</LessonSection>
+
+<LessonSection part="break">
+
+## Mallory waits for a repeated nonce
+
+GCM rests on one rule: **an IV must never repeat under the same key** (SP 800-38D, §8). With random
+96-bit IVs, one key may be used for at most 2³² encryptions (§8.3).
+
+A repeated nonce has two consequences. The CTR keystream repeats, so the ciphertexts reveal the XOR
+of the plaintexts, as in [CTR](../ctr/). And the tag mask `E_K(J0)` repeats too, which lets an
+attacker narrow `H` down to a few candidates, often just one, and then forge tags under that key:
+authenticity is lost, not only confidentiality (Joux 2006).
+
+**Short tags.** A blind guess at a `t`-bit tag succeeds with probability about 2⁻ᵗ per attempt.
+For 64- and 32-bit tags, Appendix C therefore also limits message lengths and the number of
+decryptions per key.
+
+| Year | What happened |
+|---|---|
+| 2005 | Ferguson's comments to NIST: short tags are weaker on long messages, and each forgery reveals more about `H`. |
+| 2006 | Joux's "forbidden attack" comment to NIST: a repeated nonce narrows `H` down to a few candidates, often just one. |
+| 2016 | Böck, Zauner, Devlin, Somorovsky and Jovanovic (USENIX WOOT) find HTTPS servers that repeat GCM nonces. |
+| 2019 | RFC 8452 specifies AES-GCM-SIV, which does not fail catastrophically when a nonce repeats. |
+
+<Lens level="cryptographer">
+
+For IVs that are not 96 bits long, `J0` comes from GHASH, so two different IVs can collide on the
+same `J0`. That is why §8.3 caps those uses at 2³² as well.
+
+</Lens>
+
+</LessonSection>
+
+<LessonSection part="check">
+
+## Check yourself
+
+<CheckQuestion
+  id="gcm-j0-96bit"
+  number={1}
+  question="A GCM message uses a 96-bit IV. What is the pre-counter block J0?"
+  options={['E_K(IV)', 'IV ‖ 0³¹ ‖ 1', 'GHASH_H(IV)', 'IV ‖ 0³²']}
+  answer={1}
+>
+  For 96-bit IVs SP 800-38D §7.1 appends 31 zero bits and a one. Only other IV lengths go through
+  GHASH.
+</CheckQuestion>
+
+<CheckQuestion
+  id="gcm-forged-tag"
+  number={2}
+  question="During decryption the recomputed tag differs from the received one. What does GCM return?"
+  options={[
+    'The plaintext with a warning',
+    'Only FAIL, no plaintext',
+    'The plaintext of the blocks before the error',
+    'The corrected tag',
+  ]}
+  answer={1}
+>
+  Algorithm 5 returns `P` only if the tags are equal, and FAIL otherwise (SP 800-38D §7.2).
+</CheckQuestion>
+
+<CheckQuestion
+  id="gcm-nonce-reuse"
+  number={3}
+  question="A sender reuses a GCM nonce under the same key. What is at risk?"
+  options={[
+    'Nothing, the tag protects the message',
+    'Only the length of the messages',
+    'Confidentiality and authenticity',
+    'Only confidentiality',
+  ]}
+  answer={2}
+>
+  The repeated keystream reveals the XOR of the plaintexts, and the repeated tag mask lets an
+  attacker narrow `H` down to a few candidates and forge tags (SP 800-38D §8; Joux 2006).
+</CheckQuestion>
+
+</LessonSection>

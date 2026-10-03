@@ -8,10 +8,11 @@ import {
   type Locale,
   type Messages,
   type StateFacet,
+  type TraceBundle,
   type WireFacet,
 } from '@cryventure/core';
 import { primitiveManifests } from '@cryventure/primitives';
-import { loadPluginCatalogs } from './catalogs.ts';
+import { loadPluginCatalogs, type LocaleCatalogs } from './catalogs.ts';
 import { runOrThrow } from './primitiveContract.ts';
 import { runOptionsFor } from './runWithPorts.ts';
 
@@ -43,16 +44,17 @@ export interface ModeViewFixture {
   labels: Record<Locale, Messages>;
 }
 
-async function runCase(producer: string, presetId: string) {
+/** A fresh run of `<producer>/<presetId>` with its ports resolved. */
+export async function runPreset(producer: string, presetId: string): Promise<TraceBundle> {
   const manifest = primitiveManifests.find((candidate) => candidate.id === producer)!;
   const preset = manifest.presets.find((candidate) => candidate.id === presetId)!;
   const [module, options] = await Promise.all([manifest.load(), runOptionsFor(manifest, preset.params)]);
   return runOrThrow(module, preset.params, options);
 }
 
-function labelsFor(refs: readonly I18nRef[], producers: readonly string[]): Record<Locale, Messages> {
+/** The entries of `catalogs` that `refs` reference, per locale, sorted by key. */
+export function catalogLabels(refs: readonly I18nRef[], catalogs: readonly LocaleCatalogs[]): Record<Locale, Messages> {
   const keys = new Set(refs.map((ref) => ref.key));
-  const catalogs = producers.map((producer) => loadPluginCatalogs('primitives', producer));
   const labelsIn = (locale: Locale): Messages =>
     Object.fromEntries(
       catalogs
@@ -63,11 +65,16 @@ function labelsFor(refs: readonly I18nRef[], producers: readonly string[]): Reco
   return Object.fromEntries(supportedLocales.map((locale) => [locale, labelsIn(locale)])) as Record<Locale, Messages>;
 }
 
+/** The `producers`' catalog entries `refs` reference, per locale, sorted by key. */
+export function labelsFor(refs: readonly I18nRef[], producers: readonly string[]): Record<Locale, Messages> {
+  return catalogLabels(refs, producers.map((producer) => loadPluginCatalogs('primitives', producer)));
+}
+
 /** The fixture as fresh runs of the cases produce it. */
 export async function buildModeViewFixture(): Promise<ModeViewFixture> {
   const cases = await Promise.all(
     CASES.map(async ([producer, preset]): Promise<ModeViewCase> => {
-      const bundle = await runCase(producer, preset);
+      const bundle = await runPreset(producer, preset);
       const state = getFacet<StateFacet<string, { op: string }>>(bundle, 'state')!;
       const chain = getFacet<ChainFacet>(bundle, 'chain')!;
       const wire = getFacet<WireFacet>(bundle, 'wire')!;
