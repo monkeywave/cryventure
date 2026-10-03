@@ -38,6 +38,12 @@ export default defineConfig({
               // Page order comes from each page's frontmatter `sidebar.order` (EN and DE).
               items: [{ autogenerate: { directory: 'symmetric/aes' } }],
             },
+            {
+              label: 'Modes',
+              translations: { de: 'Betriebsmodi' },
+              // Page order comes from each page's frontmatter `sidebar.order` (EN and DE).
+              items: [{ autogenerate: { directory: 'symmetric/modes' } }],
+            },
           ],
         },
         // Starlight prefixes a `link` with the current locale and the base (`/cryventure/de/progress/`).
@@ -55,5 +61,7 @@ export default defineConfig({
   ],
   vite: {
     plugins: [tailwindcss()],
+    // Module workers (lab producers, PenguinLab) code-split like the page bundles.
+    worker: { format: 'es' },
   },
 });

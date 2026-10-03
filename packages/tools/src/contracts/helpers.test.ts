@@ -21,6 +21,12 @@ describe('runOrThrow', () => {
     expect(runOrThrow(module, { n: 1 })).toBe(trace);
     expect(() => runOrThrow(module, { n: 0 })).toThrow('run() rejected params: {"key":"bad"}');
   });
+
+  it('passes the run options through', () => {
+    const resolve = () => undefined;
+    const module: PrimitiveModule<{ n: number }> = { run: (_params, options) => (options?.resolve === resolve ? { ok: true, trace: {} as never } : { ok: false, error: { key: 'no resolve' } }) };
+    expect(() => runOrThrow(module, { n: 1 }, { resolve })).not.toThrow();
+  });
 });
 
 describe('isComponentLike', () => {

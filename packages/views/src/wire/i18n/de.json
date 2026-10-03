@@ -1,0 +1,19 @@
+{
+  "view.wire.title": "Auf der Leitung",
+  "view.wire.loading": "Der Bytestreifen wird vorbereitet …",
+  "view.wire.missing": "Dieses Lab zeichnet nicht auf, welche Bytes übertragen werden.",
+  "view.wire.strip": "Übertragene Bytes: {{count}} Byte in {{segments}} Teilen",
+  "view.wire.range": "{{bytes}} Byte · {{from}}–{{to}}",
+  "view.wire.segment": "{{label}} ({{role}}): {{bytes}} Byte an den Offsets {{from}} bis {{to}}",
+  "view.wire.segmentHex": "{{summary}}: {{hex}}",
+  "view.wire.segmentActive": "{{summary}}; {{count}} davon sind in diesem Schritt hervorgehoben",
+  "view.wire.segmentFlipped": "{{summary}}; {{count}} davon sind gekippt",
+  "view.wire.role.iv": "Initialisierungsvektor",
+  "view.wire.role.nonce": "Nonce",
+  "view.wire.role.ciphertext": "Geheimtext",
+  "view.wire.role.plaintext": "Klartext",
+  "view.wire.role.padding": "Padding",
+  "view.wire.role.tag": "Tag",
+  "view.wire.legendActive": "dicker Rahmen: in diesem Schritt im Fokus",
+  "view.wire.legendFlip": "gekippte Bits (selbst kippen kannst du sie in den Angriffs-Labs)"
+}

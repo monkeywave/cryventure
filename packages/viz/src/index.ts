@@ -5,7 +5,7 @@
 export { I18nProvider, useT, type I18nProviderProps } from './i18n/I18nProvider.tsx';
 // lab runtime
 export { INITIAL_STEP, LAB_MODES, selectStepCount, type LabMode } from './lab/labReducers.ts';
-export { createLabStore, type LabActions, type LabState, type LabStore, type ParamsPatch, type ParamsRequestHandler, type SetBundleOptions } from './lab/createLabStore.ts';
+export { createLabStore, type LabActions, type LabHrefBuilder, type LabState, type LabStoreOptions, type LabStore, type ParamsPatch, type ParamsRequestHandler, type SetBundleOptions } from './lab/createLabStore.ts';
 export { stateSteps, type AnyStateFacet, type AnyStateStep } from './lab/stateSteps.ts';
 export { useLab, useLabActions, useLabStore } from './lab/LabContext.tsx';
 export { LabRoot, type LabRootProps } from './lab/LabRoot.tsx';

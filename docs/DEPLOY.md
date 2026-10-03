@@ -26,15 +26,30 @@ The root `/` page redirects to `en/` or `de/` based on the browser language (Eng
 
 ### Build-time environment variables
 
-`apps/web/astro.config.mts` reads two variables:
+`apps/web/astro.config.mts` (and the post-build PWA step) read these variables:
 
 | Variable | Default | Effect |
 | --- | --- | --- |
 | `CV_BASE` | `/` | Astro `base`: the URL path the site lives under. All internal links and assets are prefixed with it. Must start **and** end with `/` (e.g. `/cryventure/`). |
 | `CV_SITE` | `https://example.github.io` | Astro `site`: the absolute origin (scheme + host, no path) used for canonical/absolute URLs. |
+| `CV_PWA` | on | `false` skips the service worker and the manifest link (CI preview artifacts, debugging). |
 
 The config also sets `trailingSlash: 'always'` and `build.format: 'directory'`, so every page is
 `<route>/index.html` and URLs end in `/` (identical behaviour on Pages and nginx).
+
+### PWA / offline (docs/M3.md §11)
+
+`pnpm build` runs `astro build`, then `apps/web/scripts/build-sw.mjs`, which writes
+`dist/manifest.webmanifest` and `dist/sw.js` at the base root (`scope` = `start_url` = `CV_BASE`).
+
+- `sw.js` is a Workbox `generateSW` worker that precaches every HTML, CSS, JS, JSON, image and font file
+  plus all of `pagefind/` (search works offline). There is no navigation fallback: unknown URLs still go to the network.
+- Files above 3 MB are left out. The build prints the precache size (about 3.3 MB today) and **fails above 25 MB**.
+- Updates use prompt-to-reload: a new worker waits, and a localized toast (`ui.pwa.*`) offers "Reload" / "Later".
+  Nothing is swapped mid-lesson.
+- Registration happens only in production builds (`astro dev` never registers a worker).
+- `e2e/offline.spec.ts` checks lessons, a lab and search with the browser offline (skipped with `CV_PWA=false`).
+- If a stale worker gets in the way locally, use DevTools -> Application -> Service workers -> Unregister.
 
 Build and preview a sub-path variant (as served on a GitHub project page):
 
@@ -95,7 +110,7 @@ Starlight's built-in 404 route is disabled; `apps/web/src/pages/404.astro` emits
 - Pages cannot send custom HTTP headers. The security headers listed in section 3 are only sent by the
   Docker/nginx image. A `<meta http-equiv>` CSP for Pages (PLAN 7b) is **not yet supported**.
 - PR preview deployments are **not yet supported**. CI (`ci.yml`) uploads a `site-preview` artifact
-  (built with `CV_BASE=/cryventure/`, kept 7 days) that you can download and serve locally.
+  (built with `CV_BASE=/cryventure/` and `CV_PWA=false`, kept 7 days) that you can download and serve locally.
 
 ---
 
@@ -153,7 +168,8 @@ Students open `http://<teacher-machine-ip>:8080/`.
 - `GET /healthz` returns `200 ok` (always at the server root, independent of the base path). The image `HEALTHCHECK` polls it every 30 s.
 - gzip for CSS, JS, JSON, SVG and plain text.
 - Caching: anything under `/_astro/` gets `Cache-Control: public, max-age=31536000, immutable`; all other files (HTML etc.) get `Cache-Control: no-cache`.
-- Security headers on HTML: `Content-Security-Policy` (`default-src 'self'`, `frame-ancestors 'none'`, `'unsafe-inline'` for scripts/styles, `'wasm-unsafe-eval'`), `Referrer-Policy: no-referrer`, `X-Content-Type-Options: nosniff`.
+  `sw.js` and `manifest.webmanifest` have their own location with `no-cache` and explicit MIME types, so browsers always see a new service worker.
+- Security headers on HTML: `Content-Security-Policy` (`default-src 'self'`, `frame-ancestors 'none'`, `'unsafe-inline'` for scripts/styles, `'wasm-unsafe-eval'`, `worker-src 'self' blob:`, `manifest-src 'self'`), `Referrer-Policy: no-referrer`, `X-Content-Type-Options: nosniff`.
   The server block also declares `Permissions-Policy` and `Cross-Origin-Opener-Policy`, but see the note below.
 
 > Note: nginx does not inherit `add_header` directives from the `server` block into a `location` that
@@ -303,6 +319,5 @@ Notes:
 ### Not yet supported (planned in PLAN 7b)
 
 - CSP `<meta>` tag for GitHub Pages; PR preview deployments.
-- PWA / service worker and Pagefind search (and their base-path handling).
 - Trivy image scan, image-size budget check and Playwright run against the container in CI.
 - Compose `classroom` profile (live-quiz).

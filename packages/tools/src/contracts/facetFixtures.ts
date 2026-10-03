@@ -1,5 +1,6 @@
 import { availableFacetKinds, facetKey, getFacet, type FacetKind, type PrimitiveManifest, type TraceBundle } from '@cryventure/core';
 import { runOrThrow } from './primitiveContract.ts';
+import { producerRegistry, runOptionsFor } from './runWithPorts.ts';
 
 /**
  * Fixture bundles for rendering views in the contract kit. They are generated from the real
@@ -19,9 +20,15 @@ export interface NamedBundle {
 
 export type FixtureSelection = { ok: true; bundles: NamedBundle[] } | { ok: false; problem: string };
 
-/** One bundle per primitive, run with its defaults. */
+/** One bundle per primitive, run with its defaults (port params resolve against `manifests`). */
 export async function primitiveFixtureBundles(manifests: readonly PrimitiveManifest[]): Promise<NamedBundle[]> {
-  return Promise.all(manifests.map(async (manifest) => ({ name: manifest.id, bundle: runOrThrow(await manifest.load(), manifest.defaults) })));
+  const producers = producerRegistry(manifests);
+  return Promise.all(
+    manifests.map(async (manifest) => {
+      const [module, options] = await Promise.all([manifest.load(), runOptionsFor(manifest, manifest.defaults, producers)]);
+      return { name: manifest.id, bundle: runOrThrow(module, manifest.defaults, options) };
+    }),
+  );
 }
 
 /** The facet kinds a bundle carries (any variant). */

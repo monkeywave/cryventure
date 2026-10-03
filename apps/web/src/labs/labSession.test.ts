@@ -5,6 +5,8 @@ import { encodeJsonBase64Url } from './base64url.ts';
 import { readLabLink } from './deepLink.ts';
 import { loadChoreographyModule, preloadViews, requestLabParams, rerunLab, runProducer, startLab, type ReadySession, type StartLabOptions } from './labSession.ts';
 import { parseStartAt } from './startAt.ts';
+import { createLabRunner } from './labRunner.ts';
+import { toyComposite, toyProducers } from './testProducers.ts';
 
 const C1 = { keyHex: '000102030405060708090a0b0c0d0e0f', plaintextHex: '00112233445566778899aabbccddeeff', detail: 'op' };
 const C1_CIPHERTEXT = [0x69, 0xc4, 0xe0, 0xd8, 0x6a, 0x7b, 0x04, 0x30, 0xd8, 0xcd, 0xb7, 0x80, 0x70, 0xb4, 0xc5, 0x5a];
@@ -254,5 +256,32 @@ describe('requestLabParams', () => {
     const bundle = session.store.getState().bundle;
     expect(await requestLabParams(session, { keyHex: 'zz' })).toEqual({ ok: false, error: { key: 'core.error.hexInvalidChar', params: { char: 'z', index: 0 } } });
     expect(session.store.getState().bundle).toBe(bundle);
+  });
+});
+
+describe('startLab / rerunLab with ports and a runner', () => {
+  const registries = { producers: toyProducers, views: { list: () => [] } } as unknown as StartLabOptions['registries'];
+  const toyStart = (extra: Partial<StartLabOptions> = {}) => startLab({ producerId: 'toy-mode', link: { status: 'absent' }, registries, ...extra });
+
+  it('prepares the ports of the start params against the given producers', async () => {
+    const session = await toyStart();
+    expect(session.status === 'ready' && session.store.getState().bundle?.output).toEqual({ cipher: [1] });
+  });
+
+  it('re-runs through the session runner, preparing the ports of the new params', async () => {
+    const session = await toyStart();
+    if (session.status !== 'ready') throw new Error('expected ready');
+    const run = vi.spyOn(session.runner, 'run');
+    expect(await rerunLab(session, { cipher: 'nope' })).toEqual({ status: 'error', error: { key: 'core.error.portMissing', params: { id: 'nope' } } });
+    expect(run).toHaveBeenCalledWith(toyComposite, { cipher: 'nope' });
+  });
+
+  it('uses the given runner and wires labHref into the store', async () => {
+    const runner = createLabRunner(undefined, toyProducers);
+    const labHref = vi.fn(() => '/en/lab/toy/');
+    const session = await toyStart({ runner, labHref });
+    if (session.status !== 'ready') throw new Error('expected ready');
+    expect(session.runner).toBe(runner);
+    expect(session.store.getState().labHref?.('toy', {})).toBe('/en/lab/toy/');
   });
 });

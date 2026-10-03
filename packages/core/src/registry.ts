@@ -1,6 +1,8 @@
 import type { I18nRef } from './i18n.ts';
 import type { ChoreographyModule } from './choreography.ts';
 import type { ParamField } from './params.ts';
+import type { PortResolver } from './plugin/ports.ts';
+import type { PortMap, PortName } from './ports.ts';
 import type { FacetKey, FacetKind, TraceBundle } from './trace.ts';
 import type { Tracer } from './tracer.ts';
 
@@ -10,11 +12,18 @@ export type ValidationResult<P> = { ok: true; value: P } | { ok: false; error: I
 
 export interface RunOptions {
   tracer?: Tracer<string, { op: string }>;
+  /** Resolves the ports named by `port` params (from `preparePorts`); see `requirePort`. */
+  resolve?: PortResolver;
 }
 
 export interface PrimitiveModule<P> {
   run(params: P, options?: RunOptions): RunResult;
+  /** Every port the manifest `implements`, for other producers to use via `resolve`. */
+  ports?: Partial<PortMap>;
 }
+
+/** Where the web host runs a producer: on the main thread (default) or in a module Web Worker. */
+export type RunIn = 'main' | 'worker';
 
 export interface Preset<P> {
   id: string;
@@ -39,7 +48,10 @@ export interface PrimitiveManifest<P = unknown> {
   id: string;
   apiVersion: 1;
   family: string;
-  implements: string[];
+  /** Ports the module exposes in `PrimitiveModule.ports`. */
+  implements: PortName[];
+  /** Optional (additive): `'worker'` runs the producer in a Web Worker; default `'main'`. */
+  runIn?: RunIn;
   titleKey: string;
   refs: string[];
   facets: FacetKind[];

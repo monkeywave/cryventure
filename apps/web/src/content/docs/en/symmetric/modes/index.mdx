@@ -1,0 +1,48 @@
+---
+title: Modes of operation
+description: Why a block cipher needs a mode, and how ECB, CBC and CTR turn one 16-byte block into whole messages.
+lessonId: block-ciphers/modes/overview
+track: block-ciphers
+phase: 1
+sidebar:
+  order: 0
+refs:
+  - NIST SP 800-38A, Section 6 (Block Cipher Modes of Operation)
+  - NIST SP 800-38A, Appendix B (Generation of Counter Blocks)
+  - NIST SP 800-38A, Appendix C (Generation of Initialization Vectors)
+  - NIST SP 800-38D (Galois/Counter Mode)
+---
+
+import Lens from '../../../../../components/lesson/Lens.astro';
+
+AES encrypts exactly one 128-bit block. A **mode of operation** says how to use it on a message of
+many blocks. NIST SP 800-38A (§6) specifies five confidentiality modes; this group covers three:
+
+| Mode | Rule (SP 800-38A) | Needs | Equal plaintext blocks |
+|---|---|---|---|
+| [ECB](./ecb/) | `Cⱼ = E_K(Pⱼ)` (§6.1) | padding | give equal ciphertext blocks |
+| [CBC](./cbc/) | `Cⱼ = E_K(Pⱼ ⊕ Cⱼ₋₁)`, `C₀ = IV` (§6.2) | padding, unpredictable IV | give different blocks |
+| [CTR](./ctr/) | `Cⱼ = Pⱼ ⊕ E_K(Tⱼ)` (§6.5) | unique counter blocks, no padding | give different blocks |
+
+<Lens only="story">
+
+ECB is a codebook, CBC chains each block to the one before, and CTR turns the block cipher into a
+keystream generator.
+
+</Lens>
+
+<Lens level="engineer">
+
+None of these modes protects integrity: an attacker can change ciphertext without the receiver
+noticing. In practice, use an authenticated mode such as GCM (NIST SP 800-38D). The lessons here show why the
+building blocks fail on their own.
+
+</Lens>
+
+<Lens level="cryptographer">
+
+ECB is deterministic and therefore not IND-CPA secure. CBC with an unpredictable IV and CTR with
+unique counter blocks are IND-CPA secure, but both are malleable and so not IND-CCA secure (see the
+CBC bit-flip). CTR with a reused counter block loses even confidentiality: keystream reuse.
+
+</Lens>

@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { PrimitiveManifest } from '@cryventure/core';
 import { producerRegistry } from './registry.ts';
-import { editField, HEX_HINT_KEY, hintKeyOf, mergeParams, outputLabelKey } from './paramFields.ts';
+import { choiceLabelKey, editField, HEX_HINT_KEY, hintKeyOf, mergeParams, outputLabelKey } from './paramFields.ts';
 import type { LabParams } from './labSession.ts';
 
 const aes = producerRegistry.require('aes') as PrimitiveManifest<LabParams>;
@@ -61,5 +61,18 @@ describe('outputLabelKey', () => {
   it('is undefined for an undeclared output', () => {
     expect(outputLabelKey({}, 'ciphertext')).toBeUndefined();
     expect(outputLabelKey(aes, 'unknown')).toBeUndefined();
+  });
+});
+
+describe('choiceLabelKey', () => {
+  const producers = producerRegistry.list();
+  it('labels a select value by its option and a port value by the producer title', () => {
+    expect(choiceLabelKey({ name: 'detail', kind: 'select', labelKey: 'l', options: [{ value: 'op', labelKey: 'k.op' }] }, 'op', producers)).toBe('k.op');
+    expect(choiceLabelKey({ name: 'cipher', kind: 'port', port: 'BlockCipher', labelKey: 'l' }, 'aes', producers)).toBe('plugin.aes.title');
+  });
+
+  it('is undefined for unknown values, non-implementers and other kinds', () => {
+    expect(choiceLabelKey({ name: 'cipher', kind: 'port', port: 'BlockCipher', labelKey: 'l' }, 'xor', producers)).toBeUndefined();
+    expect(choiceLabelKey({ name: 'keyHex', kind: 'hex', labelKey: 'l' }, '00', producers)).toBeUndefined();
   });
 });

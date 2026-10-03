@@ -24,3 +24,13 @@ export interface PortMap {
 }
 
 export type PortName = keyof PortMap;
+
+/** One entry per port; the `Record` makes adding a port to `PortMap` without listing it here a type error. */
+const PORTS: Record<PortName, true> = { BlockCipher: true };
+
+/** Every port name, for runtime checks (contract kit, param validation). */
+export const PORT_NAMES = Object.keys(PORTS) as PortName[];
+
+export function isPortName(value: unknown): value is PortName {
+  return typeof value === 'string' && Object.hasOwn(PORTS, value);
+}

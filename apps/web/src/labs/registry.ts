@@ -1,16 +1,9 @@
-import { Registry, i18nRef, viewsFor, type FacetKind, type I18nRef, type PrimitiveManifest } from '@cryventure/core';
-import { primitiveManifests } from '@cryventure/primitives';
+import { i18nRef, viewsFor, type FacetKind, type I18nRef, type PrimitiveManifest, type Registry } from '@cryventure/core';
 import { viewManifests } from '@cryventure/views';
 import type { ReactViewManifest } from '@cryventure/viz';
+import { buildRegistry, producerRegistry } from './producers.ts';
 
-/** Fills a fresh registry; duplicate ids throw (a programming error caught at build time). */
-export function buildRegistry<M extends { id: string }>(name: string, manifests: readonly M[]): Registry<M> {
-  const registry = new Registry<M>(name);
-  manifests.forEach((manifest) => registry.register(manifest));
-  return registry;
-}
-
-export const producerRegistry = buildRegistry<PrimitiveManifest>('producers', primitiveManifests);
+export { buildRegistry, producerRegistry };
 export const viewRegistry = buildRegistry<ReactViewManifest>('views', viewManifests);
 
 export interface ResolvedLab {

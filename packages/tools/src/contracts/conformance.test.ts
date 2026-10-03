@@ -62,10 +62,23 @@ describe('conformanceProblems', () => {
     run: (params) => (params.a === 'bad' ? { ok: false, error: { key: 'plugin.demo.error' } } : { ok: true, trace: bundle([0x0a, 0x0b]) }),
   };
 
-  it('passes when every case reproduces its outputs', () => expect(conformanceProblems(module, valid)).toEqual([]));
+  it('passes when every case reproduces its outputs', async () => expect(await conformanceProblems(module, valid)).toEqual([]));
 
-  it('prefixes mismatches and rejections with the case name', () => {
+  it('runs every case with the options prepared for its params', async () => {
+    const seen: unknown[] = [];
+    const recording: PrimitiveModule<{ a: string }> = {
+      run: (params, options) => {
+        seen.push(options?.resolve);
+        return module.run(params);
+      },
+    };
+    const resolve = () => undefined;
+    await conformanceProblems(recording, valid, async () => ({ resolve }));
+    expect(seen).toEqual([resolve]);
+  });
+
+  it('prefixes mismatches and rejections with the case name', async () => {
     const vectors = { source: 's', cases: [{ name: 'wrong', params: { a: '01' }, outputs: { result: 'ffff' } }, { name: 'rejected', params: { a: 'bad' }, outputs: { result: '00' } }] };
-    expect(conformanceProblems(module, vectors)).toEqual(['wrong: output "result" is 0a0b, expected ffff', 'rejected: run() rejected params: {"key":"plugin.demo.error"}']);
+    expect(await conformanceProblems(module, vectors)).toEqual(['wrong: output "result" is 0a0b, expected ffff', 'rejected: run() rejected params: {"key":"plugin.demo.error"}']);
   });
 });

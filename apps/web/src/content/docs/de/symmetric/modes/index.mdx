@@ -1,0 +1,55 @@
+---
+title: Betriebsmodi
+description: Warum eine Blockchiffre einen Betriebsmodus braucht und wie ECB, CBC und CTR aus einem einzelnen 16-Byte-Block ganze Nachrichten machen.
+lessonId: block-ciphers/modes/overview
+track: block-ciphers
+phase: 1
+sidebar:
+  order: 0
+refs:
+  - NIST SP 800-38A, Abschnitt 6 (Block Cipher Modes of Operation)
+  - NIST SP 800-38A, Anhang B (Generation of Counter Blocks)
+  - NIST SP 800-38A, Anhang C (Generation of Initialization Vectors)
+  - NIST SP 800-38D (Galois/Counter Mode)
+sourceHash: sha256:c35d65fe95287d1699aacd497c32a9ed0ce0422a161a287643b633d39e364729
+translation:
+  status: ai-reviewed
+  reviewedAt: '2026-10-03'
+  reviewer: AI editorial review (Claude)
+---
+
+import Lens from '../../../../../components/lesson/Lens.astro';
+
+AES verschlüsselt genau einen 128-Bit-Block. Ein **Betriebsmodus** (engl. *mode of operation*) legt
+fest, wie du damit eine Nachricht aus vielen Blöcken verschlüsselst. NIST SP 800-38A (§6) definiert
+fünf Betriebsmodi für die Vertraulichkeit; diese Gruppe behandelt drei davon:
+
+| Betriebsmodus | Regel (SP 800-38A) | Benötigt | Gleiche Klartextblöcke |
+|---|---|---|---|
+| [ECB](./ecb/) | `Cⱼ = E_K(Pⱼ)` (§6.1) | Padding | ergeben gleiche Geheimtextblöcke |
+| [CBC](./cbc/) | `Cⱼ = E_K(Pⱼ ⊕ Cⱼ₋₁)`, `C₀ = IV` (§6.2) | Padding, unvorhersagbarer IV | ergeben verschiedene Blöcke |
+| [CTR](./ctr/) | `Cⱼ = Pⱼ ⊕ E_K(Tⱼ)` (§6.5) | eindeutige Zählerblöcke, kein Padding | ergeben verschiedene Blöcke |
+
+<Lens only="story">
+
+ECB ist ein Codebuch, CBC verkettet jeden Block mit seinem Vorgänger, und CTR macht aus der
+Blockchiffre einen Schlüsselstromgenerator.
+
+</Lens>
+
+<Lens level="engineer">
+
+Keiner dieser Betriebsmodi schützt die Integrität: Ein Angreifer kann den Geheimtext verändern, ohne
+dass der Empfänger es bemerkt. Nimm in der Praxis einen authentifizierten Betriebsmodus wie GCM (NIST
+SP 800-38D). Die Lektionen hier zeigen, warum die einzelnen Bausteine allein nicht ausreichen.
+
+</Lens>
+
+<Lens level="cryptographer">
+
+ECB ist deterministisch und daher nicht IND-CPA-sicher. CBC mit unvorhersagbarem IV und CTR mit
+eindeutigen Zählerblöcken sind IND-CPA-sicher, aber beide sind formbar (engl. *malleable*) und damit
+nicht IND-CCA-sicher (siehe den Bit-Flipping-Angriff auf CBC). CTR mit einem wiederverwendeten
+Zählerblock verliert sogar die Vertraulichkeit, weil sich der Schlüsselstrom wiederholt.
+
+</Lens>

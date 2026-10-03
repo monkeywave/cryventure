@@ -1,5 +1,5 @@
 import { primitiveManifests } from '@cryventure/primitives';
-import type { TraceBundle } from '@cryventure/core';
+import type { PrimitiveManifest, RunOptions, TraceBundle } from '@cryventure/core';
 import { beforeAll, describe, expect, it } from 'vitest';
 import { ASSEMBLED, facetKindsOf, fixtureBundlesFor, primitiveFixtureBundles, representativeSteps, type NamedBundle } from './facetFixtures.ts';
 
@@ -19,6 +19,22 @@ describe('primitiveFixtureBundles', () => {
   it('runs every primitive with its defaults', () => {
     expect(names(bundles)).toEqual(primitiveManifests.map((manifest) => manifest.id));
     bundles.forEach(({ name, bundle }) => expect(bundle.producer.id).toBe(name));
+  });
+
+  it('resolves port params against the given manifests', async () => {
+    const aes = primitiveManifests.find((manifest) => manifest.id === 'aes')!;
+    const composite = {
+      ...aes,
+      id: 'composite',
+      implements: [],
+      defaults: { cipher: 'aes' },
+      paramFields: [{ name: 'cipher', labelKey: 'k', kind: 'port' as const, port: 'BlockCipher' as const }],
+      load: async () => ({
+        run: (_params: unknown, options?: RunOptions) =>
+          options?.resolve?.('BlockCipher', 'aes') === undefined ? { ok: false as const, error: { key: 'unresolved' } } : { ok: true as const, trace: bundleWith('composite', []).bundle },
+      }),
+    } as PrimitiveManifest;
+    expect(names(await primitiveFixtureBundles([aes, composite]))).toEqual(['aes', 'composite']);
   });
 
   it('covers every facet kind the shipped views require', () => {

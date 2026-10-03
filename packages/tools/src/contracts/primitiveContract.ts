@@ -10,9 +10,12 @@ import {
   type MathFacet,
   type PrimitiveManifest,
   type PrimitiveModule,
+  type ProducerLookup,
+  type RunOptions,
   type TableFacet,
   type TraceBundle,
 } from '@cryventure/core';
+import { primitiveManifests } from '@cryventure/primitives';
 import { beforeAll, describe, expect, it } from 'vitest';
 import { loadPluginCatalogs, type LocaleCatalogs } from './catalogs.ts';
 import { conformanceFormatProblems, conformanceProblems, loadConformanceVectors, type ConformanceVectors } from './conformance.ts';
@@ -37,6 +40,9 @@ import {
   unknownParamFields,
   type AnyStateFacet,
 } from './checks.ts';
+import { modeFacetIssues, modeFacetRefs } from './modeFacetChecks.ts';
+import { implementedPortProblems, portFieldProblems, runInProblems, textFieldProblems } from './portChecks.ts';
+import { primitiveProducers, runOptionsFor } from './runWithPorts.ts';
 
 export interface PrimitiveContractOptions<P> {
   /** Plugin EN/DE catalogs; defaults to `packages/primitives/src/<id>/i18n/{en,de}.json`. */
@@ -45,7 +51,11 @@ export interface PrimitiveContractOptions<P> {
   conformance?: unknown;
   /** Extra conformance check against the plugin's `vectors/`, given the lazily loaded module. */
   vectorsCheck?: (module: PrimitiveModule<P>) => void | Promise<void>;
+  /** Registered producers for `port` params: field options and `resolve`; defaults to every primitive. */
+  producers?: { list: readonly PrimitiveManifest[]; lookup: ProducerLookup };
 }
+
+type Producers = NonNullable<PrimitiveContractOptions<unknown>['producers']>;
 
 interface RunCase<P> {
   name: string;
@@ -57,14 +67,14 @@ export function runCases<P>(manifest: PrimitiveManifest<P>): RunCase<P>[] {
   return [{ name: 'defaults', params: manifest.defaults }, ...manifest.presets.map((preset) => ({ name: `preset ${preset.id}`, params: preset.params }))];
 }
 
-/** Runs `params`, failing the test with the error key when the run is rejected. */
-export function runOrThrow<P>(module: PrimitiveModule<P>, params: P): TraceBundle {
-  const result = module.run(params);
+/** Runs `params` (with `options`), failing the test with the error key when the run is rejected. */
+export function runOrThrow<P>(module: PrimitiveModule<P>, params: P, options?: RunOptions): TraceBundle {
+  const result = module.run(params, options);
   if (!result.ok) throw new Error(`run() rejected params: ${JSON.stringify(result.error)}`);
   return result.trace;
 }
 
-function manifestSuite<P>(manifest: PrimitiveManifest<P>, catalogs: LocaleCatalogs): void {
+function manifestSuite<P>(manifest: PrimitiveManifest<P>, catalogs: LocaleCatalogs, producers: Producers): void {
   it('has valid manifest basics', () => {
     expect(() => assertManifestBasics(manifest)).not.toThrow();
     expect(manifest.kind).toBe('primitive');
@@ -92,17 +102,28 @@ function manifestSuite<P>(manifest: PrimitiveManifest<P>, catalogs: LocaleCatalo
   it('accepts its defaults and presets in validate()', () => {
     runCases(manifest).forEach((testCase) => expect(manifest.validate(testCase.params).ok, testCase.name).toBe(true));
   });
+
+  it('declares port fields some producer implements, text fields whose values fit, and a valid runIn', () => {
+    const fields = paramFieldsOf(manifest);
+    expect([...portFieldProblems(fields, producers.list), ...textFieldProblems(fields, runCases(manifest)), ...runInProblems(manifest)]).toEqual([]);
+  });
+
+  if (manifest.implements.length > 0) {
+    it('exposes every declared port, each passing its sanity check', async () => expect(implementedPortProblems(manifest, await manifest.load())).toEqual([]));
+  }
 }
 
-function runSuite<P>(manifest: PrimitiveManifest<P>, catalogs: LocaleCatalogs, testCase: RunCase<P>): void {
+function runSuite<P>(manifest: PrimitiveManifest<P>, catalogs: LocaleCatalogs, producers: Producers, testCase: RunCase<P>): void {
   let module: PrimitiveModule<P>;
+  let options: RunOptions;
   let bundle: TraceBundle;
   beforeAll(async () => {
     module = await manifest.load();
-    bundle = runOrThrow(module, testCase.params);
+    options = await runOptionsFor(manifest, testCase.params, producers.lookup);
+    bundle = runOrThrow(module, testCase.params, options);
   });
 
-  it('is deterministic', () => expect(runOrThrow(module, testCase.params)).toEqual(bundle));
+  it('is deterministic', () => expect(runOrThrow(module, testCase.params, options)).toEqual(bundle));
   it('emits every declared facet', () => expect(missingFacetKinds(manifest.facets, bundle)).toEqual([]));
   it('labels regions, scope levels and values with keys present in EN and DE', () => expect(missingKeys(runtimeLabelKeys(bundle), catalogs)).toEqual([]));
   it('declares region layouts whose words fit their regions', () => {
@@ -115,6 +136,9 @@ function runSuite<P>(manifest: PrimitiveManifest<P>, catalogs: LocaleCatalogs, t
     expect(state === undefined ? [] : replayProblems(state)).toEqual([]);
   });
   it('is JSON-serializable', () => expect(jsonRoundTrip(bundle)).toEqual(bundle));
+  it('emits valid chain/wire facets (if any) labelled with keys and {{params}} present in EN and DE', () => {
+    expect([...modeFacetIssues(bundle), ...refProblems(modeFacetRefs(bundle), catalogs)]).toEqual([]);
+  });
   optionalRunChecks(manifest, catalogs, () => bundle);
 }
 
@@ -178,21 +202,23 @@ function facetChecks<F>(kind: string, validate: (facet: F) => string[], refs: (f
 }
 
 /** Checks the generic conformance file: at least one well-formed case, each reproduced by `run()`. */
-function conformanceSuite<P>(manifest: PrimitiveManifest<P>, vectors: unknown): void {
+function conformanceSuite<P>(manifest: PrimitiveManifest<P>, vectors: unknown, producers: Producers): void {
   it('ships well-formed conformance vectors (vectors/conformance.json, ≥1 case)', () => expect(conformanceFormatProblems(vectors)).toEqual([]));
   it('reproduces every conformance vector', async () => {
     if (conformanceFormatProblems(vectors).length > 0) throw new Error('vectors/conformance.json is missing or malformed (see the previous test)');
-    expect(conformanceProblems(await manifest.load(), vectors as ConformanceVectors)).toEqual([]);
+    const prepare = (params: unknown) => runOptionsFor(manifest, params, producers.lookup);
+    expect(await conformanceProblems(await manifest.load(), vectors as ConformanceVectors, prepare)).toEqual([]);
   });
 }
 
 /** Registers the generic contract suite for one primitive plugin (call at test-file top level). */
 export function primitiveContract<P>(manifest: PrimitiveManifest<P>, options: PrimitiveContractOptions<P> = {}): void {
   const catalogs = options.catalogs ?? loadPluginCatalogs('primitives', manifest.id);
+  const producers = options.producers ?? { list: primitiveManifests, lookup: primitiveProducers };
   describe(`primitive "${manifest.id}" contract`, () => {
-    manifestSuite(manifest, catalogs);
-    describe.each(runCases(manifest))('run($name)', (testCase) => runSuite(manifest, catalogs, testCase));
-    conformanceSuite(manifest, 'conformance' in options ? options.conformance : loadConformanceVectors('primitives', manifest.id));
+    manifestSuite(manifest, catalogs, producers);
+    describe.each(runCases(manifest))('run($name)', (testCase) => runSuite(manifest, catalogs, producers, testCase));
+    conformanceSuite(manifest, 'conformance' in options ? options.conformance : loadConformanceVectors('primitives', manifest.id), producers);
     const { vectorsCheck } = options;
     if (vectorsCheck !== undefined) it('conforms to its vectors', async () => vectorsCheck(await manifest.load()));
   });

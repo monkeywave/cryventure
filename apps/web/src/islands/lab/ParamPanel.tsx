@@ -1,8 +1,9 @@
 import { useId, useState, type ChangeEvent, type ReactNode } from 'react';
-import { paramFieldsOf, type I18nRef, type ParamField, type PrimitiveManifest } from '@cryventure/core';
+import { paramFieldsOf, portOptions, utf8Bytes, type I18nRef, type ParamField, type ParamFieldOption, type PrimitiveManifest } from '@cryventure/core';
 import { useT } from '@cryventure/viz';
 import type { LabParams } from '../../labs/labSession.ts';
 import { editField, hintKeyOf } from '../../labs/paramFields.ts';
+import { producerRegistry } from '../../labs/producers.ts';
 import { matchingPresetId } from '../../labs/startParams.ts';
 
 export interface ParamPanelProps {
@@ -12,6 +13,8 @@ export interface ParamPanelProps {
   onApply: (params: LabParams) => void;
   /** Why a view's re-run request was rejected (`useLabActions().requestParams`); shown like a field error. */
   requestError?: I18nRef | null;
+  /** Registered producers, the options of `port` fields (default: the app's producer registry). */
+  producers?: readonly PrimitiveManifest[];
 }
 
 const CUSTOM = '';
@@ -65,8 +68,9 @@ function FieldNotes({ id, field, error }: { id: string; field: ParamField; error
   );
 }
 
-function describedBy(id: string, field: ParamField): string {
-  return hintKeyOf(field) === undefined ? `${id}-error` : `${id}-hint ${id}-error`;
+/** The hint (if any), any extra notes (e.g. a byte counter) and the error, in reading order. */
+function describedBy(id: string, field: ParamField, extra: readonly string[] = []): string {
+  return [...(hintKeyOf(field) === undefined ? [] : [`${id}-hint`]), ...extra, `${id}-error`].join(' ');
 }
 
 /**
@@ -130,7 +134,32 @@ function HexField(props: FieldProps) {
   );
 }
 
-function SelectField(props: FieldProps) {
+/** A UTF-8 text param with a live byte counter against `maxLength` (docs/EXTENDING.md "Text params"). */
+function TextField(props: FieldProps) {
+  const t = useT();
+  const id = useId();
+  const { field } = props;
+  const { text, error, change: changeText } = useDraft(props);
+  const change = (event: ChangeEvent<HTMLInputElement>) => changeText(event.target.value);
+  const max = field.maxLength;
+  const bytes = utf8Bytes(text).length;
+  const counterId = `${id}-count`;
+  return (
+    <div className="cv-params__field cv-params__field--text">
+      <label htmlFor={id}>{t(field.labelKey)}</label>
+      <input id={id} name={field.name} type="text" className="cv-params__input" spellCheck={false} autoComplete="off" value={text} onChange={change} aria-invalid={error !== null} aria-describedby={describedBy(id, field, max === undefined ? [] : [counterId])} />
+      {max !== undefined && (
+        <span id={counterId} className="cv-params__count" data-over={bytes > max}>
+          {t('ui.lab.params.byteCount', { count: bytes, max })}
+        </span>
+      )}
+      <FieldNotes id={id} field={field} error={error} />
+    </div>
+  );
+}
+
+/** A select over `options`; the picked value is validated and applied like any other edit. */
+function ChoiceField({ options, ...props }: FieldProps & { options: readonly ParamFieldOption[] }) {
   const t = useT();
   const id = useId();
   const { field, params } = props;
@@ -139,7 +168,7 @@ function SelectField(props: FieldProps) {
     <div className="cv-params__field">
       <label htmlFor={id}>{t(field.labelKey)}</label>
       <select id={id} name={field.name} value={String(params[field.name] ?? '')} onChange={(event) => edit(event.target.value)} aria-invalid={error !== null} aria-describedby={describedBy(id, field)}>
-        {(field.options ?? []).map((option) => (
+        {options.map((option) => (
           <option key={option.value} value={option.value}>
             {t(option.labelKey)}
           </option>
@@ -150,7 +179,17 @@ function SelectField(props: FieldProps) {
   );
 }
 
-const FIELD_INPUTS = { hex: HexField, select: SelectField } satisfies Record<ParamField['kind'], (props: FieldProps) => ReactNode>;
+function SelectField(props: FieldProps) {
+  return <ChoiceField {...props} options={props.field.options ?? []} />;
+}
+
+/** A `port` param: every registered producer implementing the port, labelled by its title (docs/M3.md §2). */
+function PortField(props: FieldProps) {
+  const { field, producers = producerRegistry.list() } = props;
+  return <ChoiceField {...props} options={field.port === undefined ? [] : portOptions(producers, field.port)} />;
+}
+
+const FIELD_INPUTS = { hex: HexField, select: SelectField, port: PortField, text: TextField } satisfies Record<ParamField['kind'], (props: FieldProps) => ReactNode>;
 
 /** The panel-level error for a rejected view request (fields show their own errors). */
 function RequestError({ error }: { error: I18nRef | null | undefined }) {

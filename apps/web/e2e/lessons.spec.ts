@@ -7,6 +7,8 @@ import { KEY_SCHEDULE_LAB, VIZ, WELCOME_LAB, expectStep, labButton, waitForLab, 
 
 interface LessonPage {
   slug: string;
+  /** Short name used as link text in a group overview (e.g. "ECB"). */
+  code?: string;
   title: Record<Lang, string>;
   labId?: string;
 }
@@ -22,6 +24,15 @@ const AES_LESSONS: readonly LessonPage[] = [
   { slug: KEY_SCHEDULE_LAB.path, title: { en: 'Key expansion', de: 'Schlüsselexpansion' }, labId: KEY_SCHEDULE_LAB.labId },
   { slug: 'symmetric/aes/memory-and-hardware/', title: { en: 'AES in memory and hardware', de: 'AES in Speicher und Hardware' } },
 ];
+
+/** Lessons of the "Modes" group (docs/M3.md §10); the group overview is checked separately. */
+const MODE_LESSONS: readonly LessonPage[] = [
+  { slug: 'symmetric/modes/ecb/', code: 'ECB', title: { en: 'ECB: the codebook mode', de: 'ECB: das Codebuch-Verfahren' }, labId: 'ecb-blocks' },
+  { slug: 'symmetric/modes/cbc/', code: 'CBC', title: { en: 'CBC: chaining blocks', de: 'CBC: Blöcke verketten' } },
+  { slug: 'symmetric/modes/ctr/', code: 'CTR', title: { en: 'CTR: a block cipher as a stream cipher', de: 'CTR: Blockchiffre als Stromchiffre' } },
+];
+
+const MODES_OVERVIEW = { slug: 'symmetric/modes/', title: { en: 'Modes of operation', de: 'Betriebsmodi' } } as const;
 
 const SIX_PARTS: Record<Lang, RegExp> = {
   en: /^Part 6 · Check$/,
@@ -43,7 +54,7 @@ const START_POSITIONS = [
 ] as const;
 
 for (const lang of ['en', 'de'] as const) {
-  for (const lesson of AES_LESSONS) {
+  for (const lesson of [...AES_LESSONS, ...MODE_LESSONS]) {
     test(`${lang}/${lesson.slug} renders all six lesson parts`, async ({ page }) => {
       const response = await page.goto(`${lang}/${lesson.slug}`);
       expect(response?.status()).toBe(200);
@@ -61,6 +72,29 @@ test('sidebar walks through the AES lessons in order (EN)', async ({ page }) => 
   await page.goto(`en/${WELCOME_LAB.path}`);
   const sidebar = page.locator('#starlight__sidebar');
   for (const lesson of AES_LESSONS) {
+    await sidebar.getByRole('link', { name: lesson.title.en, exact: true }).click();
+    await expect(page).toHaveURL(new RegExp(`/en/${lesson.slug}$`));
+    await expect(page.getByRole('heading', { level: 1 })).toHaveText(lesson.title.en);
+  }
+});
+
+for (const lang of ['en', 'de'] as const) {
+  test(`${lang}/${MODES_OVERVIEW.slug} links to every mode lesson`, async ({ page }) => {
+    const response = await page.goto(`${lang}/${MODES_OVERVIEW.slug}`);
+    expect(response?.status()).toBe(200);
+    await expect(page.getByRole('heading', { level: 1 })).toHaveText(MODES_OVERVIEW.title[lang]);
+    for (const lesson of MODE_LESSONS) {
+      const href = await page.locator('main').getByRole('link', { name: lesson.code!, exact: true }).getAttribute('href');
+      expect(new URL(href!, page.url()).pathname).toMatch(new RegExp(`/${lang}/${lesson.slug}$`));
+    }
+  });
+}
+
+test('sidebar walks through the mode lessons in order (EN)', async ({ page }) => {
+  await page.goto(`en/${MODES_OVERVIEW.slug}`);
+  const sidebar = page.locator('#starlight__sidebar');
+  await expect(sidebar.getByText('Modes', { exact: true })).toBeVisible();
+  for (const lesson of MODE_LESSONS) {
     await sidebar.getByRole('link', { name: lesson.title.en, exact: true }).click();
     await expect(page).toHaveURL(new RegExp(`/en/${lesson.slug}$`));
     await expect(page.getByRole('heading', { level: 1 })).toHaveText(lesson.title.en);

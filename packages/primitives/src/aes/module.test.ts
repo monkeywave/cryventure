@@ -1,7 +1,7 @@
 import { getFacet, toHex, type NarrationFacet, type ValuesFacet } from '@cryventure/core';
 import { describe, expect, it } from 'vitest';
 import { AES_PRESETS } from './manifest.ts';
-import { blockCipher, roundKeySteps, run, type AesStateFacet } from './module.ts';
+import { ports, roundKeySteps, run, type AesStateFacet } from './module.ts';
 import { hexBytes } from './testHelpers.ts';
 import vectors from './vectors/fips197.json';
 
@@ -71,12 +71,27 @@ describe('roundKeySteps', () => {
   });
 });
 
-describe('blockCipher', () => {
-  it('exposes port metadata and an untraced encrypt/decrypt fast path', () => {
-    expect(blockCipher).toMatchObject({ id: 'aes', blockSize: 16, keySizes: [16, 24, 32] });
-    const key = hexBytes(vectors.appendixB.key);
-    const ciphertext = blockCipher.encrypt(key, hexBytes(vectors.appendixB.input));
+describe('ports.BlockCipher', () => {
+  const cipher = ports.BlockCipher;
+  const key = Uint8Array.from(hexBytes(vectors.appendixB.key));
+  const input = Uint8Array.from(hexBytes(vectors.appendixB.input));
+
+  it('exposes the BlockCipher port metadata', () => {
+    expect(cipher).toMatchObject({ id: 'aes', blockSize: 16, keySizes: [16, 24, 32] });
+  });
+
+  it('encrypts and decrypts one block untraced (FIPS 197 App. B)', () => {
+    const ciphertext = cipher.encryptBlock(key, input);
+    expect(ciphertext).toBeInstanceOf(Uint8Array);
     expect(toHex(ciphertext)).toBe(vectors.appendixB.output);
-    expect(toHex(blockCipher.decrypt(key, ciphertext))).toBe(vectors.appendixB.input);
+    expect(toHex(cipher.decryptBlock(key, ciphertext))).toBe(vectors.appendixB.input);
+  });
+
+  it('throws a RangeError on a wrong key or block length', () => {
+    const block = new Uint8Array(16);
+    expect(() => cipher.encryptBlock(new Uint8Array(15), block)).toThrow(RangeError);
+    expect(() => cipher.decryptBlock(new Uint8Array(15), block)).toThrow(RangeError);
+    expect(() => cipher.encryptBlock(key, new Uint8Array(17))).toThrow(RangeError);
+    expect(() => cipher.decryptBlock(key, new Uint8Array(15))).toThrow(RangeError);
   });
 });

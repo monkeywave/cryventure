@@ -93,3 +93,20 @@ describe('LabRoot onRequestParams', () => {
     expect(() => act(() => screen.getByRole('button', { name: 'request' }).click())).not.toThrow();
   });
 });
+
+function ZoomLink() {
+  const href = useLabActions().labHref?.('aes', { keyHex: '00' });
+  return href === undefined ? <span data-testid="zoom">none</span> : <a href={href}>zoom</a>;
+}
+
+describe('useLabActions().labHref', () => {
+  it('gives views the host link on their first render', () => {
+    renderLab(<ZoomLink />, { labHref: (producerId) => `/en/lab/${producerId}/#lab=${producerId}` });
+    expect(screen.getByRole('link', { name: 'zoom' }).getAttribute('href')).toBe('/en/lab/aes/#lab=aes');
+  });
+
+  it('is absent without host wiring, so views render no link', () => {
+    renderLab(<ZoomLink />);
+    expect(screen.getByTestId('zoom').textContent).toBe('none');
+  });
+});

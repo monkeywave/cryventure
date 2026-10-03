@@ -4,6 +4,8 @@ import {
   RecordingTracer,
   runPrimitive,
   valueRef,
+  type BlockCipher,
+  type PortMap,
   type RunOptions,
   type RunResult,
   type StateFacet,
@@ -91,15 +93,14 @@ export function run(params: AesParams, _options: RunOptions = {}): RunResult {
   });
 }
 
-/** Port metadata + untraced fast path, for future Mode combinators (ECB/CBC/CTR/GCM). */
-export const blockCipher = {
+/** The untraced AES block cipher for modes of operation (ECB, CBC, CTR, …); throws RangeError on wrong lengths. */
+const aesBlockCipher: BlockCipher = {
   id: 'aes',
   blockSize: BLOCK_BYTES,
   keySizes: [...VALID_KEY_SIZES],
-  encrypt(key: ArrayLike<number>, block: ArrayLike<number>): Uint8Array {
-    return Uint8Array.from(encryptBlock(key, block));
-  },
-  decrypt(key: ArrayLike<number>, block: ArrayLike<number>): Uint8Array {
-    return Uint8Array.from(decryptBlock(key, block));
-  },
+  encryptBlock: (key, block) => Uint8Array.from(encryptBlock(key, block)),
+  decryptBlock: (key, block) => Uint8Array.from(decryptBlock(key, block)),
 };
+
+/** Every port `aesManifest.implements`. */
+export const ports = { BlockCipher: aesBlockCipher } satisfies Partial<PortMap>;

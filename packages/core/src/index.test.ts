@@ -17,6 +17,10 @@ describe('public API', () => {
       'ginvStepTerms', 'scopeLevels', 'opLabels', 'singleCellRegion', 'zeroSnapshot', 'runPrimitive',
       'chainIssues', 'chainActiveAt', 'chainEdgeKey', 'chainLabelRefs', 'chainLanes',
       'wireIssues', 'wireActiveOffsetsAt', 'wireTotalLength', 'wireSegmentAt', 'wireLabelRefs',
+      'utf8Bytes', 'utf8Text', 'readText', 'portParamFields', 'PORT_NAMES', 'isPortName',
+      'portOptions', 'preparePorts', 'portNamespaces', 'requirePort', 'checkKeyLength',
+      'ChainBuilder', 'WireBuilder', 'readModeCommon', 'readBlockParamHex', 'prepareBlockCipher', 'blockLengthError', 'alignmentError',
+      'blockCount', 'blockIndices', 'padStep', 'unpadStep', 'assertMatchesReference', 'BlockOpRecorder', 'blockModeOutputs', 'MODE_DIRECTIONS', 'MODE_PADDINGS', 'MODE_MAX_INPUT_BYTES',
     ];
     for (const name of expected) expect(core).toHaveProperty(name);
   });

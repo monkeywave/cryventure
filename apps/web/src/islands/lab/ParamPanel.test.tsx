@@ -153,3 +153,83 @@ describe('ParamPanel', () => {
     expect(screen.getByText(/is not a hex digit/)).toBeTruthy();
   });
 });
+
+/** A composite with a `cipher` port param and a `text` param, validated like the M3 attack labs. */
+const composite = {
+  ...aes,
+  id: 'toy-mode',
+  i18nNamespace: 'plugin.aes',
+  presets: [],
+  defaults: { cipher: 'aes', note: 'hi' },
+  paramFields: [
+    { name: 'cipher', kind: 'port', port: 'BlockCipher', labelKey: 'plugin.aes.param.key' },
+    { name: 'note', kind: 'text', maxLength: 8, labelKey: 'plugin.aes.param.plaintext' },
+  ],
+  validate: (input: unknown) => {
+    const { cipher, note } = input as LabParams;
+    if (typeof note !== 'string' || new TextEncoder().encode(note).length > 8) return { ok: false, error: { key: 'core.error.hexInvalidChar', params: { char: '!', index: 0 } } };
+    return { ok: true, value: { cipher, note } };
+  },
+} as unknown as PrimitiveManifest<LabParams>;
+
+function renderComposite(lang = 'en', onApply = vi.fn(), producers?: PrimitiveManifest[]) {
+  const messages = { ...labMessages(lang, aes), ...labMessages(lang, producerRegistry.require('xor')) };
+  render(
+    <I18nProvider messages={messages}>
+      <ParamPanel producer={composite} params={composite.defaults as LabParams} onApply={onApply} producers={producers} />
+    </I18nProvider>,
+  );
+  return onApply;
+}
+
+describe('ParamPanel port fields', () => {
+  it('offers every registered producer implementing the port, labelled by its title', () => {
+    renderComposite();
+    const select = screen.getByLabelText('Key (hex)') as HTMLSelectElement;
+    expect(select.tagName).toBe('SELECT');
+    expect(select.value).toBe('aes');
+    const implementers = producerRegistry.list().filter((producer) => producer.implements.includes('BlockCipher'));
+    expect([...select.options].map((option) => option.value)).toEqual(implementers.map((producer) => producer.id).sort());
+    expect(screen.getByRole('option', { name: 'AES (Advanced Encryption Standard)' })).toBeTruthy();
+  });
+
+  it('applies a picked producer', () => {
+    const xorAsCipher = { ...producerRegistry.require('xor'), implements: ['BlockCipher'] } as PrimitiveManifest;
+    const onApply = renderComposite('en', vi.fn(), [producerRegistry.require('aes'), xorAsCipher]);
+    fireEvent.change(screen.getByLabelText('Key (hex)'), { target: { value: 'xor' } });
+    expect(onApply).toHaveBeenCalledWith({ cipher: 'xor', note: 'hi' });
+  });
+});
+
+describe('ParamPanel text fields', () => {
+  it('renders a text input with a UTF-8 byte counter against maxLength', () => {
+    renderComposite();
+    const input = screen.getByLabelText('Plaintext (hex)') as HTMLInputElement;
+    expect(input.tagName).toBe('INPUT');
+    expect(input.value).toBe('hi');
+    expect(screen.getByText('2 / 8 bytes (UTF-8)')).toBeTruthy();
+    expect(input.getAttribute('aria-describedby')).toMatch(/-count .*-error$/);
+  });
+
+  it('counts bytes, not characters, and applies valid text', () => {
+    const onApply = renderComposite();
+    fireEvent.change(screen.getByLabelText('Plaintext (hex)'), { target: { value: 'äö' } });
+    expect(screen.getByText('4 / 8 bytes (UTF-8)')).toBeTruthy();
+    expect(onApply).toHaveBeenCalledWith({ cipher: 'aes', note: 'äö' });
+  });
+
+  it('flags text over the limit, shows the validation error and does not apply it', () => {
+    const onApply = renderComposite();
+    const input = screen.getByLabelText('Plaintext (hex)');
+    fireEvent.change(input, { target: { value: 'ääääää' } });
+    expect(onApply).not.toHaveBeenCalled();
+    expect(input.getAttribute('aria-invalid')).toBe('true');
+    expect(screen.getByText('12 / 8 bytes (UTF-8)').getAttribute('data-over')).toBe('true');
+    expect(screen.getByText(/is not a hex digit/)).toBeTruthy();
+  });
+
+  it('is localized', () => {
+    renderComposite('de');
+    expect(screen.getByText('2 / 8 Bytes (UTF-8)')).toBeTruthy();
+  });
+});

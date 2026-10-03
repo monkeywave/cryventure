@@ -1,4 +1,6 @@
 {
   "core.error.hexInvalidChar": "“{{char}}” is not a hex digit; use 0–9 and a–f.",
-  "core.error.hexOddLength": "Hex needs an even number of digits (two per byte), but this has {{length}}."
+  "core.error.hexOddLength": "Hex needs an even number of digits (two per byte), but this has {{length}}.",
+  "core.error.keyLength": "The key must be {{sizes}} bytes long for this cipher.",
+  "core.error.portMissing": "The building block “{{id}}” is not available here."
 }

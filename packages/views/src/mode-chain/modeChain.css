@@ -1,0 +1,222 @@
+/*
+ * Mode-chain view styles. Imported by the view component, so it ships in the view's lazy chunk.
+ * Colours come only from the semantic tokens (--cv-*, --sl-color-*); fallbacks keep it usable standalone.
+ * Node geometry is computed in px (chainLayout.ts), so node text uses px sizes that fit those boxes.
+ */
+
+.cv-chain {
+  display: grid;
+  gap: 0.5rem;
+  min-width: 0;
+}
+
+.cv-chain__formula {
+  margin: 0;
+  font-family: var(--sl-font-mono, ui-monospace, monospace);
+  font-size: 0.9em;
+}
+
+/* Lanes scroll inside the panel, never the page. */
+.cv-chain__scroll {
+  max-width: 100%;
+  overflow-x: auto;
+  overscroll-behavior-inline: contain;
+}
+
+.cv-chain__canvas {
+  position: relative;
+}
+
+.cv-chain__lane {
+  position: absolute;
+  top: 0;
+  height: 18px;
+  font-size: 12px;
+  line-height: 18px;
+  text-align: center;
+  color: var(--cv-text-muted, GrayText);
+  border-bottom: 1px solid var(--cv-border-subtle, GrayText);
+}
+
+.cv-chain__edges {
+  position: absolute;
+  inset: 0;
+  overflow: visible;
+  pointer-events: none;
+}
+
+.cv-chain__edge {
+  fill: none;
+  stroke: var(--cv-text-muted, GrayText);
+  stroke-width: 1.5;
+}
+
+.cv-chain__edge[data-status='current'] {
+  stroke: var(--sl-color-accent, Highlight);
+  stroke-width: 2.5;
+}
+
+.cv-chain__edge[data-status='pending'] {
+  stroke: var(--cv-cell-dim-border, GrayText);
+  stroke-dasharray: 3 4;
+}
+
+.cv-chain__arrow path {
+  fill: var(--cv-text-muted, GrayText);
+}
+
+.cv-chain__arrow[data-status='pending'] path {
+  fill: var(--cv-cell-dim-border, GrayText);
+}
+
+/* Nodes: role colour on the border and a role glow, so the role reads without hue too (labels). */
+.cv-chain__node {
+  --cv-chain-role: var(--cv-state, GrayText);
+  --cv-chain-glow: transparent;
+  position: absolute;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  padding: 4px 6px;
+  color: var(--cv-text, CanvasText);
+  background: var(--cv-surface-elevated, Canvas);
+  background-image: linear-gradient(var(--cv-chain-glow), var(--cv-chain-glow));
+  border: 2px solid var(--cv-chain-role);
+  border-radius: 6px;
+  text-align: center;
+}
+
+.cv-chain__node[data-role='plaintext'] {
+  --cv-chain-role: var(--cv-plaintext);
+  --cv-chain-glow: var(--cv-glow-plaintext);
+}
+
+.cv-chain__node[data-role='ciphertext'] {
+  --cv-chain-role: var(--cv-ciphertext);
+  --cv-chain-glow: var(--cv-glow-ciphertext);
+}
+
+.cv-chain__node[data-role='nonce'] {
+  --cv-chain-role: var(--cv-nonce);
+  --cv-chain-glow: var(--cv-glow-nonce);
+}
+
+.cv-chain__node[data-role='key'] {
+  --cv-chain-role: var(--cv-key);
+  --cv-chain-glow: var(--cv-glow-key);
+  border-radius: 2px;
+}
+
+.cv-chain__node[data-kind='xor'] {
+  border-radius: 999px;
+}
+
+.cv-chain__node[data-role='padding'] {
+  background-image: repeating-linear-gradient(135deg, var(--cv-border-subtle, transparent) 0 3px, transparent 3px 7px);
+}
+
+/* Pending: dashed, dimmed through colour tokens (never opacity), value withheld. */
+.cv-chain__node[data-status='pending'] {
+  color: var(--cv-cell-dim-fg, GrayText);
+  background: var(--cv-cell-dim-bg, Canvas);
+  border-style: dashed;
+  border-color: var(--cv-cell-dim-border, GrayText);
+}
+
+/* Current step: heavy border, the ▸ glyph and a lift. */
+.cv-chain__node[data-status='current'] {
+  border-width: 3px;
+  background-color: var(--cv-cell-focus-bg, Canvas);
+  box-shadow: var(--cv-cell-focus-shadow, none);
+}
+
+.cv-chain__node:focus-visible {
+  outline: 2px solid var(--cv-cell-focus-border, Highlight);
+  outline-offset: 2px;
+}
+
+/* Equal blocks: a ≡ letter plus a group-specific hatching. */
+.cv-chain__node[data-same] {
+  background-image: repeating-linear-gradient(var(--cv-chain-same-angle, 45deg), var(--cv-chain-glow) 0 4px, transparent 4px 9px);
+  outline: 1px dashed var(--cv-chain-role);
+  outline-offset: 3px;
+}
+
+.cv-chain__node[data-same='1'] {
+  --cv-chain-same-angle: -45deg;
+}
+
+.cv-chain__node[data-same='2'] {
+  --cv-chain-same-angle: 90deg;
+}
+
+.cv-chain__label {
+  display: flex;
+  align-items: baseline;
+  gap: 4px;
+  max-width: 100%;
+  font-size: 13px;
+  line-height: 18px;
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.cv-chain__node[data-kind='xor'] .cv-chain__label {
+  font-size: 16px;
+}
+
+.cv-chain__glyph {
+  color: var(--sl-color-accent, Highlight);
+}
+
+.cv-chain__same {
+  padding: 0 3px;
+  font-size: 11px;
+  line-height: 14px;
+  border: 1px solid currentcolor;
+  border-radius: 3px;
+}
+
+.cv-chain__hex {
+  display: grid;
+  font-family: var(--sl-font-mono, ui-monospace, monospace);
+  font-size: 11.5px;
+  line-height: 16px;
+  white-space: nowrap;
+}
+
+.cv-chain__zoom {
+  font-size: 11px;
+  line-height: 13px;
+  color: var(--sl-color-accent, LinkText);
+  text-wrap: balance;
+}
+
+.cv-chain__readout,
+.cv-chain__legend {
+  margin: 0;
+  font-size: 0.8em;
+  color: var(--cv-text-muted, GrayText);
+}
+
+.cv-chain__readout code {
+  font-family: var(--sl-font-mono, ui-monospace, monospace);
+  color: var(--cv-text, CanvasText);
+  overflow-wrap: anywhere;
+}
+
+.cv-chain__readout-label {
+  font-weight: 600;
+  color: var(--cv-text, CanvasText);
+}
+
+.cv-chain__legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem 1rem;
+}

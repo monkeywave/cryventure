@@ -40,3 +40,27 @@ describe('labMessages', () => {
     expect(de['core.error.hexOddLength']).toMatch(/gerade Anzahl/);
   });
 });
+
+describe('labMessages for a producer with a port param', () => {
+  const composite = {
+    id: 'xor',
+    i18nNamespace: 'plugin.xor',
+    facets: AES.facets,
+    defaults: {},
+    paramFields: [{ name: 'cipher', kind: 'port' as const, port: 'BlockCipher' as const, labelKey: 'plugin.xor.title' }],
+  };
+
+  it('also ships the namespace of every producer that can fill the port', () => {
+    const implementers = producerRegistry.list().filter((producer) => producer.implements.includes('BlockCipher'));
+    expect(implementers.length).toBeGreaterThan(0);
+    const en = labMessages('en', composite);
+    for (const producer of implementers) expect(en).toHaveProperty(producer.titleKey);
+    expect(en).toHaveProperty('plugin.xor.title');
+    const unrelated = producerRegistry.list().filter((producer) => !producer.implements.includes('BlockCipher') && producer.id !== 'xor');
+    for (const producer of unrelated) expect(Object.keys(en).some((key) => key.startsWith(`${producer.i18nNamespace}.`))).toBe(false);
+  });
+
+  it('keeps EN/DE parity for the added namespaces', () => {
+    expect(Object.keys(labMessages('de', composite)).sort()).toEqual(Object.keys(labMessages('en', composite)).sort());
+  });
+});

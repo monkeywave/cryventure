@@ -1,0 +1,19 @@
+{
+  "view.wire.title": "On the wire",
+  "view.wire.loading": "Preparing the byte strip…",
+  "view.wire.missing": "This lab does not record the bytes that travel.",
+  "view.wire.strip": "Bytes as they travel: {{count}} bytes in {{segments}} parts",
+  "view.wire.range": "{{bytes}} bytes · {{from}}–{{to}}",
+  "view.wire.segment": "{{label}} ({{role}}): {{bytes}} bytes at offsets {{from}} to {{to}}",
+  "view.wire.segmentHex": "{{summary}}: {{hex}}",
+  "view.wire.segmentActive": "{{summary}}; {{count}} of them highlighted in this step",
+  "view.wire.segmentFlipped": "{{summary}}; {{count}} of them flipped",
+  "view.wire.role.iv": "initialization vector",
+  "view.wire.role.nonce": "nonce",
+  "view.wire.role.ciphertext": "ciphertext",
+  "view.wire.role.plaintext": "plaintext",
+  "view.wire.role.padding": "padding",
+  "view.wire.role.tag": "tag",
+  "view.wire.legendActive": "heavy border: in focus this step",
+  "view.wire.legendFlip": "flipped bits (changing them yourself comes with the attack labs)"
+}

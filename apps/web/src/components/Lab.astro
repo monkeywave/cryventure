@@ -7,10 +7,11 @@
  */
 import '@cryventure/viz/viz.css';
 import '../styles/lab.css';
-import { createTranslator, optionLabelKey, paramFieldsOf, type Lens } from '@cryventure/core';
+import { createTranslator, paramFieldsOf, type Lens } from '@cryventure/core';
 import LabIsland from '../islands/Lab.tsx';
 import { labMessages } from '../labs/labMessages';
-import { resolveLab } from '../labs/registry';
+import { choiceLabelKey } from '../labs/paramFields';
+import { producerRegistry, resolveLab } from '../labs/registry';
 import { presetParams } from '../labs/startParams';
 import { isLabMode, parseStartAt } from '../labs/startAt';
 import Breakout from './Breakout.astro';
@@ -41,6 +42,9 @@ if (startAt !== undefined && parseStartAt(startAt) === undefined) throw new Erro
 if (mode !== undefined && !isLabMode(mode)) throw new Error(`<Lab labId="${labId}">: unknown mode "${mode}"`);
 const startParams = presetParams(producer, presetId) as Record<string, unknown>;
 const posterFields = paramFieldsOf(producer);
+const registered = producerRegistry.list();
+/** A choice (`select` / `port`) shows its translated label; anything else its raw value. */
+const posterChoice = (field: (typeof posterFields)[number]) => choiceLabelKey(field, startParams[field.name], registered);
 ---
 
 <Breakout>
@@ -55,7 +59,7 @@ const posterFields = paramFieldsOf(producer);
             posterFields.map((field) => (
               <div>
                 <dt>{t(field.labelKey)}</dt>
-                <dd>{field.kind === 'select' ? t(optionLabelKey(field, startParams[field.name]) ?? String(startParams[field.name])) : <code>{String(startParams[field.name])}</code>}</dd>
+                <dd>{field.kind === 'select' || field.kind === 'port' ? t(posterChoice(field) ?? String(startParams[field.name])) : <code>{String(startParams[field.name])}</code>}</dd>
               </div>
             ))
           }

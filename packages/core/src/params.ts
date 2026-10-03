@@ -2,7 +2,15 @@
  * Declarative param fields: a producer describes its inputs so a generic param panel can render
  * them without knowing the algorithm (docs/PLAN.md §2b). Additive to apiVersion 1.
  */
-export type ParamFieldKind = 'hex' | 'select';
+import { utf8Bytes } from './bytes.ts';
+import type { PortName } from './ports.ts';
+
+/**
+ * `hex`: bytes as hex. `select`: one of `options`. `port`: the id of a producer that implements
+ * `port` (options come from the registry, see `portOptions`). `text`: a UTF-8 string of at most
+ * `maxLength` bytes.
+ */
+export type ParamFieldKind = 'hex' | 'select' | 'port' | 'text';
 
 export interface ParamFieldOption {
   value: string;
@@ -17,7 +25,14 @@ export interface ParamField {
   kind: ParamFieldKind;
   /** Choices of a `select` field. */
   options?: ParamFieldOption[];
+  /** The port a `port` field's producer must implement. */
+  port?: PortName;
+  /** Maximum length of a `text` field in UTF-8 bytes. */
+  maxLength?: number;
 }
+
+/** A `port` field with its port name. */
+export type PortParamField = ParamField & { kind: 'port'; port: PortName };
 
 /** The manifest parts param fields are derived from (see `PrimitiveManifest`). */
 export interface ParamFieldSource {
@@ -41,9 +56,32 @@ export function paramFieldsOf(manifest: ParamFieldSource): ParamField[] {
   return manifest.paramFields ?? inferHexFields(manifest.defaults, manifest.i18nNamespace);
 }
 
+/** Option label keys the producer's own catalogs must hold: none for `port` fields (they use producer titles). */
+function ownOptionKeys(field: ParamField): string[] {
+  return field.kind === 'port' ? [] : (field.options ?? []).map((option) => option.labelKey);
+}
+
 /** Every i18n key a field list references (labels, hints, option labels). */
 export function paramFieldKeys(fields: readonly ParamField[]): string[] {
-  return fields.flatMap((field) => [field.labelKey, ...(field.hintKey ? [field.hintKey] : []), ...(field.options ?? []).map((option) => option.labelKey)]);
+  return fields.flatMap((field) => [field.labelKey, ...(field.hintKey ? [field.hintKey] : []), ...ownOptionKeys(field)]);
+}
+
+/** The `port` fields of a field list (fields without a `port` name are skipped). */
+export function portParamFields(fields: readonly ParamField[]): PortParamField[] {
+  return fields.filter((field): field is PortParamField => field.kind === 'port' && field.port !== undefined);
+}
+
+/** Param validation for a `text` field: `input` if it is a string of at most `maxLength` UTF-8 bytes, else `undefined`. */
+export function readText(input: unknown, maxLength: number): string | undefined {
+  if (typeof input !== 'string') return undefined;
+  return utf8Bytes(input).length <= maxLength ? input : undefined;
+}
+
+const PRODUCER_ID = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
+
+/** Param validation for a `port` field: `input` if it is a kebab-case producer id, else `undefined` (existence is checked at run time by `requirePort`). */
+export function readProducerId(input: unknown): string | undefined {
+  return typeof input === 'string' && PRODUCER_ID.test(input) ? input : undefined;
 }
 
 /** Label key of the option matching `value`; `undefined` when none matches. */

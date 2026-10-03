@@ -78,3 +78,14 @@ describe('useLabSession stale results', () => {
     expect(tagOf(result.current.session)).toBe('restarted');
   });
 });
+
+describe('useLabSession wiring', () => {
+  it('starts with a per-lab runner and a labHref for the page locale', async () => {
+    labSession.startLab.mockResolvedValueOnce(ready('start'));
+    renderHook(() => useLabSession({ labId: 'lab', producerId: 'p', locale: 'de' }));
+    await waitFor(() => expect(labSession.startLab).toHaveBeenCalled());
+    const options = labSession.startLab.mock.calls[0]?.[0] as { runner: { run: unknown }; labHref: (id: string, params: unknown) => string | undefined };
+    expect(options.runner.run).toBeTypeOf('function');
+    expect(options.labHref('aes', {})).toMatch(/^\/de\/lab\/aes\/#lab=aes&/);
+  });
+});

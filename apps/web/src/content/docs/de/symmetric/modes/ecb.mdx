@@ -1,0 +1,192 @@
+---
+title: 'ECB: das Codebuch-Verfahren'
+description: Wie ECB jeden Block für sich mit demselben Schlüssel verschlüsselt, warum gleiche Klartextblöcke gleiche Geheimtextblöcke ergeben und wie dadurch ein Bild durchscheint.
+lessonId: block-ciphers/modes/ecb
+track: block-ciphers
+phase: 1
+sidebar:
+  order: 1
+tableOfContents: false
+prereqs:
+  - block-ciphers/aes/overview
+labs:
+  - ecb-blocks
+refs:
+  - NIST SP 800-38A, Abschnitt 6.1 (The Electronic Codebook Mode)
+  - NIST SP 800-38A, Anhang A (Padding)
+  - NIST SP 800-38A, Anhang D (Error Properties)
+  - NIST SP 800-38A, Anhang F.1 (ECB Example Vectors)
+  - RFC 5652, Abschnitt 6.3 (Content-encryption Process, PKCS#7-Padding)
+sourceHash: sha256:0e716bdc20aa91d41282683b99187b7d5b91ff6f4202cbda21768088833d07be
+translation:
+  status: ai-reviewed
+  reviewedAt: '2026-10-03'
+  reviewer: AI editorial review (Claude)
+---
+
+import Lab from '../../../../../components/Lab.astro';
+import PenguinLab from '../../../../../components/PenguinLab.astro';
+import CheckQuestion from '../../../../../components/lesson/CheckQuestion.astro';
+import Formula from '../../../../../components/lesson/Formula.astro';
+import Lens from '../../../../../components/lesson/Lens.astro';
+import LessonSection from '../../../../../components/lesson/LessonSection.astro';
+import WhyBox from '../../../../../components/lesson/WhyBox.astro';
+
+<LessonSection part="concept">
+
+## Eine Blockchiffre allein verschlüsselt noch keine Nachrichten
+
+AES verschlüsselt genau einen 16-Byte-Block. Echte Nachrichten sind länger, also brauchen wir eine
+**Betriebsmodus**: eine Vorschrift, wie die Blockchiffre auf viele Blöcke angewendet wird. NIST
+SP 800-38A definiert fünf davon. Die einfachste ist **Electronic Codebook**, kurz ECB (§6.1) – das
+elektronische Codebuch.
+
+ECB zerlegt die Nachricht in Blöcke `P₁ … Pₙ` und verschlüsselt jeden davon für sich, immer mit
+demselben Schlüssel. Kein Block beeinflusst einen anderen.
+
+<Formula caption="ECB-Verschlüsselung und -Entschlüsselung, NIST SP 800-38A §6.1.">
+{`Cⱼ = E_K(Pⱼ)        für j = 1 … n
+Pⱼ = D_K(Cⱼ)        für j = 1 … n`}
+</Formula>
+
+<Lens only="story">
+
+Stell dir ein riesiges Codebuch vor, mit einer Seite pro Schlüssel: Jeder mögliche 16-Byte-Block hat
+darin genau ein festes Codewort. Verschlüsseln heißt, jeden Block im Buch nachzuschlagen. Wer
+dasselbe Codewort zweimal sieht, weiß, dass zweimal derselbe Block gesendet wurde.
+
+</Lens>
+
+</LessonSection>
+
+<LessonSection part="playground">
+
+## Zwei gleiche Blöcke, zwei gleiche Ergebnisse
+
+Das Lab verschlüsselt „ATTACK AT DAWN!!“ zweimal hintereinander (32 Byte) mit AES-128 und dem
+Schlüssel aus NIST SP 800-38A, Anhang F.1. Geh Schritt für Schritt durch beide Blöcke: `C₁` und `C₂`
+sind dieselben 16 Byte, und durch das Padding (das Auffüllen auf ganze Blöcke) kommt ein dritter
+Block hinzu.
+
+<Lab labId="ecb-blocks" producerId="ecb" presetId="repeated-blocks" layout="mode-chain:45|wire:25|narration:30" />
+
+</LessonSection>
+
+<LessonSection part="inside">
+
+## Block für Block, ohne Gedächtnis
+
+1. **Auffüllen:** Fülle den Klartext per Padding auf volle Blöcke auf (siehe Teil 4).
+2. **Zerlegen:** Teile ihn in 16-Byte-Blöcke `P₁ … Pₙ`.
+3. **Verschlüsseln:** Verschlüssle jeden Block mit der Blockchiffre: `Cⱼ = E_K(Pⱼ)`. Die Reihenfolge
+   spielt keine Rolle, daher können alle Blöcke parallel verarbeitet werden – beim Ver- wie beim
+   Entschlüsseln (SP 800-38A §6.1).
+
+ECB kennt weder IV noch Zähler. Das Verfahren ist **deterministisch**: Unter demselben Schlüssel wird
+ein bestimmter Klartextblock immer zum selben Geheimtextblock. SP 800-38A §6.1 sagt es selbst: Ist
+das unerwünscht, verwende kein ECB.
+
+Im Lab werden beide Blöcke `41545441434b204154204441574e2121` zu
+`541ff0c92b9251ae06c624c4a8ab2a85` verschlüsselt.
+
+<Lens level="cryptographer">
+
+Jedes deterministische Verfahren scheitert an IND-CPA: Der Angreifer lässt sich vom
+Verschlüsselungsorakel `E(m₀)` geben, reicht dann `m₀, m₁` als Challenge ein und vergleicht. ECB
+scheitert sogar innerhalb einer einzigen Nachricht, weil sich gleiche Blöcke wiederholen. Außerdem
+kann ein Angreifer ganze Geheimtextblöcke **umsortieren, weglassen oder neu zusammensetzen**, ohne
+dass beim Entschlüsseln ein Fehler auftritt.
+
+</Lens>
+
+</LessonSection>
+
+<LessonSection part="memory">
+
+## So sieht ECB-Geheimtext aus
+
+Der Geheimtext ist einfach `C₁ ‖ C₂ ‖ … ‖ Cₙ`: Block `j` beginnt bei Byte `16·(j − 1)`, ohne
+Header, IV oder Tag.
+
+ECB braucht ganze Blöcke. SP 800-38A überlässt das Padding der Anwendung (Anhang A); verbreitet ist
+**PKCS#7** (RFC 5652, §6.3): Häng `k − (len mod k)` Byte an, jedes mit genau diesem Wert, wobei `k`
+die Blockgröße ist. Es kommen also immer zwischen 1 und 16 Byte hinzu.
+
+<WhyBox constant="0x10" title="ein voller Block Padding">
+  Unsere 32-Byte-Nachricht füllt bereits genau zwei Blöcke, trotzdem hängt RFC 5652 §6.3 noch 16 Byte
+  `10` (= 16) an. Das Padding ist nie leer, deshalb kann der Empfänger immer das letzte Byte lesen und
+  genau so viele Bytes entfernen. Das ist der dritte Block `a254be88…` im Lab.
+</WhyBox>
+
+Ein Bitfehler in `Cⱼ` verfälscht nur `Pⱼ`; alle anderen Blöcke werden korrekt entschlüsselt
+(SP 800-38A, Anhang D).
+
+</LessonSection>
+
+<LessonSection part="break">
+
+## Mallory sieht sich den Pinguin an
+
+Ein Bild ist eine lange Folge von Pixelbytes. Einfarbige Flächen erzeugen viele identische
+16-Byte-Blöcke, und ECB macht daraus identische Geheimtextblöcke. Die Farben werden zu Rauschen,
+aber die **Kanten** zwischen den Flächen bleiben, wo sie sind: Der Umriss übersteht die
+Verschlüsselung.
+
+Das ist der klassische „ECB-Pinguin“, ein Bild, das seit zwei Jahrzehnten durch die
+Kryptografielehre geistert. Unser Pinguin ist eine eigene Zeichnung und wird live in deinem Browser
+mit AES verschlüsselt. Schalte auf CBC um (nächste Lektion), und das Bild wird zu gleichmäßigem
+Rauschen.
+
+<PenguinLab />
+
+<Lens level="engineer">
+
+Lade ein eigenes Bild hoch: Fotos mit Farbverläufen verraten weniger als Logos oder Screenshots,
+aber jeder wiederholte Block ist sichtbar. Verwende ECB nie für mehr als einen einzelnen Block aus
+Zufallsdaten.
+
+</Lens>
+
+</LessonSection>
+
+<LessonSection part="check">
+
+## Teste dich selbst
+
+<CheckQuestion
+  id="ecb-equal-blocks"
+  number={1}
+  question="Eine Nachricht enthält zweimal denselben 16-Byte-Block und wird mit einem Schlüssel verschlüsselt. Was liefert ECB?"
+  options={['Zwei verschiedene Geheimtextblöcke', 'Zwei gleiche Geheimtextblöcke', 'Einen Block; Duplikate werden verworfen', 'Das hängt vom IV ab']}
+  answer={1}
+>
+  ECB ist deterministisch: `Cⱼ = E_K(Pⱼ)` hängt nur vom Schlüssel und vom Block ab (SP 800-38A §6.1). Einen IV hat ECB nicht.
+</CheckQuestion>
+
+<CheckQuestion
+  id="ecb-pkcs7-full-block"
+  number={2}
+  question="Wie lang ist mit PKCS#7 und AES der ECB-Geheimtext eines 32-Byte-Klartexts?"
+  options={['32 Byte', '33 Byte', '48 Byte', '64 Byte']}
+  answer={2}
+>
+  RFC 5652 §6.3 füllt immer auf: Eine 32-Byte-Eingabe bekommt einen vollen Block aus 16 Byte `10`, verschlüsselt werden also 48 Byte.
+</CheckQuestion>
+
+<CheckQuestion
+  id="ecb-penguin-outline"
+  number={3}
+  question="Warum übersteht der Umriss des Pinguins die ECB-Verschlüsselung?"
+  options={[
+    'AES ist für Bilder zu schwach',
+    'Der Schlüssel ist im Bild gespeichert',
+    'Einfarbige Flächen ergeben wiederholte Klartextblöcke, und daraus werden wiederholte Geheimtextblöcke',
+    'ECB überspringt die Pixel an Kanten',
+  ]}
+  answer={2}
+>
+  An AES selbst liegt es nicht. ECB bildet gleiche Blöcke auf gleiche Blöcke ab; wo sich die Farbe
+  ändert, ändert sich deshalb auch das Muster im Geheimtext.
+</CheckQuestion>
+
+</LessonSection>

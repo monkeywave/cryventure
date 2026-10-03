@@ -22,7 +22,8 @@ jobs:
       - run: pnpm i18n:check
       - run: pnpm test --coverage
       - run: pnpm build
-        env: { CV_BASE: /cryventure/ }
+        # Previews never install a service worker (PLAN 7b); pages.yml and e2e still build the PWA.
+        env: { CV_BASE: /cryventure/, CV_PWA: 'false' }
       - name: Upload preview artifact
         uses: actions/upload-artifact@v7
         with: { name: site-preview, path: apps/web/dist, retention-days: 7 }

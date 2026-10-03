@@ -1,8 +1,10 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { readLabLink, type LabLinkRead } from '../../labs/deepLink.ts';
 import { browserHashEnvironment, createLabHashWriter } from '../../labs/hashWriter.ts';
 import type { I18nRef } from '@cryventure/core';
-import type { LabMode, ParamsPatch } from '@cryventure/viz';
+import type { LabHrefBuilder, LabMode, ParamsPatch } from '@cryventure/viz';
+import { createLabHref } from '../../labs/labHref.ts';
+import { createLabRunner, type LabRunner } from '../../labs/labRunner.ts';
 import { requestLabParams, rerunLab, startLab, type IsCurrentRun, type LabParams, type LabSession } from '../../labs/labSession.ts';
 import { parseStartAt } from '../../labs/startAt.ts';
 
@@ -13,6 +15,8 @@ export interface UseLabSessionOptions {
   /** `startAt` attribute text (validated at build time by `Lab.astro`). */
   startAt?: string;
   mode?: LabMode;
+  /** Page locale, for links to standalone labs (`useLabActions().labHref`). */
+  locale?: string;
 }
 
 export interface LabSessionApi {
@@ -41,28 +45,42 @@ function useRunGuard(): () => IsCurrentRun {
   }, []);
 }
 
+/** One runner per lab instance (a newer run terminates an older worker run); a running worker stops on unmount. */
+function useLabRunner(): LabRunner {
+  const [runner] = useState(() => createLabRunner());
+  useEffect(() => () => runner.dispose(), [runner]);
+  return runner;
+}
+
+interface LabWiring {
+  runner: LabRunner;
+  labHref: LabHrefBuilder;
+}
+
 /** Loads and runs the producer on mount and after every reset (a new `generation`); only the first start reads the deep link. */
-function useLabStart({ labId, producerId, presetId, startAt, mode }: UseLabSessionOptions, generation: number, setSession: (session: LabSession) => void): void {
+function useLabStart({ labId, producerId, presetId, startAt, mode }: UseLabSessionOptions, { runner, labHref }: LabWiring, generation: number, setSession: (session: LabSession) => void): void {
   useEffect(() => {
     let cancelled = false;
     const link = generation === 0 ? readLabLink(window.location.hash, labId) : ABSENT;
-    void startLab({ producerId, presetId, link, startAt: startAt === undefined ? undefined : parseStartAt(startAt), mode }).then((next) => {
+    void startLab({ producerId, presetId, link, startAt: startAt === undefined ? undefined : parseStartAt(startAt), mode, runner, labHref }).then((next) => {
       if (!cancelled) setSession(next);
     });
     return () => {
       cancelled = true;
     };
-  }, [labId, producerId, presetId, startAt, mode, generation, setSession]);
+  }, [labId, producerId, presetId, startAt, mode, runner, labHref, generation, setSession]);
 }
 
 /** Client-only lifecycle: read the hash, load + run the producer, then re-run on param edits. */
-export function useLabSession({ labId, producerId, presetId, startAt, mode }: UseLabSessionOptions): LabSessionApi {
+export function useLabSession({ labId, producerId, presetId, startAt, mode, locale }: UseLabSessionOptions): LabSessionApi {
   const [session, setSession] = useState<LabSession>({ status: 'loading' });
   const [generation, setGeneration] = useState(0);
   const [requestError, setRequestError] = useState<I18nRef | null>(null);
   const beginRun = useRunGuard();
+  const runner = useLabRunner();
+  const labHref = useMemo(() => createLabHref({ base: import.meta.env.BASE_URL ?? '/', lang: locale }), [locale]);
 
-  useLabStart({ labId, producerId, presetId, startAt, mode }, generation, setSession);
+  useLabStart({ labId, producerId, presetId, startAt, mode }, { runner, labHref }, generation, setSession);
 
   const applyParams = useCallback(
     (params: LabParams) => {

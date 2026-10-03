@@ -124,6 +124,11 @@ export class RecordingTracer<R extends string, Op extends { op: string }> implem
     this.scopes.leave();
   }
 
+  /** Steps recorded so far; the last recorded step's index is `stepCount - 1`. */
+  get stepCount(): number {
+    return this.steps.length;
+  }
+
   toFacet(): StateFacet<R, Op> {
     const facet: StateFacet<R, Op> = {
       kind: 'state',

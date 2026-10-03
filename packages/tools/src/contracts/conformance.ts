@@ -1,6 +1,6 @@
 import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { toHex, type PrimitiveModule } from '@cryventure/core';
+import { toHex, type PrimitiveModule, type RunOptions } from '@cryventure/core';
 import { REPO_ROOT } from '../fs/repoRoot.ts';
 import type { PluginPackage } from './catalogs.ts';
 
@@ -73,11 +73,17 @@ export function outputProblems(actual: Record<string, number[]>, expected: Recor
   });
 }
 
-/** Runs every case through the module; problems are prefixed with the case name. */
-export function conformanceProblems<P>(module: PrimitiveModule<P>, vectors: ConformanceVectors): string[] {
-  return vectors.cases.flatMap((testCase) => {
-    const result = module.run(testCase.params as P);
-    const problems = result.ok ? outputProblems(result.trace.output, testCase.outputs) : [`run() rejected params: ${JSON.stringify(result.error)}`];
-    return problems.map((problem) => `${testCase.name}: ${problem}`);
-  });
+/** Run options for one case's params (e.g. `runOptionsFor` to resolve port params). */
+export type PrepareRun = (params: unknown) => Promise<RunOptions>;
+
+async function caseProblems<P>(module: PrimitiveModule<P>, testCase: ConformanceCase, prepare: PrepareRun): Promise<string[]> {
+  const result = module.run(testCase.params as P, await prepare(testCase.params));
+  const problems = result.ok ? outputProblems(result.trace.output, testCase.outputs) : [`run() rejected params: ${JSON.stringify(result.error)}`];
+  return problems.map((problem) => `${testCase.name}: ${problem}`);
+}
+
+/** Runs every case through the module (with `prepare`d options); problems are prefixed with the case name. */
+export async function conformanceProblems<P>(module: PrimitiveModule<P>, vectors: ConformanceVectors, prepare: PrepareRun = async () => ({})): Promise<string[]> {
+  const problems = await Promise.all(vectors.cases.map((testCase) => caseProblems(module, testCase, prepare)));
+  return problems.flat();
 }

@@ -1,11 +1,14 @@
-import { getFacet, i18nRef, type ChoreographyModule, type I18nRef, type PrimitiveManifest, type RunResult, type TraceBundle } from '@cryventure/core';
-import { createLabStore, stateSteps, type AnyStateFacet, type LabMode, type LabStore, type ReactViewManifest } from '@cryventure/viz';
+import { getFacet, type ChoreographyModule, type I18nRef, type PrimitiveManifest, type TraceBundle } from '@cryventure/core';
+import { createLabStore, stateSteps, type AnyStateFacet, type LabHrefBuilder, type LabMode, type LabStore, type ReactViewManifest } from '@cryventure/viz';
 import type { LabLinkRead } from './deepLink.ts';
+import { createLabRunner, type LabRunner } from './labRunner.ts';
 import { mergeParams } from './paramFields.ts';
-import { resolveLab, type LabRegistries } from './registry.ts';
+import { producerRegistry, resolveLab, type LabRegistries } from './registry.ts';
 import { initialStep, type StartAt } from './startAt.ts';
 import { resolveStartParams } from './startParams.ts';
 import { mapStepAcrossTraces } from './stepMapping.ts';
+
+export { runProducer } from './runProducer.ts';
 
 export type LabParams = Record<string, unknown>;
 
@@ -18,6 +21,8 @@ export interface ReadySession {
   notice: boolean;
   /** The producer's choreography, loaded up front; `undefined` = the generic fallback. */
   choreography: ChoreographyModule | undefined;
+  /** Runs the producer (main thread or worker); re-runs go through it so a newer run supersedes an older one. */
+  runner: LabRunner;
 }
 
 export type LabSession = { status: 'loading' } | { status: 'error'; error: I18nRef } | ReadySession;
@@ -34,16 +39,10 @@ export interface StartLabOptions {
   /** Preselected player mode (never starts playback by itself). */
   mode?: LabMode;
   registries?: LabRegistries;
-}
-
-/** Loads the producer implementation (code-split) and runs it; a failed import becomes an i18n error. */
-export async function runProducer<P>(producer: PrimitiveManifest<P>, params: P): Promise<RunResult> {
-  try {
-    const module = await producer.load();
-    return module.run(params);
-  } catch {
-    return { ok: false, error: i18nRef('ui.lab.error.loadFailed') };
-  }
+  /** The lab's runner, shared across resets (default: a fresh one over `registries.producers`). */
+  runner?: LabRunner;
+  /** Links to standalone labs for views (`useLabActions().labHref`). */
+  labHref?: LabHrefBuilder;
 }
 
 /** Loads the producer's optional choreography (code-split); a failed import keeps the generic fallback. */
@@ -61,21 +60,22 @@ export async function preloadViews(views: readonly Pick<ReactViewManifest, 'load
 }
 
 /**
- * manifest → start params (link / preset / defaults) → run → store in `mode`, seeked to the start step.
+ * manifest → start params (link / preset / defaults) → run (ports prepared, main thread or worker) → store in `mode`, seeked to the start step.
  * The producer module, its choreography and the views load in parallel, not one after another.
  */
-export async function startLab({ producerId, presetId, link, startAt, mode, registries }: StartLabOptions): Promise<SettledLabSession> {
+export async function startLab({ producerId, presetId, link, startAt, mode, registries, runner: givenRunner, labHref }: StartLabOptions): Promise<SettledLabSession> {
   const resolved = resolveLab(producerId, registries);
   if (!resolved.ok) return { status: 'error', error: resolved.error };
   const producer = resolved.lab.producer as PrimitiveManifest<LabParams>;
   const { views } = resolved.lab;
   const start = resolveStartParams(producer, link, presetId);
-  const [result, choreography] = await Promise.all([runProducer(producer, start.params), loadChoreographyModule(producer), preloadViews(views)]);
+  const runner = givenRunner ?? createLabRunner(undefined, registries?.producers ?? producerRegistry);
+  const [result, choreography] = await Promise.all([runner.run(producer, start.params), loadChoreographyModule(producer), preloadViews(views)]);
   if (!result.ok) return { status: 'error', error: result.error };
-  const store = createLabStore(result.trace);
+  const store = createLabStore(result.trace, { labHref });
   if (mode !== undefined) store.getState().setMode(mode);
   store.getState().seek(initialStep(start.step, startAt, stateSteps(result.trace)));
-  return { status: 'ready', producer, views, store, params: start.params, notice: start.notice, choreography };
+  return { status: 'ready', producer, views, store, params: start.params, notice: start.notice, choreography, runner };
 }
 
 /** `true` while a run is still the latest one; a superseded run must not touch the shared store. */
@@ -90,7 +90,7 @@ const ALWAYS_CURRENT: IsCurrentRun = () => true;
  * `isCurrent` reports superseded by the time it settles (its result is for the caller to drop).
  */
 export async function rerunLab(session: ReadySession, params: LabParams, isCurrent: IsCurrentRun = ALWAYS_CURRENT): Promise<SettledLabSession> {
-  const result = await runProducer(session.producer, params);
+  const result = await session.runner.run(session.producer, params);
   if (!result.ok) return { status: 'error', error: result.error };
   if (!isCurrent()) return { ...session, params };
   const { bundle, step, setBundle, seek } = session.store.getState();

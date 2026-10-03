@@ -1,0 +1,28 @@
+---
+/**
+ * `/<lang>/lab/<producerId>/`: one standalone lab per registered producer (docs/M3.md §5), the
+ * target of `useLabActions().labHref` (e.g. "zoom into block i"). Full width, every view the
+ * producer can feed, not in the sidebar and excluded from Pagefind.
+ */
+import StarlightPage from '@astrojs/starlight/components/StarlightPage.astro';
+import Lab from '../../../components/Lab.astro';
+import { supportedLocales, toLocale } from '../../../i18n/loadMessages';
+import { labMessages } from '../../../labs/labMessages';
+import { labRouteTexts } from '../../../labs/labRoute';
+import { producerRegistry } from '../../../labs/registry';
+
+export function getStaticPaths() {
+  return supportedLocales.flatMap((lang) => producerRegistry.list().map((producer) => ({ params: { lang, id: producer.id } })));
+}
+
+const locale = toLocale(Astro.params.lang);
+const producer = producerRegistry.require(Astro.params.id);
+const { title, description } = labRouteTexts(producer, labMessages(locale, producer));
+---
+
+<StarlightPage frontmatter={{ title, description, pagefind: false, tableOfContents: false }}>
+  <div data-pagefind-ignore>
+    {description && <p class="cv-lab-route__description">{description}</p>}
+    <Lab labId={producer.id} producerId={producer.id} />
+  </div>
+</StarlightPage>

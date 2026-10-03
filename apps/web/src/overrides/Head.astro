@@ -7,9 +7,15 @@
 import Default from '@astrojs/starlight/components/Head.astro';
 import { DEFAULT_LENS, LENS_ORDER } from '../progress/lens';
 import { PROGRESS_STORAGE_KEY } from '../progress/storage';
+import PwaRegistration from '../components/PwaRegistration.astro';
+import { isPwaEnabled } from '../../scripts/pwa.mjs';
+
+/** Service worker and manifest: production builds only, off with `CV_PWA=false` (docs/M3.md §11). */
+const pwaEnabled = import.meta.env.PROD && isPwaEnabled(process.env);
 ---
 
 <Default />
+{pwaEnabled && <PwaRegistration />}
 
 {/*
   Inlined (CSP allows it) so the stored lens applies before first paint. Values travel as data-*

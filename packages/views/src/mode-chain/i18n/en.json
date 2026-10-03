@@ -1,0 +1,21 @@
+{
+  "view.mode-chain.title": "Block diagram",
+  "view.mode-chain.loading": "Preparing the block diagram…",
+  "view.mode-chain.missing": "This lab does not record a block-mode dataflow.",
+  "view.mode-chain.diagram": "Dataflow of {{count}} blocks, one lane per block. Use the arrow keys to move between values.",
+  "view.mode-chain.lane": "Block {{n}}",
+  "view.mode-chain.laneStart": "Start",
+  "view.mode-chain.nodeName": "{{label}}, block {{n}}",
+  "view.mode-chain.nodeValue": "{{name}}: {{hex}}",
+  "view.mode-chain.nodePending": "{{name}}: not computed yet",
+  "view.mode-chain.nodeCurrent": "computed in this step",
+  "view.mode-chain.sameAs": "same value as {{others}}",
+  "view.mode-chain.separator": ", ",
+  "view.mode-chain.zoom": "Zoom into block {{n}}",
+  "view.mode-chain.formula": "Formula: {{formula}}",
+  "view.mode-chain.hint": "Focus a value (Tab, then the arrow keys) to read its full hex.",
+  "view.mode-chain.legendCurrent": "computed in this step",
+  "view.mode-chain.legendPending": "dashed: not computed yet",
+  "view.mode-chain.legendSame": "same letter: equal blocks, so the pattern shows through",
+  "view.mode-chain.readoutPending": "not computed yet"
+}

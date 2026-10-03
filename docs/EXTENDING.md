@@ -89,6 +89,46 @@ minimal `import.meta.glob` typing lives once in `types/import-meta.d.ts` and is 
   `HexOfLengthResult` (the bytes plus the normalised `hex`). In `run()`, `parseHexOrThrow(hex)`
   decodes hex that `validate()` already accepted. The scaffolded manifest shows both in use.
 
+### Text params
+
+`{ name: 'plaintext', kind: 'text', labelKey, maxLength: 48 }` is a UTF-8 string param rendered as a
+text input. `maxLength` counts UTF-8 bytes, not characters. In `validate()`, use
+`readText(input, maxLength)` (`undefined` = not a string or too long); `utf8Bytes(text)` and
+`utf8Text(bytes)` in core convert between text and bytes. The contract kit checks that `maxLength`
+is a positive integer and that `defaults` and every preset fit it.
+
+### Ports and composites
+
+A primitive never imports another primitive. A composite (a mode of operation, an attack lab) uses
+another producer through a **port**, an interface in `@cryventure/core` (`ports.ts`, e.g.
+`BlockCipher`):
+
+- **Providing a port:** list it in the manifest, `implements: ['BlockCipher']`, and export it from
+  the module: `export const ports = { BlockCipher: myCipher } satisfies Partial<PortMap>`. A
+  `BlockCipher` throws (a `RangeError`) on a wrong key or block length. The contract kit checks that
+  every declared port is exposed and sane (for `BlockCipher`: sizes, a decrypt∘encrypt round trip
+  per key size, wrong lengths throw).
+- **Using a port:** declare a `port` param,
+  `{ name: 'cipher', kind: 'port', port: 'BlockCipher', labelKey }`. Its value is a producer id;
+  `validate()` only checks that it is a kebab-case string. The panel's options are
+  `portOptions(registered, 'BlockCipher')` (every producer that implements the port, labelled by its
+  `titleKey`), and `labMessages` loads `portNamespaces(manifest, registered)` so every option is
+  translated. The contract kit checks that some registered producer implements the port.
+- **Running:** the host calls `preparePorts(manifest, params, registry)` (async; loads only the
+  named producers and never throws) and passes the result as `run(params, { resolve })`. `resolve`
+  is synchronous. In `run()`, `requirePort(options.resolve, 'BlockCipher', params.cipher)` returns
+  the cipher or a `core.error.portMissing` run error. Key sizes come from the resolved cipher:
+  `checkKeyLength(cipher, key)` returns a `core.error.keyLength` run error (with `{{sizes}}`), not a
+  validate error.
+- Oracles and tests run composites with `runWithPorts(manifest, params)` from `@cryventure/tools`,
+  which resolves ports against the real primitive registry (`runOptionsFor` gives just the options).
+
+### `runIn`
+
+`runIn?: 'main' | 'worker'` (optional, additive; default `'main'`). A producer whose run is heavy
+(e.g. `padding-oracle`) sets `'worker'`; the web host then runs `preparePorts` and the run in a
+module Web Worker and terminates a superseded run. The bundle must be JSON-serializable either way.
+
 ### State regions and the views that render them
 
 **`RegionSpec.layout`** (optional, additive) is the producer's presentation hint. It is the only
@@ -209,6 +249,12 @@ over the preset. When the lab container is narrower than 720px, panels stack ver
 - with `loadChoreography`: every step's choreography targets existing cells, ends neutral and
   narrates with existing keys; with a `derivation` facet: topological order and `groups` labels
   with existing keys and matching `{{params}}`
+- with port params: runs (including conformance cases) get `resolve` from `preparePorts` over the
+  real primitive registry; `port` fields name a port some producer implements, `text` fields have a
+  positive `maxLength` that `defaults` and presets fit, and `runIn` is `main` or `worker`
+- with `implements`: every declared port is exposed on the module and passes its sanity check
+- when a run emits `chain` or `wire` facets: `chainIssues`/`wireIssues` against the state facet's
+  step count are empty, and their label keys and `{{params}}` exist in EN and DE
 - `vectors/conformance.json` exists, is well-formed, has at least one case, and `run(params)`
   reproduces every listed output (see "Conformance vectors"); `vectorsCheck` adds any
   plugin-specific check on top

@@ -1,0 +1,159 @@
+/*
+ * Wire view styles. Imported by the view component, so it ships in the view's lazy chunk.
+ * Colours come only from the semantic tokens (--cv-*, --sl-color-*); fallbacks keep it usable standalone.
+ */
+
+.cv-wire {
+  display: grid;
+  gap: 0.5rem;
+  min-width: 0;
+  container-type: inline-size;
+}
+
+.cv-wire__strip {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem 1rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+/* A segment: role colour on a heavy start border, role glyph in the header, role pattern for padding. */
+.cv-wire__segment {
+  --cv-wire-role: var(--cv-state, GrayText);
+  --cv-wire-glow: transparent;
+  --cv-wire-box: 1.6rem;
+  display: grid;
+  gap: 0.2rem;
+  max-width: 100%;
+  padding-inline-start: 0.4rem;
+  border-inline-start: 4px solid var(--cv-wire-role);
+}
+
+.cv-wire__segment[data-role='iv'],
+.cv-wire__segment[data-role='nonce'] {
+  --cv-wire-role: var(--cv-nonce);
+  --cv-wire-glow: var(--cv-glow-nonce);
+  border-inline-start-style: double;
+  border-inline-start-width: 6px;
+}
+
+.cv-wire__segment[data-role='ciphertext'] {
+  --cv-wire-role: var(--cv-ciphertext);
+  --cv-wire-glow: var(--cv-glow-ciphertext);
+}
+
+.cv-wire__segment[data-role='plaintext'] {
+  --cv-wire-role: var(--cv-plaintext);
+  --cv-wire-glow: var(--cv-glow-plaintext);
+  border-inline-start-style: dotted;
+}
+
+.cv-wire__segment[data-role='tag'] {
+  --cv-wire-role: var(--cv-key);
+  --cv-wire-glow: var(--cv-glow-key);
+}
+
+.cv-wire__segment[data-role='padding'] .cv-wire__byte {
+  background-image: repeating-linear-gradient(135deg, var(--cv-border-subtle, transparent) 0 3px, transparent 3px 7px);
+}
+
+.cv-wire__header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0 0.4rem;
+  font-size: 0.8em;
+}
+
+.cv-wire__glyph {
+  color: var(--cv-wire-role);
+}
+
+.cv-wire__label {
+  font-weight: 600;
+}
+
+.cv-wire__range {
+  color: var(--cv-text-muted, GrayText);
+  font-family: var(--sl-font-mono, ui-monospace, monospace);
+  font-size: 0.9em;
+}
+
+.cv-wire__rows {
+  display: grid;
+  gap: 2px;
+}
+
+/* Offsets ruler in the gutter, then at most 16 boxes per row. */
+.cv-wire__row {
+  display: grid;
+  grid-template-columns: 2.6em repeat(var(--cv-wire-cols, 16), minmax(0, var(--cv-wire-box)));
+  gap: 2px;
+  align-items: center;
+}
+
+.cv-wire__offset {
+  font-family: var(--sl-font-mono, ui-monospace, monospace);
+  font-size: 0.7em;
+  color: var(--cv-text-muted, GrayText);
+}
+
+.cv-wire__byte {
+  position: relative;
+  box-sizing: border-box;
+  display: grid;
+  place-items: center;
+  min-width: 0;
+  height: 1.6rem;
+  font-family: var(--sl-font-mono, ui-monospace, monospace);
+  font-size: 0.72em;
+  color: var(--cv-text, CanvasText);
+  background-color: var(--cv-surface-elevated, Canvas);
+  border: 1px solid var(--cv-wire-role);
+  border-radius: 3px;
+}
+
+/* Highlighted at the playhead: heavy border and the role glow (weight, not colour alone). */
+.cv-wire__byte[data-active] {
+  border-width: 3px;
+  background-color: var(--cv-cell-focus-bg, Canvas);
+  box-shadow: inset 0 0 0 100vmax var(--cv-wire-glow);
+  font-weight: 700;
+}
+
+.cv-wire__byte[data-flipped] {
+  outline: 2px dotted var(--cv-attacker, Mark);
+  outline-offset: 1px;
+}
+
+.cv-wire__flip {
+  position: absolute;
+  inset-block-start: -0.1em;
+  inset-inline-end: 1px;
+  font-size: 0.75em;
+  line-height: 1;
+  color: var(--cv-attacker, Mark);
+}
+
+.cv-wire__legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem 1rem;
+  margin: 0;
+  font-size: 0.8em;
+  color: var(--cv-text-muted, GrayText);
+}
+
+/* Narrow panels: smaller boxes so a row of 16 still fits. */
+@container (max-width: 30rem) {
+  .cv-wire__segment {
+    --cv-wire-box: 1.25rem;
+  }
+
+  .cv-wire__byte {
+    height: 1.35rem;
+    font-size: 0.62em;
+  }
+}

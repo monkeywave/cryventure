@@ -35,6 +35,18 @@ export type ParamsPatch = Record<string, unknown>;
 /** The host's re-run entry point for view-initiated param changes (wired by the app, e.g. via `LabRoot`). */
 export type ParamsRequestHandler = (patch: ParamsPatch) => void;
 
+/**
+ * The host's link to a standalone lab for `producerId` opened with `params` (and `step`), e.g. a
+ * chain view's "zoom into block i"; `undefined` when the host cannot link to that producer.
+ */
+export type LabHrefBuilder = (producerId: string, params: unknown, step?: number) => string | undefined;
+
+/** Host wiring fixed for the store's lifetime. */
+export interface LabStoreOptions {
+  /** Backs `labHref`; without it the action is absent and views render no link. */
+  labHref?: LabHrefBuilder;
+}
+
 export interface LabActions {
   setBundle(bundle: TraceBundle | null, options?: SetBundleOptions): void;
   /** Exact jump to the end state of `step`. */
@@ -69,6 +81,8 @@ export interface LabActions {
   requestParams(patch: ParamsPatch): void;
   /** Host-side: installs (or, with `undefined`, removes) the handler behind `requestParams`. */
   setParamsRequestHandler(handler: ParamsRequestHandler | undefined): void;
+  /** Optional, wired by the host (`LabStoreOptions.labHref`): a link to the standalone lab of another producer. */
+  labHref?: LabHrefBuilder;
 }
 
 export interface LabPlayhead {
@@ -96,7 +110,7 @@ function syncProgress(store: LabStore): void {
 }
 
 /** One store per lab instance (never a module singleton), so several labs can share a page. */
-export function createLabStore(bundle: TraceBundle | null = null): LabStore {
+export function createLabStore(bundle: TraceBundle | null = null, options: LabStoreOptions = {}): LabStore {
   // Kept outside the state: swapping the host's handler must not re-render subscribers.
   let paramsRequestHandler: ParamsRequestHandler | undefined;
   const store = createStore<LabState>()((set, get) => ({
@@ -126,6 +140,7 @@ export function createLabStore(bundle: TraceBundle | null = null): LabStore {
     setParamsRequestHandler: (handler) => {
       paramsRequestHandler = handler;
     },
+    ...(options.labHref === undefined ? {} : { labHref: options.labHref }),
   }));
   syncProgress(store);
   return store;

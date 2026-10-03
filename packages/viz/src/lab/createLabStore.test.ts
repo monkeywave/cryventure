@@ -183,3 +183,17 @@ describe('createLabStore requestParams', () => {
     expect(listener).not.toHaveBeenCalled();
   });
 });
+
+describe('createLabStore labHref', () => {
+  it('is absent when the host wires no link builder', () => {
+    expect(createLabStore(createFixtureBundle()).getState().labHref).toBeUndefined();
+  });
+
+  it('exposes the host link builder and keeps it across a new bundle', () => {
+    const labHref = vi.fn((producerId: string) => `/en/lab/${producerId}/`);
+    const store = createLabStore(createFixtureBundle(), { labHref });
+    store.getState().setBundle(createFixtureBundle(), { preserveDebugContext: true });
+    expect(store.getState().labHref?.('aes', { keyHex: '00' }, 3)).toBe('/en/lab/aes/');
+    expect(labHref).toHaveBeenCalledWith('aes', { keyHex: '00' }, 3);
+  });
+});

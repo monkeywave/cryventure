@@ -1,6 +1,6 @@
 import fc from 'fast-check';
 import { describe, expect, it } from 'vitest';
-import { byteToHex, bytesEqual, hexDigits, parseHex, parseHexOfLength, parseHexOrThrow, parseHexToArray, toHex, xorBytes } from './bytes.ts';
+import { byteToHex, bytesEqual, hexDigits, parseHex, parseHexOfLength, parseHexOrThrow, parseHexToArray, toHex, utf8Bytes, utf8Text, xorBytes } from './bytes.ts';
 
 const bytesOf = (input: string): number[] => {
   const result = parseHex(input);
@@ -122,5 +122,24 @@ describe('parseHexToArray', () => {
 
   it('throws on hex that validation should have rejected', () => {
     expect(() => parseHexToArray('0g')).toThrow('core.error.hexInvalidChar');
+  });
+});
+
+describe('utf8Bytes / utf8Text', () => {
+  it('encodes text as UTF-8 bytes', () => {
+    expect([...utf8Bytes('a€')]).toEqual([0x61, 0xe2, 0x82, 0xac]);
+    expect(utf8Bytes('')).toHaveLength(0);
+  });
+
+  it('decodes UTF-8 bytes back to text', () => {
+    expect(utf8Text([0x61, 0xe2, 0x82, 0xac])).toBe('a€');
+  });
+
+  it('round-trips any string', () => {
+    fc.assert(
+      fc.property(fc.string({ unit: 'grapheme' }), (text) => {
+        expect(utf8Text(utf8Bytes(text))).toBe(text);
+      }),
+    );
   });
 });

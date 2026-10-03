@@ -66,6 +66,15 @@ describe('RecordingTracer', () => {
     expect(facet.truncated).toBeUndefined();
     expect(facet).not.toHaveProperty('initialNarration');
   });
+  it('counts the recorded steps', () => {
+    const tracer = new RecordingTracer<R, Op>(regions, initial, { maxSteps: 2 });
+    expect(tracer.stepCount).toBe(0);
+    tracer.step(setStep(0, 1));
+    expect(tracer.stepCount).toBe(1);
+    tracer.step(setStep(1, 1));
+    tracer.step(setStep(2, 1));
+    expect(tracer.stepCount).toBe(2);
+  });
   it('carries the initial narration option into the facet', () => {
     const tracer = new RecordingTracer<R, Op>(regions, initial, { initialNarration: { key: 'init', params: { n: 2 } } });
     expect(tracer.toFacet().initialNarration).toEqual({ key: 'init', params: { n: 2 } });

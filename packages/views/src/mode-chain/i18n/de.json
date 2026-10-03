@@ -1,0 +1,21 @@
+{
+  "view.mode-chain.title": "Blockdiagramm",
+  "view.mode-chain.loading": "Das Blockdiagramm wird vorbereitet …",
+  "view.mode-chain.missing": "Dieses Lab zeichnet keinen Datenfluss eines Betriebsmodus auf.",
+  "view.mode-chain.diagram": "Datenfluss von {{count}} Blöcken, eine Spur pro Block. Mit den Pfeiltasten wechselst du zwischen den Werten.",
+  "view.mode-chain.lane": "Block {{n}}",
+  "view.mode-chain.laneStart": "Anfang",
+  "view.mode-chain.nodeName": "{{label}}, Block {{n}}",
+  "view.mode-chain.nodeValue": "{{name}}: {{hex}}",
+  "view.mode-chain.nodePending": "{{name}}: noch nicht berechnet",
+  "view.mode-chain.nodeCurrent": "in diesem Schritt berechnet",
+  "view.mode-chain.sameAs": "gleicher Wert wie {{others}}",
+  "view.mode-chain.separator": ", ",
+  "view.mode-chain.zoom": "In Block {{n}} hineinzoomen",
+  "view.mode-chain.formula": "Formel: {{formula}}",
+  "view.mode-chain.hint": "Fokussiere einen Wert (Tab, dann die Pfeiltasten), um sein vollständiges Hex zu lesen.",
+  "view.mode-chain.legendCurrent": "in diesem Schritt berechnet",
+  "view.mode-chain.legendPending": "gestrichelt: noch nicht berechnet",
+  "view.mode-chain.legendSame": "gleicher Buchstabe: gleiche Blöcke, das Muster scheint durch",
+  "view.mode-chain.readoutPending": "noch nicht berechnet"
+}

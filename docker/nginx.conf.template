@@ -25,6 +25,14 @@ server {
         try_files $uri =404;
     }
 
+    # PWA (docs/M3.md §11): the worker and manifest must always be revalidated so updates are seen.
+    location ~* /(sw\.js|manifest\.webmanifest)$ {
+        include /etc/nginx/snippets/security-headers.conf;
+        add_header Cache-Control "no-cache";
+        types { application/javascript js; application/manifest+json webmanifest; }
+        try_files $uri =404;
+    }
+
     location / {
         include /etc/nginx/snippets/security-headers.conf;
         add_header Cache-Control "no-cache";

@@ -1,0 +1,91 @@
+---
+/**
+ * PWA head entries (docs/M3.md §11): manifest link, theme colour and the service-worker registration
+ * with prompt-to-reload. `Head.astro` renders this only in production builds without `CV_PWA=false`;
+ * `scripts/build-sw.mjs` writes the manifest and `sw.js` at the base root after `astro build`.
+ */
+import { loadMessages } from '../i18n/loadMessages';
+import { withBase } from '../lib/withBase';
+import { MANIFEST_FILENAME, SW_FILENAME, THEME_COLOR } from '../../scripts/pwa.mjs';
+
+const messages = loadMessages(Astro.currentLocale ?? 'en', ['ui']);
+---
+
+<link rel="manifest" href={withBase(MANIFEST_FILENAME)} />
+<meta name="theme-color" content={THEME_COLOR} />
+<link rel="apple-touch-icon" href={withBase('icons/icon-192.png')} />
+{/* Rendered in the head, cloned into the body only when an update is waiting. */}
+<template id="cv-pwa" data-sw={withBase(SW_FILENAME)} data-scope={withBase('')}>
+  <div class="cv-pwa-toast" role="status" data-pagefind-ignore>
+    <p>{messages['ui.pwa.updateAvailable']}</p>
+    <div class="cv-pwa-toast__actions">
+      <button type="button" data-action="reload">{messages['ui.pwa.reload']}</button>
+      <button type="button" data-action="later">{messages['ui.pwa.later']}</button>
+    </div>
+  </div>
+</template>
+
+<script>
+  import { Workbox } from 'workbox-window';
+  import { showUpdateToast } from '../pwa/updateToast';
+
+  const template = document.getElementById('cv-pwa');
+  if (template instanceof HTMLTemplateElement && 'serviceWorker' in navigator) {
+    const { sw = '', scope } = template.dataset;
+    const workbox = new Workbox(sw, { scope });
+    // A new worker installed and waits: ask before swapping, then reload once it controls the page.
+    workbox.addEventListener('waiting', () =>
+      showUpdateToast(template, () => {
+        workbox.addEventListener('controlling', () => window.location.reload());
+        workbox.messageSkipWaiting();
+      }),
+    );
+    void workbox.register();
+  }
+</script>
+
+<style is:global>
+  .cv-pwa-toast {
+    position: fixed;
+    inset-inline: 1rem;
+    inset-block-end: 1rem;
+    z-index: 100;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.75rem;
+    align-items: center;
+    justify-content: space-between;
+    max-width: 32rem;
+    margin-inline: auto;
+    padding: 0.75rem 1rem;
+    border: 1px solid var(--cv-border);
+    border-radius: 0.5rem;
+    background: var(--cv-surface-elevated);
+    color: var(--cv-text);
+    box-shadow: 0 0.5rem 1.5rem rgb(0 0 0 / 0.35);
+  }
+
+  .cv-pwa-toast p {
+    margin: 0;
+  }
+
+  .cv-pwa-toast__actions {
+    display: flex;
+    gap: 0.5rem;
+  }
+
+  .cv-pwa-toast button {
+    padding: 0.375rem 0.75rem;
+    border: 1px solid var(--cv-border);
+    border-radius: 0.375rem;
+    background: transparent;
+    color: var(--cv-text);
+    font: inherit;
+    cursor: pointer;
+  }
+
+  .cv-pwa-toast button[data-action='reload'] {
+    border-color: var(--cv-key);
+    color: var(--cv-key);
+  }
+</style>

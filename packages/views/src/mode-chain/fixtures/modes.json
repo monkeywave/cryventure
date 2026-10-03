@@ -1,0 +1,1654 @@
+{
+  "cases": [
+    {
+      "producer": "ecb",
+      "preset": "repeated-blocks",
+      "stepCount": 7,
+      "facet": {
+        "kind": "chain",
+        "schemaVersion": 1,
+        "mode": "ecb",
+        "direction": "encrypt",
+        "formula": {
+          "key": "plugin.ecb.formula.encrypt"
+        },
+        "nodes": [
+          {
+            "id": "b0.input",
+            "block": 0,
+            "kind": "input",
+            "label": {
+              "key": "plugin.ecb.chain.plaintext",
+              "params": {
+                "n": 1
+              }
+            },
+            "bytes": [
+              65,
+              84,
+              84,
+              65,
+              67,
+              75,
+              32,
+              65,
+              84,
+              32,
+              68,
+              65,
+              87,
+              78,
+              33,
+              33
+            ],
+            "activeAt": -1
+          },
+          {
+            "id": "b0.cipher",
+            "block": 0,
+            "kind": "cipher",
+            "label": {
+              "key": "plugin.ecb.chain.encrypt"
+            },
+            "bytes": [
+              84,
+              31,
+              240,
+              201,
+              43,
+              146,
+              81,
+              174,
+              6,
+              198,
+              36,
+              196,
+              168,
+              171,
+              42,
+              133
+            ],
+            "activeAt": 1,
+            "zoom": {
+              "producerId": "aes",
+              "params": {
+                "keyHex": "2b7e151628aed2a6abf7158809cf4f3c",
+                "plaintextHex": "41545441434b204154204441574e2121",
+                "detail": "op"
+              }
+            }
+          },
+          {
+            "id": "b0.output",
+            "block": 0,
+            "kind": "output",
+            "label": {
+              "key": "plugin.ecb.chain.ciphertext",
+              "params": {
+                "n": 1
+              }
+            },
+            "bytes": [
+              84,
+              31,
+              240,
+              201,
+              43,
+              146,
+              81,
+              174,
+              6,
+              198,
+              36,
+              196,
+              168,
+              171,
+              42,
+              133
+            ],
+            "activeAt": 2
+          },
+          {
+            "id": "b1.input",
+            "block": 1,
+            "kind": "input",
+            "label": {
+              "key": "plugin.ecb.chain.plaintext",
+              "params": {
+                "n": 2
+              }
+            },
+            "bytes": [
+              65,
+              84,
+              84,
+              65,
+              67,
+              75,
+              32,
+              65,
+              84,
+              32,
+              68,
+              65,
+              87,
+              78,
+              33,
+              33
+            ],
+            "activeAt": -1
+          },
+          {
+            "id": "b1.cipher",
+            "block": 1,
+            "kind": "cipher",
+            "label": {
+              "key": "plugin.ecb.chain.encrypt"
+            },
+            "bytes": [
+              84,
+              31,
+              240,
+              201,
+              43,
+              146,
+              81,
+              174,
+              6,
+              198,
+              36,
+              196,
+              168,
+              171,
+              42,
+              133
+            ],
+            "activeAt": 3,
+            "zoom": {
+              "producerId": "aes",
+              "params": {
+                "keyHex": "2b7e151628aed2a6abf7158809cf4f3c",
+                "plaintextHex": "41545441434b204154204441574e2121",
+                "detail": "op"
+              }
+            }
+          },
+          {
+            "id": "b1.output",
+            "block": 1,
+            "kind": "output",
+            "label": {
+              "key": "plugin.ecb.chain.ciphertext",
+              "params": {
+                "n": 2
+              }
+            },
+            "bytes": [
+              84,
+              31,
+              240,
+              201,
+              43,
+              146,
+              81,
+              174,
+              6,
+              198,
+              36,
+              196,
+              168,
+              171,
+              42,
+              133
+            ],
+            "activeAt": 4
+          },
+          {
+            "id": "b2.input",
+            "block": 2,
+            "kind": "input",
+            "label": {
+              "key": "plugin.ecb.chain.plaintext",
+              "params": {
+                "n": 3
+              }
+            },
+            "bytes": [
+              16,
+              16,
+              16,
+              16,
+              16,
+              16,
+              16,
+              16,
+              16,
+              16,
+              16,
+              16,
+              16,
+              16,
+              16,
+              16
+            ],
+            "activeAt": 0
+          },
+          {
+            "id": "b2.cipher",
+            "block": 2,
+            "kind": "cipher",
+            "label": {
+              "key": "plugin.ecb.chain.encrypt"
+            },
+            "bytes": [
+              162,
+              84,
+              190,
+              136,
+              224,
+              55,
+              221,
+              217,
+              215,
+              159,
+              182,
+              65,
+              28,
+              63,
+              157,
+              248
+            ],
+            "activeAt": 5,
+            "zoom": {
+              "producerId": "aes",
+              "params": {
+                "keyHex": "2b7e151628aed2a6abf7158809cf4f3c",
+                "plaintextHex": "10101010101010101010101010101010",
+                "detail": "op"
+              }
+            }
+          },
+          {
+            "id": "b2.output",
+            "block": 2,
+            "kind": "output",
+            "label": {
+              "key": "plugin.ecb.chain.ciphertext",
+              "params": {
+                "n": 3
+              }
+            },
+            "bytes": [
+              162,
+              84,
+              190,
+              136,
+              224,
+              55,
+              221,
+              217,
+              215,
+              159,
+              182,
+              65,
+              28,
+              63,
+              157,
+              248
+            ],
+            "activeAt": 6
+          },
+          {
+            "id": "pad",
+            "block": -1,
+            "kind": "pad",
+            "label": {
+              "key": "plugin.ecb.chain.pad"
+            },
+            "bytes": [
+              16,
+              16,
+              16,
+              16,
+              16,
+              16,
+              16,
+              16,
+              16,
+              16,
+              16,
+              16,
+              16,
+              16,
+              16,
+              16
+            ],
+            "activeAt": 0
+          }
+        ],
+        "edges": [
+          {
+            "from": "b0.input",
+            "to": "b0.cipher",
+            "activeAt": 1
+          },
+          {
+            "from": "b0.cipher",
+            "to": "b0.output",
+            "activeAt": 2
+          },
+          {
+            "from": "b1.input",
+            "to": "b1.cipher",
+            "activeAt": 3
+          },
+          {
+            "from": "b1.cipher",
+            "to": "b1.output",
+            "activeAt": 4
+          },
+          {
+            "from": "b2.input",
+            "to": "b2.cipher",
+            "activeAt": 5
+          },
+          {
+            "from": "b2.cipher",
+            "to": "b2.output",
+            "activeAt": 6
+          },
+          {
+            "from": "pad",
+            "to": "b2.input",
+            "activeAt": 0
+          }
+        ]
+      }
+    },
+    {
+      "producer": "ecb",
+      "preset": "repeated-blocks-decrypt",
+      "stepCount": 7,
+      "facet": {
+        "kind": "chain",
+        "schemaVersion": 1,
+        "mode": "ecb",
+        "direction": "decrypt",
+        "formula": {
+          "key": "plugin.ecb.formula.decrypt"
+        },
+        "nodes": [
+          {
+            "id": "b0.input",
+            "block": 0,
+            "kind": "input",
+            "label": {
+              "key": "plugin.ecb.chain.ciphertext",
+              "params": {
+                "n": 1
+              }
+            },
+            "bytes": [
+              84,
+              31,
+              240,
+              201,
+              43,
+              146,
+              81,
+              174,
+              6,
+              198,
+              36,
+              196,
+              168,
+              171,
+              42,
+              133
+            ],
+            "activeAt": -1
+          },
+          {
+            "id": "b0.cipher",
+            "block": 0,
+            "kind": "cipher",
+            "label": {
+              "key": "plugin.ecb.chain.decrypt"
+            },
+            "bytes": [
+              65,
+              84,
+              84,
+              65,
+              67,
+              75,
+              32,
+              65,
+              84,
+              32,
+              68,
+              65,
+              87,
+              78,
+              33,
+              33
+            ],
+            "activeAt": 0
+          },
+          {
+            "id": "b0.output",
+            "block": 0,
+            "kind": "output",
+            "label": {
+              "key": "plugin.ecb.chain.plaintext",
+              "params": {
+                "n": 1
+              }
+            },
+            "bytes": [
+              65,
+              84,
+              84,
+              65,
+              67,
+              75,
+              32,
+              65,
+              84,
+              32,
+              68,
+              65,
+              87,
+              78,
+              33,
+              33
+            ],
+            "activeAt": 1
+          },
+          {
+            "id": "b1.input",
+            "block": 1,
+            "kind": "input",
+            "label": {
+              "key": "plugin.ecb.chain.ciphertext",
+              "params": {
+                "n": 2
+              }
+            },
+            "bytes": [
+              84,
+              31,
+              240,
+              201,
+              43,
+              146,
+              81,
+              174,
+              6,
+              198,
+              36,
+              196,
+              168,
+              171,
+              42,
+              133
+            ],
+            "activeAt": -1
+          },
+          {
+            "id": "b1.cipher",
+            "block": 1,
+            "kind": "cipher",
+            "label": {
+              "key": "plugin.ecb.chain.decrypt"
+            },
+            "bytes": [
+              65,
+              84,
+              84,
+              65,
+              67,
+              75,
+              32,
+              65,
+              84,
+              32,
+              68,
+              65,
+              87,
+              78,
+              33,
+              33
+            ],
+            "activeAt": 2
+          },
+          {
+            "id": "b1.output",
+            "block": 1,
+            "kind": "output",
+            "label": {
+              "key": "plugin.ecb.chain.plaintext",
+              "params": {
+                "n": 2
+              }
+            },
+            "bytes": [
+              65,
+              84,
+              84,
+              65,
+              67,
+              75,
+              32,
+              65,
+              84,
+              32,
+              68,
+              65,
+              87,
+              78,
+              33,
+              33
+            ],
+            "activeAt": 3
+          },
+          {
+            "id": "b2.input",
+            "block": 2,
+            "kind": "input",
+            "label": {
+              "key": "plugin.ecb.chain.ciphertext",
+              "params": {
+                "n": 3
+              }
+            },
+            "bytes": [
+              162,
+              84,
+              190,
+              136,
+              224,
+              55,
+              221,
+              217,
+              215,
+              159,
+              182,
+              65,
+              28,
+              63,
+              157,
+              248
+            ],
+            "activeAt": -1
+          },
+          {
+            "id": "b2.cipher",
+            "block": 2,
+            "kind": "cipher",
+            "label": {
+              "key": "plugin.ecb.chain.decrypt"
+            },
+            "bytes": [
+              16,
+              16,
+              16,
+              16,
+              16,
+              16,
+              16,
+              16,
+              16,
+              16,
+              16,
+              16,
+              16,
+              16,
+              16,
+              16
+            ],
+            "activeAt": 4
+          },
+          {
+            "id": "b2.output",
+            "block": 2,
+            "kind": "output",
+            "label": {
+              "key": "plugin.ecb.chain.plaintext",
+              "params": {
+                "n": 3
+              }
+            },
+            "bytes": [
+              16,
+              16,
+              16,
+              16,
+              16,
+              16,
+              16,
+              16,
+              16,
+              16,
+              16,
+              16,
+              16,
+              16,
+              16,
+              16
+            ],
+            "activeAt": 5
+          },
+          {
+            "id": "unpad",
+            "block": 2,
+            "kind": "pad",
+            "label": {
+              "key": "plugin.ecb.chain.unpad"
+            },
+            "bytes": [
+              16,
+              16,
+              16,
+              16,
+              16,
+              16,
+              16,
+              16,
+              16,
+              16,
+              16,
+              16,
+              16,
+              16,
+              16,
+              16
+            ],
+            "activeAt": 6
+          }
+        ],
+        "edges": [
+          {
+            "from": "b0.input",
+            "to": "b0.cipher",
+            "activeAt": 0
+          },
+          {
+            "from": "b0.cipher",
+            "to": "b0.output",
+            "activeAt": 1
+          },
+          {
+            "from": "b1.input",
+            "to": "b1.cipher",
+            "activeAt": 2
+          },
+          {
+            "from": "b1.cipher",
+            "to": "b1.output",
+            "activeAt": 3
+          },
+          {
+            "from": "b2.input",
+            "to": "b2.cipher",
+            "activeAt": 4
+          },
+          {
+            "from": "b2.cipher",
+            "to": "b2.output",
+            "activeAt": 5
+          },
+          {
+            "from": "b2.output",
+            "to": "unpad",
+            "activeAt": 6
+          }
+        ]
+      }
+    },
+    {
+      "producer": "cbc",
+      "preset": "repeated-blocks",
+      "stepCount": 10,
+      "facet": {
+        "kind": "chain",
+        "schemaVersion": 1,
+        "mode": "cbc",
+        "direction": "encrypt",
+        "formula": {
+          "key": "plugin.cbc.formula.encrypt"
+        },
+        "nodes": [
+          {
+            "id": "iv",
+            "block": -1,
+            "kind": "iv",
+            "label": {
+              "key": "plugin.cbc.chain.iv"
+            },
+            "bytes": [
+              0,
+              1,
+              2,
+              3,
+              4,
+              5,
+              6,
+              7,
+              8,
+              9,
+              10,
+              11,
+              12,
+              13,
+              14,
+              15
+            ],
+            "valueRef": "iv",
+            "activeAt": -1
+          },
+          {
+            "id": "b0.input",
+            "block": 0,
+            "kind": "input",
+            "label": {
+              "key": "plugin.cbc.chain.plaintext",
+              "params": {
+                "n": 1
+              }
+            },
+            "bytes": [
+              65,
+              84,
+              84,
+              65,
+              67,
+              75,
+              32,
+              65,
+              84,
+              32,
+              68,
+              65,
+              87,
+              78,
+              33,
+              33
+            ],
+            "activeAt": -1
+          },
+          {
+            "id": "b0.xor",
+            "block": 0,
+            "kind": "xor",
+            "label": {
+              "key": "plugin.cbc.chain.xor"
+            },
+            "bytes": [
+              65,
+              85,
+              86,
+              66,
+              71,
+              78,
+              38,
+              70,
+              92,
+              41,
+              78,
+              74,
+              91,
+              67,
+              47,
+              46
+            ],
+            "activeAt": 1
+          },
+          {
+            "id": "b0.cipher",
+            "block": 0,
+            "kind": "cipher",
+            "label": {
+              "key": "plugin.cbc.chain.encrypt"
+            },
+            "bytes": [
+              212,
+              216,
+              132,
+              180,
+              29,
+              115,
+              164,
+              50,
+              16,
+              221,
+              1,
+              109,
+              100,
+              216,
+              46,
+              82
+            ],
+            "activeAt": 2,
+            "zoom": {
+              "producerId": "aes",
+              "params": {
+                "keyHex": "2b7e151628aed2a6abf7158809cf4f3c",
+                "plaintextHex": "41555642474e26465c294e4a5b432f2e",
+                "detail": "op"
+              }
+            }
+          },
+          {
+            "id": "b0.output",
+            "block": 0,
+            "kind": "output",
+            "label": {
+              "key": "plugin.cbc.chain.ciphertext",
+              "params": {
+                "n": 1
+              }
+            },
+            "bytes": [
+              212,
+              216,
+              132,
+              180,
+              29,
+              115,
+              164,
+              50,
+              16,
+              221,
+              1,
+              109,
+              100,
+              216,
+              46,
+              82
+            ],
+            "activeAt": 3
+          },
+          {
+            "id": "b1.input",
+            "block": 1,
+            "kind": "input",
+            "label": {
+              "key": "plugin.cbc.chain.plaintext",
+              "params": {
+                "n": 2
+              }
+            },
+            "bytes": [
+              65,
+              84,
+              84,
+              65,
+              67,
+              75,
+              32,
+              65,
+              84,
+              32,
+              68,
+              65,
+              87,
+              78,
+              33,
+              33
+            ],
+            "activeAt": -1
+          },
+          {
+            "id": "b1.xor",
+            "block": 1,
+            "kind": "xor",
+            "label": {
+              "key": "plugin.cbc.chain.xor"
+            },
+            "bytes": [
+              149,
+              140,
+              208,
+              245,
+              94,
+              56,
+              132,
+              115,
+              68,
+              253,
+              69,
+              44,
+              51,
+              150,
+              15,
+              115
+            ],
+            "activeAt": 4
+          },
+          {
+            "id": "b1.cipher",
+            "block": 1,
+            "kind": "cipher",
+            "label": {
+              "key": "plugin.cbc.chain.encrypt"
+            },
+            "bytes": [
+              176,
+              17,
+              122,
+              33,
+              129,
+              130,
+              238,
+              59,
+              200,
+              227,
+              157,
+              144,
+              147,
+              251,
+              59,
+              39
+            ],
+            "activeAt": 5,
+            "zoom": {
+              "producerId": "aes",
+              "params": {
+                "keyHex": "2b7e151628aed2a6abf7158809cf4f3c",
+                "plaintextHex": "958cd0f55e38847344fd452c33960f73",
+                "detail": "op"
+              }
+            }
+          },
+          {
+            "id": "b1.output",
+            "block": 1,
+            "kind": "output",
+            "label": {
+              "key": "plugin.cbc.chain.ciphertext",
+              "params": {
+                "n": 2
+              }
+            },
+            "bytes": [
+              176,
+              17,
+              122,
+              33,
+              129,
+              130,
+              238,
+              59,
+              200,
+              227,
+              157,
+              144,
+              147,
+              251,
+              59,
+              39
+            ],
+            "activeAt": 6
+          },
+          {
+            "id": "b2.input",
+            "block": 2,
+            "kind": "input",
+            "label": {
+              "key": "plugin.cbc.chain.plaintext",
+              "params": {
+                "n": 3
+              }
+            },
+            "bytes": [
+              16,
+              16,
+              16,
+              16,
+              16,
+              16,
+              16,
+              16,
+              16,
+              16,
+              16,
+              16,
+              16,
+              16,
+              16,
+              16
+            ],
+            "activeAt": 0
+          },
+          {
+            "id": "b2.xor",
+            "block": 2,
+            "kind": "xor",
+            "label": {
+              "key": "plugin.cbc.chain.xor"
+            },
+            "bytes": [
+              160,
+              1,
+              106,
+              49,
+              145,
+              146,
+              254,
+              43,
+              216,
+              243,
+              141,
+              128,
+              131,
+              235,
+              43,
+              55
+            ],
+            "activeAt": 7
+          },
+          {
+            "id": "b2.cipher",
+            "block": 2,
+            "kind": "cipher",
+            "label": {
+              "key": "plugin.cbc.chain.encrypt"
+            },
+            "bytes": [
+              191,
+              72,
+              234,
+              207,
+              26,
+              245,
+              217,
+              147,
+              52,
+              48,
+              52,
+              231,
+              83,
+              157,
+              171,
+              160
+            ],
+            "activeAt": 8,
+            "zoom": {
+              "producerId": "aes",
+              "params": {
+                "keyHex": "2b7e151628aed2a6abf7158809cf4f3c",
+                "plaintextHex": "a0016a319192fe2bd8f38d8083eb2b37",
+                "detail": "op"
+              }
+            }
+          },
+          {
+            "id": "b2.output",
+            "block": 2,
+            "kind": "output",
+            "label": {
+              "key": "plugin.cbc.chain.ciphertext",
+              "params": {
+                "n": 3
+              }
+            },
+            "bytes": [
+              191,
+              72,
+              234,
+              207,
+              26,
+              245,
+              217,
+              147,
+              52,
+              48,
+              52,
+              231,
+              83,
+              157,
+              171,
+              160
+            ],
+            "activeAt": 9
+          },
+          {
+            "id": "pad",
+            "block": -1,
+            "kind": "pad",
+            "label": {
+              "key": "plugin.cbc.chain.pad"
+            },
+            "bytes": [
+              16,
+              16,
+              16,
+              16,
+              16,
+              16,
+              16,
+              16,
+              16,
+              16,
+              16,
+              16,
+              16,
+              16,
+              16,
+              16
+            ],
+            "activeAt": 0
+          }
+        ],
+        "edges": [
+          {
+            "from": "b0.input",
+            "to": "b0.xor",
+            "activeAt": 1
+          },
+          {
+            "from": "iv",
+            "to": "b0.xor",
+            "activeAt": 1
+          },
+          {
+            "from": "b0.xor",
+            "to": "b0.cipher",
+            "activeAt": 2
+          },
+          {
+            "from": "b0.cipher",
+            "to": "b0.output",
+            "activeAt": 3
+          },
+          {
+            "from": "b1.input",
+            "to": "b1.xor",
+            "activeAt": 4
+          },
+          {
+            "from": "b0.output",
+            "to": "b1.xor",
+            "activeAt": 4
+          },
+          {
+            "from": "b1.xor",
+            "to": "b1.cipher",
+            "activeAt": 5
+          },
+          {
+            "from": "b1.cipher",
+            "to": "b1.output",
+            "activeAt": 6
+          },
+          {
+            "from": "b2.input",
+            "to": "b2.xor",
+            "activeAt": 7
+          },
+          {
+            "from": "b1.output",
+            "to": "b2.xor",
+            "activeAt": 7
+          },
+          {
+            "from": "b2.xor",
+            "to": "b2.cipher",
+            "activeAt": 8
+          },
+          {
+            "from": "b2.cipher",
+            "to": "b2.output",
+            "activeAt": 9
+          },
+          {
+            "from": "pad",
+            "to": "b2.input",
+            "activeAt": 0
+          }
+        ]
+      }
+    },
+    {
+      "producer": "ctr",
+      "preset": "short-message",
+      "stepCount": 5,
+      "facet": {
+        "kind": "chain",
+        "schemaVersion": 1,
+        "mode": "ctr",
+        "direction": "encrypt",
+        "formula": {
+          "key": "plugin.ctr.formula.encrypt"
+        },
+        "nodes": [
+          {
+            "id": "b0.counter",
+            "block": 0,
+            "kind": "counter",
+            "label": {
+              "key": "plugin.ctr.chain.counter",
+              "params": {
+                "n": 1
+              }
+            },
+            "bytes": [
+              240,
+              241,
+              242,
+              243,
+              244,
+              245,
+              246,
+              247,
+              248,
+              249,
+              250,
+              251,
+              252,
+              253,
+              254,
+              255
+            ],
+            "activeAt": -1,
+            "valueRef": "counter"
+          },
+          {
+            "id": "b0.cipher",
+            "block": 0,
+            "kind": "cipher",
+            "label": {
+              "key": "plugin.ctr.chain.encrypt"
+            },
+            "bytes": [
+              236,
+              140,
+              223,
+              115,
+              152,
+              96,
+              124,
+              176,
+              242,
+              210,
+              22,
+              117,
+              234,
+              158,
+              161,
+              228
+            ],
+            "activeAt": 0,
+            "zoom": {
+              "producerId": "aes",
+              "params": {
+                "keyHex": "2b7e151628aed2a6abf7158809cf4f3c",
+                "plaintextHex": "f0f1f2f3f4f5f6f7f8f9fafbfcfdfeff",
+                "detail": "op"
+              }
+            }
+          },
+          {
+            "id": "b0.keystream",
+            "block": 0,
+            "kind": "keystream",
+            "label": {
+              "key": "plugin.ctr.chain.keystream",
+              "params": {
+                "n": 1
+              }
+            },
+            "bytes": [
+              236,
+              140,
+              223,
+              115,
+              152,
+              96,
+              124,
+              176,
+              242,
+              210,
+              22,
+              117,
+              234,
+              158,
+              161,
+              228
+            ],
+            "activeAt": 0
+          },
+          {
+            "id": "b0.input",
+            "block": 0,
+            "kind": "input",
+            "label": {
+              "key": "plugin.ctr.chain.plaintext",
+              "params": {
+                "n": 1
+              }
+            },
+            "bytes": [
+              67,
+              84,
+              82,
+              32,
+              110,
+              101,
+              101,
+              100,
+              115,
+              32,
+              110,
+              111,
+              32,
+              112,
+              97,
+              100
+            ],
+            "activeAt": -1
+          },
+          {
+            "id": "b0.xor",
+            "block": 0,
+            "kind": "xor",
+            "label": {
+              "key": "plugin.ctr.chain.xor"
+            },
+            "bytes": [
+              175,
+              216,
+              141,
+              83,
+              246,
+              5,
+              25,
+              212,
+              129,
+              242,
+              120,
+              26,
+              202,
+              238,
+              192,
+              128
+            ],
+            "activeAt": 1
+          },
+          {
+            "id": "b0.output",
+            "block": 0,
+            "kind": "output",
+            "label": {
+              "key": "plugin.ctr.chain.ciphertext",
+              "params": {
+                "n": 1
+              }
+            },
+            "bytes": [
+              175,
+              216,
+              141,
+              83,
+              246,
+              5,
+              25,
+              212,
+              129,
+              242,
+              120,
+              26,
+              202,
+              238,
+              192,
+              128
+            ],
+            "activeAt": 1
+          },
+          {
+            "id": "b1.counter",
+            "block": 1,
+            "kind": "counter",
+            "label": {
+              "key": "plugin.ctr.chain.counter",
+              "params": {
+                "n": 2
+              }
+            },
+            "bytes": [
+              240,
+              241,
+              242,
+              243,
+              244,
+              245,
+              246,
+              247,
+              248,
+              249,
+              250,
+              251,
+              252,
+              253,
+              255,
+              0
+            ],
+            "activeAt": 2
+          },
+          {
+            "id": "b1.cipher",
+            "block": 1,
+            "kind": "cipher",
+            "label": {
+              "key": "plugin.ctr.chain.encrypt"
+            },
+            "bytes": [
+              54,
+              43,
+              124,
+              60,
+              103,
+              115,
+              81,
+              99,
+              24,
+              160,
+              119,
+              215,
+              252,
+              80,
+              115,
+              174
+            ],
+            "activeAt": 3,
+            "zoom": {
+              "producerId": "aes",
+              "params": {
+                "keyHex": "2b7e151628aed2a6abf7158809cf4f3c",
+                "plaintextHex": "f0f1f2f3f4f5f6f7f8f9fafbfcfdff00",
+                "detail": "op"
+              }
+            }
+          },
+          {
+            "id": "b1.keystream",
+            "block": 1,
+            "kind": "keystream",
+            "label": {
+              "key": "plugin.ctr.chain.keystream",
+              "params": {
+                "n": 2
+              }
+            },
+            "bytes": [
+              54,
+              43,
+              124,
+              60
+            ],
+            "activeAt": 3
+          },
+          {
+            "id": "b1.input",
+            "block": 1,
+            "kind": "input",
+            "label": {
+              "key": "plugin.ctr.chain.plaintext",
+              "params": {
+                "n": 2
+              }
+            },
+            "bytes": [
+              100,
+              105,
+              110,
+              103
+            ],
+            "activeAt": -1
+          },
+          {
+            "id": "b1.xor",
+            "block": 1,
+            "kind": "xor",
+            "label": {
+              "key": "plugin.ctr.chain.xor"
+            },
+            "bytes": [
+              82,
+              66,
+              18,
+              91
+            ],
+            "activeAt": 4
+          },
+          {
+            "id": "b1.output",
+            "block": 1,
+            "kind": "output",
+            "label": {
+              "key": "plugin.ctr.chain.ciphertext",
+              "params": {
+                "n": 2
+              }
+            },
+            "bytes": [
+              82,
+              66,
+              18,
+              91
+            ],
+            "activeAt": 4
+          }
+        ],
+        "edges": [
+          {
+            "from": "b0.counter",
+            "to": "b0.cipher",
+            "activeAt": 0
+          },
+          {
+            "from": "b0.cipher",
+            "to": "b0.keystream",
+            "activeAt": 0
+          },
+          {
+            "from": "b0.input",
+            "to": "b0.xor",
+            "activeAt": 1
+          },
+          {
+            "from": "b0.keystream",
+            "to": "b0.xor",
+            "activeAt": 1
+          },
+          {
+            "from": "b0.xor",
+            "to": "b0.output",
+            "activeAt": 1
+          },
+          {
+            "from": "b0.counter",
+            "to": "b1.counter",
+            "activeAt": 2
+          },
+          {
+            "from": "b1.counter",
+            "to": "b1.cipher",
+            "activeAt": 3
+          },
+          {
+            "from": "b1.cipher",
+            "to": "b1.keystream",
+            "activeAt": 3
+          },
+          {
+            "from": "b1.input",
+            "to": "b1.xor",
+            "activeAt": 4
+          },
+          {
+            "from": "b1.keystream",
+            "to": "b1.xor",
+            "activeAt": 4
+          },
+          {
+            "from": "b1.xor",
+            "to": "b1.output",
+            "activeAt": 4
+          }
+        ]
+      }
+    }
+  ],
+  "labels": {
+    "en": {
+      "plugin.cbc.chain.ciphertext": "C{{n}}",
+      "plugin.cbc.chain.encrypt": "E_K",
+      "plugin.cbc.chain.iv": "IV",
+      "plugin.cbc.chain.pad": "Padding",
+      "plugin.cbc.chain.plaintext": "P{{n}}",
+      "plugin.cbc.chain.xor": "⊕",
+      "plugin.cbc.formula.encrypt": "Cᵢ = E_K(Pᵢ ⊕ Cᵢ₋₁), C₀ = IV",
+      "plugin.ctr.chain.ciphertext": "C{{n}}",
+      "plugin.ctr.chain.counter": "T{{n}}",
+      "plugin.ctr.chain.encrypt": "E_K",
+      "plugin.ctr.chain.keystream": "Keystream {{n}}",
+      "plugin.ctr.chain.plaintext": "P{{n}}",
+      "plugin.ctr.chain.xor": "⊕",
+      "plugin.ctr.formula.encrypt": "Cᵢ = Pᵢ ⊕ E_K(Tᵢ), Tᵢ₊₁ = Tᵢ + 1",
+      "plugin.ecb.chain.ciphertext": "C{{n}}",
+      "plugin.ecb.chain.decrypt": "D_K",
+      "plugin.ecb.chain.encrypt": "E_K",
+      "plugin.ecb.chain.pad": "Padding",
+      "plugin.ecb.chain.plaintext": "P{{n}}",
+      "plugin.ecb.chain.unpad": "Padding removed",
+      "plugin.ecb.formula.decrypt": "Pᵢ = D_K(Cᵢ)",
+      "plugin.ecb.formula.encrypt": "Cᵢ = E_K(Pᵢ)"
+    },
+    "de": {
+      "plugin.cbc.chain.ciphertext": "C{{n}}",
+      "plugin.cbc.chain.encrypt": "E_K",
+      "plugin.cbc.chain.iv": "IV",
+      "plugin.cbc.chain.pad": "Padding",
+      "plugin.cbc.chain.plaintext": "P{{n}}",
+      "plugin.cbc.chain.xor": "⊕",
+      "plugin.cbc.formula.encrypt": "Cᵢ = E_K(Pᵢ ⊕ Cᵢ₋₁), C₀ = IV",
+      "plugin.ctr.chain.ciphertext": "C{{n}}",
+      "plugin.ctr.chain.counter": "T{{n}}",
+      "plugin.ctr.chain.encrypt": "E_K",
+      "plugin.ctr.chain.keystream": "Schlüsselstrom {{n}}",
+      "plugin.ctr.chain.plaintext": "P{{n}}",
+      "plugin.ctr.chain.xor": "⊕",
+      "plugin.ctr.formula.encrypt": "Cᵢ = Pᵢ ⊕ E_K(Tᵢ), Tᵢ₊₁ = Tᵢ + 1",
+      "plugin.ecb.chain.ciphertext": "C{{n}}",
+      "plugin.ecb.chain.decrypt": "D_K",
+      "plugin.ecb.chain.encrypt": "E_K",
+      "plugin.ecb.chain.pad": "Padding",
+      "plugin.ecb.chain.plaintext": "P{{n}}",
+      "plugin.ecb.chain.unpad": "Padding entfernt",
+      "plugin.ecb.formula.decrypt": "Pᵢ = D_K(Cᵢ)",
+      "plugin.ecb.formula.encrypt": "Cᵢ = E_K(Pᵢ)"
+    }
+  }
+}

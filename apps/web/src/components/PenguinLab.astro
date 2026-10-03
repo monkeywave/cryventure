@@ -1,0 +1,29 @@
+---
+/**
+ * Server wrapper for the PenguinLab island (docs/M3.md §9): passes only `ui.penguin.*` and the
+ * `core.error.*` run errors of the current locale, and hydrates when scrolled into view.
+ *
+ * Usage in a lesson: `<PenguinLab />` or `<PenguinLab mode="cbc" />`.
+ */
+import '../islands/penguin/penguin.css';
+import { loadCoreMessages } from '@cryventure/core/messages';
+import { loadMessages, pickPrefix, toLocale } from '../i18n/loadMessages';
+import PenguinLabIsland from '../islands/penguin/PenguinLab.tsx';
+import type { PenguinMode } from '../islands/penguin/penguinJob.ts';
+import EducationalOnly from './EducationalOnly.astro';
+
+interface Props {
+  /** Preselected mode of operation; default `ecb`. */
+  mode?: PenguinMode;
+}
+
+const { mode } = Astro.props;
+if (mode !== undefined && mode !== 'ecb' && mode !== 'cbc') throw new Error(`<PenguinLab>: unknown mode "${String(mode)}"`);
+const locale = toLocale(Astro.currentLocale);
+const messages = { ...pickPrefix(loadMessages(locale, ['penguin']), 'ui.penguin.'), ...pickPrefix(loadCoreMessages(locale), 'core.error.') };
+---
+
+<div class="cv-penguin-host not-content" data-pagefind-ignore>
+  <EducationalOnly lang={locale} />
+  <PenguinLabIsland client:visible messages={messages} locale={locale} initialMode={mode} />
+</div>

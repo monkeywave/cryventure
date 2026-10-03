@@ -25,7 +25,7 @@ export interface LabProps {
   mode?: LabMode;
   /** Only the namespaces this lab needs, in the page's locale (assembled by `Lab.astro`). */
   messages: Messages;
-  /** Page locale (e.g. `de`), used for plural forms. */
+  /** Page locale (e.g. `de`), used for plural forms and links to standalone labs. */
   locale?: string;
   /** Static poster rendered on the server and shown until the lab is ready. */
   children?: ReactNode;
@@ -58,8 +58,8 @@ function ReadyLab({ labId, layout, lens, session, onParams, onRequestParams, req
   );
 }
 
-function LabBody({ labId, producerId, presetId, startAt, mode, layout, lens, children }: Omit<LabProps, 'messages' | 'lens'> & { lens: Lens }) {
-  const { session, applyParams, requestParams, requestError, reset } = useLabSession({ labId, producerId, presetId, startAt, mode });
+function LabBody({ labId, producerId, presetId, startAt, mode, locale, layout, lens, children }: Omit<LabProps, 'messages' | 'lens'> & { lens: Lens }) {
+  const { session, applyParams, requestParams, requestError, reset } = useLabSession({ labId, producerId, presetId, startAt, mode, locale });
   if (session.status === 'loading') return <>{children}</>;
   if (session.status === 'error') return <LabError error={session.error} onReset={reset} />;
   return (
@@ -73,10 +73,10 @@ function LabBody({ labId, producerId, presetId, startAt, mode, layout, lens, chi
  * Generic lab island: producer manifest → params (hash / preset / defaults) → lazy `run()` →
  * lab store → player + workspace of every view the producer's facets can feed.
  */
-export default function Lab({ messages, locale, lens: pinnedLens, ...props }: LabProps) {
+export default function Lab({ messages, lens: pinnedLens, ...props }: LabProps) {
   const lens = useLabLens(pinnedLens);
   return (
-    <I18nProvider messages={messages} locale={locale}>
+    <I18nProvider messages={messages} locale={props.locale}>
       <div className="cv-lab-island" data-lab-id={props.labId} data-lens={lens}>
         <LabBody {...props} lens={lens} />
       </div>

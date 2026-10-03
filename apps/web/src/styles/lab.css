@@ -14,6 +14,7 @@
 /* ---------- Static poster (server-rendered until hydration) ---------- */
 .cv-lab-poster {
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
   gap: 0.5rem;
   padding: 1.25rem;
   border: 1px dashed var(--cv-border);
@@ -52,6 +53,14 @@
 .cv-lab-poster__params dd,
 .cv-output__item dd {
   margin: 0;
+  /* Long hex values (e.g. a 32-byte mode input) wrap instead of widening the page on phones. */
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.cv-lab-poster__params dd code,
+.cv-output__item dd code {
+  overflow-wrap: anywhere;
 }
 
 .cv-lab-poster__loading {
@@ -118,6 +127,18 @@
 .cv-params__hint {
   color: var(--cv-text-muted);
   font-size: var(--sl-text-xs, 0.8125rem);
+}
+
+.cv-params__count {
+  color: var(--cv-text-muted);
+  font-size: var(--sl-text-xs, 0.8125rem);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Over the limit: colour plus weight, never colour alone. */
+.cv-params__count[data-over='true'] {
+  color: var(--cv-error);
+  font-weight: 600;
 }
 
 .cv-params__error {

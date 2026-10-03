@@ -1,4 +1,4 @@
-import type { ParamField, PrimitiveManifest, ValidationResult } from '@cryventure/core';
+import { optionLabelKey, portOptions, type ParamField, type PrimitiveManifest, type ValidationResult } from '@cryventure/core';
 import type { LabParams } from './labSession.ts';
 
 /** Generic hint for hex fields whose producer declares none. */
@@ -22,4 +22,14 @@ export function hintKeyOf(field: ParamField): string | undefined {
 /** The producer-declared label key of an output (`manifest.outputs`); `undefined` when it declares none. */
 export function outputLabelKey(producer: Pick<PrimitiveManifest, 'outputs'>, name: string): string | undefined {
   return producer.outputs?.[name]?.labelKey;
+}
+
+/**
+ * Label key of a choice field's current value: a `select` option, or the title of the producer a
+ * `port` field names (among `producers`); `undefined` for other kinds or an unknown value.
+ */
+export function choiceLabelKey(field: ParamField, value: unknown, producers: readonly PrimitiveManifest[]): string | undefined {
+  if (field.kind === 'select') return optionLabelKey(field, value);
+  if (field.kind !== 'port' || field.port === undefined) return undefined;
+  return portOptions(producers, field.port).find((option) => option.value === value)?.labelKey;
 }

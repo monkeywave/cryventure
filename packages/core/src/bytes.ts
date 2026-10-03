@@ -116,3 +116,25 @@ export function xorBytes(a: ArrayLike<number>, b: ArrayLike<number>): Uint8Array
   }
   return Uint8Array.from({ length: a.length }, (_, i) => (a[i] ?? 0) ^ (b[i] ?? 0));
 }
+
+/**
+ * `TextEncoder`/`TextDecoder` exist in every runtime CryVenture targets (browsers, workers,
+ * Node ≥ 22); core compiles without the DOM lib, so they are typed locally.
+ */
+interface TextCodecs {
+  TextEncoder: new () => { encode(text: string): Uint8Array };
+  TextDecoder: new () => { decode(bytes: Uint8Array): string };
+}
+const TEXT_CODECS = globalThis as unknown as TextCodecs;
+const UTF8_ENCODER = new TEXT_CODECS.TextEncoder();
+const UTF8_DECODER = new TEXT_CODECS.TextDecoder();
+
+/** The UTF-8 encoding of `text`. */
+export function utf8Bytes(text: string): Uint8Array {
+  return UTF8_ENCODER.encode(text);
+}
+
+/** Decodes UTF-8 bytes (invalid sequences become U+FFFD). */
+export function utf8Text(bytes: ArrayLike<number>): string {
+  return UTF8_DECODER.decode(Uint8Array.from(bytes));
+}

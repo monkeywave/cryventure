@@ -15,5 +15,9 @@
   "ui.lab.params.preset": "Beispiel",
   "ui.lab.params.custom": "Eigene Eingabe",
   "ui.lab.params.hexHint": "Hexziffern; Leerzeichen und Doppelpunkte werden ignoriert.",
-  "ui.lab.output.title": "Ausgabe"
+  "ui.lab.params.byteCount": "{{count}} / {{max}} Bytes (UTF-8)",
+  "ui.lab.output.title": "Ausgabe",
+  "ui.pwa.updateAvailable": "Eine neue Version von CryVenture ist verfügbar.",
+  "ui.pwa.reload": "Neu laden",
+  "ui.pwa.later": "Später"
 }
