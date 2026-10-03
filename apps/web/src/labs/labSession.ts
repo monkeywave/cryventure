@@ -90,11 +90,8 @@ export async function startLab({ producerId, presetId, link, startAt, mode, regi
  */
 async function runStartParams(runner: LabRunner, producer: PrimitiveManifest<LabParams>, start: StartParams<LabParams>, presetId: string | undefined) {
   const result = await runner.run(producer, start.params);
-  const fallbackParams = presetParams(producer, presetId);
-  // `resolveStartParams` hands out the preset/defaults object itself, so a different object came from the link.
-  const fromLink = start.params !== fallbackParams;
-  if (result.ok || !fromLink) return { start, result };
-  const fallback: StartParams<LabParams> = { params: fallbackParams, step: undefined, notice: true };
+  if (result.ok || start.source !== 'link') return { start, result };
+  const fallback: StartParams<LabParams> = { params: presetParams(producer, presetId), step: undefined, notice: true, source: 'fallback' };
   return { start: fallback, result: await runner.run(producer, fallback.params) };
 }
 

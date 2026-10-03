@@ -212,3 +212,21 @@ export function tableSelectParamProblems<P>(facet: TableFacet, manifest: Pick<Pr
   const roundTrips = validated.ok && (validated.value as Record<string, unknown>)[selectParam] === hex;
   return roundTrips ? [] : [`table: selected ${selected} as ${selectParam} "${hex}" does not round-trip through validate`];
 }
+
+/**
+ * Params that `validate()` does not return unchanged, compared key by key over the union of both key
+ * sets in any order (mirrors the web app's `matchingPresetId`): a default or preset the validator adds
+ * keys to or normalises (case, separators) would never match itself once validated, so it would show as "Custom".
+ */
+export function normalFormProblems<P>(manifest: Pick<PrimitiveManifest<P>, 'validate'>, cases: readonly { name: string; params: P }[]): string[] {
+  return cases.flatMap(({ name, params }) => {
+    const validated = manifest.validate(params);
+    if (!validated.ok) return [`${name}: rejected by validate() (${validated.error.key})`];
+    const given = params as Record<string, unknown>;
+    const normal = validated.value as Record<string, unknown>;
+    const keys = [...new Set([...Object.keys(given), ...Object.keys(normal)])].sort();
+    return keys
+      .filter((key) => JSON.stringify(given[key]) !== JSON.stringify(normal[key]))
+      .map((key) => `${name}: ${key} is ${JSON.stringify(given[key]) ?? 'undefined'}, validate() gives ${JSON.stringify(normal[key]) ?? 'undefined'}`);
+  });
+}

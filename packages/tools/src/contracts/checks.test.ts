@@ -4,6 +4,7 @@ import {
   derivationGroupRefs,
   emittedNarration,
   jsonRoundTrip,
+  normalFormProblems,
   keysOutsideNamespace,
   manifestLabelKeys,
   mathFacetRefs,
@@ -272,5 +273,31 @@ describe('initialNarrationProblems', () => {
     expect(initialNarrationProblems(withInitial(plain, initial))).toEqual(['narration step -1 is missing, but the state facet has initialNarration "plugin.x.initial"']);
     const extra: NarrationFacet = { ...plain, entries: [{ step: -1, ref: initial }, ...plain.entries] };
     expect(initialNarrationProblems(withInitial(extra))).toEqual(['narration step -1 is "plugin.x.initial", but the state facet has no initialNarration']);
+  });
+});
+
+describe('normalFormProblems', () => {
+  /** Lowercases `keyHex`, strips spaces and adds a default `mode`, the way a normalising validator might. */
+  const normalising = {
+    validate: (value: unknown) => {
+      const params = value as { keyHex: string; mode?: string };
+      return { ok: true, value: { mode: params.mode ?? 'enc', keyHex: params.keyHex.toLowerCase().replace(/ /g, '') } };
+    },
+  } as unknown as Pick<PrimitiveManifest, 'validate'>;
+
+  it('accepts params already in normal form, whatever the key order', () => {
+    expect(normalFormProblems(normalising, [{ name: 'defaults', params: { keyHex: 'ab', mode: 'enc' } }])).toEqual([]);
+  });
+
+  it('reports keys a validator adds or rewrites', () => {
+    expect(normalFormProblems(normalising, [{ name: 'preset p', params: { keyHex: 'A B' } }])).toEqual([
+      'preset p: keyHex is "A B", validate() gives "ab"',
+      'preset p: mode is undefined, validate() gives "enc"',
+    ]);
+  });
+
+  it('reports params validate() rejects', () => {
+    const rejecting = { validate: () => ({ ok: false, error: { key: 'bad' } }) } as unknown as Pick<PrimitiveManifest, 'validate'>;
+    expect(normalFormProblems(rejecting, [{ name: 'defaults', params: {} }])).toEqual(['defaults: rejected by validate() (bad)']);
   });
 });

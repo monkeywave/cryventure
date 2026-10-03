@@ -157,6 +157,43 @@ describe('startLab', () => {
     expect(await startLab({ producerId: 'p', link, registries })).toEqual({ status: 'error', error: { key: 'x' } });
   });
 
+  describe('when the preset/defaults object is handed out as a copy', () => {
+    /** A producer whose `defaults` is a fresh copy on every read and whose runs always fail (each run's params are recorded). */
+    function copyingProducer() {
+      const runs: unknown[] = [];
+      const producer = {
+        id: 'p',
+        facets: ['state'],
+        presets: [],
+        get defaults() {
+          return { n: 0 };
+        },
+        validate: (params: unknown) => ({ ok: true, value: { ...(params as object) } }),
+        load: async () => ({
+          run: (params: { n: number }) => {
+            runs.push(params);
+            return { ok: false, error: { key: 'x' } };
+          },
+        }),
+      } as unknown as PrimitiveManifest;
+      const registries = { producers: { get: () => producer }, views: { list: () => [] } } as unknown as StartLabOptions['registries'];
+      return { runs, registries };
+    }
+
+    it('still falls back when link params fail at run time', async () => {
+      const { runs, registries } = copyingProducer();
+      const link = readLabLink(`lab=p&p=${encodeJsonBase64Url({ n: 1 })}&v=1`, 'p');
+      await startLab({ producerId: 'p', link, registries });
+      expect(runs).toEqual([{ n: 1 }, { n: 0 }]);
+    });
+
+    it('attempts no fallback when the failing params did not come from the link', async () => {
+      const { runs, registries } = copyingProducer();
+      expect(await startLab({ producerId: 'p', link: { status: 'absent' }, registries })).toEqual({ status: 'error', error: { key: 'x' } });
+      expect(runs).toEqual([{ n: 0 }]);
+    });
+  });
+
   it('reports an unknown producer', async () => {
     expect(await startLab({ producerId: 'nope', link: { status: 'absent' } })).toEqual({
       status: 'error',

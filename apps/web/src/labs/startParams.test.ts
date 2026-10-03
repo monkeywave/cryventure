@@ -44,23 +44,23 @@ describe('matchingPresetId', () => {
 
 describe('resolveStartParams', () => {
   it('uses the preset when there is no link', () => {
-    expect(resolveStartParams(toy, { status: 'absent' }, 'one')).toEqual({ params: { n: 1 }, step: undefined, notice: false });
+    expect(resolveStartParams(toy, { status: 'absent' }, 'one')).toEqual({ params: { n: 1 }, step: undefined, notice: false, source: 'fallback' });
   });
 
   it('prefers valid link params and step', () => {
-    expect(resolveStartParams(toy, { status: 'valid', state: { params: { n: 5 }, step: 3 } }, 'one')).toEqual({ params: { n: 5 }, step: 3, notice: false });
+    expect(resolveStartParams(toy, { status: 'valid', state: { params: { n: 5 }, step: 3 } }, 'one')).toEqual({ params: { n: 5 }, step: 3, notice: false, source: 'link' });
   });
 
   it('leaves the step undefined when the link has params but no step', () => {
-    expect(resolveStartParams(toy, { status: 'valid', state: { params: { n: 5 } } }, 'one')).toEqual({ params: { n: 5 }, step: undefined, notice: false });
+    expect(resolveStartParams(toy, { status: 'valid', state: { params: { n: 5 } } }, 'one')).toEqual({ params: { n: 5 }, step: undefined, notice: false, source: 'link' });
   });
 
   it('keeps the preset when the link only has a step', () => {
-    expect(resolveStartParams(toy, { status: 'valid', state: { step: 2 } }, 'two')).toEqual({ params: { n: 2 }, step: 2, notice: false });
+    expect(resolveStartParams(toy, { status: 'valid', state: { step: 2 } }, 'two')).toEqual({ params: { n: 2 }, step: 2, notice: false, source: 'fallback' });
   });
 
   it('falls back with a notice for invalid params or an unreadable link', () => {
-    expect(resolveStartParams(toy, { status: 'valid', state: { params: { n: 'x' }, step: 4 } }, 'one')).toEqual({ params: { n: 1 }, step: undefined, notice: true });
-    expect(resolveStartParams(toy, { status: 'invalid' })).toEqual({ params: { n: 0 }, step: undefined, notice: true });
+    expect(resolveStartParams(toy, { status: 'valid', state: { params: { n: 'x' }, step: 4 } }, 'one')).toEqual({ params: { n: 1 }, step: undefined, notice: true, source: 'fallback' });
+    expect(resolveStartParams(toy, { status: 'invalid' })).toEqual({ params: { n: 0 }, step: undefined, notice: true, source: 'fallback' });
   });
 });

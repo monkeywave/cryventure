@@ -29,6 +29,7 @@ import {
   mathStepRangeProblems,
   missingFacetKinds,
   missingKeys,
+  normalFormProblems,
   refProblems,
   regionLayoutProblems,
   replayProblems,
@@ -97,6 +98,10 @@ function manifestSuite<P>(manifest: PrimitiveManifest<P>, catalogs: LocaleCatalo
 
   it('accepts its defaults and presets in validate()', () => {
     runCases(manifest).forEach((testCase) => expect(manifest.validate(testCase.params).ok, testCase.name).toBe(true));
+  });
+
+  it('declares its defaults and presets in normal form (validate() returns them unchanged, key by key)', () => {
+    expect(normalFormProblems(manifest, runCases(manifest))).toEqual([]);
   });
 
   it('declares port fields some producer implements, text fields whose values fit, and a valid runIn', () => {

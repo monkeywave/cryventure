@@ -7,6 +7,8 @@ export interface StartParams<P> {
   step: number | undefined;
   /** True when the URL carried lab state that could not be used (the lab shows a notice). */
   notice: boolean;
+  /** Where `params` came from: the deep link (validated), or the preset/defaults. */
+  source: 'link' | 'fallback';
 }
 
 /** Params of `presetId`, else the producer's defaults (unknown preset ids fall back silently). */
@@ -32,11 +34,11 @@ function sameParams(a: unknown, b: unknown): boolean {
  * Anything unusable in the link falls back to the preset/defaults and raises `notice`.
  */
 export function resolveStartParams<P>(producer: PrimitiveManifest<P>, link: LabLinkRead, presetId?: string): StartParams<P> {
-  const fallback = { params: presetParams(producer, presetId), step: undefined, notice: false };
+  const fallback: StartParams<P> = { params: presetParams(producer, presetId), step: undefined, notice: false, source: 'fallback' };
   if (link.status === 'absent') return fallback;
   if (link.status === 'invalid') return { ...fallback, notice: true };
   const step = link.state.step;
   if (link.state.params === undefined) return { ...fallback, step };
   const validated = producer.validate(link.state.params);
-  return validated.ok ? { params: validated.value, step, notice: false } : { ...fallback, notice: true };
+  return validated.ok ? { params: validated.value, step, notice: false, source: 'link' } : { ...fallback, notice: true };
 }

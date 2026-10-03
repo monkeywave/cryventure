@@ -76,5 +76,7 @@ test.describe('standalone lab route', () => {
     await expect(lab.getByLabel(uiEn['ui.lab.params.preset'])).toHaveValue('repeated-blocks');
     await expect(lab.getByLabel(ecbEn['plugin.ecb.param.key']!)).toHaveValue('2b7e151628aed2a6abf7158809cf4f3c');
     await expect(lab.locator('.cv-lab-error')).toHaveCount(0);
+    // The unusable link is removed, so a reload does not repeat the fallback and the notice.
+    await expect.poll(() => page.evaluate(() => location.hash)).not.toContain('lab=ecb');
   });
 });

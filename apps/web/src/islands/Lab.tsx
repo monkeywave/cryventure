@@ -47,7 +47,7 @@ interface ReadyLabProps {
 
 function ReadyLab({ labId, layout, lens, session, params, onParams, onRequestParams, requestError }: ReadyLabProps) {
   const t = useT();
-  useHashSync(labId, session.store, session.params);
+  useHashSync(labId, session.store, session.params, { clearLink: session.notice });
   return (
     <LabRoot store={session.store} choreography={session.choreography} opLabels={session.producer.ops} onRequestParams={onRequestParams}>
       <p className="cv-lab__title">{t(session.producer.titleKey)}</p>
