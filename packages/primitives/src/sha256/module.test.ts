@@ -149,7 +149,7 @@ describe('sha256 run: steps, scope and facets', () => {
 describe('sha256 validate', () => {
   it('declares the text field limit as the message byte limit validation enforces, in both encodings', () => {
     const field = sha256Manifest.paramFields!.find((entry) => entry.name === 'input')!;
-    expect(field.maxLength).toBe(128);
+    expect(field.maxLength).toBe(320);
     const max = field.maxLength!;
     expect(validateSha256Params({ ...ABC, input: 'x'.repeat(max) }).ok).toBe(true);
     expect(validateSha256Params({ ...ABC, input: 'x'.repeat(max + 1) }).ok).toBe(false);
@@ -165,8 +165,8 @@ describe('sha256 validate', () => {
 
   it.each([
     [{ ...ABC, encoding: 'hex', input: '616' }, 'core.error.hexOddLength'],
-    [{ ...ABC, input: 'x'.repeat(129) }, 'plugin.sha256.error.inputLength'],
-    [{ ...ABC, encoding: 'hex', input: '00'.repeat(129) }, 'plugin.sha256.error.inputLength'],
+    [{ ...ABC, input: 'x'.repeat(321) }, 'plugin.sha256.error.inputLength'],
+    [{ ...ABC, encoding: 'hex', input: '00'.repeat(321) }, 'plugin.sha256.error.inputLength'],
     [{ ...ABC, algorithm: 'sha-512' }, 'plugin.sha256.error.algorithm'],
     [{ ...ABC, encoding: 'base64' }, 'plugin.sha256.error.encoding'],
     [{ ...ABC, detail: 'bit' }, 'plugin.sha256.error.detail'],
@@ -177,8 +177,8 @@ describe('sha256 validate', () => {
   });
 
   it('counts UTF-8 bytes, not characters', () => {
-    expect(validateSha256Params({ ...ABC, input: 'ä'.repeat(64) }).ok).toBe(true);
-    expect(validateSha256Params({ ...ABC, input: 'ä'.repeat(65) }).ok).toBe(false);
+    expect(validateSha256Params({ ...ABC, input: 'ä'.repeat(160) }).ok).toBe(true);
+    expect(validateSha256Params({ ...ABC, input: 'ä'.repeat(161) }).ok).toBe(false);
   });
 });
 

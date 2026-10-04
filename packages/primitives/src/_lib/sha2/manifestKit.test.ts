@@ -20,8 +20,8 @@ describe('sha2ManifestKit', () => {
     expect(sha2Preset(NS, 'p', 'sha-a', 'abc')).toEqual({ id: 'p', labelKey: `${NS}.preset.p`, params: { algorithm: 'sha-a', encoding: 'utf8', input: 'abc', detail: 'round' } });
   });
 
-  it('limits SHA-256 to 2·B = 128 bytes and the SHA-512 family to B + 256 = 384 (its longest HMAC hash input)', () => {
-    expect(SHA256_MAX_MESSAGE_BYTES).toBe(2 * 64);
+  it('limits SHA-256 to B + 256 = 320 bytes and the SHA-512 family to B + 256 = 384 (their longest HMAC hash inputs)', () => {
+    expect(SHA256_MAX_MESSAGE_BYTES).toBe(64 + 256);
     expect(SHA512_MAX_MESSAGE_BYTES).toBe(128 + 256);
   });
 

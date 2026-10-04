@@ -15,7 +15,7 @@
   "plugin.sha256.param.encodingOption.utf8": "Text (UTF-8)",
   "plugin.sha256.param.encodingOption.hex": "Hex",
   "plugin.sha256.param.input": "Nachricht",
-  "plugin.sha256.param.inputHint": "0 bis 128 Byte; mit Padding werden daraus höchstens drei 64-Byte-Blöcke. Die Nachricht darf leer sein.",
+  "plugin.sha256.param.inputHint": "0 bis 320 Byte; mit Padding werden daraus höchstens sechs 64-Byte-Blöcke. Die Nachricht darf leer sein.",
   "plugin.sha256.param.detail": "Detailstufe",
   "plugin.sha256.param.detailHint": "„Pro Runde“ zeigt jedes Wort der Nachrichtenexpansion und jede der 64 Runden. „Pro Block“ führt die ganze Kompressionsfunktion eines Blocks in einem Schritt aus.",
   "plugin.sha256.param.detailOption.round": "Pro Runde",
@@ -88,7 +88,7 @@
   "plugin.sha256.error.algorithm": "Unbekannte Hashfunktion „{{algorithm}}“: Wähle SHA-224 oder SHA-256.",
   "plugin.sha256.error.encoding": "Unbekanntes Eingabeformat „{{encoding}}“: Wähle Text oder Hex.",
   "plugin.sha256.error.detail": "Unbekannte Detailstufe „{{detail}}“.",
-  "plugin.sha256.error.inputLength": "Die Nachricht hat {{length}} Byte; erlaubt sind höchstens 128 Byte.",
+  "plugin.sha256.error.inputLength": "Die Nachricht hat {{length}} Byte; erlaubt sind höchstens 320 Byte.",
   "plugin.sha256.mac.hmac-sha-224": "HMAC-SHA-224",
   "plugin.sha256.mac.hmac-sha-256": "HMAC-SHA-256"
 }

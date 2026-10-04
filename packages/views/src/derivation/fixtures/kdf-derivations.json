@@ -195,7 +195,16 @@
             "inputs": [
               "key"
             ],
-            "step": 0
+            "step": 0,
+            "zoom": {
+              "producerId": "sha256",
+              "params": {
+                "algorithm": "sha-256",
+                "encoding": "hex",
+                "input": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                "detail": "round"
+              }
+            }
           },
           {
             "id": "zeros",

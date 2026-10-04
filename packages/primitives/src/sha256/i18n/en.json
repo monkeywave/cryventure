@@ -15,7 +15,7 @@
   "plugin.sha256.param.encodingOption.utf8": "Text (UTF-8)",
   "plugin.sha256.param.encodingOption.hex": "Hex",
   "plugin.sha256.param.input": "Message",
-  "plugin.sha256.param.inputHint": "0 to 128 bytes, which pad to at most three 64-byte blocks. The message may be empty.",
+  "plugin.sha256.param.inputHint": "0 to 320 bytes, which pad to at most six 64-byte blocks. The message may be empty.",
   "plugin.sha256.param.detail": "Level of detail",
   "plugin.sha256.param.detailHint": "“Per round” shows every message schedule word and every one of the 64 rounds. “Per block” runs the whole compression function of a block in one step.",
   "plugin.sha256.param.detailOption.round": "Per round",
@@ -88,7 +88,7 @@
   "plugin.sha256.error.algorithm": "Unknown hash function “{{algorithm}}”: choose SHA-224 or SHA-256.",
   "plugin.sha256.error.encoding": "Unknown input format “{{encoding}}”: choose text or hex.",
   "plugin.sha256.error.detail": "Unknown level of detail “{{detail}}”.",
-  "plugin.sha256.error.inputLength": "The message has {{length}} bytes; at most 128 bytes are allowed.",
+  "plugin.sha256.error.inputLength": "The message has {{length}} bytes; at most 320 bytes are allowed.",
   "plugin.sha256.mac.hmac-sha-224": "HMAC-SHA-224",
   "plugin.sha256.mac.hmac-sha-256": "HMAC-SHA-256"
 }

@@ -93,7 +93,7 @@ function initialSnapshot(input: Pbkdf2Input, specs: RegionSpec<Pbkdf2Region>[]):
   return Object.fromEntries(specs.map((spec) => [spec.id, values[spec.id]]));
 }
 
-/** Total PRF calls l · c and the compressions they cost after the two midstates (2 per call). */
+/** Total PRF calls l · c and the compressions they cost after the two midstates (2 per call; U1 needs more when S ‖ INT(i) spans more than one block). */
 export function pbkdf2Cost(blocks: number, iterations: number): { calls: number; compressions: number } {
   const calls = blocks * iterations;
   return { calls, compressions: 2 * calls };

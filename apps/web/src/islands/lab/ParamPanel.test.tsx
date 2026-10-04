@@ -314,27 +314,27 @@ describe('ParamPanel text fields measured by a sibling encoding', () => {
     return { onApply, input: screen.getByRole('textbox', { name: lang === 'de' ? 'Nachricht' : 'Message' }) };
   }
 
-  it('flags UTF-8 text over the 128-byte message limit that validation enforces', () => {
+  it('flags UTF-8 text over the 320-byte message limit that validation enforces', () => {
     const { onApply, input } = renderSha256(sha256.defaults as LabParams);
-    typeInto(input, 'x'.repeat(200));
+    typeInto(input, 'x'.repeat(400));
     expect(onApply).not.toHaveBeenCalled();
-    expect(screen.getByText('200 / 128 bytes (UTF-8)').getAttribute('data-over')).toBe('true');
+    expect(screen.getByText('400 / 320 bytes (UTF-8)').getAttribute('data-over')).toBe('true');
   });
 
   it('counts hex input as decoded bytes, so a valid 100-byte message with separators is not flagged', () => {
     const params = { ...(sha256.defaults as LabParams), encoding: 'hex', input: '616263' };
     const { onApply, input } = renderSha256(params);
-    expect(screen.getByText('3 / 128 bytes (hex)')).toBeTruthy();
+    expect(screen.getByText('3 / 320 bytes (hex)')).toBeTruthy();
     typeInto(input, '00 '.repeat(100).trim());
     expect(onApply).toHaveBeenCalled();
-    expect(screen.getByText('100 / 128 bytes (hex)').getAttribute('data-over')).toBe('false');
-    typeInto(input, '00'.repeat(129));
-    expect(screen.getByText('129 / 128 bytes (hex)').getAttribute('data-over')).toBe('true');
+    expect(screen.getByText('100 / 320 bytes (hex)').getAttribute('data-over')).toBe('false');
+    typeInto(input, '00'.repeat(321));
+    expect(screen.getByText('321 / 320 bytes (hex)').getAttribute('data-over')).toBe('true');
   });
 
   it('is localized in hex mode', () => {
     renderSha256({ ...(sha256.defaults as LabParams), encoding: 'hex', input: '616263' }, 'de');
-    expect(screen.getByText('3 / 128 Byte (hex)')).toBeTruthy();
+    expect(screen.getByText('3 / 320 Byte (hex)')).toBeTruthy();
   });
 });
 

@@ -29,13 +29,12 @@ const SHA512_BLOCK_BYTES = 128;
 /**
  * The message limits in bytes, in either encoding; each is also the text field's `maxLength` (the
  * lab counts hex input as decoded bytes, `encoding: 'hex'`).
- * - SHA-256/224: 2·B = 128 (3 blocks after padding). The HMAC lab's outer call (B + L), key hashes of
- *   ≤ 128 bytes and inner calls for messages of ≤ 64 bytes zoom into the lab; B + 256 = 320 would
- *   cover every call.
+ * - SHA-256/224: B + 256 = 320 (6 blocks after padding), the longest hash input of the `hmac` lab
+ *   over SHA-256, so every HMAC hash call zooms into the lab (docs/M7.md §1d).
  * - SHA-512 family: B + 256 = 384 (4 blocks after padding), the longest hash input of the `hmac` lab
  *   over SHA-512, so every HMAC hash call zooms into the lab (docs/M7.md §1d).
  */
-export const SHA256_MAX_MESSAGE_BYTES = 2 * SHA256_BLOCK_BYTES;
+export const SHA256_MAX_MESSAGE_BYTES = hmacHashInputMaxBytes(SHA256_BLOCK_BYTES);
 export const SHA512_MAX_MESSAGE_BYTES = hmacHashInputMaxBytes(SHA512_BLOCK_BYTES);
 
 /** A SHA-2 producer's params over its own algorithm ids. */

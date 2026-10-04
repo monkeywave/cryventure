@@ -19,7 +19,7 @@ const NS = 'plugin.sha256';
 /** FIPS 180-4 / NIST "Examples with intermediate values": the one-block and the two-block message. */
 const ABC = 'abc';
 const TWO_BLOCK = 'abcdbcdecdefdefgefghfghighijhijkijkljklmklmnlmnomnopnopq';
-/** Exactly 128 ASCII bytes (the input limit): two full blocks, so the padding needs a third block of its own. */
+/** Exactly 128 ASCII bytes: two full blocks, so the padding needs a third block of its own. */
 const THREE_BLOCK = 'This 128-byte message fills exactly two 64-byte blocks, so SHA-256 must add a third block purely for the padding and the length.';
 
 function preset(id: string, algorithm: Sha256AlgorithmId, input: string, detail: Sha2Detail = 'round'): Preset<Sha256Params> {
@@ -41,7 +41,7 @@ export const SHA256_PARAM_FIELDS = sha2ParamFields(NS, SHA256_ALGORITHM_IDS, SHA
 /** Every op the module records (`StateStep.op`): `SHA2_OP_NAMES` of `_lib/sha2/manifestKit.ts`. */
 export const SHA256_OPS = sha2Ops(NS);
 
-/** The message text: UTF-8 of at most 128 bytes, or hex of 0 … 128 bytes (normalised to lowercase). */
+/** The message text: UTF-8 of at most 320 bytes, or hex of 0 … 320 bytes (normalised to lowercase). */
 export function readSha256Input(input: unknown, encoding: Sha256Encoding): ValidationResult<string> {
   return readSha2Input(NS, input, encoding, SHA256_MAX_MESSAGE_BYTES);
 }

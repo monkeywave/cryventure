@@ -238,7 +238,7 @@ BLAKE2, RFC 7693 §2.5).
   the `<ns>.error.notHmac` (`{{id}}` = the member ref) run error. The `hmac` lab in turn links its key
   hash, inner and outer hash nodes to the hash producer's lab via `hashLabParams` (above), so every
   hop is a real lab run; a hash lab that takes `hmacHashInputMaxBytes(B)` = B + 256 bytes receives
-  every such zoom (the sha256 lab takes 2·B = 128, so long HMAC-SHA-256 inputs get no link).
+  every such zoom (every hash lab with an HMAC member does, SHA-256 included).
 - **`PORT_SANITY.Mac`** (`portChecks.ts`) checks the family (id = producer id, non-empty, unique ids)
   and per function: sizes (`keySizes.min ≥ 0`, `max ≥ min`), the construction kind (an `hmac` `hash`
   must be a member ref); for key lengths {min, 1, B, B + 1} and messages {0, 1, B, 2B + 3} bytes (those

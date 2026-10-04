@@ -23,7 +23,7 @@ function expectValid(manifest: PrimitiveManifest<never>, params: Record<string, 
 }
 
 const cases: { manifest: PrimitiveManifest<never>; functions: string[]; limit: number; expected: (fn: string, input: string) => Record<string, string> }[] = [
-  { manifest: sha256Manifest as never, functions: ['sha-224', 'sha-256'], limit: 128, expected: (algorithm, input) => ({ algorithm, encoding: 'hex', input, detail: 'round' }) },
+  { manifest: sha256Manifest as never, functions: ['sha-224', 'sha-256'], limit: 320, expected: (algorithm, input) => ({ algorithm, encoding: 'hex', input, detail: 'round' }) },
   { manifest: sha512Manifest as never, functions: ['sha-384', 'sha-512', 'sha-512/224', 'sha-512/256'], limit: 384, expected: (algorithm, input) => ({ algorithm, encoding: 'hex', input, detail: 'round' }) },
   { manifest: md5Manifest as never, functions: ['md5'], limit: 320, expected: (_, input) => ({ encoding: 'hex', input, detail: 'round' }) },
   { manifest: sha1Manifest as never, functions: ['sha-1'], limit: 320, expected: (_, input) => ({ encoding: 'hex', input, detail: 'round' }) },
