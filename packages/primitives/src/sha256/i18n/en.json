@@ -88,5 +88,7 @@
   "plugin.sha256.error.algorithm": "Unknown hash function “{{algorithm}}”: choose SHA-224 or SHA-256.",
   "plugin.sha256.error.encoding": "Unknown input format “{{encoding}}”: choose text or hex.",
   "plugin.sha256.error.detail": "Unknown level of detail “{{detail}}”.",
-  "plugin.sha256.error.inputLength": "The message has {{length}} bytes; at most 128 bytes are allowed."
+  "plugin.sha256.error.inputLength": "The message has {{length}} bytes; at most 128 bytes are allowed.",
+  "plugin.sha256.mac.hmac-sha-224": "HMAC-SHA-224",
+  "plugin.sha256.mac.hmac-sha-256": "HMAC-SHA-256"
 }

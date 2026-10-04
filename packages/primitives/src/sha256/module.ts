@@ -1,6 +1,7 @@
 import { runPrimitive, type PortMap, type RunOptions, type RunResult } from '@cryventure/core';
 import { SHA256_ALGORITHMS } from '../_lib/sha2/algorithms.ts';
 import { sha2HashFamily } from '../_lib/sha2/hash.ts';
+import { hmacFamily } from '../_lib/hmac/family.ts';
 import { hashMessageBytes } from '../_lib/hashKit/manifestKit.ts';
 import { recordSha2 } from '../_lib/sha2/record.ts';
 import { SHA256_ALGORITHM_IDS, sha256Manifest, type Sha256Params } from './manifest.ts';
@@ -18,5 +19,7 @@ export function run(params: Sha256Params, _options: RunOptions = {}): RunResult 
   );
 }
 
-/** The `Hash` port: SHA-224 and SHA-256, untraced. */
-export const ports = { Hash: sha2HashFamily('sha256', SHA256_ALGORITHM_IDS) } satisfies Partial<PortMap>;
+const Hash = sha2HashFamily('sha256', SHA256_ALGORITHM_IDS);
+
+/** The `Hash` port: SHA-224 and SHA-256; the `Mac` port: HMAC over each (RFC 2104, FIPS 198-1). Untraced. */
+export const ports = { Hash, Mac: hmacFamily(Hash, 'sha256', SHA256_ALGORITHM_IDS) } satisfies Partial<PortMap>;

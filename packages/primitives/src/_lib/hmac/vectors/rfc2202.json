@@ -1,0 +1,141 @@
+{
+ "source": "https://www.rfc-editor.org/rfc/rfc2202.txt (RFC 2202, Sections 2 and 3)",
+ "filter": "All 7 test cases for HMAC-MD5 and HMAC-SHA-1. Full-length tag in tag/tagLength; TC5 additionally carries the RFC's digest-96 (first 96 bits) in truncated.{tag,tagLength=12}.",
+ "count": 14,
+ "cases": [
+  {
+   "name": "RFC 2202 TC1 HMAC-MD5",
+   "testCase": 1,
+   "hash": "md5",
+   "key": "0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b",
+   "msg": "4869205468657265",
+   "tag": "9294727a3638bb1c13f48ef8158bfc9d",
+   "tagLength": 16
+  },
+  {
+   "name": "RFC 2202 TC2 HMAC-MD5",
+   "testCase": 2,
+   "hash": "md5",
+   "key": "4a656665",
+   "msg": "7768617420646f2079612077616e7420666f72206e6f7468696e673f",
+   "tag": "750c783e6ab0b503eaa86e310a5db738",
+   "tagLength": 16
+  },
+  {
+   "name": "RFC 2202 TC3 HMAC-MD5",
+   "testCase": 3,
+   "hash": "md5",
+   "key": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+   "msg": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+   "tag": "56be34521d144c88dbb8c733f0e8b3f6",
+   "tagLength": 16
+  },
+  {
+   "name": "RFC 2202 TC4 HMAC-MD5",
+   "testCase": 4,
+   "hash": "md5",
+   "key": "0102030405060708090a0b0c0d0e0f10111213141516171819",
+   "msg": "cdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcd",
+   "tag": "697eaf0aca3a3aea3a75164746ffaa79",
+   "tagLength": 16
+  },
+  {
+   "name": "RFC 2202 TC5 HMAC-MD5",
+   "testCase": 5,
+   "hash": "md5",
+   "key": "0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c",
+   "msg": "546573742057697468205472756e636174696f6e",
+   "tag": "56461ef2342edc00f9bab995690efd4c",
+   "tagLength": 16,
+   "truncated": {
+    "tag": "56461ef2342edc00f9bab995",
+    "tagLength": 12
+   }
+  },
+  {
+   "name": "RFC 2202 TC6 HMAC-MD5",
+   "testCase": 6,
+   "hash": "md5",
+   "key": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+   "msg": "54657374205573696e67204c6172676572205468616e20426c6f636b2d53697a65204b6579202d2048617368204b6579204669727374",
+   "tag": "6b1ab7fe4bd7bf8f0b62e6ce61b9d0cd",
+   "tagLength": 16
+  },
+  {
+   "name": "RFC 2202 TC7 HMAC-MD5",
+   "testCase": 7,
+   "hash": "md5",
+   "key": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+   "msg": "54657374205573696e67204c6172676572205468616e20426c6f636b2d53697a65204b657920616e64204c6172676572205468616e204f6e6520426c6f636b2d53697a652044617461",
+   "tag": "6f630fad67cda0ee1fb1f562db3aa53e",
+   "tagLength": 16
+  },
+  {
+   "name": "RFC 2202 TC1 HMAC-SHA1",
+   "testCase": 1,
+   "hash": "sha1",
+   "key": "0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b",
+   "msg": "4869205468657265",
+   "tag": "b617318655057264e28bc0b6fb378c8ef146be00",
+   "tagLength": 20
+  },
+  {
+   "name": "RFC 2202 TC2 HMAC-SHA1",
+   "testCase": 2,
+   "hash": "sha1",
+   "key": "4a656665",
+   "msg": "7768617420646f2079612077616e7420666f72206e6f7468696e673f",
+   "tag": "effcdf6ae5eb2fa2d27416d5f184df9c259a7c79",
+   "tagLength": 20
+  },
+  {
+   "name": "RFC 2202 TC3 HMAC-SHA1",
+   "testCase": 3,
+   "hash": "sha1",
+   "key": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+   "msg": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+   "tag": "125d7342b9ac11cd91a39af48aa17b4f63f175d3",
+   "tagLength": 20
+  },
+  {
+   "name": "RFC 2202 TC4 HMAC-SHA1",
+   "testCase": 4,
+   "hash": "sha1",
+   "key": "0102030405060708090a0b0c0d0e0f10111213141516171819",
+   "msg": "cdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcd",
+   "tag": "4c9007f4026250c6bc8414f9bf50c86c2d7235da",
+   "tagLength": 20
+  },
+  {
+   "name": "RFC 2202 TC5 HMAC-SHA1",
+   "testCase": 5,
+   "hash": "sha1",
+   "key": "0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c",
+   "msg": "546573742057697468205472756e636174696f6e",
+   "tag": "4c1a03424b55e07fe7f27be1d58bb9324a9a5a04",
+   "tagLength": 20,
+   "truncated": {
+    "tag": "4c1a03424b55e07fe7f27be1",
+    "tagLength": 12
+   }
+  },
+  {
+   "name": "RFC 2202 TC6 HMAC-SHA1",
+   "testCase": 6,
+   "hash": "sha1",
+   "key": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+   "msg": "54657374205573696e67204c6172676572205468616e20426c6f636b2d53697a65204b6579202d2048617368204b6579204669727374",
+   "tag": "aa4ae5e15272d00e95705637ce8a3b55ed402112",
+   "tagLength": 20
+  },
+  {
+   "name": "RFC 2202 TC7 HMAC-SHA1",
+   "testCase": 7,
+   "hash": "sha1",
+   "key": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+   "msg": "54657374205573696e67204c6172676572205468616e20426c6f636b2d53697a65204b657920616e64204c6172676572205468616e204f6e6520426c6f636b2d53697a652044617461",
+   "tag": "e8e99d0f45237d786d6bbaa7965c7808bbff1a91",
+   "tagLength": 20
+  }
+ ]
+}

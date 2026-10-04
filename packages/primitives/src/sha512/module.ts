@@ -1,6 +1,7 @@
 import { runPrimitive, type PortMap, type RunOptions, type RunResult } from '@cryventure/core';
 import { SHA512_ALGORITHMS } from '../_lib/sha2/algorithms.ts';
 import { sha2HashFamily } from '../_lib/sha2/hash.ts';
+import { hmacFamily } from '../_lib/hmac/family.ts';
 import { hashMessageBytes } from '../_lib/hashKit/manifestKit.ts';
 import { recordSha2 } from '../_lib/sha2/record.ts';
 import { SHA512_HASH_IDS, sha512Manifest, type Sha512Params } from './manifest.ts';
@@ -20,9 +21,12 @@ export function run(params: Sha512Params, _options: RunOptions = {}): RunResult 
   );
 }
 
+const Hash = sha2HashFamily('sha512', SHA512_HASH_IDS);
+
 /**
  * The `Hash` port: the four standard functions, untraced. The SHA-512/t IV generation function
  * (`sha-512/t-iv`) is deliberately absent: it is a step of FIPS 180-4 §5.3.6 for deriving IVs, not
- * a standard hash function, so no consumer may pick it as one.
+ * a standard hash function, so no consumer may pick it as one. The `Mac` port: HMAC over each of the
+ * four (RFC 2104, FIPS 198-1).
  */
-export const ports = { Hash: sha2HashFamily('sha512', SHA512_HASH_IDS) } satisfies Partial<PortMap>;
+export const ports = { Hash, Mac: hmacFamily(Hash, 'sha512', SHA512_HASH_IDS) } satisfies Partial<PortMap>;

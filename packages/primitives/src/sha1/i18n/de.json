@@ -74,5 +74,6 @@
   "plugin.sha1.error.invalidParams": "Die Parameter für SHA-1 sind ungültig.",
   "plugin.sha1.error.encoding": "Unbekanntes Eingabeformat „{{encoding}}“: Wähle Text oder Hex.",
   "plugin.sha1.error.detail": "Unbekannte Detailstufe „{{detail}}“.",
-  "plugin.sha1.error.inputLength": "Die Nachricht hat {{length}} Byte; erlaubt sind höchstens 128 Byte."
+  "plugin.sha1.error.inputLength": "Die Nachricht hat {{length}} Byte; erlaubt sind höchstens 128 Byte.",
+  "plugin.sha1.mac.hmac-sha-1": "HMAC-SHA-1"
 }

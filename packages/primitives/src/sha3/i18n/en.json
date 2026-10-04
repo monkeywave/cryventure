@@ -110,5 +110,9 @@
   "plugin.sha3.error.inputLength": "The message has {{length}} bytes; at most 200 bytes are allowed.",
   "plugin.sha3.error.functionNameLength": "The function name N has {{length}} bytes; at most 64 bytes are allowed.",
   "plugin.sha3.error.customizationLength": "The customization string S has {{length}} bytes; at most 64 bytes are allowed.",
-  "plugin.sha3.error.customizationNotCshake": "{{algorithm}} takes no function name N or customization string S: only cSHAKE does. Clear both fields or choose cSHAKE."
+  "plugin.sha3.error.customizationNotCshake": "{{algorithm}} takes no function name N or customization string S: only cSHAKE does. Clear both fields or choose cSHAKE.",
+  "plugin.sha3.mac.hmac-sha3-224": "HMAC-SHA3-224",
+  "plugin.sha3.mac.hmac-sha3-256": "HMAC-SHA3-256",
+  "plugin.sha3.mac.hmac-sha3-384": "HMAC-SHA3-384",
+  "plugin.sha3.mac.hmac-sha3-512": "HMAC-SHA3-512"
 }

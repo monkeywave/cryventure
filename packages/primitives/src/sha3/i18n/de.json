@@ -110,5 +110,9 @@
   "plugin.sha3.error.inputLength": "Die Nachricht hat {{length}} Byte; erlaubt sind höchstens 200 Byte.",
   "plugin.sha3.error.functionNameLength": "Der Funktionsname N hat {{length}} Byte; erlaubt sind höchstens 64 Byte.",
   "plugin.sha3.error.customizationLength": "Der Anpassungsstring S hat {{length}} Byte; erlaubt sind höchstens 64 Byte.",
-  "plugin.sha3.error.customizationNotCshake": "{{algorithm}} nimmt keinen Funktionsnamen N und keinen Anpassungsstring S: Das kann nur cSHAKE. Leere beide Felder oder wähle cSHAKE."
+  "plugin.sha3.error.customizationNotCshake": "{{algorithm}} nimmt keinen Funktionsnamen N und keinen Anpassungsstring S: Das kann nur cSHAKE. Leere beide Felder oder wähle cSHAKE.",
+  "plugin.sha3.mac.hmac-sha3-224": "HMAC-SHA3-224",
+  "plugin.sha3.mac.hmac-sha3-256": "HMAC-SHA3-256",
+  "plugin.sha3.mac.hmac-sha3-384": "HMAC-SHA3-384",
+  "plugin.sha3.mac.hmac-sha3-512": "HMAC-SHA3-512"
 }

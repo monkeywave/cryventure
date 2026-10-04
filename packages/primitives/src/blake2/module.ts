@@ -3,11 +3,13 @@ import { blake2HashFamily } from '../_lib/blake2/hash.ts';
 import { BLAKE2_ALGORITHMS } from '../_lib/blake2/variants.ts';
 import { blake2Manifest, type Blake2Params } from './manifest.ts';
 import { hashMessageBytes } from '../_lib/hashKit/manifestKit.ts';
+import { keyedBlake2Family } from './mac.ts';
 import { recordBlake2 } from './record.ts';
 
 /**
  * BLAKE2s/BLAKE2b producer (RFC 7693): emits state, values, narration and wordops (v2) facets and
- * `{ digest }`; the `Hash` port offers the eight unkeyed functions, untraced.
+ * `{ digest }`; the `Hash` port offers the eight unkeyed functions and the `Mac` port the same eight
+ * keyed, untraced.
  */
 const NS = 'plugin.blake2';
 
@@ -18,5 +20,5 @@ export function run(params: Blake2Params, _options: RunOptions = {}): RunResult 
   );
 }
 
-/** The `Hash` port: the eight unkeyed BLAKE2 functions of RFC 7693 §4. */
-export const ports = { Hash: blake2HashFamily('blake2') } satisfies Partial<PortMap>;
+/** The `Hash` port: the eight unkeyed BLAKE2 functions of RFC 7693 §4; the `Mac` port: the same eight keyed (RFC 7693 §2.5). */
+export const ports = { Hash: blake2HashFamily('blake2'), Mac: keyedBlake2Family('blake2') } satisfies Partial<PortMap>;

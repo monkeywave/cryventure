@@ -1,5 +1,6 @@
-import { definePrimitive, type Preset, type ValidationResult } from '@cryventure/core';
-import { blake2HashLabParams, blake2Ops, blake2ParamFields, validateBlake2Params, type Blake2Detail, type Blake2Encoding, type Blake2HashParams, type Blake2Id } from '../_lib/blake2/manifestKit.ts';
+import { definePrimitive, type PortMemberDecl, type Preset, type ValidationResult } from '@cryventure/core';
+import { hashPortMembers } from '../_lib/hmac/manifestKit.ts';
+import { BLAKE2_IDS, blake2HashLabParams, blake2Ops, blake2ParamFields, validateBlake2Params, type Blake2Detail, type Blake2Encoding, type Blake2HashParams, type Blake2Id } from '../_lib/blake2/manifestKit.ts';
 
 /**
  * Manifest for BLAKE2s and BLAKE2b (RFC 7693), traced per G call, per round or per block, with an
@@ -26,6 +27,11 @@ export const BLAKE2_PRESETS: Preset<Blake2Params>[] = [
   preset('blake2b-512-abc-round', 'blake2b-512', 'abc', { detail: 'round' }),
 ];
 
+/** The Mac members: keyed BLAKE2 (RFC 7693 §2.5) under the eight hash ids. */
+function blake2MacPortMembers(): PortMemberDecl[] {
+  return BLAKE2_IDS.map((id) => ({ id, labelKey: `${NS}.mac.${id}`, construction: 'keyed-hash' }));
+}
+
 /** Validates and normalises params (hex lowercased with separators stripped; every select and the key length checked). */
 export function validateBlake2(params: unknown): ValidationResult<Blake2Params> {
   return validateBlake2Params(NS, params);
@@ -36,7 +42,7 @@ export const blake2Manifest = definePrimitive<Blake2Params>({
   id: 'blake2',
   apiVersion: 1,
   family: 'hash',
-  implements: ['Hash'],
+  implements: ['Hash', 'Mac'],
   titleKey: `${NS}.title`,
   refs: [
     'RFC 7693 §2 (parameters, IVs, σ), §3 (G, F, padding, keyed hashing), §4 (standard parameter sets)',
@@ -47,6 +53,7 @@ export const blake2Manifest = definePrimitive<Blake2Params>({
   presets: BLAKE2_PRESETS,
   defaults: { ...BLAKE2_PRESETS[0]!.params },
   i18nNamespace: NS,
+  portMembers: { Hash: hashPortMembers(BLAKE2_IDS, (id) => `${NS}.param.algorithmOption.${id}`), Mac: blake2MacPortMembers() },
   paramFields: blake2ParamFields(NS),
   ops: blake2Ops(NS),
   outputs: { digest: { labelKey: `${NS}.value.digest` } },

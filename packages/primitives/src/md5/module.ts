@@ -2,8 +2,9 @@ import { runPrimitive, type PortMap, type RunOptions, type RunResult } from '@cr
 import { MD5_FAMILY } from '../_lib/legacy-md/hash.ts';
 import { MD5_ALGORITHM } from '../_lib/legacy-md/md5Detail.ts';
 import { recordLegacy } from '../_lib/legacy-md/record.ts';
+import { hmacFamily } from '../_lib/hmac/family.ts';
 import { hashMessageBytes } from '../_lib/hashKit/manifestKit.ts';
-import { md5Manifest, type Md5Params } from './manifest.ts';
+import { MD5_HASH_IDS, md5Manifest, type Md5Params } from './manifest.ts';
 
 /**
  * MD5 producer (RFC 1321): the shared MD5/SHA-1 recorder with little-endian words, emitting state,
@@ -16,5 +17,5 @@ export function run(params: Md5Params, _options: RunOptions = {}): RunResult {
   return runPrimitive(md5Manifest, params, ({ encoding, input, detail }) => recordLegacy({ ns: NS, algorithm: MD5_ALGORITHM, message: hashMessageBytes(encoding, input), detail }));
 }
 
-/** The `Hash` port: family `md5` with the function `md5`, untraced. */
-export const ports = { Hash: MD5_FAMILY } satisfies Partial<PortMap>;
+/** The `Hash` port: family `md5` with the function `md5`; the `Mac` port: `hmac-md5` (RFC 2104). Untraced. */
+export const ports = { Hash: MD5_FAMILY, Mac: hmacFamily(MD5_FAMILY, 'md5', MD5_HASH_IDS) } satisfies Partial<PortMap>;

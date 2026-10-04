@@ -1,5 +1,6 @@
 import { getFacet, hashFunction, parseHexToArray, stateAt, toHex, utf8Bytes, validateSpongeFacet, xofFunction, type AnyStateFacet, type SpongeFacet, type SpongeStep, type TraceBundle, type ValuesFacet } from '@cryventure/core';
 import { describe, expect, it } from 'vitest';
+import { cloneProblems, hmacMemberFor, namedVectors, patternBytes, splitUpdateProblems, vectorTagHex } from '../_lib/hmac/macPortTestKit.ts';
 import { KECCAK_ALGORITHMS } from '../_lib/keccak/algorithms.ts';
 import { keccakOutput } from '../_lib/keccak/hash.ts';
 import { SHA3_DETAILS, type KeccakAlgorithmId } from '../_lib/keccak/manifestKit.ts';
@@ -8,6 +9,7 @@ import { ports, run } from './module.ts';
 import cavp from './vectors/sha3-cavp-shortmsg.json';
 import cshakeSamples from './vectors/cshake-samples.json';
 import nist from './vectors/sha3-nist-examples.json';
+import wycheproof from '../_lib/hmac/vectors/wycheproof-subset.json';
 
 const ABC: Sha3Params = { algorithm: 'sha3-256', encoding: 'utf8', input: 'abc', outputLength: '32', functionName: '', customization: '', detail: 'mapping' };
 
@@ -250,5 +252,25 @@ describe('sha3 manifest and port', () => {
     expect(family.id).toBe('sha3');
     expect(family.functions.map((fn) => fn.id)).toEqual(['sha3-224', 'sha3-256', 'sha3-384', 'sha3-512', 'keccak-256']);
     expect(family.xofs?.map((xof) => xof.id)).toEqual(['shake128', 'shake256', 'cshake128', 'cshake256']);
+  });
+});
+
+describe('sha3 Mac port: Wycheproof HMAC-SHA3', () => {
+  it('offers HMAC over the four SHA-3 Hash members (no HMAC-Keccak-256), naming each in the construction', () => {
+    expect(ports.Mac.functions.map((fn) => [fn.id, fn.construction])).toEqual([
+      ['hmac-sha3-224', { kind: 'hmac', hash: 'sha3:sha3-224' }],
+      ['hmac-sha3-256', { kind: 'hmac', hash: 'sha3:sha3-256' }],
+      ['hmac-sha3-384', { kind: 'hmac', hash: 'sha3:sha3-384' }],
+      ['hmac-sha3-512', { kind: 'hmac', hash: 'sha3:sha3-512' }],
+    ]);
+  });
+
+  it.each(namedVectors(wycheproof.cases.filter((vector) => vector.hash.startsWith('sha3-'))))('%s through ports.Mac', (_, vector) => {
+    expect(vectorTagHex(hmacMemberFor(ports.Mac, vector.hash), vector)).toBe(vector.tag);
+  });
+
+  it.each(ports.Mac.functions.map((fn) => [fn.id, fn] as const))('%s contexts: split updates and clones agree with mac (long key)', (_, fn) => {
+    const key = patternBytes(fn.blockSize + 1, 7);
+    expect([...splitUpdateProblems(fn, key, patternBytes(2 * fn.blockSize + 3, 3)), ...cloneProblems(fn, key, patternBytes(fn.blockSize + 1, 4))]).toEqual([]);
   });
 });

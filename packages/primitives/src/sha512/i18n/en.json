@@ -97,5 +97,9 @@
   "plugin.sha512.error.algorithm": "Unknown hash function “{{algorithm}}”: choose SHA-384, SHA-512, SHA-512/224, SHA-512/256 or the SHA-512/t IV generator.",
   "plugin.sha512.error.encoding": "Unknown input format “{{encoding}}”: choose text or hex.",
   "plugin.sha512.error.detail": "Unknown level of detail “{{detail}}”.",
-  "plugin.sha512.error.inputLength": "The message has {{length}} bytes; at most 128 bytes are allowed."
+  "plugin.sha512.error.inputLength": "The message has {{length}} bytes; at most 128 bytes are allowed.",
+  "plugin.sha512.mac.hmac-sha-384": "HMAC-SHA-384",
+  "plugin.sha512.mac.hmac-sha-512": "HMAC-SHA-512",
+  "plugin.sha512.mac.hmac-sha-512/224": "HMAC-SHA-512/224",
+  "plugin.sha512.mac.hmac-sha-512/256": "HMAC-SHA-512/256"
 }

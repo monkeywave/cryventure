@@ -1,9 +1,11 @@
 import {
   getFacet,
   hashFunction,
+  parseHexOrThrow,
   parseHexToArray,
   stateAt,
   toHex,
+  utf8Bytes,
   validateWordopsFacet,
   type AnyStateFacet,
   type RegionLayout,
@@ -13,6 +15,7 @@ import {
   type WordopsStep,
 } from '@cryventure/core';
 import { describe, expect, it } from 'vitest';
+import { cloneProblems, macMember, patternBytes, splitUpdateProblems } from '../_lib/hmac/macPortTestKit.ts';
 import { blake2Hash } from '../_lib/blake2/hash.ts';
 import type { Blake2Id } from '../_lib/blake2/manifestKit.ts';
 import { BLAKE2_PRESETS, blake2Manifest, validateBlake2, type Blake2Params } from './manifest.ts';
@@ -233,12 +236,55 @@ describe('blake2 manifest', () => {
     expect(run({ ...ABC, detail: 'op' } as unknown as Blake2Params)).toMatchObject({ ok: false });
   });
 
-  it('implements Hash with the eight RFC 7693 functions', () => {
-    expect(blake2Manifest.implements).toEqual(['Hash']);
+  it('implements Hash with the eight RFC 7693 functions (and Mac with the same eight keyed)', () => {
+    expect(blake2Manifest.implements).toEqual(['Hash', 'Mac']);
     expect(ports.Hash.functions.map((fn) => fn.id)).toEqual(['blake2s-128', 'blake2s-160', 'blake2s-224', 'blake2s-256', 'blake2b-160', 'blake2b-256', 'blake2b-384', 'blake2b-512']);
   });
 
   it('EN and DE catalogs have the same keys', () => {
     expect(Object.keys(de).sort()).toEqual(Object.keys(en).sort());
+  });
+});
+
+describe('blake2 Mac port: keyed BLAKE2 (RFC 7693 §2.5)', () => {
+  it('offers the eight hash ids as keyed-hash members with the hash sizes and key sizes 1 … 32 / 1 … 64', () => {
+    expect(ports.Mac.id).toBe('blake2');
+    expect(ports.Mac.functions.map(({ id, outputSize, blockSize, keySizes, construction }) => ({ id, outputSize, blockSize, keySizes, construction }))).toEqual(
+      ports.Hash.functions.map(({ id, outputSize, blockSize }) => ({ id, outputSize, blockSize, keySizes: { min: 1, max: blockSize / 2 }, construction: { kind: 'keyed-hash' } })),
+    );
+    expect(ports.Mac.functions.every((fn) => !fn.customizable && !fn.variableOutput)).toBe(true);
+  });
+
+  it(`reproduces all ${vectors.kat.length} reference keyed KATs through ports.Mac, one-shot and incremental`, () => {
+    for (const { algorithm, msg, key, md } of vectors.kat) {
+      const fn = macMember(ports.Mac, algorithm);
+      const [keyBytes, message] = [parseHexOrThrow(key), parseHexOrThrow(msg)];
+      const context = fn.create(keyBytes);
+      context.update(message);
+      expect([toHex(fn.mac(keyBytes, message)), toHex(context.mac())], `${algorithm} ${msg.length / 2} bytes`).toEqual([md, md]);
+    }
+  });
+
+  it.each(ports.Mac.functions.map((fn) => [fn.id, fn] as const))('%s: a 0-byte key (the unkeyed hash) and a key over the maximum throw RangeError', (_, fn) => {
+    for (const length of [0, fn.keySizes.max! + 1]) {
+      expect(() => fn.mac(new Uint8Array(length), new Uint8Array()), `mac, ${length}-byte key`).toThrow(RangeError);
+      expect(() => fn.create(new Uint8Array(length)), `create, ${length}-byte key`).toThrow(RangeError);
+    }
+  });
+
+  it('rejects KMAC options with a RangeError', () => {
+    const fn = macMember(ports.Mac, 'blake2s-256');
+    expect(() => fn.mac(Uint8Array.of(1), new Uint8Array(), { outputLength: 16 })).toThrow(RangeError);
+    expect(() => fn.create(Uint8Array.of(1), { customization: Uint8Array.of(0x53) })).toThrow(RangeError);
+  });
+
+  it('a 1-byte-key tag differs from the unkeyed hash of the same message', () => {
+    const fn = macMember(ports.Mac, 'blake2b-512');
+    expect(toHex(fn.mac(Uint8Array.of(0), utf8Bytes('abc')))).not.toBe(toHex(blake2Hash('blake2b-512', utf8Bytes('abc'))));
+  });
+
+  it.each(ports.Mac.functions.map((fn) => [fn.id, fn] as const))('%s contexts: split updates and clones (real midstates) agree with mac', (_, fn) => {
+    const key = patternBytes(fn.keySizes.max!, 7);
+    expect([...splitUpdateProblems(fn, key, patternBytes(2 * fn.blockSize + 3, 3)), ...cloneProblems(fn, key, patternBytes(fn.blockSize + 1, 4))]).toEqual([]);
   });
 });

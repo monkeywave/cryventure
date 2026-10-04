@@ -12,6 +12,7 @@ import {
   type WordopsFacet,
 } from '@cryventure/core';
 import { describe, expect, it } from 'vitest';
+import { cloneProblems, hmacMemberFor, namedVectors, patternBytes, splitUpdateProblems, vectorTagHex } from '../_lib/hmac/macPortTestKit.ts';
 import { SHA2_OP_NAMES } from '../_lib/sha2/manifestKit.ts';
 import { sha256Manifest, SHA256_PRESETS, validateSha256Params, type Sha256Params } from './manifest.ts';
 import { ports, run } from './module.ts';
@@ -19,6 +20,7 @@ import de from './i18n/de.json';
 import en from './i18n/en.json';
 import cavp from './vectors/cavp-shortmsg.json';
 import intermediate from './vectors/nist-intermediate-abc.json';
+import rfc4231 from '../_lib/hmac/vectors/rfc4231.json';
 
 const ABC: Sha256Params = { algorithm: 'sha-256', encoding: 'utf8', input: 'abc', detail: 'round' };
 const TWO_BLOCK = 'abcdbcdecdefdefgefghfghighijhijkijkljklmklmnlmnomnopnopq';
@@ -231,5 +233,23 @@ describe('sha256 CAVP vector file', () => {
     expect(Math.max(...cavp.cases.map((testCase) => testCase.bytes))).toBe(64);
     expect(cavp.filter).toContain('all 65 cases of each file');
     expect(cavp.filter).toContain('at most 64 bytes');
+  });
+});
+
+describe('sha256 Mac port: RFC 4231 test cases 1–7', () => {
+  it('offers HMAC over each Hash member, naming it in the construction', () => {
+    expect(ports.Mac.functions.map((fn) => [fn.id, fn.construction])).toEqual([
+      ['hmac-sha-224', { kind: 'hmac', hash: 'sha256:sha-224' }],
+      ['hmac-sha-256', { kind: 'hmac', hash: 'sha256:sha-256' }],
+    ]);
+  });
+
+  it.each(namedVectors(rfc4231.cases.filter((vector) => ['sha224', 'sha256'].includes(vector.hash))))('%s through ports.Mac', (_, vector) => {
+    expect(vectorTagHex(hmacMemberFor(ports.Mac, vector.hash), vector)).toBe(vector.tag);
+  });
+
+  it.each(ports.Mac.functions.map((fn) => [fn.id, fn] as const))('%s contexts: split updates and clones agree with mac (long key)', (_, fn) => {
+    const key = patternBytes(fn.blockSize + 1, 7);
+    expect([...splitUpdateProblems(fn, key, patternBytes(2 * fn.blockSize + 3, 3)), ...cloneProblems(fn, key, patternBytes(fn.blockSize + 1, 4))]).toEqual([]);
   });
 });

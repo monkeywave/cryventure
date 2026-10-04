@@ -1,9 +1,10 @@
 import { runPrimitive, type PortMap, type RunOptions, type RunResult } from '@cryventure/core';
 import { SHA1_FAMILY } from '../_lib/legacy-md/hash.ts';
 import { recordLegacy } from '../_lib/legacy-md/record.ts';
+import { hmacFamily } from '../_lib/hmac/family.ts';
 import { hashMessageBytes } from '../_lib/hashKit/manifestKit.ts';
 import { SHA1_ALGORITHM } from '../_lib/legacy-md/sha1Detail.ts';
-import { sha1Manifest, type Sha1Params } from './manifest.ts';
+import { SHA1_HASH_IDS, sha1Manifest, type Sha1Params } from './manifest.ts';
 
 /**
  * SHA-1 producer (FIPS 180-4 §6.1): the shared MD5/SHA-1 recorder with big-endian words and the
@@ -16,5 +17,5 @@ export function run(params: Sha1Params, _options: RunOptions = {}): RunResult {
   return runPrimitive(sha1Manifest, params, ({ encoding, input, detail }) => recordLegacy({ ns: NS, algorithm: SHA1_ALGORITHM, message: hashMessageBytes(encoding, input), detail }));
 }
 
-/** The `Hash` port: family `sha1` with the function `sha-1`, untraced. */
-export const ports = { Hash: SHA1_FAMILY } satisfies Partial<PortMap>;
+/** The `Hash` port: family `sha1` with the function `sha-1`; the `Mac` port: `hmac-sha-1` (RFC 2104). Untraced. */
+export const ports = { Hash: SHA1_FAMILY, Mac: hmacFamily(SHA1_FAMILY, 'sha1', SHA1_HASH_IDS) } satisfies Partial<PortMap>;

@@ -1,5 +1,6 @@
 import { getFacet, hashFunction, stateAt, toHex, utf8Bytes, validateWordopsFacet, type AnyStateFacet, type TraceBundle, type ValuesFacet, type WordopsFacet } from '@cryventure/core';
 import { describe, expect, it } from 'vitest';
+import { cloneProblems, hmacMemberFor, namedVectors, patternBytes, splitUpdateProblems, vectorTagHex } from '../_lib/hmac/macPortTestKit.ts';
 import { hashMessageBytes } from '../_lib/hashKit/manifestKit.ts';
 import { MD5_OP_NAMES } from '../_lib/legacy-md/manifestKit.ts';
 import { MD5_T } from '../_lib/legacy-md/md5.ts';
@@ -9,6 +10,7 @@ import de from './i18n/de.json';
 import en from './i18n/en.json';
 import conformance from './vectors/conformance.json';
 import rfcT from './vectors/rfc1321-t.json';
+import rfc2202 from '../_lib/hmac/vectors/rfc2202.json';
 
 const ABC: Md5Params = { encoding: 'utf8', input: 'abc', detail: 'round' };
 const DIGITS = '12345678901234567890123456789012345678901234567890123456789012345678901234567890';
@@ -181,5 +183,22 @@ describe('md5 port', () => {
       expect(toHex(fn.hash(message))).toBe(testCase.outputs.digest);
       expect(toHex(context.digest())).toBe(testCase.outputs.digest);
     }
+  });
+});
+
+describe('md5 Mac port: RFC 2202 test cases 1–7', () => {
+  it('offers HMAC over each Hash member, naming it in the construction', () => {
+    expect(ports.Mac.functions.map((fn) => [fn.id, fn.construction])).toEqual([
+      ['hmac-md5', { kind: 'hmac', hash: 'md5:md5' }],
+    ]);
+  });
+
+  it.each(namedVectors(rfc2202.cases.filter((vector) => vector.hash === 'md5')))('%s through ports.Mac', (_, vector) => {
+    expect(vectorTagHex(hmacMemberFor(ports.Mac, vector.hash), vector)).toBe(vector.tag);
+  });
+
+  it.each(ports.Mac.functions.map((fn) => [fn.id, fn] as const))('%s contexts: split updates and clones agree with mac (long key)', (_, fn) => {
+    const key = patternBytes(fn.blockSize + 1, 7);
+    expect([...splitUpdateProblems(fn, key, patternBytes(2 * fn.blockSize + 3, 3)), ...cloneProblems(fn, key, patternBytes(fn.blockSize + 1, 4))]).toEqual([]);
   });
 });

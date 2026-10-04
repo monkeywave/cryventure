@@ -68,5 +68,6 @@
   "plugin.md5.error.invalidParams": "The MD5 parameters are invalid.",
   "plugin.md5.error.encoding": "Unknown input format “{{encoding}}”: choose text or hex.",
   "plugin.md5.error.detail": "Unknown level of detail “{{detail}}”.",
-  "plugin.md5.error.inputLength": "The message has {{length}} bytes; at most 128 bytes are allowed."
+  "plugin.md5.error.inputLength": "The message has {{length}} bytes; at most 128 bytes are allowed.",
+  "plugin.md5.mac.hmac-md5": "HMAC-MD5"
 }

@@ -13,6 +13,7 @@ import {
   type WordopsFacet,
 } from '@cryventure/core';
 import { describe, expect, it } from 'vitest';
+import { cloneProblems, hmacMemberFor, namedVectors, patternBytes, splitUpdateProblems, vectorTagHex } from '../_lib/hmac/macPortTestKit.ts';
 import { SHA512_224_IV, SHA512_256_IV } from '../_lib/sha2/constants.ts';
 import { SHA2_OP_NAMES } from '../_lib/sha2/manifestKit.ts';
 import { WORD64, wordsHex } from '../_lib/sha2/words.ts';
@@ -22,6 +23,8 @@ import de from './i18n/de.json';
 import en from './i18n/en.json';
 import cavp from './vectors/cavp-shortmsg.json';
 import intermediate from './vectors/nist-intermediate-abc.json';
+import rfc4231 from '../_lib/hmac/vectors/rfc4231.json';
+import wycheproof from '../_lib/hmac/vectors/wycheproof-subset.json';
 
 const ABC: Sha512Params = { algorithm: 'sha-512', encoding: 'utf8', input: 'abc', detail: 'round' };
 const TWO_BLOCK = 'abcdefghbcdefghicdefghijdefghijkefghijklfghijklmghijklmnhijklmnoijklmnopjklmnopqklmnopqrlmnopqrsmnopqrstnopqrstu';
@@ -275,5 +278,25 @@ describe('sha512 CAVP vector file', () => {
     expect(Math.max(...cavp.cases.map((testCase) => testCase.bytes))).toBe(128);
     expect(cavp.filter).toContain('all 129 cases of each file');
     expect(cavp.filter).toContain('at most 128 bytes');
+  });
+});
+
+describe('sha512 Mac port: RFC 4231 test cases 1–7 and Wycheproof SHA-512/t', () => {
+  it('offers HMAC over each Hash member, naming it in the construction', () => {
+    expect(ports.Mac.functions.map((fn) => [fn.id, fn.construction])).toEqual([
+      ['hmac-sha-384', { kind: 'hmac', hash: 'sha512:sha-384' }],
+      ['hmac-sha-512', { kind: 'hmac', hash: 'sha512:sha-512' }],
+      ['hmac-sha-512/224', { kind: 'hmac', hash: 'sha512:sha-512/224' }],
+      ['hmac-sha-512/256', { kind: 'hmac', hash: 'sha512:sha-512/256' }],
+    ]);
+  });
+
+  it.each(namedVectors([...rfc4231.cases.filter((vector) => ['sha384', 'sha512'].includes(vector.hash)), ...wycheproof.cases.filter((vector) => vector.hash.startsWith('sha512-'))]))('%s through ports.Mac', (_, vector) => {
+    expect(vectorTagHex(hmacMemberFor(ports.Mac, vector.hash), vector)).toBe(vector.tag);
+  });
+
+  it.each(ports.Mac.functions.map((fn) => [fn.id, fn] as const))('%s contexts: split updates and clones agree with mac (long key)', (_, fn) => {
+    const key = patternBytes(fn.blockSize + 1, 7);
+    expect([...splitUpdateProblems(fn, key, patternBytes(2 * fn.blockSize + 3, 3)), ...cloneProblems(fn, key, patternBytes(fn.blockSize + 1, 4))]).toEqual([]);
   });
 });

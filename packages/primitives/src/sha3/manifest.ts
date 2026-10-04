@@ -1,5 +1,6 @@
 import { definePrimitive, type Preset } from '@cryventure/core';
-import { sha3HashLabParams, sha3Ops, sha3ParamFields, validateSha3Params, type KeccakAlgorithmId, type Sha3Detail, type Sha3Encoding, type Sha3OutputLength, type Sha3Params } from '../_lib/keccak/manifestKit.ts';
+import { hashPortMembers, hmacPortMembers } from '../_lib/hmac/manifestKit.ts';
+import { KECCAK_HASH_IDS, sha3HashLabParams, sha3Ops, sha3ParamFields, validateSha3Params, type KeccakAlgorithmId, type Sha3Detail, type Sha3Encoding, type Sha3OutputLength, type Sha3Params } from '../_lib/keccak/manifestKit.ts';
 
 /**
  * Manifest for SHA-3 and its relatives on Keccak-f[1600] (FIPS 202, SP 800-185 cSHAKE, the original
@@ -9,6 +10,9 @@ import { sha3HashLabParams, sha3Ops, sha3ParamFields, validateSha3Params, type K
 export type { Sha3Params } from '../_lib/keccak/manifestKit.ts';
 
 const NS = 'plugin.sha3';
+
+/** The Hash members under HMAC (FIPS 198-1 with B = the rate, SP 800-224): the SHA-3 functions, not Keccak-256. */
+export const SHA3_HMAC_HASH_IDS = ['sha3-224', 'sha3-256', 'sha3-384', 'sha3-512'] as const;
 
 /** The NIST 1600-bit example message: 200 bytes a3 (two SHA3-256 rate blocks). */
 const A3_1600 = 'a3'.repeat(200);
@@ -46,7 +50,7 @@ export const sha3Manifest = definePrimitive<Sha3Params>({
   id: 'sha3',
   apiVersion: 1,
   family: 'hash',
-  implements: ['Hash'],
+  implements: ['Hash', 'Mac'],
   titleKey: `${NS}.title`,
   refs: [
     'NIST FIPS 202 §3 (Keccak-p permutations: θ, ρ, π, χ, ι), §4 (sponge construction), §5 (pad10*1), §6 (SHA-3 and SHAKE), Appendix B (byte order)',
@@ -59,6 +63,7 @@ export const sha3Manifest = definePrimitive<Sha3Params>({
   presets: SHA3_PRESETS,
   defaults: { ...SHA3_PRESETS[0]!.params },
   i18nNamespace: NS,
+  portMembers: { Hash: hashPortMembers(KECCAK_HASH_IDS, (id) => `${NS}.param.algorithmOption.${id}`), Mac: hmacPortMembers(NS, SHA3_HMAC_HASH_IDS) },
   paramFields: sha3ParamFields(NS),
   ops: sha3Ops(NS),
   outputs: { digest: { labelKey: `${NS}.value.digest` } },

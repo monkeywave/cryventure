@@ -1,5 +1,6 @@
 import { definePrimitive, type Preset, type ValidationResult } from '@cryventure/core';
 import { readSha2Input, sha2HashLabParams, sha2Ops, sha2ParamFields, sha2Preset, validateSha2Params, type Sha2Detail, type Sha2Encoding, type Sha2HashParams } from '../_lib/sha2/manifestKit.ts';
+import { hashPortMembers, hmacPortMembers } from '../_lib/hmac/manifestKit.ts';
 
 /**
  * Manifest for SHA-384, SHA-512, SHA-512/224 and SHA-512/256 (FIPS 180-4 §6.4–6.7) plus the
@@ -57,7 +58,7 @@ export const sha512Manifest = definePrimitive<Sha512Params>({
   id: 'sha512',
   apiVersion: 1,
   family: 'hash',
-  implements: ['Hash'],
+  implements: ['Hash', 'Mac'],
   titleKey: `${NS}.title`,
   refs: [
     'NIST FIPS 180-4 §4.1.3, §4.2.3 (functions and constants), §5.1.2 (padding), §5.3.4–5.3.6 (initial hash values, SHA-512/t IV generation)',
@@ -69,6 +70,7 @@ export const sha512Manifest = definePrimitive<Sha512Params>({
   presets: SHA512_PRESETS,
   defaults: { ...SHA512_PRESETS[0]!.params },
   i18nNamespace: NS,
+  portMembers: { Hash: hashPortMembers(SHA512_HASH_IDS, (id) => `${NS}.param.algorithmOption.${id}`), Mac: hmacPortMembers(NS, SHA512_HASH_IDS) },
   paramFields: SHA512_PARAM_FIELDS,
   ops: SHA512_OPS,
   outputs: { digest: { labelKey: `${NS}.value.digest` } },

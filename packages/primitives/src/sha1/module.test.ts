@@ -1,5 +1,6 @@
 import { getFacet, hashFunction, parseHexToArray, stateAt, toHex, validateWordopsFacet, type AnyStateFacet, type TraceBundle, type ValuesFacet, type WordopsFacet } from '@cryventure/core';
 import { describe, expect, it } from 'vitest';
+import { cloneProblems, hmacMemberFor, namedVectors, patternBytes, splitUpdateProblems, vectorTagHex } from '../_lib/hmac/macPortTestKit.ts';
 import { SHA1_OP_NAMES } from '../_lib/legacy-md/manifestKit.ts';
 import { sha1Manifest, SHA1_PRESETS, validateSha1Params, type Sha1Params } from './manifest.ts';
 import { ports, run } from './module.ts';
@@ -7,6 +8,7 @@ import de from './i18n/de.json';
 import en from './i18n/en.json';
 import cavp from './vectors/cavp-shortmsg.json';
 import intermediate from './vectors/nist-intermediate-abc.json';
+import rfc2202 from '../_lib/hmac/vectors/rfc2202.json';
 
 const ABC: Sha1Params = { encoding: 'utf8', input: 'abc', detail: 'round' };
 const TWO_BLOCK = 'abcdbcdecdefdefgefghfghighijhijkijkljklmklmnlmnomnopnopq';
@@ -177,5 +179,22 @@ describe('sha1 against NIST CAVP SHAVS SHA1ShortMsg (every case)', () => {
     context.update(message.subarray(0, 1));
     context.update(message.subarray(1));
     expect(toHex(context.digest())).toBe(testCase.md);
+  });
+});
+
+describe('sha1 Mac port: RFC 2202 test cases 1–7', () => {
+  it('offers HMAC over each Hash member, naming it in the construction', () => {
+    expect(ports.Mac.functions.map((fn) => [fn.id, fn.construction])).toEqual([
+      ['hmac-sha-1', { kind: 'hmac', hash: 'sha1:sha-1' }],
+    ]);
+  });
+
+  it.each(namedVectors(rfc2202.cases.filter((vector) => vector.hash === 'sha1')))('%s through ports.Mac', (_, vector) => {
+    expect(vectorTagHex(hmacMemberFor(ports.Mac, vector.hash), vector)).toBe(vector.tag);
+  });
+
+  it.each(ports.Mac.functions.map((fn) => [fn.id, fn] as const))('%s contexts: split updates and clones agree with mac (long key)', (_, fn) => {
+    const key = patternBytes(fn.blockSize + 1, 7);
+    expect([...splitUpdateProblems(fn, key, patternBytes(2 * fn.blockSize + 3, 3)), ...cloneProblems(fn, key, patternBytes(fn.blockSize + 1, 4))]).toEqual([]);
   });
 });

@@ -1,5 +1,6 @@
 import { definePrimitive, type Preset, type ValidationResult } from '@cryventure/core';
 import { legacyHashLabParams, legacyOps, legacyParamFields, legacyPreset, MD5_OP_NAMES, validateLegacyParams, type LegacyHashParams } from '../_lib/legacy-md/manifestKit.ts';
+import { hashPortMembers, hmacPortMembers } from '../_lib/hmac/manifestKit.ts';
 
 /**
  * Manifest for MD5 (RFC 1321), traced per operation or per block (docs/M6.md §2e). Imports core and
@@ -8,6 +9,9 @@ import { legacyHashLabParams, legacyOps, legacyParamFields, legacyPreset, MD5_OP
 export type Md5Params = LegacyHashParams;
 
 const NS = 'plugin.md5';
+
+/** The one `Hash` member and the function under HMAC (the `Mac` member `hmac-md5`). */
+export const MD5_HASH_IDS = ['md5'] as const;
 
 /** RFC 1321 A.5: "abc", the empty message and the 80 digits (two blocks). */
 const DIGITS = '12345678901234567890123456789012345678901234567890123456789012345678901234567890';
@@ -29,7 +33,7 @@ export const md5Manifest = definePrimitive<Md5Params>({
   id: 'md5',
   apiVersion: 1,
   family: 'hash',
-  implements: ['Hash'],
+  implements: ['Hash', 'Mac'],
   titleKey: `${NS}.title`,
   refs: [
     'RFC 1321, The MD5 Message-Digest Algorithm (1992), §3.1–3.5 (padding, length, buffer, the four rounds, output)',
@@ -40,6 +44,7 @@ export const md5Manifest = definePrimitive<Md5Params>({
   presets: MD5_PRESETS,
   defaults: { ...MD5_PRESETS[0]!.params },
   i18nNamespace: NS,
+  portMembers: { Hash: hashPortMembers(MD5_HASH_IDS, () => `${NS}.title`), Mac: hmacPortMembers(NS, MD5_HASH_IDS) },
   paramFields: MD5_PARAM_FIELDS,
   ops: MD5_OPS,
   outputs: { digest: { labelKey: `${NS}.value.digest` } },

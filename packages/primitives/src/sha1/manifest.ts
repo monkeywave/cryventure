@@ -1,5 +1,6 @@
 import { definePrimitive, type Preset, type ValidationResult } from '@cryventure/core';
 import { legacyHashLabParams, legacyOps, legacyParamFields, legacyPreset, SHA1_OP_NAMES, validateLegacyParams, type LegacyHashParams } from '../_lib/legacy-md/manifestKit.ts';
+import { hashPortMembers, hmacPortMembers } from '../_lib/hmac/manifestKit.ts';
 
 /**
  * Manifest for SHA-1 (FIPS 180-4 §6.1), traced per round or per block (docs/M6.md §2e). Imports
@@ -8,6 +9,9 @@ import { legacyHashLabParams, legacyOps, legacyParamFields, legacyPreset, SHA1_O
 export type Sha1Params = LegacyHashParams;
 
 const NS = 'plugin.sha1';
+
+/** The one `Hash` member and the function under HMAC (the `Mac` member `hmac-sha-1`). */
+export const SHA1_HASH_IDS = ['sha-1'] as const;
 
 /** FIPS 180-4 / NIST "Examples with intermediate values": the one-block and the two-block message. */
 const TWO_BLOCK = 'abcdbcdecdefdefgefghfghighijhijkijkljklmklmnlmnomnopnopq';
@@ -29,7 +33,7 @@ export const sha1Manifest = definePrimitive<Sha1Params>({
   id: 'sha1',
   apiVersion: 1,
   family: 'hash',
-  implements: ['Hash'],
+  implements: ['Hash', 'Mac'],
   titleKey: `${NS}.title`,
   refs: [
     'NIST FIPS 180-4 §4.1.1 (functions), §4.2.1 (constants), §5.1.1 (padding), §5.3.1 (initial hash value), §6.1 (SHA-1)',
@@ -40,6 +44,7 @@ export const sha1Manifest = definePrimitive<Sha1Params>({
   presets: SHA1_PRESETS,
   defaults: { ...SHA1_PRESETS[0]!.params },
   i18nNamespace: NS,
+  portMembers: { Hash: hashPortMembers(SHA1_HASH_IDS, () => `${NS}.title`), Mac: hmacPortMembers(NS, SHA1_HASH_IDS) },
   paramFields: SHA1_PARAM_FIELDS,
   ops: SHA1_OPS,
   outputs: { digest: { labelKey: `${NS}.value.digest` } },
