@@ -6,6 +6,7 @@ import {
   isHexAddress,
   parseFacetKey,
   parseHexAddress,
+  validateDerivationFacet,
   validateFieldFacet,
   validateInstructionsFacet,
   validateMathFacet,
@@ -76,6 +77,7 @@ export const FACET_VALIDATORS: Readonly<Partial<Record<FacetKind, FacetValidator
   table: validateTableFacet,
   wordops: validateWordopsFacet,
   sponge: validateSpongeFacet,
+  derivation: validateDerivationFacet,
 };
 
 /** Lowercase hex address as a bigint, or undefined for anything else. */
@@ -231,7 +233,7 @@ export const KNOWN_REF_FIELDS: Readonly<Partial<Record<FacetKind, readonly strin
   instructions: ['label', 'instructions[].note', 'instructions[].covers[]'],
   registers: ['label'],
   memory: ['label', 'impl.label', 'allocations[].label'],
-  derivation: ['nodes[].label', 'groups[].label'],
+  derivation: ['title', 'nodes[].label', 'groups[].label'],
   math: ['steps[].formula', 'steps[].terms[].label'],
   field: ['steps[].formula', 'steps[].terms[].label'],
   table: ['title'],

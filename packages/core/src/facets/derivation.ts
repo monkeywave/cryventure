@@ -1,4 +1,6 @@
 import type { I18nRef } from '../i18n.ts';
+import { readProducerId } from '../params.ts';
+import { describeValue, i18nRefProblems, isPlainRecord } from './validation.ts';
 
 /**
  * Derivation facet: a DAG of values derived from other values
@@ -11,6 +13,17 @@ import type { I18nRef } from '../i18n.ts';
  * chain; further inputs are operands combined into it (e.g. XORed). Views rely on this to list
  * results and to unfold one result's chain (see `isResultNode`).
  */
+
+/**
+ * A link to another producer's lab run (generic successor of the chain facet's block zoom): the
+ * host opens producer `producerId` with `params` (e.g. a hash lab from `hashLabParams`).
+ */
+export interface LabZoom {
+  /** Kebab-case id of the producer whose lab to open. */
+  producerId: string;
+  /** That lab's params, every value a string. */
+  params: Record<string, string>;
+}
 
 export interface DerivationNode {
   /** Stable, path-derived id (see `valueId`). */
@@ -32,6 +45,8 @@ export interface DerivationNode {
   valueRef?: string;
   /** Optional state step at which this node becomes relevant (for highlighting while playing). */
   step?: number;
+  /** Optional link to another producer's lab computing this node (e.g. the hash call inside an HMAC). */
+  zoom?: LabZoom;
 }
 
 /** Producer-declared label of one `group` value, e.g. `{ id: 3, label: "Round key 3" }`. */
@@ -46,6 +61,8 @@ export interface DerivationFacet {
   nodes: DerivationNode[];
   /** Optional labels for the `group` values nodes use (additive); views fall back to generic labels. */
   groups?: DerivationGroup[];
+  /** Optional heading of the view (additive), e.g. "HKDF" or "Key schedule"; views fall back to a generic one. */
+  title?: I18nRef;
 }
 
 /** Whether `node` is a result (listed by views) rather than an intermediate: `result`, else "has a `group`". */
@@ -105,4 +122,34 @@ export function assertTopologicalOrder(facet: DerivationFacet): void {
     if (defined.has(node.id)) throw new Error(`derivation: duplicate node id "${node.id}"`);
     defined.add(node.id);
   }
+}
+
+function zoomProblems(zoom: unknown, where: string): string[] {
+  if (zoom === undefined) return [];
+  if (!isPlainRecord(zoom)) return [`${where}: zoom is not an object`];
+  const problems = readProducerId(zoom.producerId) === undefined ? [`${where}: zoom.producerId ${describeValue(zoom.producerId)} is not a kebab-case producer id`] : [];
+  if (!isPlainRecord(zoom.params)) return [...problems, `${where}: zoom.params is not a record of strings`];
+  const nonStrings = Object.entries(zoom.params).filter(([, value]) => typeof value !== 'string');
+  return [...problems, ...nonStrings.map(([name]) => `${where}: zoom.params.${name} is not a string`)];
+}
+
+function nodeProblems(node: unknown, index: number): string[] {
+  if (!isPlainRecord(node)) return [`derivation: node ${index} is not an object`];
+  const where = typeof node.id === 'string' ? `derivation: node "${node.id}"` : `derivation: node ${index}`;
+  return [...i18nRefProblems(node.label, `${where} label`), ...zoomProblems(node.zoom, where)];
+}
+
+/**
+ * Schema problems of a derivation facet (empty = valid); never throws, whatever `facet` is. Checks
+ * `kind`, `schemaVersion`, that `nodes` is an array of objects with well-formed `label`s, an optional
+ * well-formed `title`, and every node `zoom` (a kebab-case `producerId`, `params` a record of strings).
+ * Topological order is `assertTopologicalOrder`'s job.
+ */
+export function validateDerivationFacet(facet: unknown): string[] {
+  if (!isPlainRecord(facet)) return ['derivation: facet is not an object'];
+  if (facet.kind !== 'derivation') return [`derivation: kind ${describeValue(facet.kind)} is not "derivation"`];
+  if (facet.schemaVersion !== 1) return [`derivation: schemaVersion ${describeValue(facet.schemaVersion)} is not 1`];
+  const titleProblems = facet.title === undefined ? [] : i18nRefProblems(facet.title, 'derivation title');
+  if (!Array.isArray(facet.nodes)) return [...titleProblems, 'derivation: nodes is not an array'];
+  return [...titleProblems, ...facet.nodes.flatMap((node: unknown, index) => nodeProblems(node, index))];
 }

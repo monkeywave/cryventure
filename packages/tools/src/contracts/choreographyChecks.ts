@@ -12,6 +12,7 @@ import {
   type StepChoreography,
   type Track,
   type TrackProp,
+  validateDerivationFacet,
 } from '@cryventure/core';
 import type { LocaleCatalogs } from './catalogs.ts';
 import { refProblems } from './checks.ts';
@@ -72,8 +73,10 @@ export function stepChoreographyProblems(module: ChoreographyModule, facet: AnyS
   });
 }
 
-/** `assertTopologicalOrder` as a problem list. */
+/** Core's `validateDerivationFacet`, then `assertTopologicalOrder`, as a problem list. */
 export function derivationProblems(facet: DerivationFacet): string[] {
+  const schema = validateDerivationFacet(facet);
+  if (schema.length > 0) return schema;
   try {
     assertTopologicalOrder(facet);
     return [];

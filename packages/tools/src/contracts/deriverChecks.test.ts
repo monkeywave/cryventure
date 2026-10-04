@@ -67,6 +67,13 @@ describe('derivedSchemaProblems', () => {
   it('reports a validator that throws on a malformed facet', () => {
     expect(derivedSchemaProblems({ 'instructions@x': {} })).toEqual([expect.stringMatching(/^instructions@x: validator threw .*malformed facet$/)]);
   });
+
+  it('validates derived derivation facets (lab zooms) and their title ref', () => {
+    const node = { id: 'a', label: { key: 'k' }, bytes: [], op: 'input', inputs: [], zoom: { producerId: 'sha256', params: { n: 1 } } };
+    const facet = { kind: 'derivation', schemaVersion: 1, title: 'HKDF', nodes: [node] };
+    expect(derivedSchemaProblems({ 'derivation@x': facet })).toEqual(['derivation@x: derivation title: not a well-formed I18nRef', 'derivation@x: derivation: node "a": zoom.params.n is not a string']);
+    expect(malformedRefProblems({ 'derivation@x': facet })).toEqual(['derivation@x: title is not an I18nRef { key, params? }']);
+  });
 });
 
 describe('wordops in derived facets', () => {

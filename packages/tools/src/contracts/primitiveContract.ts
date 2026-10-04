@@ -26,7 +26,7 @@ import { loadPluginCatalogs, type LocaleCatalogs } from './catalogs.ts';
 import { conformanceFormatProblems, conformanceProblems, loadConformanceVectors, type ConformanceVectors } from './conformance.ts';
 import { derivationProblems, stepChoreographyProblems } from './choreographyChecks.ts';
 import {
-  derivationGroupRefs,
+  derivationLabelRefs,
   emittedNarration,
   facetStepRangeProblems,
   initialNarrationProblems,
@@ -243,9 +243,9 @@ function derivationChecks(catalogs: LocaleCatalogs, bundle: () => TraceBundle): 
     const derivation = getFacet<DerivationFacet>(bundle(), 'derivation');
     expect(derivation === undefined ? ['no derivation facet'] : derivationProblems(derivation)).toEqual([]);
   });
-  it('labels its derivation groups with keys and {{params}} present in EN and DE', () => {
+  it('labels its derivation title and groups with keys and {{params}} present in EN and DE', () => {
     const derivation = getFacet<DerivationFacet>(bundle(), 'derivation');
-    expect(refProblems(derivation === undefined ? [] : derivationGroupRefs(derivation), catalogs)).toEqual([]);
+    expect(refProblems(derivation === undefined ? [] : derivationLabelRefs(derivation), catalogs)).toEqual([]);
   });
 }
 

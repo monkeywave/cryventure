@@ -24,7 +24,7 @@ describe('public API', () => {
       'encryptInputLength', 'unpaddedInputRegion', 'recordPadding', 'cipherName', 'laneNodeId', 'chainLabel', 'cipherZoom', 'addPadNode', 'addUnpadNode', 'blockModeValues',
       'xorBytesToArray', 'u8Regions', 'recordPaddedMode', 'processedBytes', 'laneNodes', 'blockSegmentId', 'addBlockSegment', 'runPaddedMode',
       'macFunction', 'isMemberPortName', 'portMemberRef', 'parsePortMemberRef', 'portMember', 'readPortMemberRef', 'requirePortMember',
-      'hashFunction', 'xofFunction', 'latestStepAt', 'validateSpongeFacet', 'validateWordopsFacet', 'WORD_OPS', 'WORD_TERM_ROLES', 'isWordOp', 'isWordTermRole',
+      'hashFunction', 'xofFunction', 'latestStepAt', 'validateSpongeFacet', 'validateWordopsFacet', 'validateDerivationFacet', 'WORD_OPS', 'WORD_TERM_ROLES', 'isWordOp', 'isWordTermRole',
     ];
     for (const name of expected) expect(core).toHaveProperty(name);
   });

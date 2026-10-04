@@ -83,4 +83,9 @@ describe('derivationProblems', () => {
     expect(derivationProblems({ kind: 'derivation', schemaVersion: 1, nodes: [node('a', []), node('b', ['a'])] })).toEqual([]);
     expect(derivationProblems({ kind: 'derivation', schemaVersion: 1, nodes: [node('b', ['a']), node('a', [])] })).toEqual(['derivation: "b" uses "a" before it is defined']);
   });
+
+  it('reports schema problems such as a malformed lab zoom', () => {
+    const zoomed = { ...node('a', []), zoom: { producerId: 'Not Kebab', params: {} } };
+    expect(derivationProblems({ kind: 'derivation', schemaVersion: 1, nodes: [zoomed] })).toEqual(['derivation: node "a": zoom.producerId Not Kebab is not a kebab-case producer id']);
+  });
 });

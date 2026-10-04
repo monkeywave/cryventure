@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 import { validateFieldFacet, validateWordopsFacet } from '@cryventure/core';
 import {
   derivationGroupRefs,
+  derivationLabelRefs,
   emittedNarration,
   facetStepRangeProblems,
   jsonRoundTrip,
@@ -190,6 +191,15 @@ describe('derivationGroupRefs', () => {
     expect(derivationGroupRefs({ kind: 'derivation', schemaVersion: 1, nodes: [] })).toEqual([]);
   });
 });
+describe('derivationLabelRefs', () => {
+  it('lists the title and the group labels', () => {
+    const title = { key: 'plugin.x.title' };
+    const label = { key: 'plugin.x.group', params: { n: 1 } };
+    expect(derivationLabelRefs({ kind: 'derivation', schemaVersion: 1, nodes: [], title, groups: [{ id: 0, label }] })).toEqual([title, label]);
+    expect(derivationLabelRefs({ kind: 'derivation', schemaVersion: 1, nodes: [] })).toEqual([]);
+  });
+});
+
 
 describe('termFacetRefs (math)', () => {
   it('collects formulas and term labels once each', () => {

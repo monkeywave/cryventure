@@ -6,6 +6,7 @@ import {
   derivationInputs,
   derivationNode,
   isResultNode,
+  validateDerivationFacet,
   type DerivationFacet,
   type DerivationNode,
 } from './derivation.ts';
@@ -56,5 +57,38 @@ describe('derivation node index', () => {
   it('accepts optional group labels', () => {
     const labelled: DerivationFacet = { ...facet, groups: [{ id: 0, label: i18nRef('g.0') }] };
     expect(derivationInputs(labelled, 'c').map((n) => n.id)).toEqual(['a', 'b']);
+  });
+});
+
+describe('validateDerivationFacet', () => {
+  const zoomed = (zoom: unknown): unknown => ({ ...facet, nodes: [{ ...node('a'), zoom }] });
+
+  it('accepts a facet with a title and lab zooms', () => {
+    const titled: DerivationFacet = { ...facet, title: i18nRef('t.hkdf'), nodes: [{ ...node('a'), zoom: { producerId: 'sha256', params: { input: 'ab', encoding: 'hex' } } }] };
+    expect(validateDerivationFacet(titled)).toEqual([]);
+    expect(validateDerivationFacet(facet)).toEqual([]);
+  });
+
+  it('rejects a non-object, a wrong kind, schemaVersion or nodes', () => {
+    expect(validateDerivationFacet(null)).toEqual(['derivation: facet is not an object']);
+    expect(validateDerivationFacet({ ...facet, kind: 'math' })).toEqual(['derivation: kind math is not "derivation"']);
+    expect(validateDerivationFacet({ ...facet, schemaVersion: 2 })).toEqual(['derivation: schemaVersion 2 is not 1']);
+    expect(validateDerivationFacet({ ...facet, nodes: 'x' })).toEqual(['derivation: nodes is not an array']);
+  });
+
+  it('rejects a zoom whose producerId is not kebab-case', () => {
+    expect(validateDerivationFacet(zoomed({ producerId: 'Sha256', params: {} }))).toEqual(['derivation: node "a": zoom.producerId Sha256 is not a kebab-case producer id']);
+    expect(validateDerivationFacet(zoomed({ producerId: 7, params: {} }))).toEqual(['derivation: node "a": zoom.producerId 7 is not a kebab-case producer id']);
+  });
+
+  it('rejects zoom params that are not a record of strings', () => {
+    expect(validateDerivationFacet(zoomed({ producerId: 'sha256', params: { n: 1 } }))).toEqual(['derivation: node "a": zoom.params.n is not a string']);
+    expect(validateDerivationFacet(zoomed({ producerId: 'sha256', params: [] }))).toEqual(['derivation: node "a": zoom.params is not a record of strings']);
+    expect(validateDerivationFacet(zoomed('sha256'))).toEqual(['derivation: node "a": zoom is not an object']);
+  });
+
+  it('rejects a malformed title and node label', () => {
+    expect(validateDerivationFacet({ ...facet, title: { key: '' } })).toEqual(['derivation title: not a well-formed I18nRef']);
+    expect(validateDerivationFacet({ ...facet, nodes: [{ ...node('a'), label: 'x' }] })).toEqual(['derivation: node "a" label: not a well-formed I18nRef']);
   });
 });

@@ -138,6 +138,11 @@ export function derivationGroupRefs(facet: DerivationFacet): I18nRef[] {
   return (facet.groups ?? []).map((group) => group.label);
 }
 
+/** Every heading ref of a derivation facet: its `title` (if any), then its group labels. */
+export function derivationLabelRefs(facet: DerivationFacet): I18nRef[] {
+  return [...(facet.title === undefined ? [] : [facet.title]), ...derivationGroupRefs(facet)];
+}
+
 /** A per-step facet whose steps carry a formula and labelled terms (`math`, `field`, `wordops`). */
 export interface TermFacet {
   steps: readonly { step: number; formula: I18nRef; terms: readonly { id: string; label: I18nRef; valueRef?: string }[] }[];
