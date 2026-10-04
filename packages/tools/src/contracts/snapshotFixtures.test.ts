@@ -2,7 +2,7 @@ import { mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { FIXTURES_UPDATE_ENV, readSnapshot, SNAPSHOT_FIXTURES, writeSnapshotIfChanged } from './snapshotFixtures.ts';
+import { FIXTURES_UPDATE_ENV, readSnapshot, SNAPSHOT_FIXTURES, snapshotJson, writeSnapshotIfChanged } from './snapshotFixtures.ts';
 import { isUpdateRun } from './updateRun.ts';
 
 describe('committed snapshot fixtures', () => {
@@ -24,6 +24,13 @@ describe('FIXTURES_UPDATE_ENV', () => {
   });
 });
 
+describe('snapshotJson', () => {
+  it('writes producer bundles (*.bundle.json) on one line and other snapshots pretty-printed', () => {
+    expect(snapshotJson('x/a.bundle.json', { a: [1, 2] })).toBe('{"a":[1,2]}\n');
+    expect(snapshotJson('x/view.json', { a: 1 })).toBe('{\n  "a": 1\n}\n');
+  });
+});
+
 describe('writeSnapshotIfChanged', () => {
   const root = () => mkdtempSync(join(tmpdir(), 'cv-snapshot-'));
 
@@ -41,5 +48,11 @@ describe('writeSnapshotIfChanged', () => {
     expect(writeSnapshotIfChanged('new.json', [1], dir)).toBe(true);
     expect(readFileSync(join(dir, 'a.json'), 'utf8')).toBe('{\n  "a": 1\n}\n');
     expect(readSnapshot('new.json', dir)).toEqual([1]);
+  });
+
+  it('rewrites a stale bundle snapshot compactly', () => {
+    const dir = root();
+    expect(writeSnapshotIfChanged('p.bundle.json', { a: 1 }, dir)).toBe(true);
+    expect(readFileSync(join(dir, 'p.bundle.json'), 'utf8')).toBe('{"a":1}\n');
   });
 });

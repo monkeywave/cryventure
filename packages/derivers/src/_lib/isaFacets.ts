@@ -1,6 +1,8 @@
 import {
   facetKey,
+  type AlignSpan,
   type FacetKey,
+  type I18nRef,
   type Instruction,
   type InstructionsFacet,
   type OperandRef,
@@ -9,7 +11,7 @@ import {
   type RegisterWrite,
   type RegistersFacet,
 } from '@cryventure/core';
-import { listingSource, type Listing } from './listing.ts';
+import { listingSource, type Listing, type MemOperand } from './listing.ts';
 import { withValueRef } from './valueRef.ts';
 
 /**
@@ -32,6 +34,60 @@ export interface IsaVariant {
 export interface IsaWalk {
   instructions: Instruction[];
   steps: RegisterStep[];
+}
+
+/** An instruction as a listing lists it (AES `ListingInstruction`, SHA `ShaListingInstruction`). */
+type ListedInstruction = { address: string; mnemonic: string; operands: readonly string[] };
+
+/** `xmm0` … `xmm15`. */
+const XMM = /^xmm\d+$/;
+/** `q1`, `v1.16b` and `v1.4s` name the same 128-bit register `v1`. */
+const ARM_VECTOR = /^[qv](\d+)(?:\.\w+)?$/;
+
+/** An `xmm` operand's register name, or `undefined`. */
+export function x86VectorRegister(operand: string): string | undefined {
+  return XMM.test(operand) ? operand : undefined;
+}
+
+/** Canonical name `v<n>` of an AArch64 vector operand, or `undefined`. */
+export function armVectorRegister(operand: string): string | undefined {
+  const match = ARM_VECTOR.exec(operand);
+  return match === null ? undefined : `v${match[1]}`;
+}
+
+/** An error naming the listed instruction: `listing <address> <mnemonic>: <reason>`. */
+export function listingError(instruction: ListedInstruction, reason: unknown): Error {
+  const message = reason instanceof Error ? reason.message : String(reason);
+  return new Error(`listing ${instruction.address} ${instruction.mnemonic}: ${message}`);
+}
+
+/** The facet instruction of a listed one: its operand refs, span and optional chips and note. */
+export function buildInstruction(
+  listed: ListedInstruction,
+  align: AlignSpan,
+  effects: Pick<Instruction, 'reads' | 'writes'>,
+  covers: I18nRef[],
+  note: I18nRef | undefined,
+): Instruction {
+  const instruction: Instruction = {
+    address: listed.address,
+    mnemonic: listed.mnemonic,
+    operands: [...listed.operands],
+    reads: effects.reads,
+    writes: effects.writes,
+    align,
+  };
+  if (covers.length > 0) instruction.covers = covers;
+  if (note !== undefined) instruction.note = note;
+  return instruction;
+}
+
+/** A `size`-byte memory access at `[base + offset]`. */
+export function memoryOperand(address: MemOperand, size: number, valueRef?: string): OperandRef {
+  return withValueRef(
+    { kind: 'mem' as const, base: address.base, offset: address.offset, size },
+    valueRef,
+  );
 }
 
 export function registerOperand(name: string, valueRef?: string): OperandRef {

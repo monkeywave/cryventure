@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { blockScrollEdges, scrollEdges } from './useScrollEdges.ts';
+import { blockScrollEdges, scrollEdges } from './useScrollRegion.ts';
 
 describe('scrollEdges', () => {
   it('reports hidden content past each edge', () => {

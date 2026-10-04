@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { jsonValueProblems } from './jsonValues.ts';
+import { isRecord, jsonValueProblems } from './jsonValues.ts';
 
 describe('jsonValueProblems', () => {
   it('accepts plain JSON values and undefined object properties', () => {
@@ -16,5 +16,12 @@ describe('jsonValueProblems', () => {
       '$.fn: function is not JSON',
       '$.map: Map is not a plain object',
     ]);
+  });
+});
+
+describe('isRecord', () => {
+  it('accepts objects and rejects null, arrays and primitives', () => {
+    expect(isRecord({ a: 1 })).toBe(true);
+    expect([null, [], 'x', 1, undefined].map(isRecord)).toEqual([false, false, false, false, false]);
   });
 });

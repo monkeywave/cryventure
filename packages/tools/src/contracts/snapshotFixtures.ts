@@ -63,9 +63,17 @@ export function readSnapshot(path: string, root: string = REPO_ROOT): unknown {
   return JSON.parse(readFileSync(join(root, path), 'utf8')) as unknown;
 }
 
+/** Producer bundle snapshots, which run to megabytes and are only read by tests, are written on one line. */
+const COMPACT_SUFFIX = '.bundle.json';
+
+/** The file content of snapshot `value` at `path`: compact for `*.bundle.json`, else pretty-printed; trailing newline. */
+export function snapshotJson(path: string, value: unknown): string {
+  return `${path.endsWith(COMPACT_SUFFIX) ? JSON.stringify(value) : JSON.stringify(value, null, 2)}\n`;
+}
+
 /**
- * Writes `fresh` (pretty-printed, trailing newline) unless the committed snapshot already equals it,
- * so an update does not reformat unchanged files. Returns whether it wrote.
+ * Writes `fresh` (`snapshotJson`) unless the committed snapshot already equals it, so an update
+ * does not reformat unchanged files. Returns whether it wrote.
  */
 export function writeSnapshotIfChanged(path: string, fresh: unknown, root: string = REPO_ROOT): boolean {
   const normalized = JSON.parse(JSON.stringify(fresh)) as unknown;
@@ -76,6 +84,6 @@ export function writeSnapshotIfChanged(path: string, fresh: unknown, root: strin
     committed = undefined;
   }
   if (isDeepStrictEqual(committed, normalized)) return false;
-  writeFileSync(join(root, path), `${JSON.stringify(normalized, null, 2)}\n`);
+  writeFileSync(join(root, path), snapshotJson(path, normalized));
   return true;
 }

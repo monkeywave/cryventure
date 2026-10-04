@@ -1,18 +1,21 @@
 import { i18nRef, utf8Bytes, type AnyStateFacet, type NarrationFacet, type PrimitiveRecording } from '@cryventure/core';
 import { describe, expect, it } from 'vitest';
-import { SHA512_ALGORITHMS } from '../_lib/sha2/algorithms.ts';
+import { SHA512_ALGORITHMS, type Sha2Algorithm } from '../_lib/sha2/algorithms.ts';
 import { recordSha2 } from '../_lib/sha2/record.ts';
-import { explainIvGeneration } from './ivGeneration.ts';
 
+/** The SHA-512/t IV generation function (FIPS 180-4 §5.3.6) narrates its intro, first init and output as such. */
 const NS = 'plugin.test';
-const record = (text: string): PrimitiveRecording => recordSha2({ ns: NS, algorithm: SHA512_ALGORITHMS['sha-512/t-iv'], message: Array.from(utf8Bytes(text)), detail: 'block' });
+const GENERATOR = SHA512_ALGORITHMS['sha-512/t-iv'];
+/** The same algorithm without `ivGeneration`: narrated like any SHA-2 run. */
+const { ivGeneration: _ivGeneration, ...PLAIN }: Sha2Algorithm<bigint> = GENERATOR;
+const record = (algorithm: Sha2Algorithm<bigint>, text: string): PrimitiveRecording => recordSha2({ ns: NS, algorithm, message: Array.from(utf8Bytes(text)), detail: 'block' });
 const stateOf = (recording: PrimitiveRecording) => recording.facets.state as AnyStateFacet;
 
-describe('explainIvGeneration', () => {
-  const plain = record('SHA-512/256');
-  const explained = explainIvGeneration(NS, plain);
+describe('SHA-512/t IV generation narration', () => {
+  const plain = record(PLAIN, 'SHA-512/256');
+  const explained = record(GENERATOR, 'SHA-512/256');
 
-  it('replaces the intro, keeping its params but the algorithm name', () => {
+  it('narrates the intro as IV generation, keeping its params but the algorithm name', () => {
     const { algorithm: _algorithm, ...params } = stateOf(plain).initialNarration!.params!;
     expect(stateOf(explained).initialNarration).toEqual(i18nRef(`${NS}.step.initialIvGeneration`, params));
   });
@@ -26,24 +29,23 @@ describe('explainIvGeneration', () => {
     expect(init.narration.params).not.toHaveProperty('algorithm');
   });
 
-  it('renames the output step and leaves every other step, and the output, unchanged', () => {
+  it('narrates the output as IV generation and leaves every other step, and the output, unchanged', () => {
     const steps = stateOf(explained).steps;
     expect(steps.at(-1)!.narration.key).toBe(`${NS}.step.outputIvGeneration`);
     expect(steps.at(-1)!.narration.params).not.toHaveProperty('algorithm');
     const untouched = (state: AnyStateFacet) => state.steps.filter((_, index) => index !== 1 && index !== state.steps.length - 1);
     expect(untouched(stateOf(explained))).toEqual(untouched(stateOf(plain)));
     expect(explained.output).toEqual(plain.output);
-    expect(explained.facets.wordops).toBe(plain.facets.wordops);
+    expect(explained.facets.wordops).toEqual(plain.facets.wordops);
   });
 
-  it('rebuilds the narration facet from the new state', () => {
+  it('builds the narration facet from the IV generation texts', () => {
     const entries = (explained.facets.narration as NarrationFacet).entries;
     expect(entries.map((entry) => entry.ref.key).filter((key) => key.endsWith('IvGeneration'))).toEqual([`${NS}.step.initialIvGeneration`, `${NS}.step.initFirstIvGeneration`, `${NS}.step.outputIvGeneration`]);
   });
 
   it('only renarrates the first init of a multi-block input', () => {
-    const twoBlocks = explainIvGeneration(NS, record('x'.repeat(120)));
-    const inits = stateOf(twoBlocks).steps.filter((step) => step.op === 'init');
+    const inits = stateOf(record(GENERATOR, 'x'.repeat(120))).steps.filter((step) => step.op === 'init');
     expect(inits.map((step) => step.narration.key)).toEqual([`${NS}.step.initFirstIvGeneration`, `${NS}.step.init`]);
   });
 });

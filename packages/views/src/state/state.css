@@ -48,14 +48,6 @@
   margin-block-start: 0.5rem;
 }
 
-/* Expanded, a large region (64 or 80 schedule words in a narrow column) scrolls inside a capped
-   height instead of stretching the whole lab; the bottom edge fades while more rows hide (viz.css)
-   and ByteGrid keeps the current word in view. A short one (the AES-128 key schedule) fits. */
-.cv-region-disclosure .cv-grid {
-  max-block-size: 20rem;
-  overflow-y: auto;
-}
-
 /* ---------- Regions, words and the debugger watch ---------- */
 .cv-stack {
   display: flex;

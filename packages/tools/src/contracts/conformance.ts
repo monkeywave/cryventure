@@ -3,6 +3,7 @@ import { join } from 'node:path';
 import { toHex, type PrimitiveModule, type RunOptions } from '@cryventure/core';
 import { REPO_ROOT } from '../fs/repoRoot.ts';
 import type { PluginPackage } from './catalogs.ts';
+import { isRecord } from './jsonValues.ts';
 
 /**
  * The generic conformance format every primitive ships as `vectors/conformance.json`
@@ -35,7 +36,6 @@ export function loadConformanceVectors(pluginPackage: PluginPackage, id: string,
   return existsSync(file) ? (JSON.parse(readFileSync(file, 'utf8')) as unknown) : undefined;
 }
 
-const isRecord = (value: unknown): value is Record<string, unknown> => typeof value === 'object' && value !== null && !Array.isArray(value);
 const HEX = /^(?:[0-9a-f]{2})*$/;
 
 function caseFormatProblems(value: unknown, index: number): string[] {

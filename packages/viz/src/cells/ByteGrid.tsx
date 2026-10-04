@@ -8,7 +8,7 @@ import type { GridMotion } from './gridMotion.ts';
 import { useGridMotion } from './useGridMotion.ts';
 import { useGridNavigation } from './useGridNavigation.ts';
 import { useRevealCurrentRow } from './useRevealCurrentRow.ts';
-import { useScrollEdges } from './useScrollEdges.ts';
+import { useScrollEdges } from './useScrollRegion.ts';
 
 export type { GridMotion } from './gridMotion.ts';
 
@@ -45,6 +45,11 @@ export interface ByteGridProps {
   onSelectCell?: (index: number) => void;
   /** Flat indices not yet written at the playhead: drawn as placeholders, not as their (meaningless) value. */
   unwritten?: ReadonlySet<number>;
+  /**
+   * Caps the grid's height (a CSS length, e.g. `20rem`): a long grid then scrolls vertically on its
+   * own, fades the hidden edge and keeps the current row in view, instead of stretching its panel.
+   */
+  maxBlockSize?: string;
 }
 
 export type GridLayoutMode = 'stack' | 'wrap';
@@ -153,13 +158,26 @@ function GridRow({ row, lineStart, cols, header, cellAt, elem, isActive, onFocus
   );
 }
 
+function gridClassName(wrap: boolean, capped: boolean): string {
+  return ['cv-grid', wrap && 'cv-grid--wrap', capped && 'cv-grid--capped'].filter(Boolean).join(' ');
+}
+
+/** CSS custom properties of the layout: wrap columns and the height cap (none: no inline style). */
+function gridStyle(wrapColumns: number | undefined, maxBlockSize: string | undefined): CSSProperties | undefined {
+  if (wrapColumns === undefined && maxBlockSize === undefined) return undefined;
+  return {
+    ...(wrapColumns === undefined ? {} : { '--cv-wrap-columns': wrapColumns }),
+    ...(maxBlockSize === undefined ? {} : { '--cv-grid-max-block': maxBlockSize }),
+  } as CSSProperties;
+}
+
 /**
  * Generic labelled byte grid (`role="grid"`) with highlight classes, glyph fallbacks, roving focus,
  * optional choreography (`motion`), beat focus dimming and cell selection.
  */
 export function ByteGrid(props: ByteGridProps) {
   const { values, shape, order = 'row-major', elem = 'u8', highlights = NO_HIGHLIGHTS, label, rowOffsets, rowHeaders, columnHeaders, layout = 'stack' } = props;
-  const { motion, focus, selectedIndex, onSelectCell, wrapColumns = 1, unwritten } = props;
+  const { motion, focus, selectedIndex, onSelectCell, wrapColumns = 1, unwritten, maxBlockSize } = props;
   const wrap = layout === 'wrap';
   const [rows, cols] = shape;
   const headers = useRowHeaders(rowOffsets, rowHeaders);
@@ -167,7 +185,7 @@ export function ByteGrid(props: ByteGridProps) {
   const { gridRef, onKeyDown, isActive, setActive } = useGridNavigation(shape);
   const showsAfter = useGridMotion(gridRef, motion, values);
   useScrollEdges(gridRef, cols);
-  useRevealCurrentRow(gridRef, headers);
+  useRevealCurrentRow(gridRef, headers?.findIndex((header) => header.current) ?? -1);
   const onFocusCell = useCallback((row: number, col: number) => setActive({ row, col }), [setActive]);
   const cellAt = (row: number, col: number): CellModel => {
     const index = cellIndex(row, col, shape, order);
@@ -188,8 +206,8 @@ export function ByteGrid(props: ByteGridProps) {
     <div
       ref={gridRef}
       role="grid"
-      className={wrap ? 'cv-grid cv-grid--wrap' : 'cv-grid'}
-      style={wrap ? ({ '--cv-wrap-columns': wrapColumns } as CSSProperties) : undefined}
+      className={gridClassName(wrap, maxBlockSize !== undefined)}
+      style={gridStyle(wrap ? wrapColumns : undefined, maxBlockSize)}
       aria-label={label}
       data-order={order}
       onKeyDown={onKeyDown}

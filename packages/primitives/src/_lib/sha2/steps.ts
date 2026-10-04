@@ -1,5 +1,5 @@
-import { allIndices, highlight, i18nRef, toHex, valueId, type Highlight } from '@cryventure/core';
-import type { Sha2Algorithm } from './algorithms.ts';
+import { allIndices, blockIndices, highlight, i18nRef, toHex, valueId, type Highlight, type I18nRef, type TranslateParams } from '@cryventure/core';
+import type { Sha2Algorithm, Sha2IvGeneration } from './algorithms.ts';
 import type { BlockDetail, RoundDetail, ScheduleDetail } from './compress.ts';
 import type { Sha2Padding } from './padding.ts';
 import { SHA2_REGISTER_NAMES, wordIndices, type Sha2Region } from './regions.ts';
@@ -31,6 +31,30 @@ export function sha2Trace<W extends Word>(ns: string, algorithm: Sha2Algorithm<W
 
 const arithOf = <W extends Word>(trace: Sha2Trace<W>): WordArith<W> => trace.algorithm.params.arith;
 
+/**
+ * The narration of a step that names the algorithm (the intro, the first `init`, the `output`):
+ * `<ns>.step.<step>` with the algorithm's name, or `<ns>.step.<step>IvGeneration` for the SHA-512/t
+ * IV generation function (§5.3.6), whose texts name the generator themselves and may add
+ * `ivGenerationParams` (e.g. how H(0)″ is formed).
+ */
+function algorithmNarration<W extends Word>(
+  ns: string,
+  algorithm: Sha2Algorithm<W>,
+  step: string,
+  params: TranslateParams,
+  ivGenerationParams: (generation: Sha2IvGeneration<W>) => TranslateParams = () => ({}),
+): I18nRef {
+  const { ivGeneration } = algorithm;
+  if (ivGeneration === undefined) return i18nRef(`${ns}.step.${step}`, { algorithm: algorithm.name, ...params });
+  return i18nRef(`${ns}.step.${step}IvGeneration`, { ...params, ...ivGenerationParams(ivGeneration) });
+}
+
+/** The intro (initial snapshot) of a run over `messageBytes` bytes. */
+export function sha2InitialNarration<W extends Word>(ns: string, algorithm: Sha2Algorithm<W>, messageBytes: number): I18nRef {
+  const { blockBytes, rounds } = algorithm.params;
+  return algorithmNarration(ns, algorithm, 'initial', { bytes: messageBytes, bits: algorithm.outputSize * 8, blockBits: blockBytes * 8, rounds });
+}
+
 /** The value id of the chaining value H^(n) (`h/<n>`, n ≥ 1); H^(0) is the value `iv`. */
 export function chainingValueId(n: number): string {
   return n === 0 ? 'iv' : valueId(['h'], String(n));
@@ -50,7 +74,8 @@ export function recordPad<W extends Word>(trace: Sha2Trace<W>, messageBytes: num
 
 function initHighlights(wordBytes: number, blockIndex: number, blockBytes: number): Highlight<Sha2Region>[] {
   return [
-    highlight('padded', 'read', allIndices(blockBytes).map((index) => blockIndex * blockBytes + index)),
+    // Every block of the padded message is whole, so no length caps the range.
+    highlight('padded', 'read', blockIndices(blockIndex, blockBytes, Number.POSITIVE_INFINITY)),
     highlight('w', 'write', wordIndices(wordBytes, 0, 16)),
     highlight('vars', 'write', wordIndices(wordBytes, 0, 8)),
     highlight('h', blockIndex === 0 ? 'write' : 'read', wordIndices(wordBytes, 0, 8)),
@@ -70,7 +95,10 @@ export function recordInit<W extends Word>(trace: Sha2Trace<W>, blockIndex: numb
   const hBytes = wordsToBytes(arith, block.hIn);
   const n = blockIndex + 1;
   const h = wordsHex(arith, block.hIn);
-  const narration = blockIndex === 0 ? i18nRef(`${trace.ns}.step.initFirst`, { algorithm: trace.algorithm.name, h }) : i18nRef(`${trace.ns}.step.init`, { n, prev: blockIndex, h });
+  const narration =
+    blockIndex === 0
+      ? algorithmNarration(trace.ns, trace.algorithm, 'initFirst', { h }, ({ base, mask }) => ({ base: wordsHex(arith, base), mask: arith.toHex(mask) }))
+      : i18nRef(`${trace.ns}.step.init`, { n, prev: blockIndex, h });
   return trace.recorder.op(
     {
       op: 'init',
@@ -163,6 +191,6 @@ export function recordOutput<W extends Word>(trace: Sha2Trace<W>, blockCount: nu
     op: 'output',
     writes: [{ region: 'digest', offset: 0, values: [...digest] }],
     highlights: [highlight('h', 'read', allIndices(digest.length)), highlight('digest', 'write', allIndices(digest.length))],
-    narration: i18nRef(`${trace.ns}.step.${truncated ? 'outputTruncated' : 'output'}`, { algorithm: algorithm.name, n: blockCount, bits: digest.length * 8, digest: toHex(digest) }),
+    narration: algorithmNarration(trace.ns, algorithm, truncated ? 'outputTruncated' : 'output', { n: blockCount, bits: digest.length * 8, digest: toHex(digest) }),
   });
 }

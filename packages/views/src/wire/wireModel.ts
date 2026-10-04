@@ -1,4 +1,5 @@
 import { byteToHex, hexDigits, parseHex, toHex, type WireFacet, type WireSegment } from '@cryventure/core';
+import { chunk } from '../_lib/chunk.ts';
 
 /** Pure helpers of the wire view: segment placement, rows of 16/8/4, highlight change steps and the flip mask. */
 
@@ -36,12 +37,6 @@ function flipMaskBytes(facet: WireFacet): number[] {
   if (facet.flip === undefined) return [];
   const parsed = parseHex(facet.flip.maskHex);
   return parsed.ok ? Array.from(parsed.bytes) : [];
-}
-
-function chunk<T>(items: readonly T[], size: number): T[][] {
-  const rows: T[][] = [];
-  for (let i = 0; i < items.length; i += size) rows.push(items.slice(i, i + size));
-  return rows;
 }
 
 /**

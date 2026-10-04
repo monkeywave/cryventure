@@ -26,7 +26,7 @@ export function sha2Padding(message: ArrayLike<number>, blockBytes: Sha2BlockByt
   const used = message.length + 1 + lengthBytes;
   const total = Math.ceil(used / blockBytes) * blockBytes;
   const padded = new Uint8Array(total);
-  padded.set(Array.from(message));
+  padded.set(message);
   padded[message.length] = 0x80;
   const messageBits = message.length * 8;
   new DataView(padded.buffer).setBigUint64(total - 8, BigInt(messageBits));

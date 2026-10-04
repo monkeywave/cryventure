@@ -1,3 +1,4 @@
+import type { ShaListingRole } from '../listing.ts';
 import { SHA256_ROUNDS, SHA_VAR_NAMES, type ShaVarName } from './shaTrace.ts';
 
 /**
@@ -55,12 +56,24 @@ function canonicalVar(name: ShaVarName, round: number): { name: ShaVarName; roun
 
 /** Whether two lane words hold the same trace value (working variables compared through the shift). */
 export function sameWord(left: ShaWord, right: ShaWord): boolean {
-  if (left.kind === 'var' && right.kind === 'var') {
-    const a = canonicalVar(left.name, left.round);
-    const b = canonicalVar(right.name, right.round);
-    return a.name === b.name && a.round === b.round;
+  switch (left.kind) {
+    case 'var': {
+      if (right.kind !== 'var') return false;
+      const a = canonicalVar(left.name, left.round);
+      const b = canonicalVar(right.name, right.round);
+      return a.name === b.name && a.round === b.round;
+    }
+    case 'h':
+      return right.kind === 'h' && left.name === right.name;
+    case 'const':
+      return (
+        right.kind === 'const' &&
+        left.bytes.length === right.bytes.length &&
+        left.bytes.every((byte, index) => byte === right.bytes[index])
+      );
+    default:
+      return right.kind === left.kind && 't' in right && right.t === left.t;
   }
-  return JSON.stringify(left) === JSON.stringify(right);
 }
 
 /** Working variables `names` (lane 0 first) after round `round`, e.g. ABEF = ['f', 'e', 'b', 'a']. */
@@ -71,6 +84,33 @@ export function varLanes(names: readonly ShaVarName[], round: number): Lanes {
 /** `make(first)`, `make(first + 1)`, … for the four lanes. */
 export function laneRun(make: (index: number) => ShaWord, first: number): Lanes {
   return Array.from({ length: LANE_COUNT }, (_, lane) => make(first + lane));
+}
+
+/** Lane `index` of `lanes`; throws when there is none. */
+export function laneAt(lanes: Lanes, index: number): ShaWord {
+  const lane = lanes[index];
+  if (lane === undefined) throw new Error(`no lane ${index}`);
+  return lane;
+}
+
+/** H words `first` … `first + 3` (a … h by index) after the block's feed-forward. */
+export function hLanes(first: number): Lanes {
+  return laneRun((index) => word.h(SHA_VAR_NAMES[index]!), first);
+}
+
+/**
+ * What a 16-byte load of words `first` … brings in: the block input H^(n−1) as a … h at round −1
+ * (`loadState`) or the block's bytes, not yet swapped (`loadBlock`); throws for any other role.
+ */
+export function blockInputLanes(role: ShaListingRole, first: number): Lanes {
+  switch (role) {
+    case 'loadState':
+      return laneRun((index) => word.var(SHA_VAR_NAMES[index]!, -1), first);
+    case 'loadBlock':
+      return laneRun(word.wBytes, first);
+    default:
+      throw new Error(`no load semantics for role ${role}`);
+  }
 }
 
 /** The feed-forward rule: x at the block input plus x after the last round is H's word x. */
@@ -91,11 +131,30 @@ export function laneSum(left: ShaWord, right: ShaWord): ShaWord | undefined {
   return traceSum(left, right) ?? traceSum(right, left);
 }
 
+/** Lane-wise `left + right` (`paddd`, `add .4s`); throws for a lane whose sum the trace does not record. */
+export function sumLanes(left: Lanes, right: Lanes): Lanes {
+  return left.map((lane, index) => {
+    const sum = laneSum(lane, laneAt(right, index));
+    if (sum === undefined) throw new Error(`no traced value for the sum in lane ${index}`);
+    return sum;
+  });
+}
+
 /** W_t ↔ its big-endian bytes: what a per-word byte swap (`pshufb`, `rev32`) does to a lane; `undefined` otherwise. */
 export function byteSwapped(lane: ShaWord): ShaWord | undefined {
   if (lane.kind === 'w') return word.wBytes(lane.t);
   if (lane.kind === 'wBytes') return word.w(lane.t);
   return undefined;
+}
+
+/** Every lane of register `register` byte-swapped (`pshufb` with the swap mask, `rev32`); throws for a lane without a traced swap. */
+export function byteSwapLanes(lanes: Lanes, register: string): Lanes {
+  return lanes.map((lane) => {
+    const swapped = byteSwapped(lane);
+    if (swapped === undefined)
+      throw new Error(`no traced value for a byte-swapped lane of ${register}`);
+    return swapped;
+  });
 }
 
 /** A short text for error messages, e.g. `a@3`, `W17`, `K+W5`. */

@@ -1,16 +1,19 @@
-import { Fragment, useId, useRef, type CSSProperties, type ReactNode } from 'react';
+import { Fragment, memo, useId, useMemo, type CSSProperties } from 'react';
 import type { Lens, WordBits, WordopsFacet, WordopsStep, WordTerm } from '@cryventure/core';
 import { MathText, ViewStatus, useFacet, useLab, useT, type ViewProps } from '@cryventure/viz';
-import { useScrollFocusable } from '../_lib/useScrollFocusable.ts';
+import { chunk } from '../_lib/chunk.ts';
+import { ScrollRegion } from '../_lib/ScrollRegion.tsx';
 import { useSelectionPreviewHandlers } from '../_lib/useSelectionPreview.ts';
 import { useValueLabel } from '../_lib/useValueLabel.ts';
 import {
+  NIBBLE,
   OP_GLYPHS,
   TERM_ROLE_GLYPHS,
   hexChunks,
   isStoryTerm,
   lensParts,
   nibbleGroups,
+  registerChunksPerLine,
   sha2RegisterShift,
   showsBitStrip,
   wordBitsOf,
@@ -25,7 +28,7 @@ import './wordops.css';
  * step at the playhead (as the math view: sparse steps keep the latest one; before the first, that one
  * is previewed in a dashed frame tagged "preview" under a start hint, not linked: its values are not
  * computed yet). With `registerNames`: the registers before and after the
- * step; on a SHA-2 round (eight registers, T1/T2 and data that agree) the shift b ← a, …, e ← d + T1,
+ * step; on a SHA-2 round (eight registers plus the terms T1 and T2) the shift b ← a, …, e ← d + T1,
  * a ← T1 + T2 is drawn as labelled arrows (dashed + bold for the computed ones, listed in words for
  * screen readers). Then the terms in dataflow order: label, operator glyph, hex in 4-digit chunks.
  * Lenses: story = registers + results and T1/T2 only (`isStoryTerm`); engineer = all terms, 32-bit
@@ -39,11 +42,12 @@ const STATUS_KEYS = { loading: 'view.wordops.loading', missing: 'view.wordops.mi
 export default function WordopsView({ lens }: ViewProps) {
   const facet = useFacet<WordopsFacet>('wordops');
   if (facet.status !== 'ready') return <ViewStatus status={facet.status} keys={STATUS_KEYS} />;
-  return <WordopsPanel facet={facet.data} parts={lensParts(lens)} lens={lens} />;
+  return <WordopsPanel facet={facet.data} lens={lens} />;
 }
 
-function WordopsPanel({ facet, parts, lens }: { facet: WordopsFacet; parts: LensParts; lens: Lens }) {
+function WordopsPanel({ facet, lens }: { facet: WordopsFacet; lens: Lens }) {
   const t = useT();
+  const parts = lensParts(lens);
   const step = useLab((state) => state.step);
   const current = wordopsStepAt(facet, step);
   const upcoming = current === undefined ? facet.steps[0] : undefined;
@@ -89,24 +93,37 @@ function WordStep({ facet, wordStep, parts, linked }: WordStepProps) {
   );
 }
 
-/** A horizontal scroll region, in the tab order unless measured as fitting (keyboard scrolling). */
-function ScrollRegion({ label, children }: { label: string; children: ReactNode }) {
-  const ref = useRef<HTMLDivElement>(null);
-  const focusable = useScrollFocusable(ref);
-  return (
-    <div ref={ref} className="cv-wordops__scroll cv-scroll-shadow" role="region" tabIndex={focusable ? 0 : undefined} aria-label={label}>
-      {children}
-    </div>
-  );
+/** Both blocks scroll horizontally inside the panel (keyboard-focusable while they overflow). */
+const SCROLL_CLASS = 'cv-wordops__scroll cv-scroll-shadow';
+
+/** Space-separated spans, keyed by position (the spaces keep the copied / read text "6a09 e667"). */
+function Spaced({ items, className }: { items: readonly string[]; className: string }) {
+  return items.map((text, index) => (
+    <Fragment key={index}>
+      {index > 0 && ' '}
+      <span className={className}>{text}</span>
+    </Fragment>
+  ));
 }
 
-function HexWord({ hex }: { hex: string }) {
+/** A hex word in 4-digit chunks; with `chunksPerLine`, the chunks break onto lines of that many. */
+function HexWord({ hex, chunksPerLine }: { hex: string; chunksPerLine?: number }) {
+  const chunks = hexChunks(hex);
+  if (chunksPerLine === undefined) {
+    return (
+      <code className="cv-wordops__word">
+        <Spaced items={chunks} className="cv-wordops__chunk" />
+      </code>
+    );
+  }
   return (
     <code className="cv-wordops__word">
-      {hexChunks(hex).map((chunk, index) => (
+      {chunk(chunks, chunksPerLine).map((line, index) => (
         <Fragment key={index}>
           {index > 0 && ' '}
-          <span className="cv-wordops__chunk">{chunk}</span>
+          <span className="cv-wordops__line">
+            <Spaced items={line} className="cv-wordops__chunk" />
+          </span>
         </Fragment>
       ))}
     </code>
@@ -118,19 +135,29 @@ function HexWord({ hex }: { hex: string }) {
 function Registers({ names, wordStep, wordBits }: { names: string[]; wordStep: WordopsStep; wordBits: WordBits }) {
   const t = useT();
   const registers = wordStep.registers!;
-  const arrows = sha2RegisterShift(wordStep, wordBits);
+  const arrows = useMemo(() => sha2RegisterShift(wordStep), [wordStep]);
+  const chunksPerLine = registerChunksPerLine(wordBits);
   return (
-    <ScrollRegion label={t('view.wordops.registers')}>
+    <ScrollRegion className={SCROLL_CLASS} label={t('view.wordops.registers')}>
       <div className="cv-wordops__registers" style={{ '--cv-wordops-regs': names.length } as CSSProperties} data-shift={arrows !== undefined || undefined}>
-        <RegisterRow side="before" names={names} words={registers.before} />
+        <RegisterRow side="before" names={names} words={registers.before} chunksPerLine={chunksPerLine} />
         {arrows !== undefined && <ShiftArrows names={names} arrows={arrows} />}
-        <RegisterRow side="after" names={names} words={registers.after} before={arrows === undefined ? registers.before : undefined} />
+        <RegisterRow side="after" names={names} words={registers.after} before={arrows === undefined ? registers.before : undefined} chunksPerLine={chunksPerLine} />
       </div>
     </ScrollRegion>
   );
 }
 
-function RegisterRow({ side, names, words, before }: { side: 'before' | 'after'; names: string[]; words: string[]; before?: string[] }) {
+interface RegisterRowProps {
+  side: 'before' | 'after';
+  names: string[];
+  words: string[];
+  /** The words before the step, to mark changed registers (only without shift arrows). */
+  before?: string[];
+  chunksPerLine: number | undefined;
+}
+
+function RegisterRow({ side, names, words, before, chunksPerLine }: RegisterRowProps) {
   const t = useT();
   return (
     <div className="cv-wordops__regrow" role="group" aria-label={t(`view.wordops.${side}`)} data-side={side}>
@@ -150,7 +177,7 @@ function RegisterRow({ side, names, words, before }: { side: 'before' | 'after';
                 </>
               )}
             </span>
-            <HexWord hex={words[index] ?? ''} />
+            <HexWord hex={words[index] ?? ''} chunksPerLine={chunksPerLine} />
           </span>
         );
       })}
@@ -178,8 +205,11 @@ function arrowText(arrow: ShiftArrow, names: string[], t: ReturnType<typeof useT
   return t(`view.wordops.shift.${arrow.source}`, { to, from });
 }
 
+/** Arrowheads: plain for copies, the computed colour for e ← d + T1 and a ← T1 + T2. */
+const ARROW_HEADS = ['copy', 'calc'] as const;
+
 /** The labelled shift arrows (decorative SVG) plus the same arrows in words for screen readers. */
-function ShiftArrows({ names, arrows }: { names: string[]; arrows: ShiftArrow[] }) {
+function ShiftArrows({ names, arrows }: { names: string[]; arrows: readonly ShiftArrow[] }) {
   const t = useT();
   const markerId = useId();
   return (
@@ -191,12 +221,11 @@ function ShiftArrows({ names, arrows }: { names: string[]; arrows: ShiftArrow[] 
         focusable="false"
       >
         <defs>
-          <marker id={`${markerId}-copy`} className="cv-wordops__head" data-source="copy" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="5" markerHeight="5" orient="auto">
-            <path d="M0,0 L10,5 L0,10 z" />
-          </marker>
-          <marker id={`${markerId}-calc`} className="cv-wordops__head" data-source="calc" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="5" markerHeight="5" orient="auto">
-            <path d="M0,0 L10,5 L0,10 z" />
-          </marker>
+          {ARROW_HEADS.map((head) => (
+            <marker key={head} id={`${markerId}-${head}`} className="cv-wordops__head" data-source={head} viewBox="0 0 10 10" refX="9" refY="5" markerWidth="5" markerHeight="5" orient="auto">
+              <path d="M0,0 L10,5 L0,10 z" />
+            </marker>
+          ))}
         </defs>
         {arrows.map((arrow) => (
           <ShiftLine key={arrow.to} arrow={arrow} markerId={`${markerId}-${arrow.source === 'copy' ? 'copy' : 'calc'}`} />
@@ -246,7 +275,7 @@ function TermTable({ terms, wordBits, bitStrips, linked }: TermTableProps) {
   const selected = useLab((state) => state.selection.valueRefId);
   const valueLabel = useValueLabel();
   return (
-    <ScrollRegion label={t('view.wordops.terms')}>
+    <ScrollRegion className={SCROLL_CLASS} label={t('view.wordops.terms')}>
       <table role="table" className="cv-wordops__table" data-bits={showBits || undefined}>
         <caption className="cv-visually-hidden">{t('view.wordops.terms')}</caption>
         <thead role="rowgroup">
@@ -294,7 +323,8 @@ interface TermRowProps {
   valueLabel: (id: string) => string | undefined;
 }
 
-function TermRow({ term, bits, linked, selected, valueLabel }: TermRowProps) {
+/** Memoised: a hover or selection change re-renders only the rows whose `selected` flips. */
+const TermRow = memo(function TermRow({ term, bits, linked, selected, valueLabel }: TermRowProps) {
   const t = useT();
   return (
     <tr role="row" className="cv-wordops__row" data-role={term.role} data-term={term.id} data-selected={selected || undefined}>
@@ -329,7 +359,7 @@ function TermRow({ term, bits, linked, selected, valueLabel }: TermRowProps) {
       )}
     </tr>
   );
-}
+});
 
 /** Hover/focus publishes the term's ValueRef; it follows the ref across steps and is released on leave. */
 function LinkedLabel({ term, valueRef, valueLabel }: { term: WordTerm; valueRef: string; valueLabel: TermRowProps['valueLabel'] }) {
@@ -344,8 +374,6 @@ function LinkedLabel({ term, valueRef, valueLabel }: { term: WordTerm; valueRef:
   );
 }
 
-const NIBBLE_BITS = 4;
-
 /** A 32-bit word as one strip of cells MSB → LSB, grouped by nibble; one accessible name for the whole strip. */
 function BitStrip({ hex }: { hex: string }) {
   const t = useT();
@@ -353,7 +381,7 @@ function BitStrip({ hex }: { hex: string }) {
   return (
     <span className="cv-wordops__bits" role="img" aria-label={t('view.wordops.bits', { bits: nibbleGroups(bits) })}>
       {bits.map((bit, index) => (
-        <span key={index} className="cv-wordops__bit" data-set={bit || undefined} data-nibble-end={(index + 1) % NIBBLE_BITS === 0 || undefined} aria-hidden="true">
+        <span key={index} className="cv-wordops__bit" data-set={bit || undefined} data-nibble-end={(index + 1) % NIBBLE === 0 || undefined} aria-hidden="true">
           {bit ? '1' : '0'}
         </span>
       ))}

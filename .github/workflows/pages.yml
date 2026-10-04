@@ -57,3 +57,7 @@ jobs:
           HOME: /root
           E2E_BASE_URL: ${{ needs.deploy.outputs.page_url }}
           CV_BASE: /${{ github.event.repository.name }}/
+      - name: Upload Playwright traces
+        if: failure()
+        uses: actions/upload-artifact@v7
+        with: { name: smoke-test-results, path: apps/web/test-results, retention-days: 7 }

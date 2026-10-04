@@ -1,7 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { ShaListingInstruction } from '../listing.ts';
 import {
-  laneAt,
   NO_EFFECTS,
   operand,
   scheduleP1,
@@ -9,7 +8,7 @@ import {
   vectorOperandReader,
   written,
 } from './shaOperands.ts';
-import { laneRun, word } from './shaWords.ts';
+import { laneAt, laneRun, word } from './shaWords.ts';
 
 const ins = (operands: string[], w?: number): ShaListingInstruction => ({
   address: '0x10',

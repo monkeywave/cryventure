@@ -1,7 +1,7 @@
 import { getFacet, supportedLocales, type Locale, type MathFacet, type Messages, type StateFacet } from '@cryventure/core';
 import { primitiveManifests } from '@cryventure/primitives';
 import { loadPluginCatalogs } from './catalogs.ts';
-import { mathFacetRefs } from './checks.ts';
+import { termFacetRefs } from './checks.ts';
 import { runOrThrow } from './primitiveContract.ts';
 
 /** Repo-relative path of the math view's test fixture (views may not import primitives, hence a JSON snapshot). */
@@ -21,7 +21,7 @@ export async function buildMathViewFixture(): Promise<MathViewFixture> {
   const bundle = runOrThrow(await manifest.load(), preset.params);
   const math = getFacet<MathFacet>(bundle, 'math')!;
   const catalogs = loadPluginCatalogs('primitives', 'gf256');
-  const keys = [...new Set(mathFacetRefs(math).map((ref) => ref.key))].sort();
+  const keys = [...new Set(termFacetRefs(math).map((ref) => ref.key))].sort();
   const labelsIn = (locale: Locale): Messages => Object.fromEntries(keys.map((key) => [key, catalogs[locale][key] ?? key]));
   return {
     state: getFacet<StateFacet<string, { op: string }>>(bundle, 'state')!,

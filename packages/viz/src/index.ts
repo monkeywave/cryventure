@@ -34,6 +34,8 @@ export { ByteGrid, type ByteGridProps, type GridLayoutMode, type GridMotion, typ
 export { cellIndex, type GridHighlight, type GridOrder, type GridShape } from './cells/gridLayout.ts';
 export { formatHex, toHex } from './cells/hex.ts';
 export { useGridNavigation } from './cells/useGridNavigation.ts';
+export { revealInScroller, revealScrollTop } from './cells/useRevealCurrentRow.ts';
+export { useScrollFocusable } from './cells/useScrollRegion.ts';
 // workspace
 export type { ReactViewManifest, ViewComponent, ViewProps } from './workspace/viewTypes.ts';
 export { Workspace, type WorkspaceProps } from './workspace/Workspace.tsx';

@@ -13,13 +13,20 @@ export type Sha2Region = 'message' | 'padded' | 'w' | 'vars' | 'h' | 'digest';
 export const SHA2_REGISTER_NAMES: readonly string[] = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h'];
 const WORDS_PER_GROUP = 4;
 
-function words(wordBytes: number, labelPrefix?: string): RegionLayout {
-  return { kind: 'words', wordBytes, ...(labelPrefix === undefined ? {} : { labelPrefix }), wordsPerGroup: WORDS_PER_GROUP };
+/** A `words` layout: big-endian words of `wordBytes` bytes, `wordsPerGroup` to a group. */
+export function wordsLayout(wordBytes: number, labelPrefix?: string, wordsPerGroup = WORDS_PER_GROUP): RegionLayout {
+  return { kind: 'words', wordBytes, ...(labelPrefix === undefined ? {} : { labelPrefix }), wordsPerGroup };
 }
 
-function region(ns: string, id: Sha2Region, size: number, layout?: RegionLayout): RegionSpec<Sha2Region> {
-  return { id, labelKey: `${ns}.region.${id}`, elem: 'u8', shape: [size], ...(layout === undefined ? {} : { layout }), ...(id === 'message' ? {} : { initial: 'blank' as const }) };
+/**
+ * A flat `u8` region of `size` bytes labelled `<ns>.region.<id>`, with an optional layout; blank
+ * (placeholder zeros until a step writes it) unless `blank` is false. Shared with `sha2-constants`.
+ */
+export function u8Region<R extends string>(ns: string, id: R, size: number, layout?: RegionLayout, blank = true): RegionSpec<R> {
+  return { id, labelKey: `${ns}.region.${id}`, elem: 'u8', shape: [size], ...(layout === undefined ? {} : { layout }), ...(blank ? { initial: 'blank' as const } : {}) };
 }
+
+const region = (ns: string, id: Sha2Region, size: number, layout?: RegionLayout): RegionSpec<Sha2Region> => u8Region(ns, id, size, layout, id !== 'message');
 
 /** The regions for one run; the digest uses whole words where they divide it (SHA-512/224: 4-byte words). */
 export function sha2Regions<W extends Word>(ns: string, algorithm: Sha2Algorithm<W>, messageBytes: number, paddedBytes: number): RegionSpec<Sha2Region>[] {
@@ -28,11 +35,11 @@ export function sha2Regions<W extends Word>(ns: string, algorithm: Sha2Algorithm
   const digestWordBytes = algorithm.outputSize % wordBytes === 0 ? wordBytes : 4;
   return [
     ...(messageBytes > 0 ? [region(ns, 'message', messageBytes)] : []),
-    region(ns, 'padded', paddedBytes, words(wordBytes)),
-    region(ns, 'w', rounds * wordBytes, words(wordBytes, 'W')),
-    region(ns, 'vars', SHA2_REGISTER_NAMES.length * wordBytes, words(wordBytes)),
-    region(ns, 'h', SHA2_REGISTER_NAMES.length * wordBytes, words(wordBytes, 'H')),
-    region(ns, 'digest', algorithm.outputSize, words(digestWordBytes)),
+    region(ns, 'padded', paddedBytes, wordsLayout(wordBytes)),
+    region(ns, 'w', rounds * wordBytes, wordsLayout(wordBytes, 'W')),
+    region(ns, 'vars', SHA2_REGISTER_NAMES.length * wordBytes, wordsLayout(wordBytes)),
+    region(ns, 'h', SHA2_REGISTER_NAMES.length * wordBytes, wordsLayout(wordBytes, 'H')),
+    region(ns, 'digest', algorithm.outputSize, wordsLayout(digestWordBytes)),
   ];
 }
 

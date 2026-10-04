@@ -5,15 +5,11 @@ import {
   derivationGroupRefs,
   emittedNarration,
   facetStepRangeProblems,
-  fieldFacetRefs,
-  fieldValueRefProblems,
   jsonRoundTrip,
   normalFormProblems,
   keysOutsideNamespace,
   manifestLabelKeys,
-  mathFacetRefs,
   initialNarrationProblems,
-  mathStepRangeProblems,
   missingFacetKinds,
   missingKeys,
   refProblems,
@@ -24,10 +20,10 @@ import {
   sequentialReplay,
   tableFacetRefs,
   tableSelectParamProblems,
+  termFacetRefs,
+  termValueRefProblems,
   unknownParamFields,
-  wordopsFacetRefs,
   wordopsShapeProblems,
-  wordopsValueRefProblems,
 } from './checks.ts';
 
 const catalogs = {
@@ -178,13 +174,14 @@ describe('derivationGroupRefs', () => {
   });
 });
 
-describe('mathFacetRefs', () => {
+describe('termFacetRefs (math)', () => {
   it('collects formulas and term labels once each', () => {
     const formula = { key: 'plugin.x.f', params: { a: '57' } };
     const label = { key: 'plugin.x.term.a' };
     const term = { id: 'a', label, value: 1, width: 8, role: 'operand' as const };
     const steps = [0, 1].map((step) => ({ step, formula, terms: [term] }));
-    expect(mathFacetRefs({ kind: 'math', schemaVersion: 1, notation: { field: 'gf2^8', modulus: 0x11b }, steps })).toEqual([formula, label]);
+    const math: MathFacet = { kind: 'math', schemaVersion: 1, notation: { field: 'gf2^8', modulus: 0x11b }, steps };
+    expect(termFacetRefs(math)).toEqual([formula, label]);
   });
 });
 
@@ -195,7 +192,7 @@ describe('tableFacetRefs', () => {
   });
 });
 
-describe('mathStepRangeProblems', () => {
+describe('facetStepRangeProblems (math)', () => {
   const math = (steps: number[]): MathFacet => ({
     kind: 'math',
     schemaVersion: 1,
@@ -206,18 +203,18 @@ describe('mathStepRangeProblems', () => {
   const steps = (count: number) => ({ steps: new Array(count).fill(undefined) });
   const narrated = { key: 'plugin.x.initial' };
 
-  it('accepts math steps that point at state steps', () => expect(mathStepRangeProblems(math([0, 2]), steps(3))).toEqual([]));
+  it('accepts math steps that point at state steps', () => expect(facetStepRangeProblems('math', math([0, 2]), steps(3))).toEqual([]));
 
   it('accepts a step −1 math entry when the state facet narrates its initial state', () => {
-    expect(mathStepRangeProblems(math([-1, 0]), { ...steps(1), initialNarration: narrated })).toEqual([]);
+    expect(facetStepRangeProblems('math', math([-1, 0]), { ...steps(1), initialNarration: narrated })).toEqual([]);
   });
 
   it('reports a step −1 math entry without an initial narration', () => {
-    expect(mathStepRangeProblems(math([-1, 0]), steps(1))).toEqual(['math step -1 (initial state) has no initialNarration on the state facet']);
+    expect(facetStepRangeProblems('math', math([-1, 0]), steps(1))).toEqual(['math step -1 (initial state) has no initialNarration on the state facet']);
   });
 
   it('reports math steps beyond the last state step or before the initial state', () => {
-    expect(mathStepRangeProblems(math([-2, 0, 3, 4]), steps(3))).toEqual([
+    expect(facetStepRangeProblems('math', math([-2, 0, 3, 4]), steps(3))).toEqual([
       'math step -2 has no state step (-1..2)',
       'math step 3 has no state step (-1..2)',
       'math step 4 has no state step (-1..2)',
@@ -246,16 +243,16 @@ describe('field facet checks', () => {
   });
 
   it('collects formula and term label refs, checked in EN and DE', () => {
-    expect(fieldFacetRefs(valid)).toEqual([{ key: 'plugin.x.f', params: { n: 1 } }, { key: 'plugin.x.term.h' }, { key: 'plugin.x.term.x' }]);
+    expect(termFacetRefs(valid)).toEqual([{ key: 'plugin.x.f', params: { n: 1 } }, { key: 'plugin.x.term.h' }, { key: 'plugin.x.term.x' }]);
     const fieldCatalogs = { en: { 'plugin.x.f': 'F {{n}}', 'plugin.x.term.h': 'H', 'plugin.x.term.x': 'X' }, de: { 'plugin.x.f': 'F', 'plugin.x.term.h': 'H' } };
-    expect(refProblems(fieldFacetRefs(valid), fieldCatalogs)).toEqual(['de:plugin.x.f params [n] vs template []', 'de:plugin.x.term.x missing']);
+    expect(refProblems(termFacetRefs(valid), fieldCatalogs)).toEqual(['de:plugin.x.f params [n] vs template []', 'de:plugin.x.term.x missing']);
   });
 
   it('reports term valueRefs the values facet lacks', () => {
     const values = { values: [{ id: 'h', labelKey: 'k', role: 'subkey' as const, bytes: [], createdAt: 0 }] };
-    expect(fieldValueRefProblems(valid, values)).toEqual([]);
-    expect(fieldValueRefProblems(broken, values)).toEqual(['field step 2 term "h": valueRef "nope" is not in the values facet']);
-    expect(fieldValueRefProblems(valid, undefined)).toEqual(['field step 0 term "h": valueRef "h" is not in the values facet']);
+    expect(termValueRefProblems('field', valid, values)).toEqual([]);
+    expect(termValueRefProblems('field', broken, values)).toEqual(['field step 2 term "h": valueRef "nope" is not in the values facet']);
+    expect(termValueRefProblems('field', valid, undefined)).toEqual(['field step 0 term "h": valueRef "h" is not in the values facet']);
   });
 });
 
@@ -298,16 +295,16 @@ describe('wordops facet checks', () => {
   });
 
   it('collects formula and term label refs, checked in EN and DE', () => {
-    expect(wordopsFacetRefs(valid)).toEqual([{ key: 'plugin.x.t1', params: { t: 0 } }, { key: 'plugin.x.term.w' }, { key: 'plugin.x.term.k' }]);
+    expect(termFacetRefs(valid)).toEqual([{ key: 'plugin.x.t1', params: { t: 0 } }, { key: 'plugin.x.term.w' }, { key: 'plugin.x.term.k' }]);
     const wordopsCatalogs = { en: { 'plugin.x.t1': 'T1 {{t}}', 'plugin.x.term.w': 'W', 'plugin.x.term.k': 'K' }, de: { 'plugin.x.t1': 'T1 {{t}}', 'plugin.x.term.w': 'W' } };
-    expect(refProblems(wordopsFacetRefs(valid), wordopsCatalogs)).toEqual(['de:plugin.x.term.k missing']);
+    expect(refProblems(termFacetRefs(valid), wordopsCatalogs)).toEqual(['de:plugin.x.term.k missing']);
   });
 
   it('reports term valueRefs the values facet lacks', () => {
     const values = { values: [{ id: 'w', labelKey: 'k', role: 'state' as const, bytes: [], createdAt: 0 }] };
-    expect(wordopsValueRefProblems(valid, values)).toEqual([]);
-    expect(wordopsValueRefProblems(broken, values)).toEqual(['wordops step 2 term "w": valueRef "nope" is not in the values facet']);
-    expect(wordopsValueRefProblems(valid, undefined)).toEqual(['wordops step 0 term "w": valueRef "w" is not in the values facet']);
+    expect(termValueRefProblems('wordops', valid, values)).toEqual([]);
+    expect(termValueRefProblems('wordops', broken, values)).toEqual(['wordops step 2 term "w": valueRef "nope" is not in the values facet']);
+    expect(termValueRefProblems('wordops', valid, undefined)).toEqual(['wordops step 0 term "w": valueRef "w" is not in the values facet']);
   });
 });
 

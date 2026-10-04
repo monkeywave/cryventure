@@ -1,5 +1,5 @@
 import { expect, test, type Locator, type Page } from '@playwright/test';
-import { DESKTOP, KEY_SCHEDULE_LAB, PHONE, openLab, waitForLab } from './labPage.ts';
+import { DESKTOP, KEY_SCHEDULE_LAB, PHONE, openLab } from './labPage.ts';
 
 /** Labs whose state column holds many words (the SHA message schedule, the K constants) beside a wordops panel. */
 const WORD_LABS = [
@@ -13,12 +13,8 @@ const SHA256_LATE_ROUND_STEP = 60;
 /** Bound on the side-by-side panels' height (uncapped, the 64/80 schedule words stretched them to 3,000–3,500px). */
 const MAX_WORKSPACE_HEIGHT = 1800;
 
-async function openWordLab(page: Page, path: string, labId: string, hash = ''): Promise<Locator> {
-  await page.goto(`en/${path}${hash}`);
-  const lab = await waitForLab(page, labId);
-  await expect(lab.locator('[data-region] .cv-cell').first()).toBeVisible();
-  return lab;
-}
+/** Word labs have no `state` region: wait for a cell of any region. */
+const openWordLab = (page: Page, path: string, labId: string, hash?: string): Promise<Locator> => openLab(page, { path, labId, hash, region: null });
 
 /** State grids whose cells reach past their panel's edge without being a scroller themselves. */
 const clippedGrids = (lab: Locator) =>

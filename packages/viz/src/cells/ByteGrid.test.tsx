@@ -1,6 +1,6 @@
 import { act, fireEvent, render, screen, within } from '@testing-library/react';
 import { motionValue } from 'motion/react';
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { Track } from '@cryventure/core';
 import { renderLab } from '../testing/renderLab.tsx';
 import { I18nProvider } from '../i18n/I18nProvider.tsx';
@@ -142,6 +142,44 @@ describe('ByteGrid', () => {
     const event = new KeyboardEvent('keydown', { key: ' ', bubbles: true, cancelable: true });
     fireEvent(screen.getAllByRole('gridcell')[0]!, event);
     expect(event.defaultPrevented).toBe(false);
+  });
+});
+
+describe('ByteGrid height cap and current row', () => {
+  afterEach(() => vi.restoreAllMocks());
+
+  const headers = (current: number) => Array.from({ length: 8 }, (_, row) => ({ text: `w${row}`, label: `word ${row}`, current: row === current }));
+  const grid = (current: number, maxBlockSize?: string) => (
+    <I18nProvider messages={vizMessages.en}>
+      <ByteGrid values={values} shape={[8, 2]} label="Schedule" rowHeaders={headers(current)} maxBlockSize={maxBlockSize} />
+    </I18nProvider>
+  );
+
+  it('caps its height only when asked (viz owns the cap)', () => {
+    const { rerender } = render(grid(0));
+    expect(screen.getByRole('grid').classList.contains('cv-grid--capped')).toBe(false);
+    rerender(grid(0, '20rem'));
+    const capped = screen.getByRole('grid');
+    expect(capped.classList.contains('cv-grid--capped')).toBe(true);
+    expect(capped.style.getPropertyValue('--cv-grid-max-block')).toBe('20rem');
+  });
+
+  it('reveals the current row when its index changes, not on every new headers array', () => {
+    // 8 rows of 100px in a 100px-high scroller; boxes ignore scrollTop, so reset it between checks.
+    vi.spyOn(HTMLElement.prototype, 'scrollHeight', 'get').mockReturnValue(800);
+    vi.spyOn(HTMLElement.prototype, 'clientHeight', 'get').mockReturnValue(100);
+    vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockImplementation(function (this: HTMLElement) {
+      const row = this.classList.contains('cv-grid__row') ? [...this.parentElement!.children].indexOf(this) : 0;
+      return DOMRect.fromRect({ y: row * 100, height: 100 });
+    });
+    const { rerender } = render(grid(3, '20rem'));
+    const scroller = screen.getByRole('grid');
+    expect(scroller.scrollTop).toBe(300);
+    scroller.scrollTop = 0;
+    rerender(grid(3, '20rem'));
+    expect(scroller.scrollTop).toBe(0);
+    rerender(grid(5, '20rem'));
+    expect(scroller.scrollTop).toBe(500);
   });
 });
 

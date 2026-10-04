@@ -1,84 +1,42 @@
-import {
-  currentAt,
-  getFacet,
-  stateAt,
-  toHex,
-  type AnyStateFacet,
-  type I18nRef,
-  type TraceBundle,
-} from '@cryventure/core';
+import { getFacet, stateAt, toHex, type AnyStateFacet, type I18nRef } from '@cryventure/core';
 import { describe, expect, it } from 'vitest';
 import {
+  indicesOf,
+  instructionsNeverCurrent,
   isaFacetProblems,
   isaFacets,
   registerAfter,
   unknownValueRefs,
-  type IsaFacets,
+  writtenBy,
 } from '../_lib/fixtures/isaChecks.ts';
+import { armVectorRegister } from '../_lib/isaFacets.ts';
 import {
+  NIST_BY_PRESET,
   NIST_SHA224_ABC,
   NIST_SHA256_ABC,
-  NIST_SHA256_TWO_BLOCK,
   SHA256_THREE_BLOCK,
-  type NistShaExample,
 } from '../_lib/sha/fixtures/nistSha256.ts';
+import { laneWords as lanes } from '../_lib/sha/fixtures/shaChecks.ts';
 import {
   SHA_FIXTURE_PRESETS,
-  shaFixtureBundle,
+  sharedShaFixtureBundle,
   type ShaFixturePreset,
 } from '../_lib/sha/fixtures/shaBundles.ts';
 import golden from './fixtures/sha256-abc.golden.json';
 import de from './i18n/de.json';
 import en from './i18n/en.json';
 import { derive } from './module.ts';
-import { armShaVectorRegister } from './profile.ts';
 
 const VARIANT = 'aarch64-armv8-sha2';
 const LISTING_LENGTH = 132;
-const NIST: Record<ShaFixturePreset, NistShaExample> = {
-  'sha-256-abc': NIST_SHA256_ABC,
-  'sha-256-two-block': NIST_SHA256_TWO_BLOCK,
-  'sha-256-three-block': SHA256_THREE_BLOCK,
-  'sha-224-abc': NIST_SHA224_ABC,
-};
 
-/** The 32-bit lanes (lane 0 first) of register bytes in memory order, as big-endian hex words. */
-function lanes(bytes: readonly number[]): string[] {
-  return [0, 1, 2, 3].map((lane) => toHex(bytes.slice(4 * lane, 4 * lane + 4).reverse()));
-}
-
-const vector = (operand: string): string => armShaVectorRegister(operand) ?? operand;
-
-function indicesOf(facets: IsaFacets, mnemonic: string): number[] {
-  return facets.instructions.instructions.flatMap((instruction, index) =>
-    instruction.mnemonic === mnemonic ? [index] : [],
-  );
-}
-
-/**
- * The bytes instruction `index` writes to `register`, from its own registers step (a playhead replay
- * would also apply later zero-width writes on the same step).
- */
-function writtenBy(facets: IsaFacets, index: number, register: string): number[] {
-  const writesRegister = (instruction: IsaFacets['instructions']['instructions'][number]) =>
-    instruction.writes.some((ref) => ref.kind === 'reg');
-  const step =
-    facets.registers.steps[
-      facets.instructions.instructions.slice(0, index).filter(writesRegister).length
-    ]!;
-  expect(step.align).toEqual(facets.instructions.instructions[index]!.align);
-  return step.writes.find((write) => write.reg === register)?.bytes ?? [];
-}
-
-function stepCount(bundle: TraceBundle): number {
-  return getFacet<AnyStateFacet>(bundle, 'state')!.steps.length;
-}
+const vector = (operand: string): string => armVectorRegister(operand) ?? operand;
 
 describe.each(SHA_FIXTURE_PRESETS)('isa-armv8-sha derive (%s)', (preset) => {
-  const bundle = shaFixtureBundle(preset);
+  const bundle = sharedShaFixtureBundle(preset);
   const facets = isaFacets(derive(bundle), VARIANT);
   const instructions = facets.instructions.instructions;
-  const nist = NIST[preset];
+  const nist = NIST_BY_PRESET[preset];
 
   it('passes the core validators and alignIssues, with known valueRefs', () => {
     expect(isaFacetProblems(facets, bundle)).toEqual([]);
@@ -92,11 +50,8 @@ describe.each(SHA_FIXTURE_PRESETS)('isa-armv8-sha derive (%s)', (preset) => {
   });
 
   it('makes every sha256h2 current at some playhead (no zero-width instruction shadows it)', () => {
-    const spans = instructions.map((instruction) => instruction.align);
-    const current = new Set(
-      Array.from({ length: stepCount(bundle) + 1 }, (_, p) => currentAt(spans, p - 1)),
-    );
-    expect(indicesOf(facets, 'sha256h2').filter((index) => !current.has(index))).toEqual([]);
+    const isRound = (instruction: { mnemonic: string }) => instruction.mnemonic === 'sha256h2';
+    expect(instructionsNeverCurrent(facets, bundle, isRound)).toEqual([]);
   });
 
   it('stores H^(n) per block with one stp: the digest words after the last block', () => {
@@ -166,7 +121,7 @@ describe.each([
   ['sha-256-abc', NIST_SHA256_ABC],
   ['sha-224-abc', NIST_SHA224_ABC],
 ] as const)('isa-armv8-sha against NIST "abc" (%s)', (preset, nist) => {
-  const facets = isaFacets(derive(shaFixtureBundle(preset)), VARIANT);
+  const facets = isaFacets(derive(sharedShaFixtureBundle(preset)), VARIANT);
   const instructions = facets.instructions.instructions;
 
   it.each([0, 12, 60])(
@@ -197,7 +152,7 @@ describe.each([
 });
 
 describe('isa-armv8-sha on the two-block message', () => {
-  const bundle = shaFixtureBundle('sha-256-two-block');
+  const bundle = sharedShaFixtureBundle('sha-256-two-block');
   const instructions = isaFacets(derive(bundle), VARIANT).instructions.instructions;
 
   it('loads block 2 from H^(1), after block 1 has stored it', () => {
@@ -217,7 +172,7 @@ describe('isa-armv8-sha on the two-block message', () => {
 });
 
 describe('isa-armv8-sha on the 128-byte three-block message', () => {
-  const bundle = shaFixtureBundle('sha-256-three-block');
+  const bundle = sharedShaFixtureBundle('sha-256-three-block');
   const facets = isaFacets(derive(bundle), VARIANT);
   const instructions = facets.instructions.instructions;
   const block = (n: number) => instructions.slice(n * LISTING_LENGTH, (n + 1) * LISTING_LENGTH);
@@ -250,6 +205,8 @@ describe('isa-armv8-sha on the 128-byte three-block message', () => {
 describe('isa-armv8-sha golden fixture', () => {
   it('matches derive() for SHA-256 "abc"', () => {
     expect(golden.producerId).toBe('sha256');
-    expect(derive(shaFixtureBundle(golden.presetId as ShaFixturePreset))).toEqual(golden.facets);
+    expect(derive(sharedShaFixtureBundle(golden.presetId as ShaFixturePreset))).toEqual(
+      golden.facets,
+    );
   });
 });

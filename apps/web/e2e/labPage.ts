@@ -35,6 +35,11 @@ export interface OpenLabOptions {
   hash?: string;
   /** Deep-links to this step (ignored when `hash` is given). */
   step?: number;
+  /**
+   * The `data-region` whose first cell must show before the lab counts as hydrated (default `state`,
+   * the AES labs' state matrix); `null` waits for a cell of any region.
+   */
+  region?: string | null;
 }
 
 export const labLocator = (page: Page, labId: string = LAB_ID) => page.locator(`[data-lab-id="${labId}"]`);
@@ -52,11 +57,12 @@ export async function waitForLab(page: Page, labId: string = LAB_ID): Promise<Lo
 
 /** Opens a lab page and waits for hydration, including the code-split state view's grid. */
 export async function openLab(page: Page, options: OpenLabOptions = {}): Promise<Locator> {
-  const { path = WELCOME_LAB.path, labId = LAB_ID, lang = 'en', step } = options;
+  const { path = WELCOME_LAB.path, labId = LAB_ID, lang = 'en', step, region = 'state' } = options;
   const hash = options.hash ?? (step === undefined ? '' : `#lab=${labId}&s=${step}&v=1`);
   await page.goto(`${lang}/${path}${hash}`);
   const lab = await waitForLab(page, labId);
-  await expect(lab.locator('[data-region="state"] .cv-cell').first()).toBeVisible();
+  const regionSelector = region === null ? '[data-region]' : `[data-region="${region}"]`;
+  await expect(lab.locator(`${regionSelector} .cv-cell`).first()).toBeVisible();
   return lab;
 }
 
@@ -114,7 +120,11 @@ export async function setLens(page: Page, lens: Lens): Promise<void> {
   await expect(page.locator('html')).toHaveAttribute('data-lens', lens);
 }
 
-/** Labs mount when they scroll into view; bring each one in and wait until it is interactive. */
+/**
+ * Labs mount when they scroll into view; bring each one in and wait until it is interactive and
+ * every view has rendered. The workspace shell appears before its code-split views and their facets,
+ * which show a `loading` status until ready; without that wait an axe run raced the views' render.
+ */
 export async function mountLabs(page: Page): Promise<void> {
   const labs = page.locator('[data-lab-id]');
   const count = await labs.count();
@@ -122,4 +132,5 @@ export async function mountLabs(page: Page): Promise<void> {
     await labs.nth(index).scrollIntoViewIfNeeded();
     await expect(labs.nth(index).locator('section.cv-lab')).toBeVisible({ timeout: 15_000 });
   }
+  await expect(labs.locator('.cv-view__status[data-status="loading"]')).toHaveCount(0, { timeout: 15_000 });
 }

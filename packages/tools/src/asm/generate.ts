@@ -28,10 +28,10 @@ import {
 } from './llvm.ts';
 import {
   annotateShaListing,
-  ARMV8_SHA_PROFILE,
-  X86_SHA_PROFILE,
-  type ShaAnnotatedInstruction,
+  ARMV8_SHA_ANNOTATE,
+  X86_SHA_ANNOTATE,
 } from './annotateSha.ts';
+import type { ShaListingInstruction } from '@cryventure/derivers/listing';
 import {
   attachAddresses,
   parseAsmFunction,
@@ -123,21 +123,21 @@ const KERNELS: readonly Kernel[] = [
         directory: 'isa-x86-sha',
         sourceFile: 'sha256_x86.c',
         flags: ['-O2', '-msha', '-mssse3', '-msse4.1', '-masm=intel', '-ffreestanding'],
-        annotate: (instructions) => annotateShaListing(instructions, X86_SHA_PROFILE),
+        annotate: (instructions) => annotateShaListing(instructions, X86_SHA_ANNOTATE),
       },
       {
         isa: ARMV8,
         directory: 'isa-armv8-sha',
         sourceFile: 'sha256_armv8.c',
         flags: ['-O2', '-march=armv8-a+sha2', '-ffreestanding'],
-        annotate: (instructions) => annotateShaListing(instructions, ARMV8_SHA_PROFILE),
+        annotate: (instructions) => annotateShaListing(instructions, ARMV8_SHA_ANNOTATE),
       },
     ],
   },
 ];
 
 /** An annotated instruction of either kernel's role set. */
-export type ListingInstruction = AnnotatedInstruction | ShaAnnotatedInstruction;
+export type ListingInstruction = AnnotatedInstruction | ShaListingInstruction;
 
 export interface AsmListing<Instruction extends ListingInstruction = AnnotatedInstruction> {
   compiler: string;
@@ -211,22 +211,14 @@ function outputPath(target: KernelTarget, file: string): string {
   return join(REPO_ROOT, 'packages/derivers/src', target.directory, 'data', file);
 }
 
-/** The repo's Prettier (a root dev dependency, so present wherever tests run). */
-const PRETTIER_BIN = join(REPO_ROOT, 'node_modules/.bin/prettier');
-
-/** Runs the repo's Prettier over the written JSON so a regeneration is format-stable. */
-function formatWithPrettier(run: CommandRunner, paths: readonly string[]): void {
-  run(PRETTIER_BIN, ['--write', '--log-level', 'warn', ...paths]);
-}
-
 /** The JSON a listing is written as, before Prettier. */
 export function listingJson(listing: AsmListing<ListingInstruction>): string {
   return `${JSON.stringify(listing, null, 2)}\n`;
 }
 
 /**
- * `json` as the repo's Prettier formats it at `path` (same package and config resolution as the
- * `--write` pass, in-process so a test needs no subprocess per file): the bytes `generateListings` leaves there.
+ * `json` as the repo's Prettier (a root dev dependency) formats it at `path`, with the config that
+ * applies there: the bytes `generateListings` writes, so a regeneration is format-stable.
  */
 export async function formatListingJson(path: string, json: string): Promise<string> {
   const prettier = await import('prettier');
@@ -263,16 +255,16 @@ export function buildListings({
 }
 
 /** Compiles every kernel and writes its listings (Prettier-formatted); returns the paths written. */
-export function generateListings(options: GenerateOptions = {}): string[] {
-  const paths = buildListings(options).map(({ path, listing }) => {
-    mkdirSync(dirname(path), { recursive: true });
-    writeFileSync(path, listingJson(listing));
-    return path;
-  });
-  formatWithPrettier(options.run ?? runCommand, paths);
-  return paths;
+export async function generateListings(options: GenerateOptions = {}): Promise<string[]> {
+  return Promise.all(
+    buildListings(options).map(async ({ path, listing }) => {
+      mkdirSync(dirname(path), { recursive: true });
+      writeFileSync(path, await formatListingJson(path, listingJson(listing)));
+      return path;
+    }),
+  );
 }
 
 if (isEntryPoint(import.meta.url)) {
-  generateListings().forEach((path) => console.log(`wrote ${path.slice(REPO_ROOT.length)}`));
+  (await generateListings()).forEach((path) => console.log(`wrote ${path.slice(REPO_ROOT.length)}`));
 }

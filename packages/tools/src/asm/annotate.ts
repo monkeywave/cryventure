@@ -46,9 +46,23 @@ export interface IsaProfile {
 
 const ROUND_KEY_BYTES = 16;
 
+/** Whether `operand` is a memory operand (`[rdx + 16]`, `[x2, #0x20]`, …). */
+export function isMemory(operand: string | undefined): boolean {
+  return operand !== undefined && operand.includes('[');
+}
+
 function isX86Move(instruction: ParsedInstruction): boolean {
   return /^v?mov/.test(instruction.mnemonic);
 }
+
+/** x86 (Intel syntax, destination first): a move from memory. */
+export const isX86Load = (instruction: ParsedInstruction): boolean => isX86Move(instruction) && isMemory(instruction.operands.at(-1));
+/** x86 (Intel syntax, destination first): a move to memory. */
+export const isX86Store = (instruction: ParsedInstruction): boolean => isX86Move(instruction) && isMemory(instruction.operands[0]);
+/** AArch64: an `ld*` instruction. */
+export const isArmLoad = (instruction: ParsedInstruction): boolean => /^ld/.test(instruction.mnemonic);
+/** AArch64: an `st*` instruction. */
+export const isArmStore = (instruction: ParsedInstruction): boolean => /^st/.test(instruction.mnemonic);
 
 /** System V x86-64: rdi, rsi, rdx; Intel syntax (destination first). */
 export const X86_PROFILE: IsaProfile = {
@@ -58,8 +72,8 @@ export const X86_PROFILE: IsaProfile = {
   roundMnemonic: 'aesenc',
   lastRoundMnemonic: 'aesenclast',
   xorMnemonics: ['pxor', 'xorps', 'vpxor'],
-  isLoad: (instruction) => isX86Move(instruction) && isMemory(instruction.operands.at(-1)),
-  isStore: (instruction) => isX86Move(instruction) && isMemory(instruction.operands[0]),
+  isLoad: isX86Load,
+  isStore: isX86Store,
 };
 
 /** AAPCS64: x0, x1, x2. */
@@ -70,13 +84,9 @@ export const ARMV8_PROFILE: IsaProfile = {
   roundMnemonic: 'aese',
   mixColumnsMnemonic: 'aesmc',
   xorMnemonics: ['eor'],
-  isLoad: (instruction) => /^ld/.test(instruction.mnemonic),
-  isStore: (instruction) => /^st/.test(instruction.mnemonic),
+  isLoad: isArmLoad,
+  isStore: isArmStore,
 };
-
-function isMemory(operand: string | undefined): boolean {
-  return operand !== undefined && operand.includes('[');
-}
 
 /**
  * The derivers' memory-operand parser (`[rdx + 16]`, `[x2, #0x20]`, …), so the generator and the ISA

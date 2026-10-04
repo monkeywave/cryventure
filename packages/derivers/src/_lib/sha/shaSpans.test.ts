@@ -1,9 +1,11 @@
+import type { AlignSpan } from '@cryventure/core';
 import { describe, expect, it } from 'vitest';
 import { INITIAL_SPAN } from '../isaSpans.ts';
 import type { ShaListingInstruction, ShaListingRole } from '../listing.ts';
 import {
   blockSpans,
   isRoundInstruction,
+  listingShape,
   nextRoundStarts,
   requiredShaRound,
   type ShaBlockTimeline,
@@ -30,6 +32,13 @@ const timeline = (roundsPerInstruction: number): ShaBlockTimeline => ({
   roundsPerInstruction,
 });
 
+/** `blockSpans` with the listing's shape computed as the walker does, once per listing. */
+const spansOf = (
+  listing: ShaListingInstruction[],
+  block: ShaBlockTimeline,
+  previous: AlignSpan,
+): AlignSpan[] => blockSpans(listing, listingShape(listing), block, previous);
+
 const point = (step: number) => ({ first: step, last: step });
 
 describe('blockSpans (docs/M5.md §5c)', () => {
@@ -52,7 +61,7 @@ describe('blockSpans (docs/M5.md §5c)', () => {
       listed('store'),
       listed('other'),
     ];
-    expect(blockSpans(listing, timeline(2), INITIAL_SPAN)).toEqual([
+    expect(spansOf(listing, timeline(2), INITIAL_SPAN)).toEqual([
       point(1),
       point(1),
       point(1),
@@ -74,7 +83,7 @@ describe('blockSpans (docs/M5.md §5c)', () => {
 
   it('keeps spans monotonic: a copy between two round instructions over the same rounds takes the span before it', () => {
     const listing = [listed('rounds', 0), listed('other'), listed('rounds2', 0), listed('store')];
-    expect(blockSpans(listing, timeline(4), INITIAL_SPAN)).toEqual([
+    expect(spansOf(listing, timeline(4), INITIAL_SPAN)).toEqual([
       { first: 10, last: 13 },
       { first: 10, last: 13 },
       { first: 10, last: 13 },
@@ -83,15 +92,15 @@ describe('blockSpans (docs/M5.md §5c)', () => {
   });
 
   it('never goes back behind the previous block', () => {
-    const spans = blockSpans([listed('loadState'), listed('rounds', 0)], timeline(2), point(5));
+    const spans = spansOf([listed('loadState'), listed('rounds', 0)], timeline(2), point(5));
     expect(spans).toEqual([point(5), { first: 10, last: 11 }]);
   });
 
   it('throws for a listing without round instructions or a round instruction without a round', () => {
-    expect(() => blockSpans([listed('loadState')], timeline(2), INITIAL_SPAN)).toThrow(
+    expect(() => spansOf([listed('loadState')], timeline(2), INITIAL_SPAN)).toThrow(
       /no round instruction/,
     );
-    expect(() => blockSpans([listed('rounds')], timeline(2), INITIAL_SPAN)).toThrow(/no round/);
+    expect(() => spansOf([listed('rounds')], timeline(2), INITIAL_SPAN)).toThrow(/no round/);
     expect(() => requiredShaRound(listed('rounds2'))).toThrow(/rounds2: no round/);
     expect([listed('rounds'), listed('rounds2'), listed('msg2')].map(isRoundInstruction)).toEqual([
       true,
@@ -112,5 +121,22 @@ describe('nextRoundStarts', () => {
       listed('store'),
     ];
     expect(nextRoundStarts(listing)).toEqual([0, 4, 4, 4, undefined, undefined]);
+  });
+});
+
+describe('listingShape', () => {
+  it('locates the first and last round instruction and the next round per instruction', () => {
+    const listing = [
+      listed('loadState'),
+      listed('rounds', 0),
+      listed('msg1'),
+      listed('rounds2', 4),
+    ];
+    expect(listingShape(listing)).toEqual({
+      isRound: [false, true, false, true],
+      firstRound: 1,
+      lastRound: 3,
+      nextRound: [0, 4, 4, undefined],
+    });
   });
 });

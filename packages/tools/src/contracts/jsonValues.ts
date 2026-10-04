@@ -15,3 +15,8 @@ export function jsonValueProblems(value: unknown, path = '$'): string[] {
   }
   return [`${path}: ${typeof value} is not JSON`];
 }
+
+/** A non-null, non-array object, viewed as a string-keyed record (for walking untyped JSON). */
+export function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
+}

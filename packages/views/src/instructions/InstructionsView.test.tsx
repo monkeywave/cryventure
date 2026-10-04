@@ -260,6 +260,7 @@ describe('InstructionsView', () => {
     vi.spyOn(scroller, 'getBoundingClientRect').mockReturnValue(
       DOMRect.fromRect({ y: 0, height: 200 }),
     );
+    vi.spyOn(scroller, 'clientHeight', 'get').mockReturnValue(200);
     vi.spyOn(HTMLTableRowElement.prototype, 'getBoundingClientRect').mockReturnValue(
       DOMRect.fromRect({ y: 500, height: 20 }),
     );

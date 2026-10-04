@@ -19,4 +19,11 @@ describe('revealScrollTop', () => {
   it('aligns the top of a row taller than the view', () => {
     expect(revealScrollTop(view, { top: 400, height: 300 })).toBe(400);
   });
+
+  it('keeps a row clear of a sticky header of `headerOffset` pixels', () => {
+    // Visible below the header: 130 … 300.
+    expect(revealScrollTop(view, { top: 150, height: 20 }, 30)).toBe(100);
+    expect(revealScrollTop(view, { top: 110, height: 20 }, 30)).toBe(80);
+    expect(revealScrollTop(view, { top: 380, height: 20 }, 30)).toBe(200);
+  });
 });

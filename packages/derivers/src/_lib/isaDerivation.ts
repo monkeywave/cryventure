@@ -2,7 +2,6 @@ import type {
   AlignSpan,
   FacetKey,
   I18nRef,
-  Instruction,
   OperandRef,
   RegisterSpec,
   RegisterWrite,
@@ -16,14 +15,17 @@ import {
   stateBytesAt,
 } from './aesTrace.ts';
 import {
+  buildInstruction,
   isaFacetPair,
+  listingError,
+  memoryOperand,
   registerOperand,
   registerWrite,
   vectorRegisterSpecs,
   type IsaVariant,
   type IsaWalk,
 } from './isaFacets.ts';
-import { INITIAL_SPAN, instructionSpan, type CoveredOp } from './isaSpans.ts';
+import { INITIAL_SPAN, instructionSpan, nextFrom, type CoveredOp } from './isaSpans.ts';
 import {
   listingForRounds,
   parseMemOperand,
@@ -32,7 +34,6 @@ import {
 } from './listing.ts';
 import { RegisterBank } from './registerBank.ts';
 import { traceContext, type TraceContext } from './traceContext.ts';
-import { withValueRef } from './valueRef.ts';
 
 /**
  * Turns a precomputed AES listing into `instructions@<variant>` and `registers@<variant>` facets
@@ -65,10 +66,6 @@ interface Effects {
 
 const NO_EFFECTS: Effects = { reads: [], writes: [], registerWrites: [] };
 
-function listingError(instruction: ListingInstruction, message: string): Error {
-  return new Error(`listing ${instruction.address} ${instruction.mnemonic}: ${message}`);
-}
-
 function vectorRegisters(profile: IsaProfile, instruction: ListingInstruction): string[] {
   return instruction.operands
     .map((operand) => profile.vectorRegister(operand))
@@ -82,13 +79,9 @@ function memOperand(
 ): OperandRef {
   const operand = instruction.operands.map(parseMemOperand).find((parsed) => parsed !== undefined);
   if (operand === undefined) throw listingError(instruction, 'no memory operand');
-  return withValueRef(
-    {
-      kind: 'mem' as const,
-      base: operand.base,
-      offset: operand.offset + index * AES_BLOCK_BYTES,
-      size: AES_BLOCK_BYTES,
-    },
+  return memoryOperand(
+    { base: operand.base, offset: operand.offset + index * AES_BLOCK_BYTES },
+    AES_BLOCK_BYTES,
     valueRef,
   );
 }
@@ -245,39 +238,14 @@ function coversRefs(profile: IsaProfile, covers: readonly CoveredOp[]): I18nRef[
   }));
 }
 
-function buildInstruction(
-  listed: ListingInstruction,
-  span: AlignSpan,
-  effects: Effects,
-  covers: I18nRef[],
-  note: I18nRef | undefined,
-): Instruction {
-  const instruction: Instruction = {
-    address: listed.address,
-    mnemonic: listed.mnemonic,
-    operands: [...listed.operands],
-    reads: effects.reads,
-    writes: effects.writes,
-    align: span,
-  };
-  if (covers.length > 0) instruction.covers = covers;
-  if (note !== undefined) instruction.note = note;
-  return instruction;
-}
-
 /** Per instruction, the `first` step of the next instruction that covers AES ops (§1e). */
 function nextAesFirsts(
   ctx: TraceContext,
   coverage: readonly CoveredOp[][],
 ): (number | undefined)[] {
-  const next: (number | undefined)[] = [];
-  let upcoming: number | undefined;
-  for (let index = coverage.length - 1; index >= 0; index--) {
-    next[index] = upcoming;
-    const first = coverage[index]?.[0];
-    if (first !== undefined) upcoming = opStep(ctx.ops, first.op, first.round);
-  }
-  return next;
+  return nextFrom(coverage, ([first]) =>
+    first === undefined ? undefined : opStep(ctx.ops, first.op, first.round),
+  );
 }
 
 function walkListing(ctx: TraceContext, profile: IsaProfile, listing: Listing): IsaWalk {

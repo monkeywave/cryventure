@@ -22,6 +22,7 @@ import {
   type ValuesFacet,
 } from '@cryventure/core';
 import { wordopsShapeProblems } from './checks.ts';
+import { isRecord } from './jsonValues.ts';
 
 /**
  * Pure checks for deriver plugins (docs/M4.md §7); each returns human-readable problems
@@ -136,10 +137,6 @@ export function derivedSchemaProblems(facets: DerivedFacets): string[] {
     const extra = FACET_KIT_CHECKS[kind];
     return schema.length > 0 || extra === undefined ? schema : validatorProblems(key, facet, extra);
   });
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
 
 /** Every value reachable in a JSON-like tree (depth first, the root included). */

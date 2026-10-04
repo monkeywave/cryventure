@@ -1,8 +1,8 @@
 import type { OperandRef } from '@cryventure/core';
-import type { ShaListingInstruction } from '../listing.ts';
+import { parseMemOperand, type MemOperand, type ShaListingInstruction } from '../listing.ts';
 import type { ShaEffects } from './shaDerivation.ts';
 import { expectLanes } from './shaRegisters.ts';
-import { laneRun, word, type Lanes, type ShaWord } from './shaWords.ts';
+import { laneRun, word, type Lanes } from './shaWords.ts';
 
 /**
  * Operand and lane helpers the SHA ISA profiles share (docs/M5.md §5c), and the one schedule step
@@ -34,11 +34,11 @@ export function vectorOperandReader(
   };
 }
 
-/** Lane `index` of `lanes`; throws when there is none. */
-export function laneAt(lanes: Lanes, index: number): ShaWord {
-  const lane = lanes[index];
-  if (lane === undefined) throw new Error(`no lane ${index}`);
-  return lane;
+/** The `[base + offset]` of a memory operand; throws when `text` is none. */
+export function requiredMemOperand(text: string): MemOperand {
+  const parsed = parseMemOperand(text);
+  if (parsed === undefined) throw new Error(`"${text}" is not a memory operand`);
+  return parsed;
 }
 
 /** One register `reg` left holding `lanes`. */

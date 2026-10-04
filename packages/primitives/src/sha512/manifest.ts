@@ -5,7 +5,9 @@ import { definePrimitive, i18nRef, opLabels, parseHexOfLength, readOption, utf8B
  * SHA-512/t IV generation function (§5.3.6), traced per round or per block (docs/M5.md §2b–2e).
  * Imports core only; the implementation and the shared SHA-2 code in `_lib/sha2` load lazily.
  */
-export const SHA512_ALGORITHM_IDS = ['sha-384', 'sha-512', 'sha-512/224', 'sha-512/256', 'sha-512/t-iv'] as const;
+/** The four standard hash functions (the `Hash` port offers exactly these). */
+export const SHA512_HASH_IDS = ['sha-384', 'sha-512', 'sha-512/224', 'sha-512/256'] as const;
+export const SHA512_ALGORITHM_IDS = [...SHA512_HASH_IDS, 'sha-512/t-iv'] as const;
 export type Sha512AlgorithmId = (typeof SHA512_ALGORITHM_IDS)[number];
 export const SHA512_ENCODINGS = ['utf8', 'hex'] as const;
 export type Sha512Encoding = (typeof SHA512_ENCODINGS)[number];

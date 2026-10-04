@@ -1,17 +1,6 @@
-import {
-  allIndices,
-  i18nRef,
-  RecordingTracer,
-  scopeLevels,
-  valueId,
-  zeroSnapshot,
-  type I18nRef,
-  type RegionSpec,
-  type StateFacet,
-  type WordopsFacet,
-  type WordopsStep,
-  type WordTerm,
-} from '@cryventure/core';
+import { allIndices, highlight, i18nRef, scopeLevels, valueId, zeroSnapshot, type I18nRef, type RegionSpec, type StateFacet, type WordopsFacet, type WordTerm } from '@cryventure/core';
+import { u8Region, wordIndices, wordsLayout } from '../_lib/sha2/regions.ts';
+import { WordopsRecorder } from '../_lib/sha2/wordopsRecorder.ts';
 import type { ConstantSpec } from './constantSpecs.ts';
 import type { Sha2ConstantId, Sha2ConstantsOpName } from './manifest.ts';
 import { firstPrimes, rootWord, wordBytes, wordHex } from './primeRoots.ts';
@@ -20,7 +9,7 @@ import { firstPrimes, rootWord, wordBytes, wordHex } from './primeRoots.ts';
 export type ConstantsRegion = 'constants';
 export type ConstantsOp = { op: Sha2ConstantsOpName };
 export type ConstantsStateFacet = StateFacet<ConstantsRegion, ConstantsOp>;
-type ConstantsTracer = RecordingTracer<ConstantsRegion, ConstantsOp>;
+type ConstantsRecorder = WordopsRecorder<ConstantsRegion, ConstantsOp>;
 
 const NS = 'plugin.sha2-constants';
 
@@ -47,7 +36,9 @@ export function deriveWords(spec: ConstantSpec): DerivedWord[] {
 }
 
 /** The narration/formula variant: cube root, square root, or square root with skipped bits (SHA-224). */
-function rootVariant(spec: ConstantSpec): 'Cube' | 'Square' | 'SquareSkip' {
+type RootVariant = 'Cube' | 'Square' | 'SquareSkip';
+
+function rootVariant(spec: ConstantSpec): RootVariant {
   if (spec.root === 3) return 'Cube';
   return spec.skipBits > 0 ? 'SquareSkip' : 'Square';
 }
@@ -55,16 +46,7 @@ function rootVariant(spec: ConstantSpec): 'Cube' | 'Square' | 'SquareSkip' {
 /** One `words` region holding the table, blank until each word is derived. */
 export function constantsRegions(spec: ConstantSpec): RegionSpec<ConstantsRegion>[] {
   const bytes = spec.bits / 8;
-  return [
-    {
-      id: 'constants',
-      labelKey: `${NS}.region.constants`,
-      elem: 'u8',
-      shape: [spec.count * bytes],
-      layout: { kind: 'words', wordBytes: bytes, labelPrefix: spec.symbol, wordsPerGroup: Math.min(spec.count, 8) },
-      initial: 'blank',
-    },
-  ];
+  return [u8Region(NS, 'constants', spec.count * bytes, wordsLayout(bytes, spec.symbol, Math.min(spec.count, 8)))];
 }
 
 /** Value id of the i-th derived word (the wordops term links to it). */
@@ -78,7 +60,7 @@ function wordParams(spec: ConstantSpec, derived: DerivedWord): Record<string, st
     n: derived.primeNumber,
     p: derived.prime,
     integer: derived.integerPart.toString(),
-    ...(skipBits > 0 ? { skipped: wordHex(derived.skipped, skipBits) } : {}),
+    ...(skipBits === 0 ? {} : { skipped: wordHex(derived.skipped, skipBits) }),
     word: wordHex(derived.word, bits),
     bits,
     symbol,
@@ -86,33 +68,30 @@ function wordParams(spec: ConstantSpec, derived: DerivedWord): Record<string, st
   };
 }
 
-function wordTerms(spec: ConstantSpec, derived: DerivedWord): WordTerm[] {
+/** The term labels have no SHA-224 variant: `SquareSkip` labels its root like `Square`. */
+function wordTerms(spec: ConstantSpec, derived: DerivedWord, variant: RootVariant): WordTerm[] {
   const { bits } = spec;
-  const variant = spec.root === 3 ? 'Cube' : 'Square';
   const terms: WordTerm[] = [
     { id: 'p', label: i18nRef(`${NS}.term.prime`, { n: derived.primeNumber }), hex: wordHex(BigInt(derived.prime), bits), role: 'operand' },
-    { id: 'integer', label: i18nRef(`${NS}.term.integer${variant}`, { p: derived.prime }), hex: wordHex(derived.integerPart, bits), role: 'intermediate', op: 'root' },
+    { id: 'integer', label: i18nRef(`${NS}.term.integer${variant === 'Cube' ? 'Cube' : 'Square'}`, { p: derived.prime }), hex: wordHex(derived.integerPart, bits), role: 'intermediate', op: 'root' },
   ];
   if (spec.skipBits > 0) terms.push({ id: 'skipped', label: i18nRef(`${NS}.term.skipped`, { bits: spec.skipBits }), hex: wordHex(derived.skipped, bits), role: 'intermediate', op: 'root' });
   terms.push({ id: 'word', label: i18nRef(`${NS}.term.word`, { symbol: spec.symbol, index: derived.index }), hex: wordHex(derived.word, bits), role: 'result', op: 'root', valueRef: wordValueId(derived.index) });
   return terms;
 }
 
-function recordWord(tracer: ConstantsTracer, spec: ConstantSpec, derived: DerivedWord): WordopsStep {
+function recordWord(recorder: ConstantsRecorder, spec: ConstantSpec, derived: DerivedWord): void {
   const bytes = spec.bits / 8;
-  const offset = derived.index * bytes;
-  const params = wordParams(spec, derived);
   const variant = rootVariant(spec);
-  const step = tracer.stepCount;
-  tracer.enter();
-  tracer.step({
-    op: 'word',
-    writes: [{ region: 'constants', offset, values: wordBytes(derived.word, spec.bits) }],
-    highlights: [{ region: 'constants', indices: allIndices(bytes).map((i) => offset + i), kind: 'write' }],
-    narration: i18nRef(`${NS}.step.word${variant}`, params),
-  });
-  tracer.leave();
-  return { step, formula: i18nRef(`${NS}.math.word${variant}`, { symbol: spec.symbol, index: derived.index, p: derived.prime, bits: spec.bits }), terms: wordTerms(spec, derived) };
+  recorder.op(
+    {
+      op: 'word',
+      writes: [{ region: 'constants', offset: derived.index * bytes, values: wordBytes(derived.word, spec.bits) }],
+      highlights: [highlight('constants', 'write', wordIndices(bytes, derived.index))],
+      narration: i18nRef(`${NS}.step.word${variant}`, wordParams(spec, derived)),
+    },
+    { formula: i18nRef(`${NS}.math.word${variant}`, { symbol: spec.symbol, index: derived.index, p: derived.prime, bits: spec.bits }), terms: wordTerms(spec, derived, variant) },
+  );
 }
 
 /** Indices of the words that differ from the FIPS table (empty when the derivation reproduces it). */
@@ -121,17 +100,15 @@ export function mismatchedWords(derived: readonly string[], fips: readonly strin
   return allIndices(length).filter((index) => derived[index] !== fips[index]);
 }
 
-function recordCompare(tracer: ConstantsTracer, spec: ConstantSpec, mismatches: number[]): void {
+function recordCompare(recorder: ConstantsRecorder, spec: ConstantSpec, mismatches: number[]): void {
   const matches = mismatches.length === 0;
   const params = { count: spec.count, section: spec.section, ...(matches ? {} : { mismatches: mismatches.length }) };
-  tracer.enter();
-  tracer.step({
+  recorder.op({
     op: 'compare',
     writes: [],
-    highlights: [{ region: 'constants', indices: allIndices(spec.count * (spec.bits / 8)), kind: 'read' }],
+    highlights: [highlight('constants', 'read', wordIndices(spec.bits / 8, 0, spec.count))],
     narration: i18nRef(`${NS}.step.${matches ? 'compareMatch' : 'compareMismatch'}`, params),
   });
-  tracer.leave();
 }
 
 export interface ConstantsRecording {
@@ -151,12 +128,11 @@ function initialNarration(id: Sha2ConstantId, spec: ConstantSpec): I18nRef {
 /** Records every word of table `id` (one step each), then the comparison with `fips`. */
 export function recordConstants(id: Sha2ConstantId, spec: ConstantSpec, fips: readonly string[]): ConstantsRecording {
   const regions = constantsRegions(spec);
-  const tracer: ConstantsTracer = new RecordingTracer<ConstantsRegion, ConstantsOp>(regions, zeroSnapshot(regions), { initialNarration: initialNarration(id, spec) });
+  const recorder: ConstantsRecorder = new WordopsRecorder(regions, zeroSnapshot(regions), scopeLevels(NS, 'step'), initialNarration(id, spec));
   const words = deriveWords(spec);
-  const steps = words.map((derived) => recordWord(tracer, spec, derived));
+  words.forEach((derived) => recordWord(recorder, spec, derived));
   const hexWords = words.map((derived) => wordHex(derived.word, spec.bits));
   const mismatches = mismatchedWords(hexWords, fips);
-  recordCompare(tracer, spec, mismatches);
-  const state: ConstantsStateFacet = { ...tracer.toFacet(), scopeLevels: scopeLevels(NS, 'step') };
-  return { state, wordops: { kind: 'wordops', schemaVersion: 1, wordBits: spec.bits, steps }, words, hexWords, mismatches };
+  recordCompare(recorder, spec, mismatches);
+  return { state: recorder.stateFacet(), wordops: recorder.wordopsFacet(spec.bits), words, hexWords, mismatches };
 }

@@ -1,3 +1,5 @@
+import type { ShaFixturePreset } from './shaBundles.ts';
+
 /**
  * Test-only: NIST CSRC "Examples with Intermediate Values" (SHA256.pdf, SHA224.pdf), copied here
  * because derivers may not import primitives. `vars[t]`: a … h after round t (1, 3, 15, 63) of block 1 of "abc";
@@ -194,4 +196,12 @@ export const SHA256_THREE_BLOCK: NistShaExample = {
     ],
   ],
   digest: '4d2de2740db3da9854d628c496ff1c41ff201308562e81a3a4976fbc6dadd40e',
+};
+
+/** The NIST (or, for the three-block message, recomputed) example of each SHA fixture preset. */
+export const NIST_BY_PRESET: Readonly<Record<ShaFixturePreset, NistShaExample>> = {
+  'sha-256-abc': NIST_SHA256_ABC,
+  'sha-256-two-block': NIST_SHA256_TWO_BLOCK,
+  'sha-256-three-block': SHA256_THREE_BLOCK,
+  'sha-224-abc': NIST_SHA224_ABC,
 };

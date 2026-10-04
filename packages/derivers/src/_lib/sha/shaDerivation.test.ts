@@ -1,8 +1,15 @@
 import type { InstructionsFacet, RegistersFacet } from '@cryventure/core';
 import { describe, expect, it } from 'vitest';
 import type { ShaListingInstruction } from '../listing.ts';
-import { shaFixtureBundle } from './fixtures/shaBundles.ts';
-import { deriveShaIsaFacets, shaCovers, type ShaIsaProfile } from './shaDerivation.ts';
+import { sharedShaFixtureBundle } from './fixtures/shaBundles.ts';
+import {
+  deriveShaIsaFacets,
+  scheduleAheadNote,
+  shaCovers,
+  shaExecute,
+  type ShaIsaProfile,
+  type ShaSemantics,
+} from './shaDerivation.ts';
 import { laneRun, varLanes, word } from './shaWords.ts';
 
 const listed = (
@@ -14,8 +21,8 @@ const listed = (
   ...instruction,
 });
 
-/** A toy ISA: `load v0` (H), `wk v1` (K+W of rounds t … t+3), `rounds v0` (4 rounds), `store v0` only on the last group. */
-function toyProfile(execute: ShaIsaProfile['execute']): ShaIsaProfile {
+/** A toy ISA (mnemonic = role): `loadState v0` (H), `rounds v0, v1` (4 rounds, K+W in v1), `store v0`, all run by `execute`. */
+function toyProfile(execute: ShaSemantics): ShaIsaProfile {
   const instructions: ShaListingInstruction[] = [
     listed({ role: 'loadState', operands: ['v0'] }),
     ...Array.from({ length: 16 }, (_, group) =>
@@ -35,11 +42,11 @@ function toyProfile(execute: ShaIsaProfile['execute']): ShaIsaProfile {
     roundsPerInstruction: 4,
     listing: { compiler: 'c', flags: 'f', triple: 't', function: 'fn', source: '', instructions },
     vectorRegister: (operand) => (operand.startsWith('v') ? operand : undefined),
-    execute,
+    semantics: { loadState: execute, rounds: execute, store: execute },
   };
 }
 
-const toyExecute: ShaIsaProfile['execute'] = (instruction, machine) => {
+const toyExecute: ShaSemantics = (instruction, machine) => {
   if (instruction.role === 'loadState')
     return {
       reads: [],
@@ -62,7 +69,7 @@ const toyExecute: ShaIsaProfile['execute'] = (instruction, machine) => {
 
 describe('deriveShaIsaFacets', () => {
   it('runs the listing once per block and renders every written register from the trace', () => {
-    const bundle = shaFixtureBundle('sha-256-two-block');
+    const bundle = sharedShaFixtureBundle('sha-256-two-block');
     const facets = deriveShaIsaFacets(bundle, toyProfile(toyExecute));
     const instructions = (facets['instructions@toy'] as InstructionsFacet).instructions;
     const registers = facets['registers@toy'] as RegistersFacet;
@@ -80,9 +87,34 @@ describe('deriveShaIsaFacets', () => {
     const profile = toyProfile(() => {
       throw new Error('v0 must hold ABCD');
     });
-    expect(() => deriveShaIsaFacets(shaFixtureBundle('sha-256-abc'), profile)).toThrow(
+    expect(() => deriveShaIsaFacets(sharedShaFixtureBundle('sha-256-abc'), profile)).toThrow(
       'listing 0x0 loadState: v0 must hold ABCD',
     );
+  });
+});
+
+describe('shaExecute', () => {
+  it('runs the semantics of the mnemonic and throws for a mnemonic the profile has none for', () => {
+    const machine = { registers: { read: () => [] }, nextRound: 0, chainIn: 'iv', chainOut: 'h/1' };
+    expect(shaExecute(toyProfile(toyExecute), listed({ role: 'store' }), machine)).toEqual({
+      reads: [],
+      writes: [],
+      written: [],
+    });
+    expect(() => shaExecute(toyProfile(toyExecute), listed({ role: 'msg1' }), machine)).toThrow(
+      'no semantics for this mnemonic',
+    );
+  });
+});
+
+describe('scheduleAheadNote', () => {
+  it('notes the schedule words of a message instruction, nothing for other instructions', () => {
+    expect(scheduleAheadNote('d', listed({ role: 'msg1', w: 20 }))).toEqual({
+      key: 'deriver.d.note.scheduleAhead',
+      params: { first: 20, last: 23 },
+    });
+    expect(scheduleAheadNote('d', listed({ role: 'msg2' }))).toBeUndefined();
+    expect(scheduleAheadNote('d', listed({ role: 'rounds', round: 0 }))).toBeUndefined();
   });
 });
 

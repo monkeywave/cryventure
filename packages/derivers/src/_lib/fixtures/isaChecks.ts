@@ -15,6 +15,8 @@ import {
 
 /** Test-only helpers shared by the ISA deriver tests. */
 
+type FacetInstruction = InstructionsFacet['instructions'][number];
+
 export interface IsaFacets {
   instructions: InstructionsFacet;
   registers: RegistersFacet;
@@ -28,9 +30,14 @@ export function isaFacets(derived: Partial<Record<FacetKey, unknown>>, variant: 
   };
 }
 
+/** The number of steps of the bundle's state facet. */
+export function stateStepCount(bundle: TraceBundle): number {
+  return getFacet<AnyStateFacet>(bundle, 'state')!.steps.length;
+}
+
 /** Core validator and `alignIssues` problems of both facets against the bundle's state steps. */
 export function isaFacetProblems(facets: IsaFacets, bundle: TraceBundle): string[] {
-  const stepCount = getFacet<AnyStateFacet>(bundle, 'state')!.steps.length;
+  const stepCount = stateStepCount(bundle);
   return [
     ...validateInstructionsFacet(facets.instructions),
     ...validateRegistersFacet(facets.registers),
@@ -59,24 +66,57 @@ export function unknownValueRefs(facets: IsaFacets, bundle: TraceBundle): string
 }
 
 /** The bytes `register` holds after the registers step aligned like `instructionIndex`, replayed via core `registersAt`; [] if unwritten. */
-export function registerAfter(facets: IsaFacets, instructionIndex: number, register: string): number[] {
+export function registerAfter(
+  facets: IsaFacets,
+  instructionIndex: number,
+  register: string,
+): number[] {
   const instruction = facets.instructions.instructions[instructionIndex]!;
   return registersAt(facets.registers, instruction.align.last).get(register) ?? [];
 }
 
+/** Instructions with `covers` (AES math, SHA rounds and schedule). */
+export const hasCovers = (instruction: FacetInstruction): boolean =>
+  instruction.covers !== undefined;
+
 /**
- * Mnemonics of the AES-math instructions (those with `covers`) that are current at no playhead:
- * a following load or `ret` would shadow them, since `currentAt` picks the last match (§1e).
+ * `index:mnemonic` of the instructions matching `predicate` that are current at no playhead: a
+ * following zero-width instruction (a load, `ret`) would shadow them, since `currentAt` picks the
+ * last match (§1e).
  */
-export function aesInstructionsNeverCurrent(facets: IsaFacets, bundle: TraceBundle): string[] {
-  const stepCount = getFacet<AnyStateFacet>(bundle, 'state')!.steps.length;
+export function instructionsNeverCurrent(
+  facets: IsaFacets,
+  bundle: TraceBundle,
+  predicate: (instruction: FacetInstruction) => boolean,
+): string[] {
   const spans = facets.instructions.instructions.map((instruction) => instruction.align);
   const current = new Set(
-    Array.from({ length: stepCount + 1 }, (_, index) => currentAt(spans, index - 1)),
+    Array.from({ length: stateStepCount(bundle) + 1 }, (_, index) => currentAt(spans, index - 1)),
   );
   return facets.instructions.instructions.flatMap((instruction, index) =>
-    instruction.covers !== undefined && !current.has(index)
-      ? [`${index}:${instruction.mnemonic}`]
-      : [],
+    predicate(instruction) && !current.has(index) ? [`${index}:${instruction.mnemonic}`] : [],
   );
+}
+
+/** Indices of the instructions with `mnemonic`. */
+export function indicesOf(facets: IsaFacets, mnemonic: string): number[] {
+  return facets.instructions.instructions.flatMap((instruction, index) =>
+    instruction.mnemonic === mnemonic ? [index] : [],
+  );
+}
+
+/**
+ * The bytes instruction `index` writes to `register`, from its own registers step (a playhead replay
+ * would also apply later zero-width writes on the same step, e.g. the K+W `paddd` after the last msg2).
+ * Throws unless that step is aligned like the instruction.
+ */
+export function writtenBy(facets: IsaFacets, index: number, register: string): number[] {
+  const writesRegister = (instruction: FacetInstruction) =>
+    instruction.writes.some((ref) => ref.kind === 'reg');
+  const instructions = facets.instructions.instructions;
+  const step = facets.registers.steps[instructions.slice(0, index).filter(writesRegister).length]!;
+  const align = instructions[index]!.align;
+  if (step.align.first !== align.first || step.align.last !== align.last)
+    throw new Error(`instruction ${index} has no registers step of its own`);
+  return step.writes.find((write) => write.reg === register)?.bytes ?? [];
 }

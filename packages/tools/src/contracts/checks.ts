@@ -13,9 +13,7 @@ import {
   type AnyStateFacet,
   type DerivationFacet,
   type FacetKind,
-  type FieldFacet,
   type I18nRef,
-  type MathFacet,
   type MathTermRole,
   type Messages,
   type NarrationFacet,
@@ -31,6 +29,7 @@ import {
   validateWordopsFacet,
 } from '@cryventure/core';
 import { CONTRACT_LOCALES, type LocaleCatalogs } from './catalogs.ts';
+import { isRecord } from './jsonValues.ts';
 
 /** Pure contract checks; each returns a list of human-readable problems (empty = pass). */
 export type { AnyStateFacet } from '@cryventure/core';
@@ -135,22 +134,18 @@ export function derivationGroupRefs(facet: DerivationFacet): I18nRef[] {
   return (facet.groups ?? []).map((group) => group.label);
 }
 
-/** Every ref a math facet emits: each step's formula and term labels (deduplicated). */
-export function mathFacetRefs(facet: MathFacet): I18nRef[] {
-  return termFacetRefs(facet);
-}
-
 /** A per-step facet whose steps carry a formula and labelled terms (`math`, `field`, `wordops`). */
-interface TermFacet {
+export interface TermFacet {
   steps: readonly { step: number; formula: I18nRef; terms: readonly { id: string; label: I18nRef; valueRef?: string }[] }[];
 }
 
-function termFacetRefs(facet: TermFacet): I18nRef[] {
+/** Every ref a term facet emits: each step's formula and term labels (deduplicated). */
+export function termFacetRefs(facet: TermFacet): I18nRef[] {
   return uniqueRefs(facet.steps.flatMap((step) => [step.formula, ...step.terms.map((term) => term.label)]));
 }
 
 /** Term `valueRef`s that the bundle's `values` facet does not declare; `kind` prefixes each problem. */
-function termValueRefProblems(kind: string, facet: TermFacet, values: Pick<ValuesFacet, 'values'> | undefined): string[] {
+export function termValueRefProblems(kind: string, facet: TermFacet, values: Pick<ValuesFacet, 'values'> | undefined): string[] {
   const known = new Set(values?.values.map((value) => value.id) ?? []);
   return facet.steps.flatMap((step) =>
     step.terms
@@ -210,7 +205,7 @@ export function jsonRoundTrip<T>(value: T): unknown {
 }
 
 /**
- * Steps of a per-step facet (`math`, `field`) outside the state facet's steps −1..n−1 (views could
+ * Steps of a per-step facet (`math`, `field`, `wordops`) outside the state facet's steps −1..n−1 (views could
  * never show them), and a step −1 entry on a state facet without an `initialNarration` (the initial
  * state must be narrated). `kind` prefixes each problem.
  */
@@ -223,36 +218,10 @@ export function facetStepRangeProblems(kind: string, facet: { steps: readonly { 
   });
 }
 
-/** `facetStepRangeProblems` for a math facet. */
-export function mathStepRangeProblems(facet: MathFacet, state: Pick<AnyStateFacet, 'steps' | 'initialNarration'>): string[] {
-  return facetStepRangeProblems('math', facet, state);
-}
-
-/** Every ref a field facet emits: each step's formula and term labels (deduplicated). */
-export function fieldFacetRefs(facet: FieldFacet): I18nRef[] {
-  return termFacetRefs(facet);
-}
-
-/** Field term `valueRef`s that the bundle's `values` facet does not declare. */
-export function fieldValueRefProblems(facet: FieldFacet, values: Pick<ValuesFacet, 'values'> | undefined): string[] {
-  return termValueRefProblems('field', facet, values);
-}
-
-/** Every ref a wordops facet emits: each step's formula and term labels (deduplicated). */
-export function wordopsFacetRefs(facet: WordopsFacet): I18nRef[] {
-  return termFacetRefs(facet);
-}
-
-/** Wordops term `valueRef`s that the bundle's `values` facet does not declare. */
-export function wordopsValueRefProblems(facet: WordopsFacet, values: Pick<ValuesFacet, 'values'> | undefined): string[] {
-  return termValueRefProblems('wordops', facet, values);
-}
-
 /** One entry per role/op; the `Record` makes a new `MathTermRole` or `WordOp` without an entry a type error. */
 const MATH_TERM_ROLES: Record<MathTermRole, true> = { operand: true, intermediate: true, constant: true, carry: true, result: true };
 const WORD_OPS: Record<WordOp, true> = { rotr: true, rotl: true, shr: true, xor: true, and: true, not: true, add: true, ch: true, maj: true, Sigma0: true, Sigma1: true, sigma0: true, sigma1: true, root: true };
 
-const isRecord = (value: unknown): value is Record<string, unknown> => typeof value === 'object' && value !== null && !Array.isArray(value);
 const isKeyOf = (table: object, value: unknown): boolean => typeof value === 'string' && Object.hasOwn(table, value);
 
 function wordTermShapeProblems(term: unknown, index: number, where: string): string[] {

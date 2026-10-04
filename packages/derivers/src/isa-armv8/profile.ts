@@ -1,19 +1,11 @@
 import type { I18nRef } from '@cryventure/core';
 import type { IsaProfile } from '../_lib/isaDerivation.ts';
+import { armVectorRegister } from '../_lib/isaFacets.ts';
 import type { CoveredOp } from '../_lib/isaSpans.ts';
 import { requiredRound, type Listing, type ListingInstruction } from '../_lib/listing.ts';
 import aes128 from './data/aes128.json';
 import aes192 from './data/aes192.json';
 import aes256 from './data/aes256.json';
-
-/** `q1` and `v1.16b` name the same 128-bit register `v1`. */
-const VECTOR = /^[qv](\d+)(?:\.\w+)?$/;
-
-/** Canonical name `v<n>` of a vector operand, or `undefined`. */
-export function armVectorRegister(operand: string): string | undefined {
-  const match = VECTOR.exec(operand);
-  return match === null ? undefined : `v${match[1]}`;
-}
 
 /**
  * ARMv8 CE (docs/M4.md §1e, §5): `aese` round r is AddRoundKey r−1, SubBytes r and ShiftRows r;

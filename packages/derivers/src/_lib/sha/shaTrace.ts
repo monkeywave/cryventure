@@ -1,13 +1,22 @@
 import {
-  getFacet,
+  parseHexToArray,
   stateAt,
   toHex,
+  valueId,
   type AnyStateFacet,
+  type Snapshot,
   type TraceBundle,
   type ValuesFacet,
   type WordopsFacet,
-  type WordTerm,
+  type WordopsStep,
 } from '@cryventure/core';
+import {
+  memoizePerBundle,
+  regionSlice,
+  requiredFacet,
+  requiredStateFacet,
+  traceContractError,
+} from '../traceFacets.ts';
 
 /**
  * Reads the SHA-256 producer's **published facet contract** (docs/M5.md §2c–2d, §5c), never its code:
@@ -50,26 +59,21 @@ export interface ShaTrace {
   blocks: readonly ShaBlockSteps[];
   /** The `output` step (digest written). */
   output: number;
-  stepCount: number;
+  /** The state after each step, replayed once in order (lookups by step never replay again). */
+  states: readonly Snapshot<string>[];
+  /** The `wordops` entry of each state step that has one. */
+  wordopsByStep: ReadonlyMap<number, WordopsStep>;
 }
+
+const CONTRACT = 'SHA-256';
 
 function contractError(message: string): Error {
-  return new Error(`SHA-256 trace contract: ${message}`);
+  return traceContractError(CONTRACT, message);
 }
 
-function stateFacetOf(bundle: TraceBundle): AnyStateFacet {
-  const facet = getFacet<AnyStateFacet>(bundle, 'state');
-  if (facet === undefined) throw contractError('no state facet');
-  for (const region of REQUIRED_REGIONS)
-    if (!facet.regions.some((spec) => spec.id === region))
-      throw contractError(`no "${region}" region`);
-  return facet;
-}
-
-function facetOf<T>(bundle: TraceBundle, kind: 'values' | 'wordops'): T {
-  const facet = getFacet<T>(bundle, kind);
-  if (facet === undefined) throw contractError(`no ${kind} facet`);
-  return facet;
+/** Every state after step 0 … n−1, in order, so `stateAt` applies each step's writes once. */
+function replayStates(facet: AnyStateFacet): Snapshot<string>[] {
+  return facet.steps.map((_, step) => stateAt(facet, step));
 }
 
 /** A block under construction while the steps are scanned in order. */
@@ -119,7 +123,7 @@ function checkRoundAgrees(trace: ShaTrace, block: ShaBlockSteps, t: number): voi
   const stateW = toHex(regionWord(trace, 'w', step, t));
   if (termW !== stateW)
     throw contractError(`${where}: wordops w ${termW} ≠ state W_${t} ${stateW}`);
-  const after = trace.wordops.steps.find((entry) => entry.step === step)?.registers?.after;
+  const after = trace.wordopsByStep.get(step)?.registers?.after;
   if (after === undefined) throw contractError(`${where}: no wordops registers`);
   SHA_VAR_NAMES.forEach((name, index) => {
     const stateVar = toHex(regionWord(trace, 'vars', step, index));
@@ -142,47 +146,46 @@ function checkFacetsAgree(trace: ShaTrace): void {
     for (let t = 0; t < SHA256_ROUNDS; t++) checkRoundAgrees(trace, block, t);
 }
 
-const traces = new WeakMap<TraceBundle, ShaTrace>();
-
-/** The bundle's SHA trace, read once per bundle (bundles are immutable once recorded); throws on a broken contract. */
-export function shaTrace(bundle: TraceBundle): ShaTrace {
-  let trace = traces.get(bundle);
-  if (trace === undefined) {
-    const facet = stateFacetOf(bundle);
-    trace = {
-      facet,
-      values: facetOf<ValuesFacet>(bundle, 'values'),
-      wordops: facetOf<WordopsFacet>(bundle, 'wordops'),
-      ...locateBlocks(facet),
-      stepCount: facet.steps.length,
-    };
-    checkFacetsAgree(trace);
-    traces.set(bundle, trace);
-  }
+function readShaTrace(bundle: TraceBundle): ShaTrace {
+  const facet = requiredStateFacet(bundle, REQUIRED_REGIONS, CONTRACT);
+  const wordops = requiredFacet<WordopsFacet>(bundle, 'wordops', CONTRACT);
+  const trace: ShaTrace = {
+    facet,
+    values: requiredFacet<ValuesFacet>(bundle, 'values', CONTRACT),
+    wordops,
+    ...locateBlocks(facet),
+    states: replayStates(facet),
+    wordopsByStep: new Map(wordops.steps.map((entry) => [entry.step, entry])),
+  };
+  checkFacetsAgree(trace);
   return trace;
 }
 
+/** The bundle's SHA trace, read once per bundle (bundles are immutable once recorded); throws on a broken contract. */
+export const shaTrace: (bundle: TraceBundle) => ShaTrace = memoizePerBundle(readShaTrace);
+
 /** The big-endian bytes of word `index` of `region` after `step`. */
 export function regionWord(trace: ShaTrace, region: string, step: number, index: number): number[] {
-  const offset = index * SHA_WORD_BYTES;
-  const bytes = stateAt(trace.facet, step)[region]?.slice(offset, offset + SHA_WORD_BYTES);
-  if (bytes?.length !== SHA_WORD_BYTES)
+  const state = trace.states[step];
+  const bytes =
+    state === undefined
+      ? undefined
+      : regionSlice(state, region, index * SHA_WORD_BYTES, SHA_WORD_BYTES);
+  if (bytes === undefined)
     throw contractError(`region "${region}" has no word ${index} after step ${step}`);
-  return [...bytes];
+  return bytes;
 }
 
 /** The `wordops` term `id` of state step `step`, as big-endian bytes. */
 export function termWord(trace: ShaTrace, step: number, id: string): number[] {
-  const term: WordTerm | undefined = trace.wordops.steps
-    .find((entry) => entry.step === step)
-    ?.terms.find((candidate) => candidate.id === id);
+  const term = trace.wordopsByStep.get(step)?.terms.find((candidate) => candidate.id === id);
   if (term === undefined) throw contractError(`no wordops term "${id}" at step ${step}`);
-  return term.hex.match(/../g)!.map((pair) => parseInt(pair, 16));
+  return parseHexToArray(term.hex);
 }
 
 /** The value id of the chaining value H^(n): `iv` for n = 0, else `h/<n>`; throws when the values facet lacks it. */
 export function chainingValueId(trace: ShaTrace, n: number): string {
-  const id = n === 0 ? 'iv' : `h/${n}`;
+  const id = n === 0 ? 'iv' : valueId(['h'], String(n));
   if (!trace.values.values.some((value) => value.id === id))
     throw contractError(`no value "${id}"`);
   return id;

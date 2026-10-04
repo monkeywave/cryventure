@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { ListingInstruction } from '../_lib/listing.ts';
-import { ARMV8_PROFILE, armCovers, armFusionNote, armVectorRegister } from './profile.ts';
+import { ARMV8_PROFILE, armCovers, armFusionNote } from './profile.ts';
 
 const instruction = (
   mnemonic: string,
@@ -16,19 +16,6 @@ const instruction = (
 });
 const ops = (role: ListingInstruction['role'], round?: number) =>
   armCovers(instruction('x', [], role, round)).map(({ op, round: r }) => `${op}${r}`);
-
-describe('armVectorRegister', () => {
-  it('maps q<n> and v<n>.16b to v<n>, nothing else', () => {
-    expect(['q1', 'v1.16b', 'v12', '[x2, #32]', 'x2', 'qq1'].map(armVectorRegister)).toEqual([
-      'v1',
-      'v1',
-      'v12',
-      undefined,
-      undefined,
-      undefined,
-    ]);
-  });
-});
 
 describe('armCovers', () => {
   it('aese r = ARK r−1, SB r, SR r; aesmc = MC r; eor = ARK Nr', () => {

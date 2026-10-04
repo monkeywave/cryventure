@@ -41,6 +41,10 @@ jobs:
         env: { HOME: /root }
       - run: pnpm --filter @cryventure/web e2e:subpath
         env: { HOME: /root }
+      - name: Upload Playwright traces
+        if: failure()
+        uses: actions/upload-artifact@v7
+        with: { name: e2e-test-results, path: apps/web/test-results, retention-days: 7 }
   docker:
     runs-on: ubuntu-latest
     steps:

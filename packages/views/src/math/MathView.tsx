@@ -13,6 +13,7 @@ import {
   polynomialOf,
   type BitCell,
 } from './mathModel.ts';
+import { ScrollRegion } from '../_lib/ScrollRegion.tsx';
 import './math.css';
 
 /**
@@ -75,7 +76,7 @@ function MathEquation({ mathStep, columns }: { mathStep: MathStep; columns: Lens
       <p className="cv-math__formula">
         <MathText text={t(mathStep.formula)} />
       </p>
-      <div className="cv-math__scroll cv-scroll-shadow" role="region" tabIndex={0} aria-label={t('view.math.terms')}>
+      <ScrollRegion className="cv-math__scroll cv-scroll-shadow" label={t('view.math.terms')}>
         <table
           role="table"
           className="cv-math__table"
@@ -112,7 +113,7 @@ function MathEquation({ mathStep, columns }: { mathStep: MathStep; columns: Lens
             ))}
           </tbody>
         </table>
-      </div>
+      </ScrollRegion>
     </>
   );
 }

@@ -1,12 +1,17 @@
 import { describe, expect, it } from 'vitest';
 import {
+  blockInputLanes,
+  byteSwapLanes,
   byteSwapped,
   describeLanes,
+  hLanes,
   laneRun,
   laneSum,
   sameWord,
+  sumLanes,
   varLanes,
   word,
+  type ShaWord,
 } from './shaWords.ts';
 
 describe('lane words', () => {
@@ -19,6 +24,18 @@ describe('lane words', () => {
     expect(sameWord(word.var('e', 5), word.var('a', 5))).toBe(false);
     expect(sameWord(word.w(3), word.w(3))).toBe(true);
     expect(sameWord(word.w(3), word.wBytes(3))).toBe(false);
+  });
+
+  it('compare other words by kind and field', () => {
+    const constant = (bytes: number[]): ShaWord => ({ kind: 'const', bytes });
+    expect(sameWord(word.h('a'), word.h('a'))).toBe(true);
+    expect(sameWord(word.h('a'), word.h('b'))).toBe(false);
+    expect(sameWord(word.k(4), word.kw(4))).toBe(false);
+    expect(sameWord(word.p2(20), word.p2(21))).toBe(false);
+    expect(sameWord(word.var('a', 0), word.h('a'))).toBe(false);
+    expect(sameWord(constant([3, 2, 1, 0]), constant([3, 2, 1, 0]))).toBe(true);
+    expect(sameWord(constant([3, 2, 1, 0]), constant([3, 2, 1]))).toBe(false);
+    expect(sameWord(constant([3, 2, 1, 0]), word.w(0))).toBe(false);
   });
 
   it('add only to sums the trace records: K+W, p1 + W[t−7] = p2, and the feed-forward', () => {
@@ -44,5 +61,20 @@ describe('lane words', () => {
     expect(describeLanes([undefined, word.kw(1), word.p2(17), word.h('c')])).toBe(
       '[*, K+W1, p2(W17), H.c]',
     );
+  });
+
+  it('sum and byte-swap whole registers, naming the lane or register they cannot', () => {
+    expect(sumLanes(laneRun(word.k, 4), laneRun(word.w, 4))).toEqual(laneRun(word.kw, 4));
+    expect(() => sumLanes(laneRun(word.k, 4), laneRun(word.w, 5))).toThrow(/sum in lane 0/);
+    expect(() => sumLanes(laneRun(word.k, 4), [word.w(4)])).toThrow('no lane 1');
+    expect(byteSwapLanes(laneRun(word.wBytes, 0), 'v1')).toEqual(laneRun(word.w, 0));
+    expect(() => byteSwapLanes(laneRun(word.k, 0), 'v1')).toThrow(/byte-swapped lane of v1/);
+  });
+
+  it('name what a state or block load brings in, and H words', () => {
+    expect(blockInputLanes('loadState', 4)).toEqual(varLanes(['e', 'f', 'g', 'h'], -1));
+    expect(blockInputLanes('loadBlock', 4)).toEqual(laneRun(word.wBytes, 4));
+    expect(() => blockInputLanes('msg1', 0)).toThrow('no load semantics for role msg1');
+    expect(hLanes(0)).toEqual(['a', 'b', 'c', 'd'].map((name) => word.h(name as 'a')));
   });
 });

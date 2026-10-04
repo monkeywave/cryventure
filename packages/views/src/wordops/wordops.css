@@ -87,11 +87,10 @@
   white-space: nowrap;
 }
 
-/* 64-bit register words wrap onto two lines of two chunks, so the columns (and arrows) keep 32-bit width. */
-.cv-wordops[data-bits='64'] .cv-wordops__reg .cv-wordops__word {
+/* 64-bit register words: explicit lines of two chunks (HexWord), so the columns (and arrows) keep 32-bit width. */
+.cv-wordops__line {
   display: block;
-  /* "6a09 e667" is 9ch; the extra half ch absorbs sub-pixel rounding, a third chunk (14ch) never fits. */
-  inline-size: 9.5ch;
+  white-space: nowrap;
 }
 
 /* ---------- registers ---------- */

@@ -326,9 +326,9 @@ never on a producer's code:
 - a `Hash` producer with a `digest` output and an `algorithm` select param: for `defaults` and
   every preset whose `algorithm` is a function id of its family, the port's `hash(message)` equals
   `run(params).output.digest` (algorithms outside the family, e.g. an IV-generation mode, are
-  skipped). The message is read generically from the params: the manifest's one `text` param, as
-  UTF-8, or as hex when an `encoding` param is `"hex"`; a `Hash` producer whose params do not fit
-  that convention fails this check
+  skipped). The message is the one the run publishes: the bytes of its `values` facet's `message`
+  value, the empty message when a run omits it (empty values are omitted, as SHA-2 does); a `Hash`
+  producer none of whose runs publishes a `message` value is not checked
 - when a run emits a `wordops` facet: its shape holds (steps and terms are arrays, term ids
   non-empty, `role` a `MathTermRole`, `op` absent or a `WordOp`, `registers` with `before` and
   `after` arrays) and it then passes `validateWordopsFacet` (a validator throw is a reported

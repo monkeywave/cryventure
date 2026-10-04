@@ -11,7 +11,7 @@ import {
   type TraceBundle,
   type WireFacet,
 } from '@cryventure/core';
-import { fieldFacetRefs } from './checks.ts';
+import { termFacetRefs } from './checks.ts';
 import { labelsFor, runPreset } from './modeViewFixture.ts';
 
 /**
@@ -60,7 +60,7 @@ async function buildFacetViewFixture<K extends string, F>(
 
 /** `field` facets of ghash TC 2 (block detail), ghash one block (bit detail) and gcm TC 4. */
 export function buildFieldViewFixture(): Promise<FacetViewFixture<'field', FieldFacet>> {
-  return buildFacetViewFixture(FIELD_RUNS, 'field', fieldFacetRefs);
+  return buildFacetViewFixture<'field', FieldFacet>(FIELD_RUNS, 'field', termFacetRefs);
 }
 
 /** `chain` facets of gcm TC 4 (encrypt) and the forged-tag decrypt. */

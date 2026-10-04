@@ -23,7 +23,7 @@ function setup<W extends Word>(algorithm: Sha2Algorithm<W>, message: number[]) {
     blocks.push(compressDetailed(algorithm.params, h, padding.padded.subarray(offset, offset + blockBytes)));
     h = blocks.at(-1)!.hOut;
   }
-  return { trace, padding, blocks, state: () => recorder.stateFacet(), wordops: () => recorder.wordopsFacet(algorithm.params.wordBits) };
+  return { trace, padding, blocks, state: () => recorder.stateFacet(), wordops: () => recorder.wordopsFacet(algorithm.params.arith.bits) };
 }
 
 const roundOf = <W extends Word>(block: BlockDetail<W>, t: number) => block.events.find((event): event is RoundDetail<W> => event.kind === 'round' && event.t === t)!;

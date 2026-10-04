@@ -25,13 +25,28 @@ function schedule256(block: Uint8Array): Uint32Array {
 /** SHA-224/256 compression of one 64-byte block into `h` (8 words). */
 export function sha256Compress(h: Uint32Array, block: Uint8Array): Uint32Array {
   const w = schedule256(block);
-  let [a, b, c, d, e, f, g, hh] = Array.from(h) as [number, number, number, number, number, number, number, number];
+  let a = h[0]!, b = h[1]!, c = h[2]!, d = h[3]!, e = h[4]!, f = h[5]!, g = h[6]!, hh = h[7]!;
   for (let t = 0; t < 64; t++) {
     const t1 = (hh + (rotr32(e, 6) ^ rotr32(e, 11) ^ rotr32(e, 25)) + ((e & f) ^ (~e & g)) + SHA256_K[t]! + w[t]!) >>> 0;
     const t2 = ((rotr32(a, 2) ^ rotr32(a, 13) ^ rotr32(a, 22)) + ((a & b) ^ (a & c) ^ (b & c))) >>> 0;
-    [hh, g, f, e, d, c, b, a] = [g, f, e, (d + t1) >>> 0, c, b, a, (t1 + t2) >>> 0];
+    hh = g;
+    g = f;
+    f = e;
+    e = (d + t1) >>> 0;
+    d = c;
+    c = b;
+    b = a;
+    a = (t1 + t2) >>> 0;
   }
-  [a, b, c, d, e, f, g, hh].forEach((word, index) => (h[index] = (h[index]! + word) >>> 0));
+  // Uint32Array stores wrap mod 2^32.
+  h[0]! += a;
+  h[1]! += b;
+  h[2]! += c;
+  h[3]! += d;
+  h[4]! += e;
+  h[5]! += f;
+  h[6]! += g;
+  h[7]! += hh;
   return h;
 }
 
@@ -55,12 +70,26 @@ function schedule512(block: Uint8Array): BigUint64Array {
 /** SHA-384/512/512-t compression of one 128-byte block into `h` (8 words; BigUint64Array wraps mod 2^64). */
 export function sha512Compress(h: BigUint64Array, block: Uint8Array): BigUint64Array {
   const w = schedule512(block);
-  let [a, b, c, d, e, f, g, hh] = Array.from(h) as [bigint, bigint, bigint, bigint, bigint, bigint, bigint, bigint];
+  let a = h[0]!, b = h[1]!, c = h[2]!, d = h[3]!, e = h[4]!, f = h[5]!, g = h[6]!, hh = h[7]!;
   for (let t = 0; t < 80; t++) {
     const t1 = (hh + (rotr64(e, 14n) ^ rotr64(e, 18n) ^ rotr64(e, 41n)) + ((e & f) ^ (~e & MASK64 & g)) + SHA512_K[t]! + w[t]!) & MASK64;
     const t2 = ((rotr64(a, 28n) ^ rotr64(a, 34n) ^ rotr64(a, 39n)) + ((a & b) ^ (a & c) ^ (b & c))) & MASK64;
-    [hh, g, f, e, d, c, b, a] = [g, f, e, (d + t1) & MASK64, c, b, a, (t1 + t2) & MASK64];
+    hh = g;
+    g = f;
+    f = e;
+    e = (d + t1) & MASK64;
+    d = c;
+    c = b;
+    b = a;
+    a = (t1 + t2) & MASK64;
   }
-  [a, b, c, d, e, f, g, hh].forEach((word, index) => (h[index] = h[index]! + word));
+  h[0]! += a;
+  h[1]! += b;
+  h[2]! += c;
+  h[3]! += d;
+  h[4]! += e;
+  h[5]! += f;
+  h[6]! += g;
+  h[7]! += hh;
   return h;
 }

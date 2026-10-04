@@ -26,14 +26,10 @@ import {
   derivationGroupRefs,
   emittedNarration,
   facetStepRangeProblems,
-  fieldFacetRefs,
-  fieldValueRefProblems,
   initialNarrationProblems,
   jsonRoundTrip,
   keysOutsideNamespace,
   manifestLabelKeys,
-  mathFacetRefs,
-  mathStepRangeProblems,
   missingFacetKinds,
   missingKeys,
   normalFormProblems,
@@ -43,13 +39,14 @@ import {
   runtimeLabelKeys,
   tableFacetRefs,
   tableSelectParamProblems,
+  termFacetRefs,
+  termValueRefProblems,
   unknownParamFields,
-  wordopsFacetRefs,
   wordopsShapeProblems,
-  wordopsValueRefProblems,
   type AnyStateFacet,
+  type TermFacet,
 } from './checks.ts';
-import { checksHashRuns, hashRunProblems, type HashRunCase } from './hashRunChecks.ts';
+import { checksHashRuns, hashRunProblems, publishedMessage, type HashRunCase } from './hashRunChecks.ts';
 import { modeFacetIssues, modeFacetRefs } from './modeFacetChecks.ts';
 import { implementedPortProblems, portFieldProblems, runInProblems, textFieldProblems } from './portChecks.ts';
 import { runOptionsFor, type ProducerSet } from './runWithPorts.ts';
@@ -130,15 +127,18 @@ function manifestSuite<P>(manifest: PrimitiveManifest<P>, catalogs: LocaleCatalo
   }
 }
 
-/** `hashRunProblems` over defaults and presets, each run with its port options. */
+/** `hashRunProblems` over defaults and presets, each run with its port options and its published message. */
 async function hashPortRunProblems<P>(manifest: PrimitiveManifest<P>, producers: ProducerSet): Promise<string[]> {
   const module = await manifest.load();
   const family = module.ports?.Hash;
   if (family === undefined) return ['no Hash port to cross-check'];
   const cases: HashRunCase[] = await Promise.all(
-    runCases(manifest).map(async ({ name, params }) => ({ name, params, output: runOrThrow(module, params, await runOptionsFor(manifest, params, producers.lookup)).output })),
+    runCases(manifest).map(async ({ name, params }) => {
+      const bundle = runOrThrow(module, params, await runOptionsFor(manifest, params, producers.lookup));
+      return { name, params, output: bundle.output, message: publishedMessage(bundle) };
+    }),
   );
-  return hashRunProblems(manifest, family, cases);
+  return hashRunProblems(family, cases);
 }
 
 function runSuite<P>(manifest: PrimitiveManifest<P>, catalogs: LocaleCatalogs, producers: ProducerSet, testCase: RunCase<P>): void {
@@ -182,52 +182,33 @@ function optionalRunChecks<P>(manifest: PrimitiveManifest<P>, catalogs: LocaleCa
   }
   if (manifest.facets.includes('derivation')) derivationChecks(catalogs, bundle);
   if (manifest.facets.includes('math')) {
-    facetChecks<MathFacet>('math', validateMathFacet, mathFacetRefs, catalogs, bundle);
-    mathCrossChecks(bundle);
+    facetChecks<MathFacet>('math', validateMathFacet, termFacetRefs, catalogs, bundle);
+    termFacetCrossChecks('math', bundle);
   }
   if (manifest.facets.includes('table')) {
     facetChecks<TableFacet>('table', validateTableFacet, tableFacetRefs, catalogs, bundle);
     tableCrossChecks(manifest, bundle);
   }
   if (manifest.facets.includes('field')) {
-    facetChecks<FieldFacet>('field', validateFieldFacet, fieldFacetRefs, catalogs, bundle);
-    fieldCrossChecks(bundle);
+    facetChecks<FieldFacet>('field', validateFieldFacet, termFacetRefs, catalogs, bundle);
+    termFacetCrossChecks('field', bundle);
   }
   if (manifest.facets.includes('wordops')) {
-    facetChecks<WordopsFacet>('wordops', wordopsShapeProblems, wordopsFacetRefs, catalogs, bundle);
-    wordopsCrossChecks(bundle);
+    facetChecks<WordopsFacet>('wordops', wordopsShapeProblems, termFacetRefs, catalogs, bundle);
+    termFacetCrossChecks('wordops', bundle);
   }
 }
 
-function wordopsCrossChecks(bundle: () => TraceBundle): void {
-  it('aligns every wordops step with a state step or the narrated initial state (step −1)', () => {
-    const wordops = getFacet<WordopsFacet>(bundle(), 'wordops');
+/** A term facet (`math`, `field`, `wordops`): steps within the state steps, term `valueRef`s in the values facet. */
+function termFacetCrossChecks(kind: 'math' | 'field' | 'wordops', bundle: () => TraceBundle): void {
+  it(`aligns every ${kind} step with a state step or the narrated initial state (step −1)`, () => {
+    const facet = getFacet<TermFacet>(bundle(), kind);
     const state = getFacet<AnyStateFacet>(bundle(), 'state') ?? { steps: [] };
-    expect(wordops === undefined ? [] : facetStepRangeProblems('wordops', wordops, state)).toEqual([]);
+    expect(facet === undefined ? [] : facetStepRangeProblems(kind, facet, state)).toEqual([]);
   });
-  it('links wordops terms only to values in the values facet', () => {
-    const wordops = getFacet<WordopsFacet>(bundle(), 'wordops');
-    expect(wordops === undefined ? [] : wordopsValueRefProblems(wordops, getFacet<ValuesFacet>(bundle(), 'values'))).toEqual([]);
-  });
-}
-
-function fieldCrossChecks(bundle: () => TraceBundle): void {
-  it('aligns every field step with a state step or the narrated initial state (step −1)', () => {
-    const field = getFacet<FieldFacet>(bundle(), 'field');
-    const state = getFacet<AnyStateFacet>(bundle(), 'state') ?? { steps: [] };
-    expect(field === undefined ? [] : facetStepRangeProblems('field', field, state)).toEqual([]);
-  });
-  it('links field terms only to values in the values facet', () => {
-    const field = getFacet<FieldFacet>(bundle(), 'field');
-    expect(field === undefined ? [] : fieldValueRefProblems(field, getFacet<ValuesFacet>(bundle(), 'values'))).toEqual([]);
-  });
-}
-
-function mathCrossChecks(bundle: () => TraceBundle): void {
-  it('aligns every math step with a state step or the narrated initial state (step −1)', () => {
-    const math = getFacet<MathFacet>(bundle(), 'math');
-    const state = getFacet<AnyStateFacet>(bundle(), 'state') ?? { steps: [] };
-    expect(math === undefined ? [] : mathStepRangeProblems(math, state)).toEqual([]);
+  it(`links ${kind} terms only to values in the values facet`, () => {
+    const facet = getFacet<TermFacet>(bundle(), kind);
+    expect(facet === undefined ? [] : termValueRefProblems(kind, facet, getFacet<ValuesFacet>(bundle(), 'values'))).toEqual([]);
   });
 }
 

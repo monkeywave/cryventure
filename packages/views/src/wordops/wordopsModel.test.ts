@@ -1,6 +1,6 @@
 import type { WordopsFacet, WordopsStep, WordTerm } from '@cryventure/core';
 import { describe, expect, it } from 'vitest';
-import { OP_GLYPHS, TERM_ROLE_GLYPHS, hexChunks, isStoryTerm, nibbleGroups, lensParts, sha2RegisterShift, showsBitStrip, wordBitsOf, wordopsStepAt } from './wordopsModel.ts';
+import { OP_GLYPHS, TERM_ROLE_GLYPHS, hexChunks, isStoryTerm, nibbleGroups, lensParts, registerChunksPerLine, sha2RegisterShift, showsBitStrip, wordBitsOf, wordopsStepAt } from './wordopsModel.ts';
 
 const step = (index: number, extra: Partial<WordopsStep> = {}): WordopsStep => ({ step: index, formula: { key: 'f' }, terms: [], ...extra });
 const term = (id: string, hex: string, role: WordTerm['role'] = 'intermediate'): WordTerm => ({ id, label: { key: id }, hex, role });
@@ -32,6 +32,11 @@ describe('wordopsModel', () => {
     expect(hexChunks('6a09e667f3bcc908')).toEqual(['6a09', 'e667', 'f3bc', 'c908']);
   });
 
+  it('breaks only 64-bit register words onto lines of two chunks', () => {
+    expect(registerChunksPerLine(64)).toBe(2);
+    expect(registerChunksPerLine(32)).toBeUndefined();
+  });
+
   it('reads bits MSB → LSB', () => {
     expect(wordBitsOf('a1').map(Number)).toEqual([1, 0, 1, 0, 0, 0, 0, 1]);
   });
@@ -57,15 +62,19 @@ describe('wordopsModel', () => {
   });
 
   describe('sha2RegisterShift', () => {
-    const before = ['00000001', '00000002', '00000003', '00000004', '00000005', '00000006', '00000007', '00000008'];
-    const t1 = 'fffffff0';
-    const t2 = '00000020';
-    // a = T1 + T2 (mod 2³²) = 0x10, e = d + T1 = 0xfffffff4.
-    const after = ['00000010', '00000001', '00000002', '00000003', 'fffffff4', '00000005', '00000006', '00000007'];
-    const round = step(0, { terms: [term('T1', t1), term('T2', t2)], registers: { before, after } });
+    /*
+     * FIPS 180-4 example "abc", SHA-256 round 0 (real round values, T1 and T2 as the round computes
+     * them): the shift's arrows must agree with them, which the view no longer re-checks at run time.
+     */
+    const before = ['6a09e667', 'bb67ae85', '3c6ef372', 'a54ff53a', '510e527f', '9b05688c', '1f83d9ab', '5be0cd19'];
+    const after = ['5d6aebcd', '6a09e667', 'bb67ae85', '3c6ef372', 'fa2a4622', '510e527f', '9b05688c', '1f83d9ab'];
+    const T1 = '54da50e8';
+    const T2 = '08909ae5';
+    const round = step(0, { terms: [term('T1', T1), term('T2', T2)], registers: { before, after } });
+    const add32 = (left: string, right: string) => ((BigInt(`0x${left}`) + BigInt(`0x${right}`)) % BigInt(2) ** BigInt(32)).toString(16).padStart(8, '0');
 
-    it('returns the eight arrows when the data agrees', () => {
-      expect(sha2RegisterShift(round, 32)?.map((arrow) => [arrow.to, arrow.from, arrow.source])).toEqual([
+    it('returns the eight arrows for a round (eight registers plus T1 and T2)', () => {
+      expect(sha2RegisterShift(round)?.map((arrow) => [arrow.to, arrow.from, arrow.source])).toEqual([
         [0, undefined, 'sum'],
         [1, 0, 'copy'],
         [2, 1, 'copy'],
@@ -77,23 +86,19 @@ describe('wordopsModel', () => {
       ]);
     });
 
-    it('returns undefined when the data disagrees or T1/T2 are missing', () => {
-      expect(sha2RegisterShift({ ...round, registers: { before, after: before } }, 32)).toBeUndefined();
-      expect(sha2RegisterShift({ ...round, terms: [term('T1', t1)] }, 32)).toBeUndefined();
-      expect(sha2RegisterShift({ ...round, registers: undefined }, 32)).toBeUndefined();
-      expect(sha2RegisterShift({ ...round, registers: { before: before.slice(0, 5), after: after.slice(0, 5) } }, 32)).toBeUndefined();
+    it('agrees with the round data: copies move words right, e ← d + T1, a ← T1 + T2', () => {
+      const expected = sha2RegisterShift(round)!.map((arrow) => {
+        if (arrow.source === 'sum') return add32(T1, T2);
+        const from = before[arrow.from!]!;
+        return arrow.source === 'plusT1' ? add32(from, T1) : from;
+      });
+      expect(expected).toEqual(after);
     });
 
-    it('adds modulo 2⁶⁴ for 64-bit words', () => {
-      const wide = (hex: string) => hex.padStart(16, '0');
-      const big = step(0, {
-        terms: [term('T1', 'ffffffffffffffff'), term('T2', wide('2'))],
-        registers: {
-          before: before.map(wide),
-          after: [wide('1'), ...before.slice(0, 3).map(wide), wide('3'), ...before.slice(4, 7).map(wide)],
-        },
-      });
-      expect(sha2RegisterShift(big, 64)).toHaveLength(8);
+    it('returns undefined without T1/T2 or eight registers (init and feed-forward steps)', () => {
+      expect(sha2RegisterShift({ ...round, terms: [term('T1', T1)] })).toBeUndefined();
+      expect(sha2RegisterShift({ ...round, registers: undefined })).toBeUndefined();
+      expect(sha2RegisterShift({ ...round, registers: { before: before.slice(0, 5), after: after.slice(0, 5) } })).toBeUndefined();
     });
   });
 });

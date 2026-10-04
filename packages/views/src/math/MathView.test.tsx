@@ -1,6 +1,6 @@
 import type { Lens, MathFacet } from '@cryventure/core';
 import { act, screen, within } from '@testing-library/react';
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { createFixtureBundle, renderLab } from '@cryventure/viz/testing';
 import { loadVizMessages } from '@cryventure/viz/messages';
 import { loadViewMessages } from '../messages.ts';
@@ -26,6 +26,8 @@ const bitLabels = (id: string) =>
 const formula = () => document.querySelector('.cv-math__formula')?.textContent;
 
 describe('MathView', () => {
+  afterEach(() => vi.restoreAllMocks());
+
   it('shows the formula and a semantic table of terms at the playhead', () => {
     const { store } = render();
     act(() => store.getState().seek(0));
@@ -158,7 +160,9 @@ describe('MathView', () => {
     expect(within(row('a')).getAllByRole('cell')).toHaveLength(4);
   });
 
-  it('keeps the table in a focusable scroll region for narrow slots', () => {
+  it('keeps the table in a scroll region for narrow slots, focusable while it overflows', () => {
+    vi.spyOn(HTMLElement.prototype, 'scrollWidth', 'get').mockReturnValue(600);
+    vi.spyOn(HTMLElement.prototype, 'clientWidth', 'get').mockReturnValue(300);
     render();
     const region = screen.getByRole('region', { name: english['view.math.terms'] });
     expect(region.tabIndex).toBe(0);

@@ -8,6 +8,7 @@ import {
   valueIdByRole,
   type AesOpSteps,
 } from './aesTrace.ts';
+import { memoizePerBundle } from './traceFacets.ts';
 
 /** What the ISA and memory derivers read from an AES op-detail bundle: its op steps and the value ids they reference. */
 export interface TraceContext {
@@ -21,8 +22,6 @@ export interface TraceContext {
   /** The step after which region `w` holds the whole key schedule. */
   keyScheduleStep: number;
 }
-
-const contexts = new WeakMap<TraceBundle, TraceContext>();
 
 function readTraceContext(bundle: TraceBundle): TraceContext {
   const facet = aesStateFacet(bundle);
@@ -44,11 +43,5 @@ function readTraceContext(bundle: TraceBundle): TraceContext {
  * The bundle's trace context, computed once per bundle (bundles are immutable once recorded) and
  * shared by every ISA and memory deriver that runs on it. Throws on a broken AES contract; failures are not cached.
  */
-export function traceContext(bundle: TraceBundle): TraceContext {
-  let context = contexts.get(bundle);
-  if (context === undefined) {
-    context = readTraceContext(bundle);
-    contexts.set(bundle, context);
-  }
-  return context;
-}
+export const traceContext: (bundle: TraceBundle) => TraceContext =
+  memoizePerBundle(readTraceContext);

@@ -161,6 +161,9 @@ const AXE_RUNS: readonly { lang: Lang; path: string; lens: Lens; colorScheme: 'l
 
 for (const { lang, path, lens, colorScheme } of AXE_RUNS) {
   test(`${lang}/${path} has no serious or critical axe violations (${lens} lens, ${colorScheme})`, async ({ page }) => {
+    // Genuinely slow, not a hang: with every view rendered (mountLabs), three labs with 64/80-word
+    // schedules make a ~6,300-element DOM; axe's color-contrast pass alone takes seconds on CI runners.
+    test.slow();
     await page.emulateMedia({ colorScheme });
     await page.goto(`${lang}/${path}`);
     await setLens(page, lens);

@@ -3,7 +3,8 @@ import { describe, expect, it } from 'vitest';
 import { AES_FIXTURE_PRESETS, aesFixtureBundle } from '../_lib/fixtures/aesBundles.ts';
 import { FIPS197_APPENDIX_C } from '../_lib/fixtures/fips197AppC.ts';
 import {
-  aesInstructionsNeverCurrent,
+  hasCovers,
+  instructionsNeverCurrent,
   isaFacetProblems,
   isaFacets,
   registerAfter,
@@ -32,7 +33,7 @@ describe.each(AES_FIXTURE_PRESETS)('isa-armv8 derive (%s)', (preset) => {
   });
 
   it('makes every AES-math instruction current at some playhead (no load shadows it)', () => {
-    expect(aesInstructionsNeverCurrent(facets, bundle)).toEqual([]);
+    expect(instructionsNeverCurrent(facets, bundle, hasCovers)).toEqual([]);
   });
 
   it('holds FIPS 197 App. C round[r].m_col after aesmc round r, wherever the state lives', () => {

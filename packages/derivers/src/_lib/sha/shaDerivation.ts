@@ -1,13 +1,8 @@
-import type {
-  AlignSpan,
-  FacetKey,
-  I18nRef,
-  Instruction,
-  OperandRef,
-  TraceBundle,
-} from '@cryventure/core';
+import type { AlignSpan, FacetKey, I18nRef, OperandRef, TraceBundle } from '@cryventure/core';
 import {
+  buildInstruction,
   isaFacetPair,
+  listingError,
   registerWrite,
   vectorRegisterSpecs,
   type IsaVariant,
@@ -16,7 +11,13 @@ import {
 import { INITIAL_SPAN } from '../isaSpans.ts';
 import type { ShaListing, ShaListingInstruction } from '../listing.ts';
 import { registerBytes, ShaRegisterFile, type ShaBlockContext } from './shaRegisters.ts';
-import { blockSpans, isRoundInstruction, nextRoundStarts, requiredShaRound } from './shaSpans.ts';
+import {
+  blockSpans,
+  isRoundInstruction,
+  listingShape,
+  requiredShaRound,
+  type ShaListingShape,
+} from './shaSpans.ts';
 import { chainingValueId, shaTrace, type ShaTrace } from './shaTrace.ts';
 import type { Lanes } from './shaWords.ts';
 
@@ -34,7 +35,7 @@ export interface ShaEffects {
   written: { reg: string; lanes: Lanes; valueRef?: string }[];
 }
 
-/** What an ISA profile's `execute` sees while the listing runs over one block. */
+/** What an ISA profile's semantics see while the listing runs over one block. */
 export interface ShaMachine {
   /** The symbolic register file before the instruction (read only: the walker applies `written`). */
   registers: Pick<ShaRegisterFile, 'read'>;
@@ -46,6 +47,9 @@ export interface ShaMachine {
   chainOut: string;
 }
 
+/** What one mnemonic does to the symbolic registers; throws when its sources hold something unexpected. */
+export type ShaSemantics = (instruction: ShaListingInstruction, machine: ShaMachine) => ShaEffects;
+
 /** A SHA ISA deriver: its names, its listing, and the semantics of its instructions on lane words. */
 export interface ShaIsaProfile extends IsaVariant {
   /** Lane widths the vector registers offer, e.g. [8, 16, 32, 64]. */
@@ -56,15 +60,31 @@ export interface ShaIsaProfile extends IsaVariant {
   roundsPerInstruction: number;
   /** Canonical vector register name of an operand (`q1`, `v1.4s` → `v1`), or `undefined`. */
   vectorRegister(operand: string): string | undefined;
-  /** The instruction's effect on the symbolic registers; throws when its sources hold something unexpected. */
-  execute(instruction: ShaListingInstruction, machine: ShaMachine): ShaEffects;
-  /** An optional note on the instruction at `index`. */
-  note?(instructions: readonly ShaListingInstruction[], index: number): I18nRef | undefined;
+  /** The semantics of each mnemonic the listing uses. */
+  semantics: Readonly<Record<string, ShaSemantics>>;
+  /** An optional note on the instruction at `index`, given where the listing's rounds sit. */
+  note?(
+    instructions: readonly ShaListingInstruction[],
+    index: number,
+    shape: ShaListingShape,
+  ): I18nRef | undefined;
 }
 
-function listingError(instruction: ShaListingInstruction, error: unknown): Error {
-  const message = error instanceof Error ? error.message : String(error);
-  return new Error(`listing ${instruction.address} ${instruction.mnemonic}: ${message}`);
+/** What both SHA-256 vector ISAs share: 128-bit little-endian registers with 8 … 64-bit lanes. */
+export const SHA256_VECTOR_DEFAULTS: Pick<ShaIsaProfile, 'byteOrder' | 'lanes' | 'registerBits'> = {
+  byteOrder: 'little',
+  lanes: [8, 16, 32, 64],
+  registerBits: 128,
+};
+
+/** The schedule words W_w … W_{w+3} a message instruction (`msg1`/`msg2` with `w`) works on. */
+function scheduleWords(
+  instruction: ShaListingInstruction,
+): { first: number; last: number } | undefined {
+  const { role, w } = instruction;
+  return (role === 'msg1' || role === 'msg2') && w !== undefined
+    ? { first: w, last: w + 3 }
+    : undefined;
 }
 
 /**
@@ -81,56 +101,57 @@ export function shaCovers(
     const last = first + profile.roundsPerInstruction - 1;
     return [{ key: `${namespace}.rounds`, params: { first, last } }];
   }
-  const { role, w } = instruction;
-  if ((role === 'msg1' || role === 'msg2') && w !== undefined)
-    return [{ key: `${namespace}.${role}`, params: { first: w, last: w + 3 } }];
-  return [];
+  const words = scheduleWords(instruction);
+  return words === undefined ? [] : [{ key: `${namespace}.${instruction.role}`, params: words }];
 }
 
-function buildInstruction(
-  listed: ShaListingInstruction,
-  align: AlignSpan,
-  effects: ShaEffects,
-  covers: I18nRef[],
-  note: I18nRef | undefined,
-): Instruction {
-  const instruction: Instruction = {
-    address: listed.address,
-    mnemonic: listed.mnemonic,
-    operands: [...listed.operands],
-    reads: effects.reads,
-    writes: effects.writes,
-    align,
-  };
-  if (covers.length > 0) instruction.covers = covers;
-  if (note !== undefined) instruction.note = note;
-  return instruction;
+/** The note `deriver.<id>.note.scheduleAhead` on a message instruction: the schedule runs ahead of the rounds. */
+export function scheduleAheadNote(
+  deriverId: string,
+  instruction: ShaListingInstruction,
+): I18nRef | undefined {
+  const words = scheduleWords(instruction);
+  return words === undefined
+    ? undefined
+    : { key: `deriver.${deriverId}.note.scheduleAhead`, params: words };
+}
+
+/** The effect of `instruction` under the profile's semantics; throws for a mnemonic it has none for. */
+export function shaExecute(
+  profile: Pick<ShaIsaProfile, 'semantics'>,
+  instruction: ShaListingInstruction,
+  machine: ShaMachine,
+): ShaEffects {
+  const semantics = profile.semantics[instruction.mnemonic];
+  if (semantics === undefined) throw new Error('no semantics for this mnemonic');
+  return semantics(instruction, machine);
 }
 
 /** Static per-listing data, shared by every block. */
 interface ListingPlan {
-  nextRound: (number | undefined)[];
+  shape: ShaListingShape;
   covers: I18nRef[][];
   notes: (I18nRef | undefined)[];
 }
 
 function planListing(profile: ShaIsaProfile): ListingPlan {
   const { instructions } = profile.listing;
+  const shape = listingShape(instructions);
   return {
-    nextRound: nextRoundStarts(instructions),
+    shape,
     covers: instructions.map((instruction) => shaCovers(profile, instruction)),
-    notes: instructions.map((_, index) => profile.note?.(instructions, index)),
+    notes: instructions.map((_, index) => profile.note?.(instructions, index, shape)),
   };
 }
 
-/** Runs `profile.execute`, naming the instruction in any error it throws. */
+/** Runs the profile's semantics, naming the instruction in any error they throw. */
 function execute(
   profile: ShaIsaProfile,
   listed: ShaListingInstruction,
   machine: ShaMachine,
 ): ShaEffects {
   try {
-    return profile.execute(listed, machine);
+    return shaExecute(profile, listed, machine);
   } catch (error) {
     throw listingError(listed, error);
   }
@@ -140,6 +161,7 @@ function execute(
 function spansOfBlock(
   trace: ShaTrace,
   profile: ShaIsaProfile,
+  shape: ShaListingShape,
   blockIndex: number,
   previous: AlignSpan,
 ): AlignSpan[] {
@@ -150,7 +172,7 @@ function spansOfBlock(
     storeStep: isLast ? trace.output : block.feedForward,
     roundsPerInstruction: profile.roundsPerInstruction,
   };
-  return blockSpans(profile.listing.instructions, timeline, previous);
+  return blockSpans(profile.listing.instructions, shape, timeline, previous);
 }
 
 /** Runs the listing over block `blockIndex` with a fresh register file, appending to `walk`. */
@@ -162,13 +184,13 @@ function walkBlock(
   walk: IsaWalk & { previous: AlignSpan },
 ): void {
   const context: ShaBlockContext = { trace, block: trace.blocks[blockIndex]! };
-  const spans = spansOfBlock(trace, profile, blockIndex, walk.previous);
+  const spans = spansOfBlock(trace, profile, plan.shape, blockIndex, walk.previous);
   const registers = new ShaRegisterFile();
   const chainIn = chainingValueId(trace, blockIndex);
   const chainOut = chainingValueId(trace, blockIndex + 1);
   profile.listing.instructions.forEach((listed, index) => {
     const align = spans[index]!;
-    const nextRound = plan.nextRound[index];
+    const nextRound = plan.shape.nextRound[index];
     const effects = execute(profile, listed, { registers, nextRound, chainIn, chainOut });
     effects.written.forEach(({ reg, lanes }) => registers.write(reg, lanes));
     walk.instructions.push(

@@ -19,7 +19,9 @@ async function settleAnimations(page: Page): Promise<void> {
 /** Serious/critical WCAG 2.1 AA axe violations on the current page, summarised for a readable failure. */
 export async function blockingViolations(page: Page): Promise<string[]> {
   await settleAnimations(page);
-  const results = await new AxeBuilder({ page }).withTags(WCAG_TAGS).analyze();
+  // Legacy mode runs axe.run in the page: the site has no iframes, and the default runPartial path
+  // ships every pass node (~20 MB on a SHA-512 page) to a second page for finishRun, doubling the time.
+  const results = await new AxeBuilder({ page }).withTags(WCAG_TAGS).setLegacyMode(true).analyze();
   return results.violations
     .filter((violation) => BLOCKING_IMPACTS.has(violation.impact ?? ''))
     .map((violation) => `${violation.id} (${violation.impact}): ${violation.nodes.map((node) => node.target.join(' ')).join(', ')}`);

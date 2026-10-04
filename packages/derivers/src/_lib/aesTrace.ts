@@ -1,11 +1,16 @@
 import {
-  getFacet,
   stateAt,
   type AnyStateFacet,
   type TraceBundle,
   type ValueRole,
   type ValuesFacet,
 } from '@cryventure/core';
+import {
+  regionSlice,
+  requiredFacet,
+  requiredStateFacet,
+  traceContractError,
+} from './traceFacets.ts';
 
 /**
  * Reads the AES producer's **published facet contract** (docs/M4.md §1b), never its code:
@@ -42,8 +47,10 @@ export interface AesOpSteps {
 
 type AesStateStep = { op: string; round?: unknown };
 
+const CONTRACT = 'AES';
+
 function contractError(message: string): Error {
-  return new Error(`AES trace contract: ${message}`);
+  return traceContractError(CONTRACT, message);
 }
 
 function opKey(op: AesOpName, round: number): string {
@@ -56,20 +63,12 @@ function isAesOpName(op: string): op is AesOpName {
 
 /** The bundle's state facet with the `state` and `w` regions; throws when the contract is broken. */
 export function aesStateFacet(bundle: TraceBundle): AnyStateFacet {
-  const facet = getFacet<AnyStateFacet>(bundle, 'state');
-  if (facet === undefined) throw contractError('no state facet');
-  for (const region of ['state', 'w']) {
-    if (!facet.regions.some((spec) => spec.id === region))
-      throw contractError(`no "${region}" region`);
-  }
-  return facet;
+  return requiredStateFacet(bundle, ['state', 'w'], CONTRACT);
 }
 
 /** The bundle's values facet; throws when it is missing. */
 export function aesValuesFacet(bundle: TraceBundle): ValuesFacet {
-  const facet = getFacet<ValuesFacet>(bundle, 'values');
-  if (facet === undefined) throw contractError('no values facet');
-  return facet;
+  return requiredFacet<ValuesFacet>(bundle, 'values', CONTRACT);
 }
 
 function stepRound(step: AesStateStep, index: number): number {
@@ -114,11 +113,9 @@ export function opStep(ops: AesOpSteps, op: AesOpName, round: number): number {
 }
 
 function regionBytes(facet: AnyStateFacet, step: number, region: string, offset: number): number[] {
-  const values = stateAt(facet, step)[region];
-  const bytes = values?.slice(offset, offset + AES_BLOCK_BYTES);
-  if (bytes?.length !== AES_BLOCK_BYTES)
-    throw contractError(`region "${region}" has no 16 bytes at ${offset}`);
-  return [...bytes];
+  const bytes = regionSlice(stateAt(facet, step), region, offset, AES_BLOCK_BYTES);
+  if (bytes === undefined) throw contractError(`region "${region}" has no 16 bytes at ${offset}`);
+  return bytes;
 }
 
 /** The 16 state bytes (memory order) after `step`. */

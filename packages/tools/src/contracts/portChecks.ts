@@ -68,11 +68,11 @@ const HASH_BLOCK_SIZES: readonly number[] = [64, 128];
 
 const HASH_INPUT_SEED = 5;
 
-/** Digests of the same input twice (the given buffer, then a pristine copy), or the reason hashing threw. */
+/** Digests of the same input twice (the given buffer, then a copy taken before hashing), or the reason hashing threw. */
 function digestPair(fn: HashFunction, data: Uint8Array): [Uint8Array, Uint8Array] | string {
   const pristine = data.slice();
   try {
-    return [fn.hash(data), fn.hash(pristine.slice())];
+    return [fn.hash(data), fn.hash(pristine)];
   } catch (error) {
     return errorMessage(error);
   }

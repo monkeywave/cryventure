@@ -1,6 +1,7 @@
 import {
+  allIndices,
   assertMatchesReference,
-  i18nRef,
+  blocksOf,
   INITIAL_STEP_INDEX,
   narrationFromState,
   parseHexToArray,
@@ -11,12 +12,25 @@ import {
   type ValueRef,
   type ValuesFacet,
 } from '@cryventure/core';
-import type { Sha2Algorithm } from './algorithms.ts';
+import type { AnySha2Algorithm, Sha2Algorithm } from './algorithms.ts';
 import { compressDetailed, type BlockDetail } from './compress.ts';
 import { sha2Digest } from './hash.ts';
 import { sha2Padding, type Sha2Padding } from './padding.ts';
 import { SHA2_REGISTER_NAMES, sha2InitialSnapshot, sha2Regions, type Sha2Region } from './regions.ts';
-import { chainingValueId, recordCompress, recordFeedForward, recordInit, recordOutput, recordPad, recordRound, recordSchedule, sha2Trace, type Sha2OpName, type Sha2Trace } from './steps.ts';
+import {
+  chainingValueId,
+  recordCompress,
+  recordFeedForward,
+  recordInit,
+  recordOutput,
+  recordPad,
+  recordRound,
+  recordSchedule,
+  sha2InitialNarration,
+  sha2Trace,
+  type Sha2OpName,
+  type Sha2Trace,
+} from './steps.ts';
 import { WordopsRecorder } from './wordopsRecorder.ts';
 import { wordsToBytes, type Word } from './words.ts';
 
@@ -49,7 +63,7 @@ interface ChainingValue {
 function createTrace<W extends Word>(run: Sha2Run<W>, paddedBytes: number): Sha2Trace<W> {
   const { ns, algorithm, message } = run;
   const regions = sha2Regions(ns, algorithm, message.length, paddedBytes);
-  const initialNarration = i18nRef(`${ns}.step.initial`, { algorithm: algorithm.name, bytes: message.length, bits: algorithm.outputSize * 8, blockBits: algorithm.params.blockBytes * 8, rounds: algorithm.params.rounds });
+  const initialNarration = sha2InitialNarration(ns, algorithm, message.length);
   const recorder = new WordopsRecorder<Sha2Region, { op: Sha2OpName }>(regions, sha2InitialSnapshot(regions, message), scopeLevels(ns, 'block', 'op'), initialNarration);
   return sha2Trace(ns, algorithm, recorder);
 }
@@ -84,19 +98,20 @@ function recordDigest<W extends Word>(trace: Sha2Trace<W>, last: ChainingValue, 
 /** Records every block in its own scope: `pad` opens block 1, `output` closes the last block. */
 function recordBlocks<W extends Word>(trace: Sha2Trace<W>, run: Sha2Run<W>, padding: Sha2Padding): Sha2Result {
   const { params, iv } = run.algorithm;
-  const blocks = Array.from({ length: padding.padded.length / params.blockBytes }, (_, index) => padding.padded.subarray(index * params.blockBytes, (index + 1) * params.blockBytes));
-  const result: Sha2Result = { chain: [], digest: [], outputStep: -1 };
+  const blocks = blocksOf(padding.padded, params.blockBytes);
   let h = [...iv];
-  blocks.forEach((bytes, index) => {
-    const block = compressDetailed(params, h, bytes);
-    trace.recorder.enter(index);
-    if (index === 0) recordPad(trace, run.message.length, padding);
-    result.chain.push(recordBlock(trace, run, index, block));
-    if (index === blocks.length - 1) Object.assign(result, recordDigest(trace, result.chain[index]!, blocks.length));
-    trace.recorder.leave();
+  const chainBlock = (index: number): ChainingValue => {
+    const block = compressDetailed(params, h, blocks[index]!);
     h = block.hOut;
+    if (index === 0) recordPad(trace, run.message.length, padding);
+    return recordBlock(trace, run, index, block);
+  };
+  const lastIndex = blocks.length - 1;
+  const chain = allIndices(lastIndex).map((index) => trace.recorder.block(index, () => chainBlock(index)));
+  return trace.recorder.block(lastIndex, () => {
+    const last = chainBlock(lastIndex);
+    return { chain: [...chain, last], ...recordDigest(trace, last, blocks.length) };
   });
-  return result;
 }
 
 function sha2Values<W extends Word>(run: Sha2Run<W>, chain: readonly ChainingValue[], digest: number[], outputStep: number): ValuesFacet {
@@ -119,10 +134,10 @@ export function recordSha2<W extends Word>(run: Sha2Run<W>): PrimitiveRecording 
   const padding = sha2Padding(run.message, run.algorithm.params.blockBytes);
   const trace = createTrace(run, padding.padded.length);
   const { chain, digest, outputStep } = recordBlocks(trace, run, padding);
-  assertMatchesReference(digest, sha2Digest(run.algorithm as Sha2Algorithm<number> | Sha2Algorithm<bigint>, Uint8Array.from(run.message)), run.algorithm.id);
+  assertMatchesReference(digest, sha2Digest(run.algorithm as AnySha2Algorithm, Uint8Array.from(run.message)), run.algorithm.id);
   const state = trace.recorder.stateFacet();
   return {
-    facets: { state, values: sha2Values(run, chain, digest, outputStep), narration: narrationFromState(state), wordops: trace.recorder.wordopsFacet(run.algorithm.params.wordBits, SHA2_REGISTER_NAMES) },
+    facets: { state, values: sha2Values(run, chain, digest, outputStep), narration: narrationFromState(state), wordops: trace.recorder.wordopsFacet(run.algorithm.params.arith.bits, SHA2_REGISTER_NAMES) },
     output: { digest },
   };
 }

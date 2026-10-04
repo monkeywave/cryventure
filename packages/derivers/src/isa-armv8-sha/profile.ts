@@ -1,11 +1,18 @@
-import type { I18nRef, OperandRef } from '@cryventure/core';
-import { registerOperand } from '../_lib/isaFacets.ts';
-import { parseMemOperand, type ShaListing, type ShaListingInstruction } from '../_lib/listing.ts';
-import type { ShaEffects, ShaIsaProfile, ShaMachine } from '../_lib/sha/shaDerivation.ts';
+import type { I18nRef } from '@cryventure/core';
+import { armVectorRegister, memoryOperand, registerOperand } from '../_lib/isaFacets.ts';
+import type { ShaListing, ShaListingInstruction } from '../_lib/listing.ts';
 import {
-  laneAt,
+  scheduleAheadNote,
+  SHA256_VECTOR_DEFAULTS,
+  type ShaEffects,
+  type ShaIsaProfile,
+  type ShaMachine,
+  type ShaSemantics,
+} from '../_lib/sha/shaDerivation.ts';
+import {
   NO_EFFECTS,
   operand,
+  requiredMemOperand,
   scheduleP1,
   scheduleWord,
   vectorOperandReader,
@@ -13,8 +20,17 @@ import {
 } from '../_lib/sha/shaOperands.ts';
 import { expectLanes } from '../_lib/sha/shaRegisters.ts';
 import { isRoundInstruction, requiredShaRound } from '../_lib/sha/shaSpans.ts';
-import { SHA_VAR_NAMES, SHA_WORD_BYTES } from '../_lib/sha/shaTrace.ts';
-import { byteSwapped, laneRun, laneSum, varLanes, word, type Lanes } from '../_lib/sha/shaWords.ts';
+import { SHA_WORD_BYTES, type ShaVarName } from '../_lib/sha/shaTrace.ts';
+import {
+  blockInputLanes,
+  byteSwapLanes,
+  hLanes,
+  laneRun,
+  sumLanes,
+  varLanes,
+  word,
+  type Lanes,
+} from '../_lib/sha/shaWords.ts';
 import sha256 from './data/sha256.json';
 
 /**
@@ -25,48 +41,27 @@ import sha256 from './data/sha256.json';
  * A…D from Qn and writes E…H after round t+3. So ABCD is lanes [A, B, C, D], EFGH [E, F, G, H].
  */
 
-const NS = 'deriver.isa-armv8-sha';
+const DERIVER_ID = 'isa-armv8-sha';
+const NS = `deriver.${DERIVER_ID}`;
 const ABCD = ['a', 'b', 'c', 'd'] as const;
 const EFGH = ['e', 'f', 'g', 'h'] as const;
 const VECTOR_BYTES = 16;
 /** Words per 16-byte vector register. */
 const VECTOR_WORDS = VECTOR_BYTES / SHA_WORD_BYTES;
 
-/** `q1`, `v1.16b` and `v1.4s` name the same 128-bit register `v1`. */
-const VECTOR = /^[qv](\d+)(?:\.\w+)?$/;
 /** A literal-pool operand, `[x8, :lo12:.LCPI0_3]`: the n-th pool entry, K_{4n} … K_{4n+3}. */
 const LITERAL = /\[\s*\w+\s*,\s*:lo12:\s*\.?LCPI\d+_(\d+)\s*\]/;
 
-/** Canonical name `v<n>` of a vector operand, or `undefined`. */
-export function armShaVectorRegister(operand: string): string | undefined {
-  const match = VECTOR.exec(operand);
-  return match === null ? undefined : `v${match[1]}`;
-}
-
-const register = vectorOperandReader(armShaVectorRegister, 'a vector register');
+const register = vectorOperandReader(armVectorRegister, 'a vector register');
 
 /** The 16-byte access `index` (0, 1 for a pair) at `[base, #offset]`, and its first word index. */
 function memoryAccess(text: string, index: number, valueRef?: string) {
-  const parsed = parseMemOperand(text);
-  if (parsed === undefined) throw new Error(`"${text}" is not a memory operand`);
+  const parsed = requiredMemOperand(text);
   const offset = parsed.offset + index * VECTOR_BYTES;
-  const ref: OperandRef = { kind: 'mem', base: parsed.base, offset, size: VECTOR_BYTES };
   return {
-    ref: valueRef === undefined ? ref : { ...ref, valueRef },
+    ref: memoryOperand({ base: parsed.base, offset }, VECTOR_BYTES, valueRef),
     firstWord: offset / SHA_WORD_BYTES,
   };
-}
-
-/** The lane words a 16-byte load of words `first` … brings in, by the listing's role. */
-function loadedWords(instruction: ShaListingInstruction, first: number): Lanes {
-  switch (instruction.role) {
-    case 'loadState':
-      return laneRun((index) => word.var(SHA_VAR_NAMES[index]!, -1), first);
-    case 'loadBlock':
-      return laneRun(word.wBytes, first);
-    default:
-      throw new Error(`no load semantics for role ${instruction.role}`);
-  }
 }
 
 /** The vector registers of a pair instruction (`ldp`/`stp qA, qB, [...]`) and their memory accesses. */
@@ -87,7 +82,7 @@ function loadPair(instruction: ShaListingInstruction, machine: ShaMachine): ShaE
     writes: accesses.map(({ reg }) => registerOperand(reg)),
     written: accesses.map(({ reg, firstWord }) => ({
       reg,
-      lanes: loadedWords(instruction, firstWord),
+      lanes: blockInputLanes(instruction.role, firstWord),
     })),
   };
 }
@@ -96,11 +91,7 @@ function loadPair(instruction: ShaListingInstruction, machine: ShaMachine): ShaE
 function storePair(instruction: ShaListingInstruction, machine: ShaMachine): ShaEffects {
   const accesses = pairAccesses(instruction, machine.chainOut);
   accesses.forEach(({ reg, firstWord }) =>
-    expectLanes(
-      machine.registers.read(reg),
-      laneRun((index) => word.h(SHA_VAR_NAMES[index]!), firstWord),
-      `${reg} must hold H`,
-    ),
+    expectLanes(machine.registers.read(reg), hLanes(firstWord), `${reg} must hold H`),
   );
   return {
     reads: accesses.map(({ reg }) => registerOperand(reg)),
@@ -153,16 +144,10 @@ function vectorOperands(instruction: ShaListingInstruction, machine: ShaMachine,
 function byteSwap(instruction: ShaListingInstruction, machine: ShaMachine): ShaEffects {
   const target = register(instruction, 0);
   const source = register(instruction, 1);
-  const lanes = machine.registers.read(source).map((lane) => {
-    const swapped = byteSwapped(lane);
-    if (swapped === undefined)
-      throw new Error(`no traced value for a byte-swapped lane of ${source}`);
-    return swapped;
-  });
   return {
     reads: [registerOperand(source)],
     writes: [registerOperand(target)],
-    written: written(target, lanes),
+    written: written(target, byteSwapLanes(machine.registers.read(source), source)),
   };
 }
 
@@ -170,12 +155,7 @@ function byteSwap(instruction: ShaListingInstruction, machine: ShaMachine): ShaE
 function addWords(instruction: ShaListingInstruction, machine: ShaMachine): ShaEffects {
   const target = register(instruction, 0);
   const [left, right] = [register(instruction, 1), register(instruction, 2)];
-  const other = machine.registers.read(right);
-  const lanes = machine.registers.read(left).map((lane, index) => {
-    const sum = laneSum(lane, laneAt(other, index));
-    if (sum === undefined) throw new Error(`no traced value for the sum in lane ${index}`);
-    return sum;
-  });
+  const lanes = sumLanes(machine.registers.read(left), machine.registers.read(right));
   return {
     reads: [registerOperand(left), registerOperand(right)],
     writes: [registerOperand(target)],
@@ -192,34 +172,38 @@ function expectRoundInput(instruction: ShaListingInstruction, wk: Lanes, t: numb
   );
 }
 
-/** `sha256h Qd, Qn, Vm.4S`: rounds t … t+3; Qd = A…D in and out, Qn = E…H. */
-function roundsAbcd(instruction: ShaListingInstruction, machine: ShaMachine): ShaEffects {
-  const { target, sources, reads, writes } = vectorOperands(instruction, machine, 3);
-  const [abcd, efgh, wk] = sources as [Lanes, Lanes, Lanes];
-  const t = requiredShaRound(instruction);
-  expectLanes(abcd, varLanes(ABCD, t - 1), `${target} must hold A…D before round ${t}`);
-  expectLanes(
-    efgh,
-    varLanes(EFGH, t - 1),
-    `${register(instruction, 1)} must hold E…H before round ${t}`,
-  );
-  expectRoundInput(instruction, wk, t);
-  return { reads, writes, written: written(target, varLanes(ABCD, t + 3)) };
+/** Four working variables a round instruction reads in a register, and how errors name them. */
+interface RoundHalf {
+  names: readonly ShaVarName[];
+  label: string;
 }
 
-/** `sha256h2 Qd, Qn, Vm.4S`: rounds t … t+3; Qd = E…H in and out, Qn = the old A…D. */
-function roundsEfgh(instruction: ShaListingInstruction, machine: ShaMachine): ShaEffects {
-  const { target, sources, reads, writes } = vectorOperands(instruction, machine, 3);
-  const [efgh, abcd, wk] = sources as [Lanes, Lanes, Lanes];
-  const t = requiredShaRound(instruction);
-  expectLanes(efgh, varLanes(EFGH, t - 1), `${target} must hold E…H before round ${t}`);
-  expectLanes(
-    abcd,
-    varLanes(ABCD, t - 1),
-    `${register(instruction, 1)} must hold the old A…D before round ${t}`,
-  );
-  expectRoundInput(instruction, wk, t);
-  return { reads, writes, written: written(target, varLanes(EFGH, t + 3)) };
+const ABCD_HALF: RoundHalf = { names: ABCD, label: 'A…D' };
+const EFGH_HALF: RoundHalf = { names: EFGH, label: 'E…H' };
+const OLD_ABCD_HALF: RoundHalf = { names: ABCD, label: 'the old A…D' };
+
+/**
+ * `sha256h Qd, Qn, Vm.4S` (own = A…D, other = E…H) and `sha256h2 Qd, Qn, Vm.4S` (own = E…H, other =
+ * the old A…D): rounds t … t+3; Qd = `own` in and out, Qn = `other`.
+ */
+function fourRounds(own: RoundHalf, other: RoundHalf): ShaSemantics {
+  return (instruction, machine) => {
+    const { target, sources, reads, writes } = vectorOperands(instruction, machine, 3);
+    const [ownLanes, otherLanes, wk] = sources as [Lanes, Lanes, Lanes];
+    const t = requiredShaRound(instruction);
+    expectLanes(
+      ownLanes,
+      varLanes(own.names, t - 1),
+      `${target} must hold ${own.label} before round ${t}`,
+    );
+    expectLanes(
+      otherLanes,
+      varLanes(other.names, t - 1),
+      `${register(instruction, 1)} must hold ${other.label} before round ${t}`,
+    );
+    expectRoundInput(instruction, wk, t);
+    return { reads, writes, written: written(target, varLanes(own.names, t + 3)) };
+  };
 }
 
 /** `sha256su0 Vd.4S, Vn.4S`: lane i ← W_{s−16+i} + σ0(W_{s−15+i}) = p1 of W_{s+i}. */
@@ -253,9 +237,7 @@ function scheduleUpdate1(instruction: ShaListingInstruction, machine: ShaMachine
   return { reads, writes, written: written(target, laneRun(word.w, s)) };
 }
 
-const SEMANTICS: Readonly<
-  Record<string, (instruction: ShaListingInstruction, machine: ShaMachine) => ShaEffects>
-> = {
+const SEMANTICS: Readonly<Record<string, ShaSemantics>> = {
   ldp: loadPair,
   stp: storePair,
   ldr: loadLiteral,
@@ -264,18 +246,12 @@ const SEMANTICS: Readonly<
   mov: move,
   rev32: byteSwap,
   add: addWords,
-  sha256h: roundsAbcd,
-  sha256h2: roundsEfgh,
+  sha256h: fourRounds(ABCD_HALF, EFGH_HALF),
+  sha256h2: fourRounds(EFGH_HALF, OLD_ABCD_HALF),
   sha256su0: scheduleUpdate0,
   sha256su1: scheduleUpdate1,
   ret: () => NO_EFFECTS,
 };
-
-export function armShaExecute(instruction: ShaListingInstruction, machine: ShaMachine): ShaEffects {
-  const semantics = SEMANTICS[instruction.mnemonic];
-  if (semantics === undefined) throw new Error('no semantics for this mnemonic');
-  return semantics(instruction, machine);
-}
 
 /** The next round instruction after `index` that writes register `target`, if any. */
 function nextRoundWriting(
@@ -286,7 +262,7 @@ function nextRoundWriting(
   return instructions
     .slice(index + 1)
     .find(
-      (next) => isRoundInstruction(next) && armShaVectorRegister(next.operands[0] ?? '') === target,
+      (next) => isRoundInstruction(next) && armVectorRegister(next.operands[0] ?? '') === target,
     );
 }
 
@@ -295,7 +271,7 @@ function copyNote(
   instructions: readonly ShaListingInstruction[],
   index: number,
 ): I18nRef | undefined {
-  const target = armShaVectorRegister(instructions[index]!.operands[0] ?? '');
+  const target = armVectorRegister(instructions[index]!.operands[0] ?? '');
   if (target === undefined) return undefined;
   const consumer = nextRoundWriting(instructions, index, target);
   if (consumer?.mnemonic === 'sha256h') return { key: `${NS}.note.copyAbcd` };
@@ -316,13 +292,8 @@ export function armShaNote(
   if (instruction.mnemonic === 'sha256h') return { key: `${NS}.note.sha256h` };
   if (instruction.mnemonic === 'sha256h2') return { key: `${NS}.note.sha256h2` };
   if (instruction.mnemonic === 'mov') return copyNote(instructions, index);
-  if (instruction.role === 'msg1' || instruction.role === 'msg2') {
-    if (instruction.w === undefined) return undefined;
-    return {
-      key: `${NS}.note.scheduleAhead`,
-      params: { first: instruction.w, last: instruction.w + 3 },
-    };
-  }
+  if (instruction.role === 'msg1' || instruction.role === 'msg2')
+    return scheduleAheadNote(DERIVER_ID, instruction);
   if (instruction.mnemonic === 'ldr') {
     const t = literalRound(instruction.operands[1] ?? '');
     return t === undefined
@@ -334,17 +305,15 @@ export function armShaNote(
 
 /** The AArch64 ARMv8 SHA2 listing of one SHA-256 compression and how to read it. */
 export const ARMV8_SHA_PROFILE: ShaIsaProfile = {
-  deriverId: 'isa-armv8-sha',
+  ...SHA256_VECTOR_DEFAULTS,
+  deriverId: DERIVER_ID,
   variant: 'aarch64-armv8-sha2',
   isa: 'aarch64',
   extension: 'armv8-sha2',
   syntax: 'arm',
-  byteOrder: 'little',
-  lanes: [8, 16, 32, 64],
-  registerBits: 128,
   listing: sha256 as ShaListing,
   roundsPerInstruction: 4,
-  vectorRegister: armShaVectorRegister,
-  execute: armShaExecute,
+  vectorRegister: armVectorRegister,
+  semantics: SEMANTICS,
   note: armShaNote,
 };

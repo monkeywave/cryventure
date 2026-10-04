@@ -29,3 +29,19 @@ const FIXTURES: Record<ShaFixturePreset, { bundle: unknown }> = {
 export function shaFixtureBundle(preset: ShaFixturePreset): TraceBundle {
   return JSON.parse(JSON.stringify(FIXTURES[preset].bundle)) as TraceBundle;
 }
+
+function deepFreeze<T>(value: T): T {
+  if (typeof value === 'object' && value !== null && !Object.isFrozen(value)) {
+    Object.freeze(value);
+    Object.values(value).forEach(deepFreeze);
+  }
+  return value;
+}
+
+/**
+ * The preset's bundle itself, deep-frozen, for tests that only read it: no copy per call, and the
+ * per-bundle trace caches hit across tests. Use `shaFixtureBundle` to tamper with a bundle.
+ */
+export function sharedShaFixtureBundle(preset: ShaFixturePreset): TraceBundle {
+  return deepFreeze(FIXTURES[preset].bundle) as TraceBundle;
+}

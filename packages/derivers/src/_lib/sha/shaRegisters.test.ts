@@ -1,6 +1,6 @@
 import { toHex } from '@cryventure/core';
 import { describe, expect, it } from 'vitest';
-import { shaFixtureBundle } from './fixtures/shaBundles.ts';
+import { sharedShaFixtureBundle } from './fixtures/shaBundles.ts';
 import {
   expectLanes,
   laneBytes,
@@ -11,7 +11,7 @@ import {
 import { shaTrace } from './shaTrace.ts';
 import { varLanes, word } from './shaWords.ts';
 
-const trace = shaTrace(shaFixtureBundle('sha-256-abc'));
+const trace = shaTrace(sharedShaFixtureBundle('sha-256-abc'));
 const context: ShaBlockContext = { trace, block: trace.blocks[0]! };
 const hex = (lane: Parameters<typeof laneBytes>[1]) => toHex(laneBytes(context, lane));
 

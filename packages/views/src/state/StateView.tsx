@@ -40,6 +40,12 @@ interface RegionPanelProps {
   captionHidden?: boolean;
 }
 
+/**
+ * Expanded, a large (collapsible) region, e.g. 64 or 80 schedule words in a narrow column, scrolls
+ * inside this height instead of stretching the whole lab. A short one (the AES-128 key schedule) fits.
+ */
+const LARGE_REGION_MAX_BLOCK = '20rem';
+
 /** One region as a grid, laid out by the producer's hint; re-renders only when its own inputs change. */
 const RegionPanel = memo(function RegionPanel({ region, values, step, motion, beat, selectedIndex, onSelect, unwritten, captionHidden }: RegionPanelProps) {
   const t = useT();
@@ -74,6 +80,7 @@ const RegionPanel = memo(function RegionPanel({ region, values, step, motion, be
         selectedIndex={selectedIndex}
         onSelectCell={onSelectCell}
         unwritten={unwritten}
+        maxBlockSize={isCollapsibleRegion(region) ? LARGE_REGION_MAX_BLOCK : undefined}
       />
     </figure>
   );

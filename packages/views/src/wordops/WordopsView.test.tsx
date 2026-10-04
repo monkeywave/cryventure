@@ -1,6 +1,6 @@
 import { facetKey, type Lens, type Messages, type TraceBundle, type ValuesFacet, type WordopsFacet, type WordTerm } from '@cryventure/core';
 import { act, fireEvent, screen, within } from '@testing-library/react';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { createFixtureBundle, renderLab } from '@cryventure/viz/testing';
 import { loadViewMessages } from '../messages.ts';
 import WordopsView from './WordopsView.tsx';
@@ -261,6 +261,17 @@ describe('WordopsView', () => {
   });
 
   it('makes the scroll regions focusable only when they overflow', () => {
+    const resizes: (() => void)[] = [];
+    vi.stubGlobal(
+      'ResizeObserver',
+      class {
+        constructor(callback: (entries: ResizeObserverEntry[]) => void) {
+          resizes.push(() => callback([]));
+        }
+        observe() {}
+        disconnect() {}
+      },
+    );
     const { store } = render('engineer');
     act(() => store.getState().seek(0));
     const regions = () => screen.getAllByRole('region').filter((region) => region.classList.contains('cv-wordops__scroll'));
@@ -269,12 +280,13 @@ describe('WordopsView', () => {
     const widths = Object.getOwnPropertyDescriptor(HTMLElement.prototype, 'scrollWidth');
     Object.defineProperty(HTMLElement.prototype, 'scrollWidth', { configurable: true, get: () => 500 });
     try {
-      act(() => window.dispatchEvent(new Event('resize')));
+      act(() => resizes.forEach((resize) => resize()));
       for (const region of regions()) expect(region.getAttribute('tabindex')).toBe('0');
     } finally {
       if (widths) Object.defineProperty(HTMLElement.prototype, 'scrollWidth', widths);
       else delete (HTMLElement.prototype as { scrollWidth?: number }).scrollWidth;
     }
+    vi.unstubAllGlobals();
   });
 
   it('explains when the facet is missing', () => {

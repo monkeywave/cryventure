@@ -1,15 +1,16 @@
-import { RecordingTracer, type I18nRef, type RegionSpec, type ScopeLevel, type Snapshot, type StateFacet, type StepInput, type WordBits, type WordopsFacet, type WordopsStep } from '@cryventure/core';
+import { BlockOpRecorder, type I18nRef, type RegionSpec, type ScopeLevel, type Snapshot, type StateFacet, type StepInput, type WordBits, type WordopsFacet, type WordopsStep } from '@cryventure/core';
 
 /** The wordops half of one recorded step. */
 export type WordopsContent = Omit<WordopsStep, 'step'>;
 
 /**
  * Records state steps and, where given, a wordops step at the same index (the word-size
- * counterpart of core's `PairedRecorder` and of GHASH's `FieldPairedRecorder`). Every step sits
- * in its own child scope at the current level (`op` under `block` for SHA-2).
+ * counterpart of core's `PairedRecorder` and of GHASH's `FieldPairedRecorder`). Built on core's
+ * `BlockOpRecorder`: every step sits in its own child scope at the current level (`op` under
+ * `block` for SHA-2; directly under the root for the constant tables).
  */
 export class WordopsRecorder<R extends string, Op extends { op: string }> {
-  private readonly tracer: RecordingTracer<R, Op>;
+  private readonly recorder: BlockOpRecorder<R, Op>;
   private readonly wordopsSteps: WordopsStep[] = [];
 
   constructor(
@@ -18,29 +19,23 @@ export class WordopsRecorder<R extends string, Op extends { op: string }> {
     private readonly levels: ScopeLevel[],
     initialNarration: I18nRef,
   ) {
-    this.tracer = new RecordingTracer<R, Op>(regions, initial, { initialNarration });
+    this.recorder = new BlockOpRecorder<R, Op>(regions, initial, initialNarration);
   }
 
-  enter(scopeIndex?: number): void {
-    this.tracer.enter(scopeIndex);
-  }
-
-  leave(): void {
-    this.tracer.leave();
+  /** Runs `body` inside the scope of block `index` and returns its result. */
+  block<T>(index: number, body: () => T): T {
+    return this.recorder.block(index, body);
   }
 
   /** Records one step in its own child scope (plus its wordops step, if any) and returns its step index. */
   op(input: StepInput<R, Op>, wordops?: WordopsContent): number {
-    this.tracer.enter();
-    this.tracer.step(input);
-    this.tracer.leave();
-    const index = this.tracer.stepCount - 1;
+    const index = this.recorder.op(input);
     if (wordops !== undefined) this.wordopsSteps.push({ step: index, ...wordops });
     return index;
   }
 
   stateFacet(): StateFacet<R, Op> {
-    return { ...this.tracer.toFacet(), scopeLevels: this.levels };
+    return { ...this.recorder.toFacet(), scopeLevels: this.levels };
   }
 
   wordopsFacet(wordBits: WordBits, registerNames?: readonly string[]): WordopsFacet {

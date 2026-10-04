@@ -2,7 +2,7 @@ import type { AnyStateFacet } from '@cryventure/core';
 import { describe, expect, it } from 'vitest';
 import { locateAesOps } from './aesTrace.ts';
 import { aesFixtureBundle } from './fixtures/aesBundles.ts';
-import { INITIAL_SPAN, instructionSpan, pointSpan } from './isaSpans.ts';
+import { INITIAL_SPAN, instructionSpan, nextFrom, pointSpan } from './isaSpans.ts';
 
 const ops = locateAesOps(aesFixtureBundle('fips197-c1').facets['state@default'] as AnyStateFacet);
 
@@ -52,5 +52,14 @@ describe('instructionSpan', () => {
         nextAesFirst: undefined,
       }),
     ).toEqual({ first: 42, last: 42 });
+  });
+});
+
+describe('nextFrom', () => {
+  it('gives each item the value of the nearest later item that has one', () => {
+    const items = [1, 0, 3, 0, 5, 0];
+    const odd = (item: number) => (item % 2 === 1 ? item * 10 : undefined);
+    expect(nextFrom(items, odd)).toEqual([30, 30, 50, 50, undefined, undefined]);
+    expect(nextFrom([], odd)).toEqual([]);
   });
 });

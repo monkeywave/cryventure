@@ -1,5 +1,5 @@
 import type { AlignSpan } from '@cryventure/core';
-import { pointSpan } from '../isaSpans.ts';
+import { nextFrom, pointSpan } from '../isaSpans.ts';
 import type { ShaListingInstruction, ShaListingRole } from '../listing.ts';
 import { roundStep, type ShaBlockSteps } from './shaTrace.ts';
 
@@ -36,14 +36,34 @@ export function requiredShaRound(instruction: ShaListingInstruction): number {
 export function nextRoundStarts(
   instructions: readonly ShaListingInstruction[],
 ): (number | undefined)[] {
-  const next: (number | undefined)[] = [];
-  let upcoming: number | undefined;
-  for (let index = instructions.length - 1; index >= 0; index--) {
-    next[index] = upcoming;
-    const instruction = instructions[index]!;
-    if (isRoundInstruction(instruction)) upcoming = requiredShaRound(instruction);
-  }
-  return next;
+  return nextFrom(instructions, (instruction) =>
+    isRoundInstruction(instruction) ? requiredShaRound(instruction) : undefined,
+  );
+}
+
+/** Where the round instructions sit in a listing: the same for every block, so computed once. */
+export interface ShaListingShape {
+  /** Per instruction, whether it is a round instruction. */
+  isRound: readonly boolean[];
+  /** Index of the first round instruction. */
+  firstRound: number;
+  /** Index of the last round instruction. */
+  lastRound: number;
+  /** Per instruction, the first round t of the next round instruction after it (`undefined` after the last one). */
+  nextRound: readonly (number | undefined)[];
+}
+
+/** The listing's shape; throws when it has no round instruction (or one without a round). */
+export function listingShape(instructions: readonly ShaListingInstruction[]): ShaListingShape {
+  const isRound = instructions.map(isRoundInstruction);
+  const firstRound = isRound.indexOf(true);
+  if (firstRound === -1) throw new Error('the listing has no round instruction');
+  return {
+    isRound,
+    firstRound,
+    lastRound: isRound.lastIndexOf(true),
+    nextRound: nextRoundStarts(instructions),
+  };
 }
 
 /** Where one block sits: its op steps and the step its final stores align to. */
@@ -61,16 +81,6 @@ function roundSpan(instruction: ShaListingInstruction, timeline: ShaBlockTimelin
     first: roundStep(timeline.block, t),
     last: roundStep(timeline.block, t + timeline.roundsPerInstruction - 1),
   };
-}
-
-/** Per instruction, `first` of the next round instruction (`undefined` after the last one). */
-function nextRoundFirsts(
-  instructions: readonly ShaListingInstruction[],
-  timeline: ShaBlockTimeline,
-): (number | undefined)[] {
-  return nextRoundStarts(instructions).map((t) =>
-    t === undefined ? undefined : roundStep(timeline.block, t),
-  );
 }
 
 /** The zero-width target of a non-round, non-copy instruction, before the monotonic guard. */
@@ -106,26 +116,26 @@ function resolveCopies(targets: (number | undefined)[]): number[] {
  */
 export function blockSpans(
   instructions: readonly ShaListingInstruction[],
+  shape: ShaListingShape,
   timeline: ShaBlockTimeline,
   previous: AlignSpan,
 ): AlignSpan[] {
-  const rounds = instructions.map(isRoundInstruction);
-  const firstRound = rounds.indexOf(true);
-  const lastRound = rounds.lastIndexOf(true);
-  if (firstRound === -1) throw new Error('the listing has no round instruction');
-  const nextFirst = nextRoundFirsts(instructions, timeline);
+  const { isRound, firstRound, lastRound } = shape;
   const targets = resolveCopies(
     instructions.map((instruction, index) => {
-      if (rounds[index]) return roundSpan(instruction, timeline).first;
+      if (isRound[index]) return roundSpan(instruction, timeline).first;
       if (instruction.role === 'other') return undefined;
       const phase = index < firstRound ? 'before' : index > lastRound ? 'after' : 'between';
-      return homeStep(instruction, phase, nextFirst[index], timeline);
+      const nextRound = shape.nextRound[index];
+      const nextRoundFirst =
+        nextRound === undefined ? undefined : roundStep(timeline.block, nextRound);
+      return homeStep(instruction, phase, nextRoundFirst, timeline);
     }),
   );
   let last = previous;
   return instructions.map((instruction, index) => {
     const target = targets[index]!;
-    if (rounds[index]) last = roundSpan(instruction, timeline);
+    if (isRound[index]) last = roundSpan(instruction, timeline);
     else if (target >= last.last) last = pointSpan(target);
     return last;
   });

@@ -1,14 +1,14 @@
-import { INITIAL_STEP_INDEX, narrationFromState, runPrimitive, valueRef, type RunOptions, type RunResult, type ValuesFacet } from '@cryventure/core';
+import { INITIAL_STEP_INDEX, narrationFromState, parseHexToArray, runPrimitive, valueRef, type RunOptions, type RunResult, type ValuesFacet } from '@cryventure/core';
 import { CONSTANT_SPECS } from './constantSpecs.ts';
 import { recordConstants, type ConstantsRecording } from './constantsTrace.ts';
 import { FIPS_TABLES } from './fipsTables.ts';
 import { sha2ConstantsManifest, type Sha2ConstantsParams } from './manifest.ts';
-import { wordBytes } from './primeRoots.ts';
 
 /** sha2-constants producer: derives a SHA-2 constant table from prime roots and checks it against FIPS 180-4. */
 const NS = 'plugin.sha2-constants';
 
-const hexBytes = (hexWords: readonly string[]): number[] => hexWords.flatMap((hex) => wordBytes(BigInt(`0x${hex}`), hex.length * 4));
+/** The table's bytes: its big-endian words, concatenated. */
+const hexBytes = (hexWords: readonly string[]): number[] => parseHexToArray(hexWords.join(''));
 
 /** Each word once its step derives it; the whole table after the last word; the FIPS table from the start. */
 export function buildConstantsValues(recording: ConstantsRecording, fips: readonly string[]): ValuesFacet {

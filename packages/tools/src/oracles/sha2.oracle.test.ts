@@ -1,6 +1,5 @@
 import { sha224, sha256, sha384, sha512, sha512_224, sha512_256 } from '@noble/hashes/sha2.js';
 import { hashFunction, toHex, type HashFamily, type PrimitiveManifest } from '@cryventure/core';
-import { primitiveManifests } from '@cryventure/primitives';
 import fc from 'fast-check';
 import { describe, expect, it } from 'vitest';
 import { primitiveProducers, runWithPorts } from '../contracts/runWithPorts.ts';
@@ -32,7 +31,7 @@ const messageArb = fc.uint8Array({ minLength: 0, maxLength: MAX_MESSAGE_BYTES })
 const detailArb = fc.constantFrom('round', 'block');
 
 function manifest(id: string): PrimitiveManifest {
-  const found = primitiveManifests.find((candidate) => candidate.id === id);
+  const found = primitiveProducers.get(id);
   if (found === undefined) throw new Error(`${id} manifest not registered`);
   return found;
 }

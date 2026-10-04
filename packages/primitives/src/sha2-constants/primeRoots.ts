@@ -1,3 +1,5 @@
+import { WORD32, WORD64 } from '../_lib/sha2/words.ts';
+
 /**
  * Exact integer arithmetic for the SHA-2 "nothing up my sleeve" constants: primes and the leading
  * fractional bits of their square and cube roots, with bigint only (no floating point).
@@ -53,13 +55,12 @@ export function rootWord(p: number, k: RootDegree, bits: number, skipBits = 0): 
   };
 }
 
-/** `value` as exactly `bits / 4` lowercase hex digits (big-endian). */
-export function wordHex(value: bigint, bits: number): string {
-  return value.toString(16).padStart(bits / 4, '0');
+/** A `bits`-bit word as exactly `bits / 4` lowercase hex digits (big-endian), as the SHA-2 words print. */
+export function wordHex(value: bigint, bits: 32 | 64): string {
+  return bits === 32 ? WORD32.toHex(Number(value)) : WORD64.toHex(value);
 }
 
 /** The big-endian bytes of a `bits`-bit word. */
-export function wordBytes(value: bigint, bits: number): number[] {
-  const hex = wordHex(value, bits);
-  return Array.from({ length: bits / 8 }, (_, index) => parseInt(hex.slice(2 * index, 2 * index + 2), 16));
+export function wordBytes(value: bigint, bits: 32 | 64): number[] {
+  return bits === 32 ? WORD32.toBytes(Number(value)) : WORD64.toBytes(value);
 }

@@ -274,6 +274,13 @@
   mask-composite: intersect;
 }
 
+/* `maxBlockSize` (ByteGrid prop): a long grid scrolls inside a capped height instead of stretching
+   its panel; the bottom edge fades while more rows hide, and ByteGrid keeps the current row in view. */
+.cv-grid--capped {
+  max-block-size: var(--cv-grid-max-block);
+  overflow-y: auto;
+}
+
 /* Wrap layout: each row (e.g. one word) is a block; on wide containers `--cv-wrap-columns` blocks
    (the producer's `wordsPerGroup`, set by ByteGrid) share one line, on narrow ones each block gets
    its own line, so it never overflows a narrow panel. The size container is the nearest

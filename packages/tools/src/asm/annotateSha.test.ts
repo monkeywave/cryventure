@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { annotateShaListing, ARMV8_SHA_PROFILE, X86_SHA_PROFILE } from './annotateSha.ts';
+import { annotateShaListing, ARMV8_SHA_ANNOTATE, X86_SHA_ANNOTATE } from './annotateSha.ts';
 import { parseInstructionText, type ParsedInstruction } from './parse.ts';
 
 function listing(lines: readonly string[]): (ParsedInstruction & { address: string })[] {
@@ -9,7 +9,7 @@ function listing(lines: readonly string[]): (ParsedInstruction & { address: stri
   }));
 }
 
-function summary(lines: readonly string[], profile = X86_SHA_PROFILE): string[] {
+function summary(lines: readonly string[], profile = X86_SHA_ANNOTATE): string[] {
   return annotateShaListing(listing(lines), profile).map(
     (entry) =>
       `${entry.role}${entry.round === undefined ? '' : `@${entry.round}`}${entry.w === undefined ? '' : `w${entry.w}`}`,
@@ -101,7 +101,7 @@ describe('annotateShaListing (armv8)', () => {
           'stp q1, q0, [x0]',
           'ret',
         ],
-        ARMV8_SHA_PROFILE,
+        ARMV8_SHA_ANNOTATE,
       ),
     ).toEqual([
       'loadBlock',

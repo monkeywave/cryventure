@@ -16,6 +16,20 @@ export function pointSpan(step: number): AlignSpan {
   return { first: step, last: step };
 }
 
+/** Per item, `pick` of the nearest later item it gives a value for (`undefined` after the last one). */
+export function nextFrom<T, R>(
+  items: readonly T[],
+  pick: (item: T) => R | undefined,
+): (R | undefined)[] {
+  const next: (R | undefined)[] = [];
+  let upcoming: R | undefined;
+  for (let index = items.length - 1; index >= 0; index--) {
+    next[index] = upcoming;
+    upcoming = pick(items[index]!) ?? upcoming;
+  }
+  return next;
+}
+
 /** Where an instruction sits in the listing: the span before it and the next AES instruction's first step. */
 export interface SpanNeighbours {
   previous: AlignSpan;

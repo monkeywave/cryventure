@@ -15,12 +15,8 @@ const formula = i18nRef('plugin.test.formula');
 describe('WordopsRecorder', () => {
   it('returns consecutive step indices and puts each step in its own child scope', () => {
     const rec = recorder();
-    rec.enter(0);
-    expect([rec.op(step('a', 1)), rec.op(step('b', 2))]).toEqual([0, 1]);
-    rec.leave();
-    rec.enter(1);
-    expect(rec.op(step('a', 3))).toBe(2);
-    rec.leave();
+    expect(rec.block(0, () => [rec.op(step('a', 1)), rec.op(step('b', 2))])).toEqual([0, 1]);
+    expect(rec.block(1, () => rec.op(step('a', 3)))).toBe(2);
     const facet = rec.stateFacet();
     expect(facet.steps.map((entry) => entry.scope)).toEqual([[0, 0], [0, 1], [1, 0]]);
     expect(stateAt(facet, 2)['x']).toEqual([3, 0, 0, 0]);
@@ -30,6 +26,13 @@ describe('WordopsRecorder', () => {
     const facet = recorder().stateFacet();
     expect(facet.scopeLevels).toEqual(LEVELS);
     expect(facet.initialNarration).toEqual({ key: 'plugin.test.step.initial' });
+  });
+
+  it('records steps outside every block directly under the root, each in its own scope', () => {
+    const rec = recorder();
+    rec.op(step('a', 1));
+    rec.op(step('b', 2));
+    expect(rec.stateFacet().steps.map((entry) => entry.scope)).toEqual([[0], [1]]);
   });
 
   it('records a wordops step only where one is given, at the state step index', () => {

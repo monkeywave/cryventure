@@ -1,6 +1,6 @@
 import { memo, useCallback, useEffect, useMemo, useRef, type ReactNode } from 'react';
 import type { I18nRef, Instruction, InstructionsFacet, Lens } from '@cryventure/core';
-import { ViewStatus, useLab, useT, type ViewProps } from '@cryventure/viz';
+import { ViewStatus, revealInScroller, useLab, useT, type ViewProps } from '@cryventure/viz';
 import {
   listingProgress,
   operandValueRefs,
@@ -8,7 +8,7 @@ import {
   type RowStatus,
 } from './instructionsModel.ts';
 import { VariantPicker, useVariantChoice } from '../_lib/VariantPicker.tsx';
-import { useScrollFocusable } from '../_lib/useScrollFocusable.ts';
+import { ScrollRegion } from '../_lib/ScrollRegion.tsx';
 import { useSelectionPreviewHandlers } from '../_lib/useSelectionPreview.ts';
 import { useValueLabel } from '../_lib/useValueLabel.ts';
 import './instructions.css';
@@ -206,15 +206,7 @@ function rowSelection(refs: readonly (readonly string[])[] | undefined, selected
   return refs.some((operand) => operand.includes(selected)) ? selected : null;
 }
 
-/** Scrolls `row` into view inside `scroller` only (adjusting its scrollTop; the page never moves). */
-function revealInScroller(scroller: HTMLElement, row: HTMLElement): void {
-  const box = scroller.getBoundingClientRect();
-  const target = row.getBoundingClientRect();
-  const header = scroller.querySelector('thead')?.getBoundingClientRect().height ?? 0;
-  if (target.top < box.top + header) scroller.scrollTop -= box.top + header - target.top;
-  else if (target.bottom > box.bottom) scroller.scrollTop += target.bottom - box.bottom;
-}
-
+/** Keeps the current instruction in view inside the listing's own scroller (the page never moves). */
 function useRevealCurrent(current: number | undefined) {
   const scrollerRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
@@ -223,7 +215,8 @@ function useRevealCurrent(current: number | undefined) {
       current === undefined
         ? null
         : scroller?.querySelector<HTMLElement>(`tr[data-index="${current}"]`);
-    if (scroller && row) revealInScroller(scroller, row);
+    // The sticky column header covers the top of the listing.
+    if (scroller && row) revealInScroller(scroller, row, scroller.querySelector('thead')?.getBoundingClientRect().height ?? 0);
   }, [current]);
   return scrollerRef;
 }
@@ -298,8 +291,6 @@ function Listing({
   const operandRefs = useMemo(() => facet.instructions.map((instruction) => operandValueRefs(instruction)), [facet]);
   const progress = listingProgress(facet, step);
   const scrollerRef = useRevealCurrent(progress.current);
-  // The story lens has no operand buttons, so the scroller itself must take focus to be keyboard-scrollable.
-  const scrollerFocusable = useScrollFocusable(scrollerRef);
   return (
     <section
       className="cv-view cv-instructions"
@@ -308,13 +299,8 @@ function Listing({
     >
       {picker}
       {lens !== 'story' && <Source source={facet.source} />}
-      <div
-        ref={scrollerRef}
-        className="cv-instructions__scroll"
-        role="region"
-        aria-label={t('view.instructions.listing')}
-        tabIndex={scrollerFocusable ? 0 : undefined}
-      >
+      {/* The story lens has no operand buttons, so the scroller itself must take focus to be keyboard-scrollable. */}
+      <ScrollRegion ref={scrollerRef} className="cv-instructions__scroll" label={t('view.instructions.listing')}>
         <table role="table" className="cv-instructions__table">
           <caption className="cv-visually-hidden">
             {t('view.instructions.caption', {
@@ -340,7 +326,7 @@ function Listing({
             ))}
           </tbody>
         </table>
-      </div>
+      </ScrollRegion>
       <p className="cv-instructions__legend">{t('view.instructions.legend')}</p>
     </section>
   );

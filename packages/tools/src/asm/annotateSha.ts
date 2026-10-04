@@ -8,16 +8,14 @@
  * what each vector register holds (state, message words, W+K, a constant from the literal pool).
  */
 import type { ShaListingInstruction, ShaListingRole } from '@cryventure/derivers/listing';
-import { canonicalRegister, parseMemoryOperand } from './annotate.ts';
+import { canonicalRegister, isArmLoad, isArmStore, isMemory, isX86Load, isX86Store, parseMemoryOperand } from './annotate.ts';
 import type { ParsedInstruction } from './parse.ts';
-
-export type ShaAnnotatedInstruction = ShaListingInstruction;
 
 const FIRST_SCHEDULED_WORD = 16;
 const WORDS_PER_GROUP = 4;
 
 /** Per-ISA knowledge: ABI argument registers, the SHA mnemonics and operand conventions. */
-export interface ShaIsaProfile {
+export interface ShaAnnotateProfile {
   /** Registers holding `state` and `block` (first two integer arguments of the ABI). */
   stateBase: string;
   blockBase: string;
@@ -37,12 +35,8 @@ export interface ShaIsaProfile {
   isStore: (instruction: ParsedInstruction) => boolean;
 }
 
-function isMemory(operand: string | undefined): boolean {
-  return operand !== undefined && operand.includes('[');
-}
-
 /** System V x86-64 (rdi = state, rsi = block); Intel syntax (destination first). */
-export const X86_SHA_PROFILE: ShaIsaProfile = {
+export const X86_SHA_ANNOTATE: ShaAnnotateProfile = {
   stateBase: 'rdi',
   blockBase: 'rsi',
   roundsMnemonic: 'sha256rnds2',
@@ -62,14 +56,12 @@ export const X86_SHA_PROFILE: ShaIsaProfile = {
     'sha256msg1',
     'sha256msg2',
   ],
-  isLoad: (instruction) =>
-    /^v?mov/.test(instruction.mnemonic) && isMemory(instruction.operands.at(-1)),
-  isStore: (instruction) =>
-    /^v?mov/.test(instruction.mnemonic) && isMemory(instruction.operands[0]),
+  isLoad: isX86Load,
+  isStore: isX86Store,
 };
 
 /** AAPCS64 (x0 = state, x1 = block). */
-export const ARMV8_SHA_PROFILE: ShaIsaProfile = {
+export const ARMV8_SHA_ANNOTATE: ShaAnnotateProfile = {
   stateBase: 'x0',
   blockBase: 'x1',
   roundsMnemonic: 'sha256h',
@@ -82,8 +74,8 @@ export const ARMV8_SHA_PROFILE: ShaIsaProfile = {
   shuffleMnemonics: ['ext', 'zip1', 'zip2', 'uzp1', 'uzp2', 'trn1', 'trn2'],
   moveMnemonics: ['mov', 'orr'],
   destructiveMnemonics: ['sha256h', 'sha256h2', 'sha256su0', 'sha256su1'],
-  isLoad: (instruction) => /^ld/.test(instruction.mnemonic),
-  isStore: (instruction) => /^st/.test(instruction.mnemonic),
+  isLoad: isArmLoad,
+  isStore: isArmStore,
 };
 
 /** What a vector register holds; a constant remembers the load that produced it. */
@@ -120,7 +112,7 @@ class ShaTracker {
   }
 }
 
-function sourcesOf(instruction: ParsedInstruction, profile: ShaIsaProfile): string[] {
+function sourcesOf(instruction: ParsedInstruction, profile: ShaAnnotateProfile): string[] {
   const destructive = profile.destructiveMnemonics.includes(instruction.mnemonic);
   return destructive ? instruction.operands : instruction.operands.slice(1);
 }
@@ -143,11 +135,11 @@ function resolveConstants(
 }
 
 function annotateLoad(
-  instruction: ShaAnnotatedInstruction,
+  instruction: ShaListingInstruction,
   index: number,
-  profile: ShaIsaProfile,
+  profile: ShaAnnotateProfile,
   tracker: ShaTracker,
-): ShaAnnotatedInstruction {
+): ShaListingInstruction {
   const memory = parseMemoryOperand(instruction.operands.find(isMemory) ?? '');
   const destinations = instruction.operands.filter((operand) => !isMemory(operand));
   const [role, content]: [ShaListingRole, RegisterContent] =
@@ -161,18 +153,18 @@ function annotateLoad(
 }
 
 function annotateStore(
-  instruction: ShaAnnotatedInstruction,
-  profile: ShaIsaProfile,
-): ShaAnnotatedInstruction {
+  instruction: ShaListingInstruction,
+  profile: ShaAnnotateProfile,
+): ShaListingInstruction {
   const memory = parseMemoryOperand(instruction.operands.find(isMemory) ?? '');
   return { ...instruction, role: memory?.base === profile.stateBase ? 'store' : 'other' };
 }
 
 function annotateRounds(
-  instruction: ShaAnnotatedInstruction,
-  profile: ShaIsaProfile,
+  instruction: ShaListingInstruction,
+  profile: ShaAnnotateProfile,
   tracker: ShaTracker,
-): ShaAnnotatedInstruction {
+): ShaListingInstruction {
   const round = tracker.next(instruction.mnemonic) * profile.roundsPerInstruction;
   tracker.write(instruction.operands[0], { kind: 'state' });
   tracker.roundsSeen = true;
@@ -181,10 +173,10 @@ function annotateRounds(
 }
 
 function annotateSchedule(
-  instruction: ShaAnnotatedInstruction,
+  instruction: ShaListingInstruction,
   tracker: ShaTracker,
   role: 'msg1' | 'msg2',
-): ShaAnnotatedInstruction {
+): ShaListingInstruction {
   const w = FIRST_SCHEDULED_WORD + tracker.next(instruction.mnemonic) * WORDS_PER_GROUP;
   tracker.write(instruction.operands[0], { kind: 'message' });
   return { ...instruction, role, w };
@@ -192,12 +184,12 @@ function annotateSchedule(
 
 /** Adds: + K (a constant or memory operand), state + state (feed-forward) or schedule (msg2 term). */
 function annotateAdd(
-  instruction: ShaAnnotatedInstruction,
+  instruction: ShaListingInstruction,
   sources: readonly RegisterContent[],
   hasMemoryConstant: boolean,
   tracker: ShaTracker,
   pending: PendingRoles,
-): ShaAnnotatedInstruction {
+): ShaListingInstruction {
   if (hasMemoryConstant || hasKind(sources, 'constant') || hasKind(sources, 'wk')) {
     resolveConstants(sources, 'addK', pending);
     tracker.write(instruction.operands[0], { kind: 'wk' });
@@ -213,10 +205,10 @@ function annotateAdd(
 
 /** Shuffles: W+K lane moves (addK), schedule alignment (msg2), or the state's (un)packing. */
 function annotateShuffle(
-  instruction: ShaAnnotatedInstruction,
+  instruction: ShaListingInstruction,
   sources: readonly RegisterContent[],
   tracker: ShaTracker,
-): ShaAnnotatedInstruction {
+): ShaListingInstruction {
   const [role, content]: [ShaListingRole, RegisterContent | undefined] = hasKind(sources, 'wk')
     ? ['addK', { kind: 'wk' }]
     : hasKind(sources, 'message')
@@ -229,12 +221,12 @@ function annotateShuffle(
 }
 
 function annotateOne(
-  instruction: ShaAnnotatedInstruction,
+  instruction: ShaListingInstruction,
   index: number,
-  profile: ShaIsaProfile,
+  profile: ShaAnnotateProfile,
   tracker: ShaTracker,
   pending: PendingRoles,
-): ShaAnnotatedInstruction {
+): ShaListingInstruction {
   const { mnemonic, operands } = instruction;
   if (profile.isLoad(instruction)) return annotateLoad(instruction, index, profile, tracker);
   if (profile.isStore(instruction)) return annotateStore(instruction, profile);
@@ -260,8 +252,8 @@ function annotateOne(
 /** Annotates `role`, `round` (round instructions) and `w` (schedule instructions). */
 export function annotateShaListing(
   instructions: readonly (ParsedInstruction & { address: string })[],
-  profile: ShaIsaProfile,
-): ShaAnnotatedInstruction[] {
+  profile: ShaAnnotateProfile,
+): ShaListingInstruction[] {
   const tracker = new ShaTracker();
   const pending: PendingRoles = new Map();
   const annotated = instructions.map((instruction, index) =>
