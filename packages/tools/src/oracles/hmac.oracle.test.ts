@@ -23,18 +23,25 @@ const keyArb = fc.uint8Array({ minLength: 0, maxLength: MAX_BYTES });
 const messageArb = fc.uint8Array({ minLength: 0, maxLength: MAX_BYTES });
 const cutsArb = fc.array(fc.nat(), { maxLength: 4 });
 
-it('finds an HMAC member for every hash with a noble oracle', () => expect(HMAC_MEMBERS.length).toBeGreaterThanOrEqual(12));
+const RUN_TITLE = `run() matches noble hmac for random keys and messages of 0–${MAX_BYTES} bytes (${RUNS} runs)`;
 
-describe.each(HMAC_MEMBERS)('hmac $ref oracle (@noble/hashes)', ({ fn, hashRef, noble }) => {
-  it(`run() matches noble for random keys and messages of 0–${MAX_BYTES} bytes (${RUNS} runs)`, async () => {
+/** The `hmac` lab's run() on Hash member `hashRef` matches noble `hmac`, also for keys longer than its block (the hashing branch). */
+function labRunMatchesNoble(hashRef: string, blockSize: number, noble: NobleHash): () => Promise<void> {
+  return async () => {
     await fc.assert(
-      fc.asyncProperty(fc.oneof(keyArb, fc.uint8Array({ minLength: fn.blockSize + 1, maxLength: MAX_BYTES })), messageArb, async (key, message) => {
+      fc.asyncProperty(fc.oneof(keyArb, fc.uint8Array({ minLength: blockSize + 1, maxLength: MAX_BYTES })), messageArb, async (key, message) => {
         const params = { hash: hashRef, key: toHex(key), encoding: 'hex', input: toHex(message), tagLength: 'full', expected: '' };
         expect(await runOutputHex('hmac', params, 'tag')).toBe(toHex(hmac(noble, key, message)));
       }),
       { numRuns: RUNS },
     );
-  });
+  };
+}
+
+it('finds an HMAC member for every hash with a noble oracle', () => expect(HMAC_MEMBERS.length).toBeGreaterThanOrEqual(12));
+
+describe.each(HMAC_MEMBERS)('hmac $ref oracle (@noble/hashes)', ({ fn, hashRef, noble }) => {
+  it(RUN_TITLE, labRunMatchesNoble(hashRef, fn.blockSize, noble));
 
   it(`ports.Mac mac() and contexts over random splits and clones match noble (${RUNS * 4} runs)`, () => {
     fc.assert(
@@ -56,14 +63,6 @@ describe('hmac lab over every Hash member (the lab\'s hash picker lists them all
   });
 
   describe.each(LAB_ONLY_MEMBERS)('hmac lab on $ref (no HMAC Mac member)', ({ ref, fn, noble }) => {
-    it(`run() matches noble hmac for random keys and messages of 0–${MAX_BYTES} bytes (${RUNS} runs)`, async () => {
-      await fc.assert(
-        fc.asyncProperty(fc.oneof(keyArb, fc.uint8Array({ minLength: fn.blockSize + 1, maxLength: MAX_BYTES })), messageArb, async (key, message) => {
-          const params = { hash: ref, key: toHex(key), encoding: 'hex', input: toHex(message), tagLength: 'full', expected: '' };
-          expect(await runOutputHex('hmac', params, 'tag')).toBe(toHex(hmac(noble!, key, message)));
-        }),
-        { numRuns: RUNS },
-      );
-    });
+    it(RUN_TITLE, labRunMatchesNoble(ref, fn.blockSize, noble!));
   });
 });

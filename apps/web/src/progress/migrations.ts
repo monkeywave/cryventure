@@ -1,12 +1,9 @@
 import legacyQuizIds from './legacyQuizIds.json';
 import { emptyProgress, parseProgress, PROGRESS_VERSION, type Progress } from './schema.ts';
+import { isRecord } from '../lib/isRecord.ts';
 
 /** Upgrades a record of version N to version N + 1. Add one entry per future schema change. */
 type Migration = (record: Record<string, unknown>) => Record<string, unknown>;
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === 'object' && value !== null && !Array.isArray(value);
-}
 
 /**
  * Lesson key → v1 question number → question id, as the questions were numbered when schema v1

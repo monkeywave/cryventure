@@ -8,7 +8,7 @@ import { createFixtureBundle, fixtureMessages } from '../testing/fixtureBundle.t
 import { renderLab } from '../testing/renderLab.tsx';
 import { Caption } from './Caption.tsx';
 
-const live = () => document.querySelector('[aria-live="polite"]');
+const live = () => document.querySelector('[aria-live="polite"][data-narrates]');
 
 function renderCaption(narrow: boolean, messages = fixtureMessages) {
   return renderLab(

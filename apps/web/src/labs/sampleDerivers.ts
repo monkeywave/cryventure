@@ -9,13 +9,20 @@ import { runProducer } from './runProducer.ts';
  *
  * `appliesTo` needs a bundle, which the manifest cannot give, so the build runs each producer on its
  * defaults and every preset (producers are deterministic and fast) and keeps the derivers that apply
- * to at least one of those runs. Today's derivers decide by producer identity plus a param the
+ * to at least one of those runs. A producer that runs in a worker (`runIn: 'worker'`, e.g. PBKDF2's
+ * 80 000-iteration preset) is too heavy for that and is sampled on its defaults only. Today's derivers decide by producer identity plus a param the
  * defaults already set (`isAesOpBundle`), so the samples settle them exactly.
  */
 
-/** The bundles of a producer's defaults and presets (failed runs are left out). */
+/** The params a producer is sampled on: its defaults, plus its presets unless it runs in a worker. */
+function sampleParams(producer: PrimitiveManifest): unknown[] {
+  const presets = producer.runIn === 'worker' ? [] : producer.presets.map((preset) => preset.params);
+  return [producer.defaults, ...presets];
+}
+
+/** The bundles of a producer's sample params (`sampleParams`; failed runs are left out). */
 export async function sampleBundles(producer: PrimitiveManifest, producers: ProducerLookup = producerRegistry): Promise<TraceBundle[]> {
-  const params = [producer.defaults, ...producer.presets.map((preset) => preset.params)];
+  const params = sampleParams(producer);
   const results = await Promise.all(params.map((sample) => runProducer(producer, sample, producers)));
   return results.flatMap((result) => (result.ok ? [result.trace] : []));
 }

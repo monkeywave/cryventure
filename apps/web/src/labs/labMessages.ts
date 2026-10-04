@@ -1,4 +1,4 @@
-import { portNamespaces, type Messages, type PrimitiveManifest } from '@cryventure/core';
+import { paramFieldsOf, parsePortMemberRef, portNamespaces, portOptions, portParamFields, type Messages, type PortParamField, type PrimitiveManifest } from '@cryventure/core';
 import { loadCoreMessages } from '@cryventure/core/messages';
 import { loadDeriverMessages } from '@cryventure/derivers/messages';
 import { loadPrimitiveMessages } from '@cryventure/primitives/messages';
@@ -6,7 +6,7 @@ import { loadViewMessages } from '@cryventure/views/messages';
 import { loadVizMessages } from '@cryventure/viz/messages';
 import { loadMessages, pickPrefix, toLocale } from '../i18n/loadMessages.ts';
 import { deriversForFacets, producerRegistry, viewRegistry, viewsForProducer } from './registry.ts';
-import { sampleApplicableDerivers, sampleZoomTargets } from './sampleDerivers.ts';
+import { sampleApplicableDerivers } from './sampleDerivers.ts';
 
 /**
  * Server-side only: assembles the exact message table one lab island needs for one locale,
@@ -50,25 +50,43 @@ function producerMessages(locale: string, producer: Pick<PrimitiveManifest, 'id'
   return pickPrefix(loadPrimitiveMessages(producer.id, locale), `${producer.i18nNamespace}.`);
 }
 
+/** The lab's `port` param fields that pick a port member (`member: true`, docs/M7.md §1b) or not. */
+function portFields(producer: LabMessagesProducer, member: boolean): PortParamField[] {
+  return portParamFields(paramFieldsOf(producer)).filter((field) => (field.member === true) === member);
+}
+
 /**
- * The namespaces of every producer a `port` param can name (docs/M3.md §2): the learner can switch
- * the cipher on the client, so the server cannot know which one ends up resolved. A member field's
- * option labels (docs/M7.md §1b) live in their producers' namespaces, so they are covered too.
+ * The namespaces of every producer a non-member `port` param (e.g. `cipher`) can name (docs/M3.md
+ * §2): the learner can switch the cipher on the client, so the server cannot know which one ends up
+ * resolved, and its run speaks its own namespace.
  */
 function portProducerMessages(locale: string, producer: LabMessagesProducer, registered: readonly PrimitiveManifest[]): Messages {
-  const namespaces = new Set(portNamespaces(producer, registered));
+  const namespaces = new Set(portNamespaces({ ...producer, paramFields: portFields(producer, false) }, registered));
   const options = registered.filter((candidate) => namespaces.has(candidate.i18nNamespace));
   return Object.assign({}, ...options.map((option) => producerMessages(locale, option)));
 }
 
 /**
- * The lab titles of the producers this lab's derivation zooms into (`sampleZoomTargets`, among
- * `registered`), so a zoom link can say "Open the lab “HMAC …”": only each target's `titleKey`.
+ * The option labels of the lab's member fields (docs/M7.md §1b): only each offered member's
+ * `labelKey`, from its producer's catalog, not that producer's whole namespace.
  */
-function zoomTargetTitles(locale: string, producer: LabMessagesProducer, registered: readonly PrimitiveManifest[]): Messages {
-  const targets = new Set(sampleZoomTargets(producer.id));
-  const titled = registered.filter((candidate) => targets.has(candidate.id));
-  return Object.assign({}, ...titled.map((target) => pickKey(loadPrimitiveMessages(target.id, locale), target.titleKey)));
+function memberOptionLabels(locale: string, producer: LabMessagesProducer, registered: readonly PrimitiveManifest[]): Messages {
+  const options = portFields(producer, true).flatMap((field) => portOptions(registered, field));
+  return Object.assign(
+    {},
+    ...options.map((option) => {
+      const producerId = parsePortMemberRef(option.value)?.producerId;
+      return producerId === undefined ? {} : pickKey(loadPrimitiveMessages(producerId, locale), option.labelKey);
+    }),
+  );
+}
+
+/**
+ * Every registered producer's lab title (`titleKey`, one short message each), so a derivation zoom
+ * link can say "Open the lab “HMAC …”" whichever member the learner picks.
+ */
+function producerTitles(locale: string, registered: readonly PrimitiveManifest[]): Messages {
+  return Object.assign({}, ...registered.map((target) => pickKey(loadPrimitiveMessages(target.id, locale), target.titleKey)));
 }
 
 /** `{ [key]: message }` when `messages` has `key`, else `{}`. */
@@ -78,8 +96,8 @@ function pickKey(messages: Messages, key: string): Messages {
 
 /**
  * viz `ui.*` + offered views' `view.*` + offered derivers' `deriver.*` + app `ui.lab.*` + `core.*`
- * errors + port options' namespaces (among `registered`, default: the app's registry) + its zoom
- * targets' lab titles + the producer's own `i18nNamespace`.
+ * errors + non-member port options' namespaces and member options' labels (among `registered`,
+ * default: the app's registry) + every registered lab title + the producer's own `i18nNamespace`.
  */
 export function labMessages(lang: string | undefined, producer: LabMessagesProducer, registered: readonly PrimitiveManifest[] = producerRegistry.list()): Messages {
   const locale = toLocale(lang);
@@ -90,7 +108,8 @@ export function labMessages(lang: string | undefined, producer: LabMessagesProdu
     ...pickPrefix(loadMessages(locale, ['ui']), APP_LAB_PREFIX),
     ...loadCoreMessages(locale),
     ...portProducerMessages(locale, producer, registered),
-    ...zoomTargetTitles(locale, producer, registered),
+    ...memberOptionLabels(locale, producer, registered),
+    ...producerTitles(locale, registered),
     ...producerMessages(locale, producer),
   };
 }

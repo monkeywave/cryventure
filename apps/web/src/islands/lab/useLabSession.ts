@@ -44,16 +44,57 @@ export interface LabSessionApi {
 
 const ABSENT: LabLinkRead = { status: 'absent' };
 
+/** A run begun by `RunGuard.beginRun`. */
+interface CurrentRun {
+  /** True only until the next run starts (or a start supersedes it). */
+  isCurrent: IsCurrentRun;
+  /** Ends the run (no-op once superseded): no longer `computing`; a failed run reports `error`, a clean one keeps a later-reported error. */
+  settle: (error?: I18nRef) => void;
+}
+
+interface RunGuard {
+  /** Starts a re-run that supersedes every earlier one; it is in flight (`computing`) until settled. */
+  beginRun: () => CurrentRun;
+  /** Supersedes every run without starting one (a lab start): nothing in flight, no error. */
+  supersede: () => void;
+  /** Reports an error that needed no run (e.g. an invalid view request); a pending run stays in flight. */
+  reportError: (error: I18nRef) => void;
+  /** Whether the current re-run is in flight. */
+  computing: boolean;
+  /** Why the last re-run or request failed; `null` once a run starts. */
+  requestError: I18nRef | null;
+}
+
+interface RunStatus {
+  computing: boolean;
+  error: I18nRef | null;
+}
+
+const IDLE: RunStatus = { computing: false, error: null };
+
 /**
- * Returns `beginRun`: each call starts a new run and returns `isCurrent`, which stays true only until
- * the next run starts. Re-runs, view requests and resets share it, so a slow result never overwrites a newer one.
+ * Owns the re-runs' in-flight state: each run supersedes the earlier ones, so a slow result never
+ * overwrites a newer one, and only the current run's settle ends `computing`. Re-runs, view requests
+ * and starts share it.
  */
-function useRunGuard(): () => IsCurrentRun {
+function useRunGuard(): RunGuard {
   const latestRun = useRef(0);
-  return useCallback(() => {
+  const [status, setStatus] = useState<RunStatus>(IDLE);
+  const beginRun = useCallback((): CurrentRun => {
     const run = ++latestRun.current;
-    return () => run === latestRun.current;
+    const isCurrent = () => run === latestRun.current;
+    setStatus({ computing: true, error: null });
+    const settle = (error?: I18nRef) => {
+      if (isCurrent()) setStatus((current) => ({ computing: false, error: error ?? current.error }));
+    };
+    return { isCurrent, settle };
   }, []);
+  const supersede = useCallback(() => {
+    latestRun.current += 1;
+    setStatus(IDLE);
+  }, []);
+  const reportError = useCallback((error: I18nRef) => setStatus((current) => ({ ...current, error })), []);
+  return { beginRun, supersede, reportError, computing: status.computing, requestError: status.error };
 }
 
 /** One runner per lab instance (a newer run terminates an older worker run); a running worker stops on unmount. */
@@ -67,18 +108,18 @@ interface LabWiring {
   runner: LabRunner;
   labHref: LabHrefBuilder;
   blockLabHref: BlockLabHrefBuilder;
-  /** Called as each start begins (stable): supersedes a pending re-run, so its late result is ignored. */
-  onStart: () => void;
+  /** The run guard's `supersede` (stable), called as each start begins: a pending re-run's late result is ignored. */
+  supersede: () => void;
 }
 
 /**
  * Loads and runs the producer on mount, after every reset (a new `generation`) and when its props
  * change; only the first start reads the deep link.
  */
-function useLabStart({ labId, producerId, presetId, startAt, mode, variant }: UseLabSessionOptions, { runner, labHref, blockLabHref, onStart }: LabWiring, generation: number, setSession: (session: LabSession) => void): void {
+function useLabStart({ labId, producerId, presetId, startAt, mode, variant }: UseLabSessionOptions, { runner, labHref, blockLabHref, supersede }: LabWiring, generation: number, setSession: (session: LabSession) => void): void {
   useEffect(() => {
     let cancelled = false;
-    onStart();
+    supersede();
     const link = generation === 0 ? readLabLink(window.location.hash, labId) : ABSENT;
     void startLab({ producerId, presetId, link, startAt: startAt === undefined ? undefined : parseStartAt(startAt), mode, variant, runner, labHref, blockLabHref }).then((next) => {
       if (!cancelled) setSession(next);
@@ -86,7 +127,7 @@ function useLabStart({ labId, producerId, presetId, startAt, mode, variant }: Us
     return () => {
       cancelled = true;
     };
-  }, [labId, producerId, presetId, startAt, mode, variant, runner, labHref, blockLabHref, onStart, generation, setSession]);
+  }, [labId, producerId, presetId, startAt, mode, variant, runner, labHref, blockLabHref, supersede, generation, setSession]);
 }
 
 interface PendingParams {
@@ -110,33 +151,26 @@ function usePendingParams(): PendingParams {
 interface ParamRuns {
   applyParams: (params: LabParams) => void;
   requestParams: (patch: ParamsPatch) => void;
-  requestError: I18nRef | null;
-  setRequestError: (error: I18nRef | null) => void;
-  computing: boolean;
-  setComputing: (computing: boolean) => void;
 }
 
 /**
  * Re-runs on param edits and view requests. A second edit merges into the pending params rather than
  * into `session.params` (which updates only once a run finishes), so it never drops the first. A failure
- * (invalid params or a run error) keeps the ready session with its last good bundle and is reported as `requestError`.
+ * (invalid params or a run error) keeps the ready session with its last good bundle and is reported
+ * through the run guard (`requestError`).
  */
-function useParamRuns(session: LabSession, setSession: (session: LabSession) => void, beginRun: () => IsCurrentRun, pending: PendingParams): ParamRuns {
-  const [requestError, setRequestError] = useState<I18nRef | null>(null);
-  const [computing, setComputing] = useState(false);
+function useParamRuns(session: LabSession, setSession: (session: LabSession) => void, runs: RunGuard, pending: PendingParams): ParamRuns {
+  const { beginRun, reportError } = runs;
   const { latestPendingParams, setPendingParams } = pending;
 
   const run = useCallback(
     (ready: ReadySession, params: LabParams) => {
-      const isCurrent = beginRun();
+      const current = beginRun();
       setPendingParams(params);
-      setRequestError(null);
-      setComputing(true);
-      void rerunLab(ready, params, isCurrent).then((outcome) => {
-        if (!isCurrent()) return;
-        setComputing(false);
+      void rerunLab(ready, params, current.isCurrent).then((outcome) => {
+        if (!current.isCurrent()) return;
+        current.settle(outcome.ok ? undefined : outcome.error);
         if (outcome.ok) setSession(outcome.session);
-        else setRequestError(outcome.error);
       });
     },
     [beginRun, setPendingParams, setSession],
@@ -154,25 +188,25 @@ function useParamRuns(session: LabSession, setSession: (session: LabSession) => 
       if (session.status !== 'ready') return;
       const merged = mergeParams(session.producer, latestPendingParams.current ?? session.params, patch);
       if (merged.ok) run(session, merged.value);
-      else setRequestError(merged.error);
+      else reportError(merged.error);
     },
-    [session, run, latestPendingParams],
+    [session, run, latestPendingParams, reportError],
   );
 
-  return { applyParams, requestParams, requestError, setRequestError, computing, setComputing };
+  return { applyParams, requestParams };
 }
 
 /** Client-only lifecycle: read the hash, load + run the producer, then re-run on param edits. */
 export function useLabSession({ labId, producerId, presetId, startAt, mode, variant, locale }: UseLabSessionOptions): LabSessionApi {
   const [session, setSession] = useState<LabSession>({ status: 'loading' });
   const [generation, setGeneration] = useState(0);
-  const beginRun = useRunGuard();
+  const runs = useRunGuard();
   const runner = useLabRunner();
   const labHref = useMemo(() => createLabHref({ base: import.meta.env.BASE_URL ?? '/', lang: locale }), [locale]);
   const blockLabHref = useMemo(() => createBlockLabHref({ base: import.meta.env.BASE_URL ?? '/', lang: locale }), [locale]);
   const pending = usePendingParams();
   const { pendingParams, setPendingParams } = pending;
-  const { applyParams, requestParams, requestError, setRequestError, computing, setComputing } = useParamRuns(session, setSession, beginRun, pending);
+  const { applyParams, requestParams } = useParamRuns(session, setSession, runs, pending);
   const settleStart = useCallback(
     (next: LabSession) => {
       setPendingParams(next.status === 'ready' ? next.params : null);
@@ -181,24 +215,16 @@ export function useLabSession({ labId, producerId, presetId, startAt, mode, vari
     [setPendingParams],
   );
 
-  // A start (also one caused by changed props, not only `reset`) supersedes any pending re-run.
-  const onStart = useCallback(() => {
-    beginRun();
-    setRequestError(null);
-    setComputing(false);
-  }, [beginRun, setRequestError, setComputing]);
+  // Every start (after `reset`, or on changed props) supersedes any pending re-run.
+  useLabStart({ labId, producerId, presetId, startAt, mode, variant }, { runner, labHref, blockLabHref, supersede: runs.supersede }, generation, settleStart);
 
-  useLabStart({ labId, producerId, presetId, startAt, mode, variant }, { runner, labHref, blockLabHref, onStart }, generation, settleStart);
-
+  // The new start (a new `generation`) does the run bookkeeping.
   const reset = useCallback(() => {
     createLabHashWriter(labId, browserHashEnvironment()).clear();
-    beginRun();
     setPendingParams(null);
     setSession({ status: 'loading' });
-    setRequestError(null);
-    setComputing(false);
     setGeneration((current) => current + 1);
-  }, [labId, beginRun, setPendingParams, setRequestError, setComputing]);
+  }, [labId, setPendingParams]);
 
-  return { session, pendingParams, applyParams, requestParams, requestError, computing, reset };
+  return { session, pendingParams, applyParams, requestParams, requestError: runs.requestError, computing: runs.computing, reset };
 }

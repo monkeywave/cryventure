@@ -14,7 +14,7 @@ export default function NarrationView(_props: ViewProps) {
   return (
     <section className="cv-narration-view" aria-label={t('view.narration.title')}>
       {scope !== '' && <p className="cv-narration__scope">{scope}</p>}
-      <p className="cv-narration" aria-live="polite" aria-atomic="true">
+      <p className="cv-narration" data-narrates aria-live="polite" aria-atomic="true">
         <MathText text={text} />
       </p>
     </section>

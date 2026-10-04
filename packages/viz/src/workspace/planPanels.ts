@@ -40,6 +40,11 @@ export function parseLayoutEntries(preset: string | undefined): LayoutEntry[] {
   return entries.filter((entry, index) => entries.findIndex((other) => other.id === entry.id) === index);
 }
 
+/** `[{id:'state',size:60},{id:'narration'}]` → `"state:60|narration"`: the preset grammar `parseLayoutEntries` reads. */
+export function formatLayoutEntries(entries: readonly LayoutEntry[]): string {
+  return entries.map((entry) => (entry.size === undefined ? entry.id : `${entry.id}${SIZE_SEPARATOR}${entry.size}`)).join(PRESET_SEPARATOR);
+}
+
 /** `"state|narration"` → `['state', 'narration']` (trimmed, empty and duplicate entries dropped). */
 export function parseLayoutPreset(preset: string | undefined): string[] {
   return parseLayoutEntries(preset).map((entry) => entry.id);

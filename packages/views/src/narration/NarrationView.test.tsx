@@ -7,7 +7,7 @@ import { loadVizMessages } from '@cryventure/viz/messages';
 import { loadViewMessages } from '../messages.ts';
 import NarrationView from './NarrationView.tsx';
 
-const live = () => document.querySelector('[aria-live="polite"]');
+const live = () => document.querySelector('[aria-live="polite"][data-narrates]');
 
 describe('NarrationView', () => {
   it('announces the initial-state hint, then translated narration with params', () => {

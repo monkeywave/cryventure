@@ -12,6 +12,13 @@ describe('sampleBundles', () => {
     const aes = producerRegistry.require('aes');
     expect(await sampleBundles(aes)).toHaveLength(1 + aes.presets.length);
   });
+
+  it("runs only the defaults of a producer that runs in a worker (its presets can be heavy)", async () => {
+    const pbkdf2 = producerRegistry.require('pbkdf2');
+    expect(pbkdf2.runIn).toBe('worker');
+    expect(pbkdf2.presets.length).toBeGreaterThan(0);
+    expect(await sampleBundles(pbkdf2)).toHaveLength(1);
+  });
 });
 
 describe('deriversApplicableToAny', () => {

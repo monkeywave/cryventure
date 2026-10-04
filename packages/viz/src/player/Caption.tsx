@@ -29,7 +29,7 @@ function CaptionBar() {
   const clamped = useIsClamped(textRef, text);
   return (
     <div className="cv-caption" role="group" aria-label={t('ui.caption.label')}>
-      <p ref={textRef} id={textId} className="cv-caption__text" data-expanded={expanded} aria-live="polite" aria-atomic="true">
+      <p ref={textRef} id={textId} className="cv-caption__text" data-expanded={expanded} data-narrates aria-live="polite" aria-atomic="true">
         <MathText text={text} />
       </p>
       {(clamped || expanded) && <CaptionToggle expanded={expanded} controls={textId} onToggle={() => setExpanded(!expanded)} />}

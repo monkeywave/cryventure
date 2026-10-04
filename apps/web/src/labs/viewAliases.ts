@@ -1,4 +1,5 @@
-import { layoutStorageKey, safeStorage } from '@cryventure/viz';
+import { formatLayoutEntries, layoutStorageKey, parseLayoutEntries, safeStorage } from '@cryventure/viz';
+import { isRecord } from '../lib/isRecord.ts';
 
 /**
  * Former view id → current view id. The only place renamed view ids are resolved: lesson `layout`
@@ -15,18 +16,13 @@ export function resolveViewId(id: string): string {
   return Object.hasOwn(VIEW_ID_ALIASES, id) ? VIEW_ID_ALIASES[id]! : id;
 }
 
-/** A layout preset with every aliased view id replaced, sizes kept (`"key-schedule:45"` → `"derivation:45"`). */
+/**
+ * A layout preset with every aliased view id replaced, sizes kept (`"key-schedule:45"` →
+ * `"derivation:45"`), read and written with viz's preset grammar (invalid sizes and empty entries dropped).
+ */
 export function resolveLayoutAliases(layout: string | undefined): string | undefined {
   if (layout === undefined) return undefined;
-  const resolveEntry = (entry: string) => {
-    const [id = '', ...size] = entry.split(':');
-    return [resolveViewId(id.trim()), ...size].join(':');
-  };
-  return layout.split('|').map(resolveEntry).join('|');
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === 'object' && value !== null && !Array.isArray(value);
+  return formatLayoutEntries(parseLayoutEntries(layout).map((entry) => ({ ...entry, id: resolveViewId(entry.id) })));
 }
 
 /** `ids` with every aliased id resolved; whether any changed. */

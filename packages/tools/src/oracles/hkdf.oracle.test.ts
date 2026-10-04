@@ -1,8 +1,9 @@
 import { expand, extract, hkdf } from '@noble/hashes/hkdf.js';
+import { concatBytes } from '@noble/hashes/utils.js';
 import { toHex, utf8Bytes } from '@cryventure/core';
 import fc from 'fast-check';
 import { describe, expect, it } from 'vitest';
-import { concatBytes, hmacMembers, runOutputHex } from './macOracleKit.ts';
+import { hmacMembers, runOutputHex } from './macOracleKit.ts';
 
 /**
  * Oracle (docs/M7.md §2g): the traced `hkdf` producer must agree with @noble/hashes `hkdf`,

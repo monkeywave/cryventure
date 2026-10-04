@@ -1,8 +1,9 @@
 import { hmac } from '@noble/hashes/hmac.js';
+import { concatBytes } from '@noble/hashes/utils.js';
 import { toHex, utf8Bytes } from '@cryventure/core';
 import fc from 'fast-check';
 import { describe, expect, it } from 'vitest';
-import { concatBytes, hmacMembers, runOutputHex, type NobleHash } from './macOracleKit.ts';
+import { hmacMembers, runOutputHex, type NobleHash } from './macOracleKit.ts';
 
 /**
  * Oracle (docs/M7.md §2g): the traced `tls12-prf` and `tls10-prf` producers must agree with an

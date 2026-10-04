@@ -42,9 +42,9 @@ const expectOutput = (lab: Locator, name: string, value: string, timeout?: numbe
   expect.poll(() => outputHex(lab, name), { timeout }).toBe(value);
 
 const derivation = (lab: Locator) => lab.locator('section.cv-derivation');
-/** A result word of the derivation view, by its (translated) node name. */
-const word = (view: Locator, name: string) => view.getByRole('button', { name: new RegExp(`^${name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}: [0-9a-f]+$`) });
 const escapeRegExp = (text: string) => text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+/** A result word of the derivation view, by its (translated) node name. */
+const word = (view: Locator, name: string) => view.getByRole('button', { name: new RegExp(`^${escapeRegExp(name)}: [0-9a-f]+$`) });
 /** Zoom links to the lab computing `name`: accessible name = visible text + "(computes <name>)". */
 const zoomLink = (view: Locator, name: string, lang: Lang = 'en') => {
   const [, suffix = ''] = interpolate(VIEW[lang]['view.derivation.zoomLabel'], { link: '\u0000', name }).split('\u0000');

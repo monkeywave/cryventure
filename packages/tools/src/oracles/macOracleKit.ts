@@ -3,7 +3,7 @@ import { md5, sha1 } from '@noble/hashes/legacy.js';
 import { sha224, sha256, sha384, sha512, sha512_224, sha512_256 } from '@noble/hashes/sha2.js';
 import { keccak_256, sha3_224, sha3_256, sha3_384, sha3_512 } from '@noble/hashes/sha3.js';
 import type { CHash, TRet } from '@noble/hashes/utils.js';
-import { portMemberRef, toHex, type HashFunction, type MacFunction, type MacOptions, type PrimitiveManifest } from '@cryventure/core';
+import { portMemberRef, toHex, type HashFunction, type MacFunction, type MacOptions, type MemberPortName, type PortMemberMap, type PrimitiveManifest } from '@cryventure/core';
 import { primitiveManifests } from '@cryventure/primitives';
 import { primitiveProducers, runWithPorts } from '../contracts/runWithPorts.ts';
 
@@ -53,10 +53,15 @@ export interface HashMember {
   fn: HashFunction;
 }
 
+/** Every member of member port `port` of every registered producer, in registry order. */
+async function portMembers<N extends MemberPortName>(port: N): Promise<{ ref: string; fn: PortMemberMap[N] }[]> {
+  const families = await Promise.all(primitiveManifests.map(async (manifest) => ({ id: manifest.id, family: (await manifest.load()).ports?.[port] })));
+  return families.flatMap(({ id, family }) => ((family?.functions ?? []) as readonly PortMemberMap[N][]).map((fn) => ({ ref: portMemberRef(id, fn.id), fn })));
+}
+
 /** Every fixed-length `Hash` member of every registered producer, in registry order. */
 export async function hashMembers(): Promise<HashMember[]> {
-  const families = await Promise.all(primitiveManifests.map(async (manifest) => ({ id: manifest.id, family: (await manifest.load()).ports?.Hash })));
-  return families.flatMap(({ id, family }) => (family?.functions ?? []).map((fn) => ({ ref: portMemberRef(id, fn.id), fn })));
+  return portMembers('Hash');
 }
 
 /** One registered `Mac` member: its ref (`<producer>:<id>`) and function. */
@@ -74,8 +79,7 @@ export function producer(id: string): PrimitiveManifest {
 
 /** Every `Mac` member of every registered producer, in registry order. */
 export async function macMembers(): Promise<MacMember[]> {
-  const families = await Promise.all(primitiveManifests.map(async (manifest) => ({ id: manifest.id, family: (await manifest.load()).ports?.Mac })));
-  return families.flatMap(({ id, family }) => (family?.functions ?? []).map((fn) => ({ ref: portMemberRef(id, fn.id), fn })));
+  return portMembers('Mac');
 }
 
 /** The HMAC members with their hash ref and noble hash; throws for an HMAC on a hash without a noble oracle. */
@@ -104,8 +108,8 @@ export function pieces(data: Uint8Array, cuts: readonly number[]): Uint8Array[] 
   return [...points, data.length].map((end, index) => data.subarray(index === 0 ? 0 : points[index - 1]!, end));
 }
 
-/** The concatenation of `parts`. */
-export const concatBytes = (...parts: readonly Uint8Array[]): Uint8Array => Uint8Array.from(parts.flatMap((part) => Array.from(part)));
+/** The concatenation of `parts` (kept for importers; the oracles use noble's `concatBytes` directly). */
+export { concatBytes } from '@noble/hashes/utils.js';
 
 /**
  * Feeds `message` to `fn.create(key, options)` in pieces; after the first `cloneAt mod (pieces + 1)`

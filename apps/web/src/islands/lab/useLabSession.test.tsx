@@ -215,6 +215,20 @@ describe('useLabSession computing', () => {
     expect(result.current.computing).toBe(false);
   });
 
+  it('stays true when an invalid view request is reported while a re-run is pending, and keeps that error once the run succeeds', async () => {
+    const { result } = await renderReady();
+    const pending = deferred<RunOutcome>();
+    labSession.rerunLab.mockReturnValueOnce(pending.promise);
+    act(() => result.current.applyParams({ n: 1 }));
+    act(() => result.current.requestParams({ bad: true }));
+    expect(result.current.requestError).toEqual({ key: 'invalid' });
+    expect(result.current.computing).toBe(true);
+    await act(async () => pending.resolve(ran('applied')));
+    expect(result.current.computing).toBe(false);
+    expect(result.current.requestError).toEqual({ key: 'invalid' });
+    expect(tagOf(result.current.session)).toBe('applied');
+  });
+
   it('is false after a reset drops a pending re-run', async () => {
     const { result } = await renderReady();
     labSession.rerunLab.mockReturnValueOnce(new Promise(() => undefined));

@@ -7,6 +7,11 @@ import { labMessages } from './labMessages.ts';
 
 const AES = producerRegistry.require('aes');
 
+/** Every registered producer's lab title key (each lab ships them for its zoom links). */
+const TITLE_KEYS = new Set(producerRegistry.list().map((producer) => producer.titleKey));
+/** The `plugin.*` keys of `messages` outside namespace `ns`, other than lab titles. */
+const foreignPluginKeys = (messages: Record<string, string>, ns: string) => Object.keys(messages).filter((key) => key.startsWith('plugin.') && !key.startsWith(`${ns}.`) && !TITLE_KEYS.has(key));
+
 describe('labMessages', () => {
   const en = labMessages('en', AES);
   const de = labMessages('de-AT', AES);
@@ -21,7 +26,7 @@ describe('labMessages', () => {
     expect(en).toHaveProperty('plugin.aes.param.key');
     expect(en).toHaveProperty('core.error.hexOddLength');
     expect(en).not.toHaveProperty('ui.notFound.title');
-    expect(Object.keys(en).some((key) => key.startsWith('plugin.') && !key.startsWith('plugin.aes.'))).toBe(false);
+    expect(foreignPluginKeys(en, 'plugin.aes')).toEqual([]);
   });
 
   it('ships every core.error.* message, so any run error (e.g. a port that failed to load) renders without lab-specific wiring', () => {
@@ -70,7 +75,7 @@ describe('labMessages for a producer with a port param', () => {
     for (const producer of implementers) expect(en).toHaveProperty(producer.titleKey);
     expect(en).toHaveProperty('plugin.xor.title');
     const unrelated = producerRegistry.list().filter((producer) => !producer.implements.includes('BlockCipher') && producer.id !== 'xor');
-    for (const producer of unrelated) expect(Object.keys(en).some((key) => key.startsWith(`${producer.i18nNamespace}.`))).toBe(false);
+    for (const producer of unrelated) expect(foreignPluginKeys(en, 'plugin.xor').some((key) => key.startsWith(`${producer.i18nNamespace}.`))).toBe(false);
   });
 
   it('keeps EN/DE parity for the added namespaces', () => {
@@ -94,8 +99,15 @@ describe('labMessages for a producer with member port fields (docs/M7.md §1b)',
     for (const lang of ['en', 'de']) {
       const messages = labMessages(lang, composite, registered);
       for (const option of options) expect(messages).toHaveProperty([option.labelKey]);
-      expect(Object.keys(messages).some((key) => key.startsWith('plugin.aes.'))).toBe(false);
+      expect(foreignPluginKeys(messages, 'plugin.xor').some((key) => key.startsWith('plugin.aes.'))).toBe(false);
     }
+  });
+
+  it("ships only the member options' labels, not their producers' whole catalogs", () => {
+    const optionLabels = new Set([hashField, macField].flatMap((field) => portOptions(producerRegistry.list(), field)).map((option) => option.labelKey));
+    const messages = labMessages('en', composite);
+    expect(foreignPluginKeys(messages, 'plugin.xor').filter((key) => !optionLabels.has(key))).toEqual([]);
+    expect(Object.keys(messages).some((key) => key.startsWith('plugin.sha256.step.'))).toBe(false);
   });
 
   it('labels every member option of the registered producers (once they declare members)', () => {
@@ -108,6 +120,11 @@ describe('labMessages for a producer with member port fields (docs/M7.md §1b)',
 });
 
 describe('labMessages for zoom link targets', () => {
+  it('ships every registered lab title, so a zoom link names the lab of any picked member', () => {
+    const titles = Object.keys(labMessages('en', producerRegistry.require('hmac'))).filter((key) => TITLE_KEYS.has(key));
+    expect(titles.sort()).toEqual([...TITLE_KEYS].sort());
+  });
+
   // A derivation node's zoom link names its target lab by that producer's title (`view.derivation.zoomTitled`).
   it.each([
     ['hkdf', 'plugin.hmac.title'],

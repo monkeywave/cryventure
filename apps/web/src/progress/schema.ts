@@ -1,5 +1,6 @@
 import type { Lens } from '@cryventure/core';
 import { isLens } from './lens.ts';
+import { isRecord } from '../lib/isRecord.ts';
 
 export type { Lens };
 
@@ -50,10 +51,6 @@ const QUESTION_ID = /^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$/;
  */
 export function isQuestionId(value: unknown): value is string {
   return typeof value === 'string' && QUESTION_ID.test(value);
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
 
 function isCount(value: unknown): value is number {
