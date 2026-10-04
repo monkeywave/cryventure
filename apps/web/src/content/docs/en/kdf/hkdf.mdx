@@ -1,0 +1,218 @@
+---
+title: HKDF
+description: HKDF turns input keying material into as many independent keys as needed in two HMAC-based halves, Extract and Expand, and TLS 1.3 builds its key schedule from it.
+lessonId: kdf/hkdf
+track: kdf
+phase: 2
+sidebar:
+  order: 1
+tableOfContents: false
+prereqs:
+  - mac/hmac
+labs:
+  - hkdf-rfc5869-a1
+  - hkdf-rfc5869-a3
+  - hkdf-tls13-derived
+refs:
+  - RFC 5869, Section 1 (Introduction, extract-then-expand)
+  - RFC 5869, Section 2.2 (Step 1, Extract)
+  - RFC 5869, Section 2.3 (Step 2, Expand)
+  - RFC 5869, Section 3.1 (To Salt or not to Salt)
+  - RFC 5869, Section 3.2 (The 'info' Input to HKDF)
+  - RFC 5869, Section 3.3 (To Skip or not to Skip)
+  - RFC 5869, Section 4 (Applications of HKDF, low-entropy sources)
+  - RFC 5869, Appendix A.1 and A.3 (test cases)
+  - Krawczyk (2010), Cryptographic Extraction and Key Derivation, The HKDF Scheme, CRYPTO 2010, LNCS 6223
+  - RFC 2104, Section 4 (Implementation note, precomputed intermediate results)
+  - RFC 8446, Section 7.1 (Key Schedule, HKDF-Expand-Label, Derive-Secret)
+  - RFC 8448, Section 3 (Simple 1-RTT Handshake)
+---
+
+import { Aside } from '@astrojs/starlight/components';
+import Lab from '../../../../components/Lab.astro';
+import CheckQuestion from '../../../../components/lesson/CheckQuestion.astro';
+import Formula from '../../../../components/lesson/Formula.astro';
+import KeyFact from '../../../../components/lesson/KeyFact.astro';
+import KeyFacts from '../../../../components/lesson/KeyFacts.astro';
+import Lens from '../../../../components/lesson/Lens.astro';
+import LessonSection from '../../../../components/lesson/LessonSection.astro';
+import WhyBox from '../../../../components/lesson/WhyBox.astro';
+
+<LessonSection part="concept">
+
+## One secret in, many keys out
+
+A **key derivation function** (KDF) turns secret material, such as a Diffie-Hellman shared secret,
+into the keys a protocol uses (RFC 5869, §1). HKDF has two [HMAC](../../mac/hmac/)-based halves,
+**extract-then-expand** (Krawczyk, CRYPTO 2010; RFC 5869, §1):
+
+<KeyFacts>
+  <KeyFact label="Extract" value="PRK = HMAC(salt, IKM)" kind="key" />
+  <KeyFact label="Expand" value="OKM, L bytes" kind="ciphertext" />
+  <KeyFact label="Max. L" value="255 · HashLen" kind="constant" />
+</KeyFacts>
+
+**Extract** condenses unevenly random input keying material (IKM) into a uniformly random
+pseudorandom key, PRK (§2.2). **Expand** stretches PRK into as much output keying
+material (OKM) as needed, bound to a context string `info` (§2.3).
+
+<WhyBox constant="255 · HashLen" title="why the output is capped">
+  Expand numbers its blocks with a single counter octet, `0x01` … `0xff`, so at most 255 blocks of
+  HashLen bytes exist: 8160 bytes for SHA-256 (RFC 5869, §2.3).
+</WhyBox>
+
+<Lens only="story">
+
+Melt lumpy ore into one pure ingot, then cast coins from it, each stamped with its purpose.
+
+</Lens>
+
+</LessonSection>
+
+<LessonSection part="playground">
+
+## RFC 5869, test case 1
+
+The lab runs HKDF-SHA-256 on RFC 5869, Appendix A.1: 22 bytes of IKM `0b0b…0b`, a 13-byte salt
+`000102…0c`, info `f0f1…f9` and L = 42. Extract gives PRK `07770936 … d7c2b3e5`; two Expand blocks
+give OKM `3cb25f25 … 87185865`, trimmed to 42 of 64 bytes.
+
+Every HMAC node in the derivation view has a **zoom link**: it opens the
+[HMAC lab](../../mac/hmac/) with that call's key and message, so you can follow one block down to
+ipad, opad and the hash.
+
+<Lab labId="hkdf-rfc5869-a1" producerId="hkdf" presetId="rfc5869-a1" layout="derivation:50|state:25|narration:25" />
+
+</LessonSection>
+
+<LessonSection part="inside">
+
+## Extract, then expand
+
+<Formula caption="HKDF, RFC 5869 §2.2 and §2.3 (‖ = concatenation, N = ⌈L / HashLen⌉).">
+{`PRK  = HMAC-Hash(salt, IKM)
+T(0) = empty string
+T(i) = HMAC-Hash(PRK, T(i−1) ‖ info ‖ i)      i = 0x01 … N
+OKM  = first L octets of T(1) ‖ T(2) ‖ … ‖ T(N)`}
+</Formula>
+
+The **salt** is optional: if it is empty, Extract uses HashLen zero bytes (§2.2). A random salt
+"adds significantly to the strength of HKDF" and need not be secret (§3.1). **Info** binds each
+key to its purpose: different info, independent keys from the same PRK (§3.2). Test case A.3 has
+neither:
+
+<Lab labId="hkdf-rfc5869-a3" producerId="hkdf" presetId="rfc5869-a3" layout="derivation:50|state:25|narration:25" />
+
+<Aside type="note" title="Preview: TLS 1.3">
+
+TLS 1.3 builds its whole key schedule from this (RFC 8446, §7.1). `HKDF-Expand-Label` packs the
+length, `"tls13 "` ‖ label and a context into an `HkdfLabel` struct and uses it as info;
+`Derive-Secret` passes a transcript hash as the context. The lab reproduces RFC 8448 (§3):
+Derive-Secret(early secret, "derived", "") = `6f2615a1 … 6c3611ba`. The protocol follows in Phase 7.
+
+<Lab labId="hkdf-tls13-derived" producerId="hkdf" presetId="tls13-derived" layout="derivation:45|state:30|narration:25" />
+
+</Aside>
+
+<Lens level="cryptographer">
+
+Krawczyk (CRYPTO 2010) models Extract as a randomness extractor keyed by the salt and Expand as a
+variable-length PRF keyed by PRK; the security proof relies on HMAC having both properties.
+
+</Lens>
+
+</LessonSection>
+
+<LessonSection part="memory">
+
+## Midstates and short-lived secrets
+
+PRK is the HMAC key of every Expand block. HMAC's inner and outer hashes start by absorbing
+`K ⊕ ipad` and `K ⊕ opad`, so an implementation can store those two intermediate states once per
+key (RFC 2104, §4). In test case A.1 each `T(i)` input is at most 32 + 10 + 1 = 43 bytes, so every
+block then costs two SHA-256 compressions.
+
+| Value | Size (A.1) | Secret? |
+|---|---|---|
+| IKM | 22 bytes | yes |
+| salt, info | 13, 10 bytes | no (RFC 5869, §3.1, §3.2) |
+| PRK | HashLen = 32 bytes | yes |
+| OKM | L = 42 bytes | yes |
+
+RFC 8446 (§7.1) asks that a secret be erased once every value derived from it is computed. How long
+such keys linger in a process's memory is the topic of a later phase.
+
+</LessonSection>
+
+<LessonSection part="break">
+
+## Mallory's shortcuts
+
+**Skip Extract.** RFC 5869 allows it only when IKM is already a uniformly random key; a
+Diffie-Hellman value is not, and Extract is what makes it one (§3.3).
+
+**Drop info.** Two keys from the same PRK with the same info and L are identical. If an encryption
+key and a MAC key come out equal, the two uses are no longer independent; distinct info strings
+keep them apart (§3.2).
+
+**Feed it a password.** Extract "can concentrate existing entropy but cannot amplify entropy", and
+HKDF has no mechanism to slow down a dictionary attack (§4). Each of Mallory's password guesses
+costs only a few HMAC calls. Passwords need a deliberately slow KDF such as
+[PBKDF2](../pbkdf2/) (RFC 5869, §4 points to PKCS #5).
+
+<Lens level="engineer">
+
+Asking for L > 255 · HashLen is an error, not a longer key (RFC 5869, §2.3).
+
+</Lens>
+
+</LessonSection>
+
+<LessonSection part="check">
+
+## Check yourself
+
+<CheckQuestion
+  id="hkdf-empty-salt"
+  number={1}
+  question="What does HKDF-Extract use as the HMAC key when the salt is empty?"
+  options={[
+    'The IKM itself',
+    'HashLen zero bytes',
+    'A random value chosen by the library',
+    'Extract is skipped',
+  ]}
+  answer={1}
+>
+  RFC 5869, §2.2: if the salt is not provided, it is set to a string of HashLen zeros. Test case A.3
+  shows the result: PRK `19ef24a3 … 293ccb04`.
+</CheckQuestion>
+
+<CheckQuestion
+  id="hkdf-max-length"
+  number={2}
+  question="What is the longest OKM that HKDF-SHA-256 can produce?"
+  options={['32 bytes', '255 bytes', '8160 bytes', 'Unlimited']}
+  answer={2}
+>
+  L ≤ 255 · HashLen (RFC 5869, §2.3), because the block counter is one octet: 255 · 32 = 8160
+  bytes.
+</CheckQuestion>
+
+<CheckQuestion
+  id="hkdf-not-for-passwords"
+  number={3}
+  question="Why is HKDF the wrong choice for deriving a key from a password?"
+  options={[
+    'HMAC cannot take a password as input',
+    'It needs a secret salt',
+    'It cannot add entropy and does not slow down guessing',
+    'Its output is too short',
+  ]}
+  answer={2}
+>
+  Extract only concentrates the entropy that is there, and HKDF has no work factor against
+  dictionary attacks (RFC 5869, §4). Use a password-based KDF such as [PBKDF2](../pbkdf2/).
+</CheckQuestion>
+
+</LessonSection>

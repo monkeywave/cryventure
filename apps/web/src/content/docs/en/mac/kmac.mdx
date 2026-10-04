@@ -1,0 +1,211 @@
+---
+title: 'KMAC: a MAC from the sponge'
+description: KMAC keys cSHAKE directly, because a sponge hides its capacity; bytepad(encode_string(K)) gives the key its own block, N = "KMAC" and S separate uses, right_encode(L) binds the length, and keyed BLAKE2 does the same trick with a compression function.
+lessonId: mac/kmac
+track: mac
+phase: 2
+sidebar:
+  order: 2
+tableOfContents: false
+prereqs:
+  - hash/sponge
+  - mac/index
+  - mac/hmac
+labs:
+  - kmac128-sample1
+  - kmac256-sample4
+  - blake2s-256-keyed
+refs:
+  - NIST SP 800-185, Section 2.3.1 (left_encode, right_encode), 2.3.2 (encode_string) and 2.3.3 (bytepad)
+  - NIST SP 800-185, Section 3.2 and 3.3 (cSHAKE parameters and definition, N and S)
+  - NIST SP 800-185, Section 4.1 (KMAC overview), 4.2 (parameters), 4.3 (definition) and 4.3.1 (KMACXOF)
+  - NIST CSRC, Examples with Intermediate Values, KMAC_samples.pdf and KMACXOF_samples.pdf
+  - FIPS 202, Section 3.1 (state, lanes), Section 4 (Sponge construction), Section 6.2 (SHAKE128, SHAKE256) and Section 7, Table 3 (rates)
+  - FIPS 202, Appendix A.1 (security summary, length extension) and A.2 (XOF outputs are related)
+  - RFC 2104, Section 2 (Definition of HMAC) and Section 4 (Implementation note — precomputed intermediate values)
+  - RFC 7693, Section 1 (Introduction — built-in keying, no HMAC needed)
+  - RFC 7693, Section 2.5 (Parameter Block — key length kk)
+  - RFC 7693, Section 3.3 (Padding Data and Computing a BLAKE2 Digest — keyed hashing)
+  - Aumasson, Neves, Wilcox-O'Hearn, Winnerlein (2013), BLAKE2 — simpler, smaller, fast as MD5, ACNS 2013, LNCS 7954 (Section 2.9)
+  - Bertoni, Daemen, Peeters, Van Assche (2008), On the Indifferentiability of the Sponge Construction, EUROCRYPT 2008, LNCS 4965
+---
+
+import Lab from '../../../../components/Lab.astro';
+import CheckQuestion from '../../../../components/lesson/CheckQuestion.astro';
+import Formula from '../../../../components/lesson/Formula.astro';
+import KeyFact from '../../../../components/lesson/KeyFact.astro';
+import KeyFacts from '../../../../components/lesson/KeyFacts.astro';
+import Lens from '../../../../components/lesson/Lens.astro';
+import LessonSection from '../../../../components/lesson/LessonSection.astro';
+import WhyBox from '../../../../components/lesson/WhyBox.astro';
+
+<LessonSection part="concept">
+
+## Key in, tag out, no nesting
+
+[HMAC](../hmac/) hashes twice, `H((K ⊕ opad) ‖ H((K ⊕ ipad) ‖ m))` (RFC 2104, §2), because a
+Merkle–Damgård digest is its full chaining value and `H(K ‖ m)` could be extended
+([SHA-256](../../hash/sha256/)). A sponge never outputs its capacity (FIPS 202, §4), so it resists
+length extension (Appendix A.1). Prepending the key is enough.
+
+**KMAC** is exactly that: cSHAKE with the function name `N = "KMAC"`, over the encoded key, the
+message and the encoded output length (NIST SP 800-185, §4.3). One pass, no inner hash.
+
+<KeyFacts>
+  <KeyFact label="KMAC128 rate" value="168 B" kind="plaintext" />
+  <KeyFact label="KMAC256 rate" value="136 B" kind="plaintext" />
+  <KeyFact label="Function name N" value='"KMAC"' kind="constant" />
+  <KeyFact label="Key length" value="any" kind="key" />
+</KeyFacts>
+
+<WhyBox constant='N = "KMAC"' title="why a function name">
+  cSHAKE reserves `N` for functions NIST defines and `S` for the user (SP 800-185, §3.2). Fixing
+  `N = "KMAC"` separates KMAC's sponge inputs from plain cSHAKE and from the other functions of
+  SP 800-185 (§3.2, §4.3).
+</WhyBox>
+
+<Lens only="story">
+
+Whisper the password into the sponge first, then pour in the letter. Only the surface is ever
+wrung out, so the password stays inside.
+
+</Lens>
+
+</LessonSection>
+
+<LessonSection part="playground">
+
+## KMAC128, sample #1
+
+The lab runs SP 800-185's first KMAC sample: key `40 41 … 5f` (32 bytes), data `00 01 02 03`,
+`L = 256`, `S` empty (NIST, KMAC_samples.pdf). Three rate blocks, three permutations:
+
+1. **pad**: `bytepad(encode_string("KMAC") ‖ encode_string(""), 168)` (§3.3);
+2. **encodeKey**: `bytepad(encode_string(K), 168)` (§4.3);
+3. the data, then `right_encode(256)`, then the cSHAKE suffix and pad10\*1.
+
+The sponge view shows each block XORed into the rate while the capacity lanes stay untouched. The
+tag is `e5780b0d 3ea6f7d3 … 456ee14e`, as in the NIST sample.
+
+<Lab labId="kmac128-sample1" producerId="kmac" presetId="kmac128-sample1" layout="sponge:55|state:20|narration:25" />
+
+</LessonSection>
+
+<LessonSection part="inside">
+
+## Three blocks, byte by byte
+
+`left_encode(x)` writes the byte count first, `right_encode(x)` last (SP 800-185, §2.3.1).
+`encode_string(K)` prefixes `K` with its length in bits (§2.3.2); `bytepad(X, w)` prefixes
+`left_encode(w)` and zero-fills to a multiple of `w` bytes (§2.3.3). So the key always starts a
+fresh block and fills it alone:
+
+<Formula caption="KMAC128 sample #1, the three absorbed blocks (SP 800-185, §4.3; NIST KMAC_samples.pdf).">
+{`block 0  01 a8 | 01 20 | 4b 4d 41 43 | 01 00 | 00 … 00            bytepad(N="KMAC", S="")
+block 1  01 a8 | 02 01 00 | 40 41 … 5f | 00 … 00                    bytepad(encode_string(K))
+block 2  00 01 02 03 | 01 00 02 | 04 00 … 00 80                     X ‖ right_encode(256) ‖ pad`}
+</Formula>
+
+The customization string `S` lands in block 0 (§4.2): sample #4 sets
+`S = "My Tagged Application"`, and KMAC256 pads to its 136-byte rate (`01 88 …`, §4.3).
+
+<Lab labId="kmac256-sample4" producerId="kmac" presetId="kmac256-sample4" startAt="op:encodeKey" layout="sponge:55|state:20|narration:25" />
+
+**KMACXOF** writes `right_encode(0) = 00 01` instead of `right_encode(L)` and squeezes freely
+(§4.3.1).
+
+</LessonSection>
+
+<LessonSection part="memory">
+
+## One state, two precomputed blocks
+
+KMAC keeps a single 200-byte Keccak state, 25 little-endian 64-bit lanes (FIPS 202, §3.1); see the
+[sponge page](../../hash/sponge/). HMAC-SHA-256 needs two chaining states plus a buffer
+(RFC 2104, §4).
+
+Blocks 0 and 1 depend only on `S` and `K`, so an implementation can absorb them once per key and
+copy the 200-byte state for every message, like HMAC's precomputed midstates. The key then sits in
+memory only inside a permuted state, but that state is as secret as the key: whoever copies it can
+compute tags.
+
+<Lens level="engineer">
+
+A short message costs three permutations for KMAC128 sample #1, and one per further 168 bytes
+(SP 800-185, §4.3; FIPS 202, §7, Table 3). With the two key blocks cached, a short tag costs one.
+
+</Lens>
+
+</LessonSection>
+
+<LessonSection part="break">
+
+## What each encoding prevents
+
+**No encoding of the key.** Key `ab` with data `cd` would equal key `abcd` with no data. The
+length prefix and the block boundary rule that out (SP 800-185, §2.3.2, §2.3.3).
+
+**No `right_encode(L)`.** SHAKE outputs of different lengths are prefixes of each other (FIPS 202,
+Appendix A.2). KMAC binds `L`, so a 32-byte tag is not the start of a 64-byte one (§4.1); KMACXOF
+gives that up on purpose (§4.3.1).
+
+**The other keyed hash.** [BLAKE2](../../hash/blake2/) zero-pads the key into block 0 and records
+`kk` in parameter word 0 (RFC 7693, §2.5, §3.3); no HMAC needed (§1), one compression or more
+saved (Aumasson et al. 2013, §2.9).
+
+<Lab labId="blake2s-256-keyed" producerId="blake2" presetId="blake2s-256-keyed" startAt="op:load" layout="state:60|narration:40" />
+
+<Lens level="cryptographer">
+
+SP 800-185 calls KMAC a PRF (§4.1). The bound behind it: a sponge on a random permutation is
+indifferentiable from a random oracle up to about 2<sup>c/2</sup> queries (Bertoni et al.,
+EUROCRYPT 2008), with `c = 256` for KMAC128 and `512` for KMAC256 (FIPS 202, Appendix A.1).
+
+</Lens>
+
+</LessonSection>
+
+<LessonSection part="check">
+
+## Check yourself
+
+<CheckQuestion
+  id="kmac-no-nesting"
+  number={1}
+  question="Why can KMAC prepend the key in one pass, while SHA-256(K ‖ m) needs HMAC's nesting?"
+  options={[
+    'Keccak-f[1600] has more rounds than SHA-256',
+    'The sponge never outputs its capacity, so a tag cannot be extended',
+    'KMAC encrypts the key before absorbing it',
+    'cSHAKE pads with the message length in bits',
+  ]}
+  answer={1}
+>
+  A SHA-256 digest is the full chaining value, so `H(K ‖ m)` can be extended. A sponge tag shows
+  only rate bits; the capacity stays hidden (FIPS 202, §4, Appendix A.1), so KMAC is a single cSHAKE
+  call (SP 800-185, §4.3).
+</CheckQuestion>
+
+<CheckQuestion
+  id="kmac-key-block"
+  number={2}
+  question="With a 32-byte key, how does KMAC128's key block begin?"
+  options={['40 41 42 43', '01 a8 02 01 00 40', '01 20 4b 4d 41 43', '02 01 00 40']}
+  answer={1}
+>
+  `bytepad(encode_string(K), 168)`: `left_encode(168) = 01 a8`, then `left_encode(256) = 02 01 00`
+  for the 256-bit key, then the key `40 41 …`, zero-filled to 168 bytes (SP 800-185, §2.3, §4.3).
+</CheckQuestion>
+
+<CheckQuestion
+  id="kmacxof-length"
+  number={3}
+  question="What does KMACXOF absorb after the message instead of right_encode(L)?"
+  options={['Nothing', 'right_encode(0)', 'left_encode(L)', 'The string "XOF"']}
+  answer={1}
+>
+  SP 800-185, §4.3.1: KMACXOF uses `right_encode(0) = 00 01`, so the output does not depend on its
+  length and can be squeezed as long as needed. KMAC appends `right_encode(L)`.
+</CheckQuestion>
+
+</LessonSection>

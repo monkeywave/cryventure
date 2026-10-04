@@ -52,6 +52,18 @@ export default defineConfig({
           // Page order comes from each page's frontmatter `sidebar.order` (EN and DE).
           items: [{ autogenerate: { directory: 'hash' } }],
         },
+        {
+          label: 'MACs',
+          translations: { de: 'MACs' },
+          // Page order comes from each page's frontmatter `sidebar.order` (EN and DE): index, hmac, kmac.
+          items: [{ autogenerate: { directory: 'mac' } }],
+        },
+        {
+          label: 'Key derivation',
+          translations: { de: 'Schlüsselableitung' },
+          // Page order comes from each page's frontmatter `sidebar.order` (EN and DE): hkdf, pbkdf2, tls-prf.
+          items: [{ autogenerate: { directory: 'kdf' } }],
+        },
         // Starlight prefixes a `link` with the current locale and the base (`/cryventure/de/progress/`).
         { label: 'Your progress', translations: { de: 'Dein Fortschritt' }, link: '/progress/' },
       ],

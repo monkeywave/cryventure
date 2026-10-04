@@ -1,0 +1,214 @@
+---
+title: HMAC inside
+description: How HMAC turns any iterated hash into a MAC with a key block K0, the pads ipad = 0x36 and opad = 0x5c and two nested hashes, why implementations store two midstates per key, how far a tag may be truncated, and why tags are compared in constant time.
+lessonId: mac/hmac
+track: mac
+phase: 2
+sidebar:
+  order: 1
+tableOfContents: false
+prereqs:
+  - mac/index
+  - hash/sha256
+labs:
+  - hmac-tc1
+  - hmac-long-key
+  - hmac-verify-fail
+refs:
+  - RFC 2104 (1997), Section 2 (Definition of HMAC), Section 3 (Keys), Section 4 (Implementation note), Section 5 (Truncated output)
+  - NIST FIPS 198 (2002) and FIPS 198-1 (2008), Section 4 (HMAC specification, steps 1–9) and Section 5 (Truncated output)
+  - RFC 4231, Sections 4.2, 4.6 and 4.7 (Test Cases 1, 5 and 6)
+  - Bellare, Canetti, Krawczyk (1996), Keying Hash Functions for Message Authentication, CRYPTO 1996, LNCS 1109
+  - Bellare (2006), New Proofs for NMAC and HMAC — Security without Collision-Resistance, CRYPTO 2006, LNCS 4117
+  - FIPS 202, Section 7, Table 3 (input block sizes for HMAC)
+  - Lawson (2009), Timing attack in Google Keyczar library, root labs rdist (blog), May 2009
+  - Python Standard Library documentation, hmac.compare_digest
+---
+
+import Lab from '../../../../components/Lab.astro';
+import CheckQuestion from '../../../../components/lesson/CheckQuestion.astro';
+import Formula from '../../../../components/lesson/Formula.astro';
+import KeyFact from '../../../../components/lesson/KeyFact.astro';
+import KeyFacts from '../../../../components/lesson/KeyFacts.astro';
+import Lens from '../../../../components/lesson/Lens.astro';
+import LessonSection from '../../../../components/lesson/LessonSection.astro';
+import WhyBox from '../../../../components/lesson/WhyBox.astro';
+
+<LessonSection part="concept">
+
+## Two hashes, two pads
+
+Bellare, Canetti and Krawczyk introduced HMAC with a proof (CRYPTO 1996); RFC 2104 (1997)
+specified it, and NIST adopted it as FIPS 198 (2002), now FIPS 198-1 (2008). It wraps any iterated
+hash `H` with block size `B` and output size `L` (RFC 2104, §2):
+
+<Formula caption="HMAC, RFC 2104 §2 and FIPS 198-1 §4. K0 = the key as one B-byte block.">
+{`HMAC(K, m) = H( (K0 ⊕ opad) ‖ H( (K0 ⊕ ipad) ‖ m ) )
+ipad = 36 36 … 36   (B bytes)
+opad = 5c 5c … 5c   (B bytes)`}
+</Formula>
+
+<KeyFacts>
+  <KeyFact label="SHA-256 block B" value="64 bytes" kind="state" />
+  <KeyFact label="SHA-256 output L" value="32 bytes" kind="ciphertext" />
+  <KeyFact label="ipad / opad" value="0x36 / 0x5c" kind="constant" />
+  <KeyFact label="Hash calls" value="2, nested" kind="constant" />
+</KeyFacts>
+
+<WhyBox constant="ipad = 0x36, opad = 0x5c" title="why these two pads">
+  The proof needs only that `K0 ⊕ ipad` and `K0 ⊕ opad` differ, so the two hashes run under two
+  different keys (Bellare, Canetti, Krawczyk 1996; RFC 2104, §2). `36 ⊕ 5c = 6a = 01101010`: the
+  pads differ in 4 of 8 bits per byte. The values are fixed so that implementations agree; no
+  deeper derivation is published.
+</WhyBox>
+
+<WhyBox constant="t ≥ 80 bits" title="why a tag needs at least 80 bits">
+  RFC 2104, §5 asks for at least `L/2` and at least 80 bits, a suitable lower bound on the bits an
+  attacker must predict.
+</WhyBox>
+
+<Lens only="story">
+
+The message is sealed in an inner envelope, and that envelope in an outer one with a second seal.
+
+</Lens>
+
+</LessonSection>
+
+<LessonSection part="playground">
+
+## RFC 4231, test case 1
+
+The key is 20 bytes of `0b`, the message `"Hi There"` (RFC 4231, §4.2). The derivation view draws
+the whole chain: `K` → `K0` (padded with 44 zero bytes to `B = 64`) → `K0 ⊕ ipad` and `K0 ⊕ opad`
+→ inner hash → tag. Byte 0: `0b ⊕ 36 = 3d`, `0b ⊕ 5c = 57`.
+
+The last step outputs the RFC's HMAC-SHA-256 tag
+
+`b0344c61d8db38535ca8afceaf0bf12b881dc200c9833da726e9376c2e32cff7`.
+
+The inner and outer nodes link to the SHA-256 lab with their exact input. This lab is a teaching
+tool: never type a real key into it.
+
+<Lab labId="hmac-tc1" producerId="hmac" presetId="rfc4231-tc1" layout="derivation:45|state:30|narration:25" />
+
+</LessonSection>
+
+<LessonSection part="inside">
+
+## Key block, midstates, truncation
+
+FIPS 198-1, §4 (steps 1–3) turns `K` into `K0`:
+
+| Key length | K0 |
+|---|---|
+| = B | `K` |
+| < B | `K ‖ 00 … 00` |
+| > B | `H(K) ‖ 00 … 00` |
+
+RFC 4231 test case 6 (§4.7) has a 131-byte key, so `K0 = SHA-256(K) ‖ 00 … 00` with
+`SHA-256(K) = 45ad4b37 … a521db81`; the tag is `60e43159 … 0ee37f54`.
+
+<Lab labId="hmac-long-key" producerId="hmac" presetId="rfc4231-tc6-longkey" startAt="op:keyPrep" layout="derivation:45|state:30|narration:25" />
+
+The blocks `K0 ⊕ ipad` and `K0 ⊕ opad` depend only on the key. RFC 2104, §4 stores the two
+**midstates** after them; each message then costs its own blocks plus one outer compression.
+
+A tag may be **truncated** to its leftmost `t` bits (FIPS 198-1, §5), with `t ≥ L/2` and
+`t ≥ 80` (RFC 2104, §5); RFC 4231 test case 5 keeps 128 bits (§4.6). For SHA-3, `B` is the rate:
+136 bytes for SHA3-256 (FIPS 202, §7, Table 3).
+
+<Lens level="cryptographer">
+
+HMAC is NMAC with two keys derived from one (BCK 1996). Bellare (CRYPTO 2006) proves it a PRF if
+the compression function is one, without collision resistance.
+
+</Lens>
+
+</LessonSection>
+
+<LessonSection part="memory">
+
+## Two midstates per key
+
+For SHA-256 each midstate is a 32-byte chaining value; the state view shows both, as
+`Inner midstate` and `Outer midstate`. A server that verifies many messages under one key keeps
+these 64 bytes instead of `K` (RFC 2104, §4).
+
+They are as valuable as the key: with both midstates anyone can compute tags for any message, which
+is why RFC 2104, §4 asks to protect them like `K`. The lab marks `K`, `K0`, the padded keys and the
+midstates as secret values; the message and the tag as public.
+
+All hashing in HMAC runs the hash's compression function, so SHA-NI and the ARMv8 SHA2
+instructions apply unchanged ([SHA-256 page](../../hash/sha256/)).
+
+</LessonSection>
+
+<LessonSection part="break">
+
+## Mallory reads the clock
+
+**No outer hash.** HMAC would shrink to `H((K0 ⊕ ipad) ‖ m)`, a secret-prefix MAC open to length
+extension ([SHA-512 page](../../hash/sha512/#mallory-extends-the-chain)).
+
+**Short tags.** Fewer bits mean fewer to predict; RFC 2104, §5 keeps at least 80.
+
+**Early-exit comparison.** In 2009 Nate Lawson reported that Google's Keyczar library compared HMAC
+tags byte by byte and returned at the first difference, so the verification time revealed how many
+leading bytes of a forged tag were right (Lawson 2009). The fix is a comparison whose time does not
+depend on the data: the lab's verify step XORs every byte pair and ORs the result into an
+accumulator without exiting early. Libraries ship such a function, e.g. Python's
+`hmac.compare_digest` (Python docs).
+
+<Lab labId="hmac-verify-fail" producerId="hmac" presetId="verify-fail" startAt="op:verify" layout="state:60|narration:40" />
+
+</LessonSection>
+
+<LessonSection part="check">
+
+## Check yourself
+
+<CheckQuestion
+  id="hmac-pads-must-differ"
+  number={1}
+  question="What does the HMAC security proof need from ipad and opad?"
+  options={[
+    'They must be prime numbers',
+    'They must differ, so the inner and outer hash use different keys',
+    'They must be each other’s bitwise complement',
+    'They must be secret',
+  ]}
+  answer={1}
+>
+  Only that `K0 ⊕ ipad ≠ K0 ⊕ opad` (Bellare, Canetti, Krawczyk 1996; RFC 2104, §2). `0x36` and
+  `0x5c` are public, fixed for interoperability, and differ in 4 of 8 bits per byte.
+</CheckQuestion>
+
+<CheckQuestion
+  id="hmac-long-key-k0"
+  number={2}
+  question="HMAC-SHA-256 gets a 131-byte key. What is K0?"
+  options={[
+    'The first 64 bytes of the key',
+    'SHA-256 of the key, followed by 32 zero bytes',
+    'The key, padded with zero bytes to 192 bytes',
+    'The key XORed with ipad',
+  ]}
+  answer={1}
+>
+  A key longer than `B = 64` bytes is hashed first, then zero bytes fill `K0` up to `B` (FIPS 198-1,
+  §4, step 2; RFC 4231, §4.7).
+</CheckQuestion>
+
+<CheckQuestion
+  id="hmac-sha256-min-tag"
+  number={3}
+  question="What is the shortest HMAC-SHA-256 tag RFC 2104 §5 recommends?"
+  options={['10 bytes', '16 bytes', '20 bytes', '32 bytes']}
+  answer={1}
+>
+  At least half of `L = 32` bytes and at least 80 bits: `max(16, 10) = 16` bytes (128 bits), as in
+  RFC 4231 test case 5 (§4.6).
+</CheckQuestion>
+
+</LessonSection>

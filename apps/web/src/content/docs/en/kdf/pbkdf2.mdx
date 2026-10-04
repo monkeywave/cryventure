@@ -1,0 +1,202 @@
+---
+title: PBKDF2
+description: PBKDF2 stretches a low-entropy password into a key by iterating HMAC c times with a salt, making every guess c times as expensive for an attacker and for the defender alike.
+lessonId: kdf/pbkdf2
+track: kdf
+phase: 2
+sidebar:
+  order: 2
+tableOfContents: false
+prereqs:
+  - hash/sha256
+  - mac/hmac
+labs:
+  - pbkdf2-rfc6070-tc2
+  - pbkdf2-rfc6070-tc3
+refs:
+  - RFC 8018 (PKCS #5 v2.1), Section 4.1 (Salt) and Section 4.2 (Iteration Count)
+  - RFC 8018, Section 5.2 (PBKDF2)
+  - RFC 6070 (PBKDF2-HMAC-SHA1 test vectors), Section 2
+  - RFC 7914, Section 11 (PBKDF2-HMAC-SHA256 test vectors)
+  - RFC 2104 (HMAC), Section 2 (definition) and Section 4 (implementation note on precomputed intermediate results)
+  - NIST SP 800-132 (2010), Recommendation for Password-Based Key Derivation, Sections 5.1, 5.2 and 5.3
+  - OWASP Password Storage Cheat Sheet (consulted 2026-10-04), PBKDF2 section
+  - RFC 7914 (scrypt)
+  - RFC 9106 (Argon2)
+---
+
+import Lab from '../../../../components/Lab.astro';
+import CheckQuestion from '../../../../components/lesson/CheckQuestion.astro';
+import Formula from '../../../../components/lesson/Formula.astro';
+import KeyFact from '../../../../components/lesson/KeyFact.astro';
+import KeyFacts from '../../../../components/lesson/KeyFacts.astro';
+import Lens from '../../../../components/lesson/Lens.astro';
+import LessonSection from '../../../../components/lesson/LessonSection.astro';
+import WhyBox from '../../../../components/lesson/WhyBox.astro';
+
+<LessonSection part="concept">
+
+## Making every guess expensive
+
+A password is not a key: people pick from a small, guessable space, so an attacker who sees a
+derived key simply tries likely passwords. PBKDF2 cannot add entropy; it makes each **guess**
+cost `c` PRF calls instead of one (RFC 8018, §4.2). The PRF is an [HMAC](../../mac/hmac/) keyed
+with the password (§5.2).
+
+<KeyFacts>
+  <KeyFact label="Input" value="password P, salt S" kind="key" />
+  <KeyFact label="Work factor" value="iteration count c" kind="constant" />
+  <KeyFact label="PRF" value="HMAC-SHA-1 / SHA-256 / …" kind="state" />
+  <KeyFact label="Output" value="dkLen bytes" kind="ciphertext" />
+</KeyFacts>
+
+<WhyBox constant="salt" title="why every password gets its own salt">
+  The salt makes one password map to many keys, so an attacker cannot precompute a table of
+  derived keys once and reuse it for every victim (RFC 8018, §4.1). RFC 8018 asks for at least
+  64 bits of salt, NIST SP 800-132 for at least 128 bits, randomly generated (§5.1).
+</WhyBox>
+
+<Lens only="story">
+
+A lock that takes a full minute to try each key: harmless for the owner, ruinous for someone
+trying a million keys.
+
+</Lens>
+
+</LessonSection>
+
+<LessonSection part="playground">
+
+## RFC 6070, two iterations
+
+The lab runs RFC 6070's test case 2: PBKDF2-HMAC-SHA1, password "password", salt "salt", `c = 2`,
+20 bytes (RFC 6070, §2). Watch `U₁ = PRF(P, S ‖ INT(1))`, then `U₂ = PRF(P, U₁)`, and their XOR,
+which is the key `ea6c014d … d8de8957`. The derivation view zooms into each HMAC call.
+
+<Lab labId="pbkdf2-rfc6070-tc2" producerId="pbkdf2" presetId="rfc6070-tc2" layout="derivation:45|state:30|narration:25" />
+
+The lab is a teaching tool: do not type a real password into it. Everything stays in the page,
+but the parameters, password included, are written into the address bar's deep link.
+
+</LessonSection>
+
+<LessonSection part="inside">
+
+## A chain of HMACs, XORed
+
+<Formula caption="PBKDF2, RFC 8018 §5.2 (INT(i) = i as a 4-byte big-endian integer, hLen = PRF output length).">
+{`U₁ = PRF(P, S ‖ INT(i))
+U_j = PRF(P, U_{j−1})                    j = 2 … c
+T_i = U₁ ⊕ U₂ ⊕ … ⊕ U_c
+DK  = T₁ ‖ T₂ ‖ … ‖ T_⌈dkLen/hLen⌉       (truncated to dkLen bytes)`}
+</Formula>
+
+The iterations are strictly sequential: `U_j` needs `U_{j−1}`. With `c = 4096` (RFC 6070, §2,
+test case 3) the lab records `U₁ … U₃` and `U₄₀₉₆` and summarises the rest in one skip step; the
+key is `4b007901 … 65a429c1`. It runs in a Web Worker, so the page stays responsive.
+
+<Lab labId="pbkdf2-rfc6070-tc3" producerId="pbkdf2" presetId="rfc6070-tc3" layout="derivation:45|state:30|narration:25" />
+
+<Lens level="cryptographer">
+
+The XOR keeps every `U_j` in the output, so skipping late iterations changes the key; and each
+block `T_i` restarts the chain with its own index `i` (RFC 8018, §5.2).
+
+</Lens>
+
+</LessonSection>
+
+<LessonSection part="memory">
+
+## Two compressions per iteration
+
+HMAC is `H((K ⊕ opad) ‖ H((K ⊕ ipad) ‖ m))` (RFC 2104, §2). In PBKDF2 the key `K` is always the
+password, so the hash states after the `K ⊕ ipad` and `K ⊕ opad` blocks, the **midstates**, can
+be computed once and reused (RFC 2104, §4). The lab does exactly this: one keyed context, cloned
+for every call.
+
+| Per HMAC call | Without midstates | With midstates |
+|---|---|---|
+| Inner hash of a 20- or 32-byte `U_{j−1}` | 2 compressions | 1 |
+| Outer hash of the inner digest | 2 compressions | 1 |
+
+So each iteration costs about **2 compressions** (see [HMAC](../../mac/hmac/)), and `c = 4096` about
+8192. The attacker uses the same trick, so it buys the defender nothing relative to the attacker;
+it only removes waste. The working set is a few hash states, a few hundred bytes: cheap to
+replicate on GPUs and ASICs.
+
+</LessonSection>
+
+<LessonSection part="break">
+
+## Mallory brings a table, then a GPU
+
+**Without salt**, a password always gives the same key, so Mallory hashes a dictionary once and
+looks up every victim (RFC 8018, §4.1). The iteration count scales cost linearly for **both**
+sides (§4.2): the defender pays `c` once per login, Mallory `c` per guess.
+
+Guidance on `c`: RFC 8018 (§4.2) and SP 800-132 (§5.2) say at least 1000, SP 800-132 up to
+10,000,000 for critical keys. The OWASP Password Storage Cheat Sheet recommends **600,000**
+iterations for PBKDF2-HMAC-SHA256 (as of 2026-10-04) and prefers Argon2id unless FIPS-140 is
+required.
+
+PBKDF2 needs almost no memory, so parallel hardware guesses cheaply. Memory-hard scrypt
+(RFC 7914) and Argon2id (RFC 9106) also charge memory per guess: a later chapter.
+
+<Lens level="cryptographer">
+
+With `dkLen > hLen`, the blocks `T_i` are independent (RFC 8018, §5.2): the defender computes all
+of them, but Mallory can test a guess against `T₁` alone.
+
+</Lens>
+
+</LessonSection>
+
+<LessonSection part="check">
+
+## Check yourself
+
+<CheckQuestion
+  id="pbkdf2-salt-purpose"
+  number={1}
+  question="What does a random per-password salt stop?"
+  options={[
+    'Guessing a single password by brute force',
+    'Precomputing one table of derived keys for all users',
+    'Length extension on the underlying hash',
+    'Timing leaks in tag comparison',
+  ]}
+  answer={1}
+>
+  The salt gives every password many possible keys, so a precomputed table no longer applies to
+  all users (RFC 8018, §4.1). A single targeted guess costs the same as before.
+</CheckQuestion>
+
+<CheckQuestion
+  id="pbkdf2-iteration-cost"
+  number={2}
+  question="Raising c from 1000 to 100,000 makes a login 100 times slower. What happens to the attacker's cost per guess?"
+  options={[
+    'It stays the same',
+    'It grows 100 times as well',
+    'It grows 10,000 times',
+    'It grows only logarithmically',
+  ]}
+  answer={1}
+>
+  Every guess has to run the same `c` sequential PRF calls (RFC 8018, §§4.2, 5.2), so the cost
+  scales linearly for defender and attacker alike.
+</CheckQuestion>
+
+<CheckQuestion
+  id="pbkdf2-compressions-per-iteration"
+  number={3}
+  question="With precomputed HMAC midstates, how many hash compressions does one PBKDF2-HMAC-SHA1 iteration take?"
+  options={['1', '2', '4', '64']}
+  answer={1}
+>
+  The `K ⊕ ipad` and `K ⊕ opad` blocks are hashed once (RFC 2104, §4). Each iteration then needs
+  one compression for the inner hash of the 20-byte `U_{j−1}` and one for the outer hash.
+</CheckQuestion>
+
+</LessonSection>

@@ -1,0 +1,201 @@
+---
+title: Message authentication codes
+description: What a MAC is, how it differs from a hash and from a signature, what "unforgeable" means, why SHA-256(K ‖ m) is not a MAC while a keyed sponge or keyed BLAKE2 is, and why tags must be compared in constant time.
+lessonId: mac/index
+track: mac
+phase: 2
+sidebar:
+  order: 0
+tableOfContents: false
+prereqs:
+  - hash/index
+  - hash/sha512
+labs:
+  - hmac-jefe
+refs:
+  - NIST FIPS 198-1 (2008), Section 1 (Introduction) and Section 4 (HMAC specification)
+  - NIST FIPS 186-5 (2023), Section 1 (Introduction — signatures, non-repudiation)
+  - RFC 2104, Section 2 (Definition of HMAC) and Section 4 (Implementation note)
+  - RFC 4231, Section 4.3 (Test Case 2)
+  - Menezes, van Oorschot, Vanstone (1996), Handbook of Applied Cryptography, Section 9.5.2 (secret prefix and secret suffix methods)
+  - Bellare, Canetti, Krawczyk (1996), Keying Hash Functions for Message Authentication, CRYPTO 1996, LNCS 1109
+  - Katz, Lindell (2020), Introduction to Modern Cryptography, 3rd ed., Section 4.2 (definition of a secure MAC) and Section 4.3 (MACs from PRFs)
+  - NIST SP 800-185, Section 4 (KMAC)
+  - FIPS 202, Appendix A.1 (security summary)
+  - RFC 7693, Section 3.3 (keyed BLAKE2)
+  - Python Standard Library documentation, hmac.compare_digest
+---
+
+import Lab from '../../../../components/Lab.astro';
+import CheckQuestion from '../../../../components/lesson/CheckQuestion.astro';
+import Formula from '../../../../components/lesson/Formula.astro';
+import KeyFact from '../../../../components/lesson/KeyFact.astro';
+import KeyFacts from '../../../../components/lesson/KeyFacts.astro';
+import Lens from '../../../../components/lesson/Lens.astro';
+import LessonSection from '../../../../components/lesson/LessonSection.astro';
+
+<LessonSection part="concept">
+
+## A tag only the key holder can make
+
+A [hash](../hash/) catches accidental changes, but anyone can recompute it after changing the
+message. A **message authentication code** (MAC) also takes a secret key `K`, shared by sender and
+receiver, and returns a short **tag** (FIPS 198-1, §1). The receiver recomputes the tag from `K`
+and the message and compares the two.
+
+A **signature** signs with a private key and verifies with a public one, so anyone can check it,
+and a third party can tell who signed: non-repudiation (FIPS 186-5, §1). A MAC cannot offer that:
+whoever can verify a tag holds `K` and could have made it.
+
+<KeyFacts>
+  <KeyFact label="Inputs" value="key K, message m" kind="key" />
+  <KeyFact label="Output" value="tag" kind="ciphertext" />
+  <KeyFact label="Keys" value="one, shared" kind="key" />
+  <KeyFact label="Verify" value="recompute, compare" kind="state" />
+</KeyFacts>
+
+<Lens only="story">
+
+A wax seal made with a stamp that only you and your friend own. Your friend knows the letter came
+from one of you two, but cannot prove to anyone else which one.
+
+</Lens>
+
+</LessonSection>
+
+<LessonSection part="playground">
+
+## A short key, "Jefe"
+
+The lab runs **HMAC-SHA-256**, the MAC of the [next page](hmac/), on RFC 4231's test case 2
+(§4.3): the 4-byte key `"Jefe"` (`4a656665`) and the message `"what do ya want for nothing?"`. The
+last step outputs the RFC's tag
+
+`5bdcc146bf60754e6a042426089575c75a003f089d2739839dec58b964ec3843`.
+
+Change one letter of the message or of the key: every tag byte changes. RFC 4231 uses this short
+key on purpose, to test a key shorter than the output; real keys should not be (RFC 2104, §3).
+The narration of the first step says it too: this lab is a teaching tool, so never type a real key
+into it.
+
+<Lab labId="hmac-jefe" producerId="hmac" presetId="rfc4231-tc2" layout="state:60|narration:40" />
+
+</LessonSection>
+
+<LessonSection part="inside">
+
+## What "unforgeable" means
+
+Mallory may ask for tags on any messages she likes. She wins if she then presents a valid tag for a
+message she never asked about. A MAC is secure if she wins only with negligible probability
+(Katz–Lindell, §4.2); Bellare, Canetti and Krawczyk use this notion for HMAC (CRYPTO 1996).
+
+Three ways to put a key into a hash (HAC §9.5.2; RFC 2104, §2):
+
+<Formula caption="Keyed hashes. ‖ = concatenation, K0 = key padded to one block, ipad/opad = fixed bytes 0x36/0x5c.">
+{`secret prefix   H(K ‖ m)                          broken for Merkle–Damgård
+secret suffix   H(m ‖ K)                          a collision in H is a forgery
+HMAC            H((K0 ⊕ opad) ‖ H((K0 ⊕ ipad) ‖ m))`}
+</Formula>
+
+The suffix method falls to an offline collision `H(m) = H(m′)` with equal-length `m`, `m′`: then
+the two tags are equal too (HAC §9.5.2). HMAC nests two hashes; the [HMAC page](hmac/) goes
+inside.
+
+<Lens level="cryptographer">
+
+This is existential unforgeability under chosen-message attack (EUF-CMA). For a deterministic
+MAC such as HMAC, verifying means recomputing, and every secure pseudorandom function (PRF) on
+fixed-length inputs is a secure MAC (Katz–Lindell, §4.3).
+
+</Lens>
+
+</LessonSection>
+
+<LessonSection part="memory">
+
+## Secret key, public tag
+
+In memory, the key `K` and every value derived only from it are secrets. In the lab's state view,
+these are `K0`, the padded keys and the midstates. The message and the tag are public: the tag travels
+next to the message. RFC 2104, §4 lets an implementation store the two midstates instead of `K`
+and asks that they be protected like the key.
+
+There is no MAC instruction. HMAC calls the hash's compression function, so SHA-NI and the ARMv8
+SHA2 instructions speed it up exactly as they speed up plain SHA-256
+([SHA-256 page](../hash/sha256/)).
+
+</LessonSection>
+
+<LessonSection part="break">
+
+## Mallory appends, then times
+
+**Secret prefix.** A SHA-256 digest is the full chaining value, so from `H(K ‖ m)` Mallory can keep
+hashing and get a valid tag for `m ‖ padding ‖ m′` without `K`: length extension
+([SHA-512 page](../hash/sha512/#mallory-extends-the-chain); HAC §9.5.2).
+
+**Sponges and BLAKE2 are fine.** A sponge outputs only rate bits; its capacity stays hidden (FIPS
+202, Appendix A.1). So KMAC simply puts the key in front (SP 800-185, §4). Keyed BLAKE2 puts the
+key in block 0 and marks the last block with a flag (RFC 7693, §3.3; [BLAKE2 page](../hash/blake2/)).
+
+**Comparison.** A loop that stops at the first wrong byte returns sooner the earlier the mismatch,
+so its time leaks how many leading bytes of a guessed tag are right. Always compare every byte,
+e.g. with Python's `hmac.compare_digest` (Python docs).
+
+</LessonSection>
+
+<LessonSection part="check">
+
+## Check yourself
+
+<CheckQuestion
+  id="mac-vs-signature"
+  number={1}
+  question="What can a digital signature offer that a MAC cannot?"
+  options={[
+    'Detecting a changed message',
+    'Convincing a third party who created the message',
+    'A shorter output',
+    'Working without any key',
+  ]}
+  answer={1}
+>
+  Both detect changes. A signature is verified with a public key, so a third party can tell who
+  signed (non-repudiation, FIPS 186-5, §1). A MAC verifier holds the same key `K` and could have made
+  the tag itself.
+</CheckQuestion>
+
+<CheckQuestion
+  id="secret-prefix-length-extension"
+  number={2}
+  question="Why is SHA-256(K ‖ m) not a secure MAC?"
+  options={[
+    'SHA-256 has known collisions',
+    'The tag is too short',
+    'The tag is the full chaining value, so anyone can append blocks and get a valid tag',
+    'K must always be hashed first',
+  ]}
+  answer={2}
+>
+  A Merkle–Damgård digest is the final chaining value. Mallory continues hashing from it and gets a
+  valid tag for `m ‖ padding ‖ m′` without knowing `K`: length extension (HAC §9.5.2).
+</CheckQuestion>
+
+<CheckQuestion
+  id="tag-compare-early-exit"
+  number={3}
+  question="Why must a verifier not stop at the first tag byte that differs?"
+  options={[
+    'It would accept wrong tags',
+    'Its running time would reveal how many leading bytes of a guessed tag are right',
+    'It would be slower on average',
+    'Tags are compared as numbers, not bytes',
+  ]}
+  answer={1}
+>
+  The result stays correct, but the time does not stay constant. Comparing every byte, as
+  `hmac.compare_digest` does (Python docs), gives the same time for every wrong tag.
+</CheckQuestion>
+
+</LessonSection>
