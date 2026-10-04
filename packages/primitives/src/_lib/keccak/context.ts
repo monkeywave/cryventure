@@ -1,15 +1,15 @@
 import type { HashContext, XofContext } from '@cryventure/core';
 import { BlockBuffer } from '../hashKit/blockBuffer.ts';
-import { stateBytes, zeroState, type KeccakState } from './lanes.ts';
+import { absorbHiLo, hiLoStateBytes, keccakF1600HiLo, zeroHiLoState, type KeccakHiLoState } from './hilo.ts';
 import { padTail, type DomainSuffix } from './padding.ts';
-import { absorbBlock, squeezeBlock, squeezeFrom } from './sponge.ts';
-import { keccakF1600 } from './stepMappings.ts';
+import { squeezeFromHiLo } from './portSponge.ts';
 
 /**
  * Incremental sponges (docs/M6.md §1): the absorbing state permutes every whole rate block as data
  * arrives and keeps only the partial block, so a clone after a block is a true midstate. A hash
  * context's `digest()` pads and squeezes a copy; an XOF context switches to squeezing on its first
- * `squeeze` and refuses further input.
+ * `squeeze` and refuses further input. The lanes are the hi/lo `Uint32Array` of `hilo.ts` (docs/M7.md
+ * §2a); the bytes are those of the `bigint` sponge.
  */
 
 /** The absorbing phase: the lanes plus the partial rate block. */
@@ -17,36 +17,36 @@ class AbsorbingSponge {
   constructor(
     private readonly rateBytes: number,
     private readonly suffix: DomainSuffix,
-    private state: KeccakState,
+    private readonly state: KeccakHiLoState,
     private readonly buffer: BlockBuffer,
   ) {}
 
   static fresh(rateBytes: number, suffix: DomainSuffix): AbsorbingSponge {
-    return new AbsorbingSponge(rateBytes, suffix, zeroState(), BlockBuffer.empty(rateBytes));
+    return new AbsorbingSponge(rateBytes, suffix, zeroHiLoState(), BlockBuffer.empty(rateBytes));
   }
 
   absorb(data: Uint8Array): void {
     this.buffer.feed(data, (block) => {
-      this.state = keccakF1600(absorbBlock(this.state, block));
+      keccakF1600HiLo(absorbHiLo(this.state, block));
     });
   }
 
   /** The state after the padded last block (this sponge stays unchanged). */
-  finish(): KeccakState {
+  finish(): KeccakHiLoState {
     const { tail } = this.buffer;
     const last = new Uint8Array(this.rateBytes);
     last.set(tail);
     last.set(padTail(tail.length, this.rateBytes, this.suffix), tail.length);
-    return keccakF1600(absorbBlock(this.state, last));
+    return keccakF1600HiLo(absorbHiLo(this.state.slice(), last));
   }
 
   /** The 200-byte state after the last whole rate block, in FIPS 202 byte order (no buffered bytes). */
   stateBytes(): Uint8Array {
-    return Uint8Array.from(stateBytes(this.state));
+    return hiLoStateBytes(this.state);
   }
 
   clone(): AbsorbingSponge {
-    return new AbsorbingSponge(this.rateBytes, this.suffix, [...this.state], this.buffer.clone());
+    return new AbsorbingSponge(this.rateBytes, this.suffix, this.state.slice(), this.buffer.clone());
   }
 }
 
@@ -62,7 +62,7 @@ class KeccakHashContext implements HashContext {
   }
 
   digest(): Uint8Array {
-    return squeezeFrom(this.sponge.finish(), this.rateBytes, this.outputSize);
+    return squeezeFromHiLo(this.sponge.finish(), this.rateBytes, this.outputSize);
   }
 
   /** The sponge state as bytes (docs/M7.md §1a). */
@@ -77,7 +77,7 @@ class KeccakHashContext implements HashContext {
 
 /** The squeezing phase: the state and the unread rest of its current rate block. */
 interface Squeezing {
-  state: KeccakState;
+  state: KeccakHiLoState;
   block: Uint8Array;
   offset: number;
 }
@@ -109,18 +109,18 @@ class KeccakXofContext implements XofContext {
   }
 
   clone(): XofContext {
-    const squeezing = this.squeezing === undefined ? undefined : { ...this.squeezing, state: [...this.squeezing.state] };
+    const squeezing = this.squeezing === undefined ? undefined : { ...this.squeezing, state: this.squeezing.state.slice() };
     return new KeccakXofContext(this.sponge.clone(), this.rateBytes, squeezing);
   }
 
   private startSqueezing(): Squeezing {
     const state = this.sponge.finish();
-    return { state, block: squeezeBlock(state, this.rateBytes), offset: 0 };
+    return { state, block: hiLoStateBytes(state, this.rateBytes), offset: 0 };
   }
 
   private nextBlock(squeezing: Squeezing): void {
-    squeezing.state = keccakF1600(squeezing.state);
-    squeezing.block = squeezeBlock(squeezing.state, this.rateBytes);
+    keccakF1600HiLo(squeezing.state);
+    squeezing.block = hiLoStateBytes(squeezing.state, this.rateBytes);
     squeezing.offset = 0;
   }
 }

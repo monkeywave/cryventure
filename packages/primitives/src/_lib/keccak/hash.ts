@@ -4,12 +4,12 @@ import { createKeccakHashContext, createKeccakXofContext } from './context.ts';
 import { cshakePrefix } from './encoding.ts';
 import { KECCAK_HASH_IDS, KECCAK_XOF_IDS, type KeccakAlgorithmId } from './manifestKit.ts';
 import type { DomainSuffix, KeccakDomain } from './padding.ts';
-import { sponge } from './sponge.ts';
+import { spongeHiLo } from './portSponge.ts';
 
 /**
  * The untraced sponge functions behind the `sha3` producer's `Hash` port (docs/M6.md §1, §2a):
  * SHA3-224 … 512 and Keccak-256 as `HashFunction`s, SHAKE128/256 and cSHAKE128/256 as
- * `XofFunction`s, each with real incremental contexts.
+ * `XofFunction`s, each with real incremental contexts, all on the hi/lo permutation (docs/M7.md §2a).
  */
 
 const EMPTY = new Uint8Array(0);
@@ -40,11 +40,11 @@ export function spongeSetup(algorithm: KeccakAlgorithm, custom: XofCustomization
   return { prefix, domain, suffix: domainSuffix(domain) };
 }
 
-/** The first `outputLength` output bytes of `algorithm` over `data` (any of the nine, untraced). */
+/** The first `outputLength` output bytes of `algorithm` over `data` (any of the nine, untraced, on hi/lo lanes). */
 export function keccakOutput(algorithm: KeccakAlgorithm, data: Uint8Array, outputLength: number, custom?: XofCustomization): Uint8Array {
   if (!Number.isInteger(outputLength) || outputLength < 0) throw new RangeError(`${algorithm.id}: output length ${outputLength} is not a non-negative integer`);
   const { prefix, suffix } = spongeSetup(algorithm, custom);
-  return sponge(prefix.length > 0 ? concatBlocks([prefix, data]) : data, algorithm.rateBytes, suffix, outputLength);
+  return spongeHiLo(prefix.length > 0 ? concatBlocks([prefix, data]) : data, algorithm.rateBytes, suffix, outputLength);
 }
 
 function hashFunctionOf(algorithm: KeccakAlgorithm & { outputSize: number }): HashFunction {
