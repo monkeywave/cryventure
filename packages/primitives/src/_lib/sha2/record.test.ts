@@ -2,7 +2,7 @@ import { stateAt, toHex, utf8Bytes, type AnyStateFacet, type ValuesFacet, type W
 import { describe, expect, it } from 'vitest';
 import { SHA256_ALGORITHMS, SHA512_ALGORITHMS, type Sha2Algorithm } from './algorithms.ts';
 import type { Sha2Detail } from './manifestKit.ts';
-import { recordSha2, sha2MessageBytes } from './record.ts';
+import { recordSha2 } from './record.ts';
 import type { Word } from './words.ts';
 
 const NS = 'plugin.test';
@@ -14,14 +14,6 @@ function record<W extends Word>(algorithm: Sha2Algorithm<W>, text: string, detai
   const { state, values, wordops } = recording.facets as { state: AnyStateFacet; values: ValuesFacet; wordops: WordopsFacet };
   return { recording, state, values, wordops };
 }
-
-describe('sha2MessageBytes', () => {
-  it('reads UTF-8 text or normalised hex', () => {
-    expect(sha2MessageBytes('utf8', 'aä')).toEqual([0x61, 0xc3, 0xa4]);
-    expect(sha2MessageBytes('hex', '616263')).toEqual([0x61, 0x62, 0x63]);
-    expect(sha2MessageBytes('hex', '')).toEqual([]);
-  });
-});
 
 describe('recordSha2', () => {
   it('outputs the digest and the state, values, narration and wordops facets', () => {

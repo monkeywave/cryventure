@@ -173,7 +173,7 @@ export function recordFeedForward<W extends Word>(trace: Sha2Trace<W>, blockInde
   const arith = arithOf(trace);
   const n = blockIndex + 1;
   const valueRef = chainingValueId(n);
-  const terms = block.hOut.map((word, j) => trace.term(`h${j}`, 'chaining', word, 'result', { op: 'add', params: { j, n, reg: SHA2_REGISTER_NAMES[j]!, prev: blockIndex }, valueRef }));
+  const terms = block.hOut.map((word, j) => trace.term(`h${j}`, 'chaining', word, 'result', { op: 'add', params: { j, n, reg: SHA2_REGISTER_NAMES[j]!, prev: blockIndex }, valueRef, emphasis: 'story' }));
   return trace.recorder.op(
     {
       op: 'feedForward',

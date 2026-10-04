@@ -1,7 +1,7 @@
-import type { HashFamily, HashFunction, XofCustomization, XofFunction } from '@cryventure/core';
+import { concatBlocks, type HashFamily, type HashFunction, type XofCustomization, type XofFunction } from '@cryventure/core';
 import { domainSuffix, effectiveDomain, isCustomizable, KECCAK_ALGORITHMS, type KeccakAlgorithm } from './algorithms.ts';
 import { createKeccakHashContext, createKeccakXofContext } from './context.ts';
-import { concatBytes, cshakePrefix } from './encoding.ts';
+import { cshakePrefix } from './encoding.ts';
 import { KECCAK_HASH_IDS, KECCAK_XOF_IDS, type KeccakAlgorithmId } from './manifestKit.ts';
 import type { DomainSuffix, KeccakDomain } from './padding.ts';
 import { sponge } from './sponge.ts';
@@ -44,7 +44,7 @@ export function spongeSetup(algorithm: KeccakAlgorithm, custom: XofCustomization
 export function keccakOutput(algorithm: KeccakAlgorithm, data: Uint8Array, outputLength: number, custom?: XofCustomization): Uint8Array {
   if (!Number.isInteger(outputLength) || outputLength < 0) throw new RangeError(`${algorithm.id}: output length ${outputLength} is not a non-negative integer`);
   const { prefix, suffix } = spongeSetup(algorithm, custom);
-  return sponge(prefix.length > 0 ? concatBytes(prefix, data) : data, algorithm.rateBytes, suffix, outputLength);
+  return sponge(prefix.length > 0 ? concatBlocks([prefix, data]) : data, algorithm.rateBytes, suffix, outputLength);
 }
 
 function hashFunctionOf(algorithm: KeccakAlgorithm & { outputSize: number }): HashFunction {

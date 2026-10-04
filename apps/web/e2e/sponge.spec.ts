@@ -11,6 +11,8 @@ const SPONGE_LESSON = { path: 'en/hash/sponge/', labId: 'sha3-256-abc-permutatio
 const STEP = { absorb: 1, theta: 2, rho: 3, pi: 4, chi: 5, iota: 6, squeeze: 122, output: 123 } as const;
 /** SHA3-256: rate 1088 bits = 17 lanes, capacity 512 bits = 8 lanes. */
 const RATE_LANES = 17;
+/** SHA3-256 reads 32 output bytes = 4 lanes of 8 bytes; only those lanes are badged as output. */
+const OUTPUT_LANES = 4;
 const CAPACITY_LANES = 8;
 /** FIPS 202 A.1, SHA3-256("abc"), as the output groups of the first four rate lanes. */
 const DIGEST_GROUPS = ['3a 98 5d a7 4f e2 25 b2', '04 5c 17 2d 6b d3 90 bd', '85 5f 08 6e 3e 9d 52 5b', '46 bf e2 45 11 43 15 32'];
@@ -140,10 +142,10 @@ test.describe('sponge view phases (desktop)', () => {
     await expect(lane(lab, 0, 0).locator('[data-badge="iota"]')).toHaveText('⊕ RC');
   });
 
-  test('squeeze/output: rate lanes flow into the output; the bytes are FIPS 202’s SHA3-256("abc")', async ({ page }) => {
+  test('squeeze/output: the lanes the digest comes from flow into the output; the bytes are FIPS 202’s SHA3-256("abc")', async ({ page }) => {
     const lab = await openKeccakAt(page, STEP.squeeze);
     await expect(sponge(lab)).toHaveAttribute('data-phase', 'squeeze');
-    await expect(badges(lab, 'output')).toHaveCount(RATE_LANES);
+    await expect(badges(lab, 'output')).toHaveCount(OUTPUT_LANES);
     await seekTo(lab, STEP.output);
     await expect(sponge(lab)).toHaveAttribute('data-phase', 'output');
     await expect(sponge(lab).locator('.cv-sponge__group .cv-sponge__bytes')).toHaveText(DIGEST_GROUPS);

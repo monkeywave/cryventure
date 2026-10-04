@@ -1,5 +1,5 @@
 import { memo, useCallback, useId, useMemo, useRef, useState, type CSSProperties, type KeyboardEvent, type ReactNode } from 'react';
-import type { Lens, SpongeFacet, SpongeStep } from '@cryventure/core';
+import { allIndices, type Lens, type SpongeFacet, type SpongeStep } from '@cryventure/core';
 import { MathText, ViewStatus, moveGridFocus, useFacet, useLab, useT } from '@cryventure/viz';
 import type { ViewProps } from '@cryventure/viz';
 import { ScrollRegion } from '../_lib/ScrollRegion.tsx';
@@ -14,6 +14,7 @@ import {
   lensParts,
   mod,
   outputGroups,
+  outputLaneCount,
   piSourceOf,
   selectionUse,
   spongeMomentAt,
@@ -34,7 +35,7 @@ import './sponge.css';
  * Per phase the view draws its own overlay: absorb "⊕ block" on the rate lanes; θ the C and D rows
  * under the grid with x − 1 and x + 1 marked for the selected column; ρ an offset badge per lane; π
  * the source per lane (arrows on wide panels, "← (x, y)" labels on narrow ones); χ the selected row
- * with a ⊕ (¬b ∧ c); ι lane (0, 0) ⊕ RC; squeeze/output the rate bytes in output order.
+ * with a ⊕ (¬b ∧ c); ι lane (0, 0) ⊕ RC; squeeze/output the bytes read out in output order (only the lanes they come from are marked).
  * Hover or the arrow keys (roving focus) select a lane and with it its column and row. The grid
  * scrolls horizontally inside the panel on a phone, never the page.
  */
@@ -87,7 +88,7 @@ function Header({ facet, step }: { facet: SpongeFacet; step: SpongeStep | undefi
         <strong>{t(facet.label)}</strong>
         {step !== undefined && (
           <>
-            {' · '}
+            {t('ui.scope.separator')}
             <span className="cv-sponge__phase">{step.round === undefined ? t(`view.sponge.phase.${step.phase}`) : t('view.sponge.phaseRound', { phase: t(`view.sponge.phase.${step.phase}`), round: step.round, last: facet.rounds - 1 })}</span>
           </>
         )}
@@ -176,18 +177,18 @@ function LaneGrid({ facet, step, lanes, before, parts, selection }: LaneGridProp
         <span className="cv-sponge__corner" role="columnheader" style={gridArea(0, 0)}>
           <span className="cv-visually-hidden">{t('view.sponge.corner')}</span>
         </span>
-        {range(width).map((x) => (
+        {allIndices(width).map((x) => (
           <span key={x} className="cv-sponge__colhead" role="columnheader" style={gridArea(0, x + 1)} data-selected-col={x === position.x || undefined}>
             {t('view.sponge.x', { x })}
           </span>
         ))}
       </div>
-      {range(height).map((y) => (
+      {allIndices(height).map((y) => (
         <div key={y} className="cv-sponge__gridrow" role="row">
           <span className="cv-sponge__rowhead" role="rowheader" style={gridArea(y + 1, 0)} data-selected-row={y === position.y || undefined}>
             {t('view.sponge.y', { y })}
           </span>
-          {range(width).map((x) => {
+          {allIndices(width).map((x) => {
             const index = laneIndex(x, y, width);
             return (
               <Lane
@@ -334,7 +335,7 @@ function laneBadges(facet: SpongeFacet, step: SpongeStep | undefined, index: num
       return index === 0 ? [badge('iota')] : [];
     case 'squeeze':
     case 'output':
-      return rate ? [badge('output')] : [];
+      return index < outputLaneCount(step.output ?? '', facet.laneBits, facet.rateLanes) ? [badge('output')] : [];
     default:
       return [];
   }
@@ -351,7 +352,7 @@ function PiArrows({ facet, selected }: { facet: SpongeFacet; selected: number })
           <path d="M0,0 L10,5 L0,10 z" />
         </marker>
       </defs>
-      {range(facet.width * facet.height).map((index) => {
+      {allIndices(facet.width * facet.height).map((index) => {
         const source = piSourceOf(facet, index);
         if (source === undefined || facet.piSource![index] === index) return null;
         const from = centre(source);
@@ -531,8 +532,4 @@ function Swatch({ hex }: { hex: string }): ReactNode {
  */
 function gridArea(row: number, column: number): CSSProperties {
   return { gridRow: row + 1, gridColumn: column + 1 };
-}
-
-function range(count: number): number[] {
-  return Array.from({ length: count }, (_, index) => index);
 }

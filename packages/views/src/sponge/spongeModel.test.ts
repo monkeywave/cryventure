@@ -11,6 +11,7 @@ import {
   lensParts,
   mod,
   outputGroups,
+  outputLaneCount,
   piSourceOf,
   selectionUse,
   spongeMomentAt,
@@ -130,6 +131,15 @@ describe('phase overlays', () => {
       { lane: 1, bytes: ['62', '62', '62'] },
     ]);
     expect(outputGroups('00'.repeat(8 * 18), 64, 17).at(-1)?.lane).toBe(0);
+  });
+
+  it('counts the rate lanes the output bytes come from: ⌈bytes / lane bytes⌉ from lane 0, at most the rate', () => {
+    expect(outputLaneCount('ab'.repeat(32), 64, 17)).toBe(4); // SHA3-256: lanes 0–3
+    expect(outputLaneCount('ab'.repeat(64), 64, 9)).toBe(8); // SHA3-512: 8 of 9 rate lanes
+    expect(outputLaneCount('ab'.repeat(42), 64, 21)).toBe(6); // a partial SHAKE128 block: 42 bytes → lanes 0–5
+    expect(outputLaneCount('ab'.repeat(168), 64, 21)).toBe(21); // a whole SHAKE128 block
+    expect(outputLaneCount('ab'.repeat(200), 64, 21)).toBe(21); // never more than the rate
+    expect(outputLaneCount('', 64, 17)).toBe(0);
   });
 
   it('sizes rate and capacity in lanes and bits', () => {

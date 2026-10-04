@@ -1,7 +1,8 @@
 import { runPrimitive, type PortMap, type RunOptions, type RunResult } from '@cryventure/core';
 import { SHA512_ALGORITHMS } from '../_lib/sha2/algorithms.ts';
 import { sha2HashFamily } from '../_lib/sha2/hash.ts';
-import { recordSha2, sha2MessageBytes } from '../_lib/sha2/record.ts';
+import { hashMessageBytes } from '../_lib/hashKit/manifestKit.ts';
+import { recordSha2 } from '../_lib/sha2/record.ts';
 import { SHA512_HASH_IDS, sha512Manifest, type Sha512Params } from './manifest.ts';
 
 /**
@@ -15,7 +16,7 @@ const NS = 'plugin.sha512';
 /** Validates `params`, records the hash (checked against the untraced reference) and returns a TraceBundle. */
 export function run(params: Sha512Params, _options: RunOptions = {}): RunResult {
   return runPrimitive(sha512Manifest, params, ({ algorithm, encoding, input, detail }) =>
-    recordSha2({ ns: NS, algorithm: SHA512_ALGORITHMS[algorithm], message: sha2MessageBytes(encoding, input), detail, options: { hKW: true } }),
+    recordSha2({ ns: NS, algorithm: SHA512_ALGORITHMS[algorithm], message: hashMessageBytes(encoding, input), detail, options: { hKW: true } }),
   );
 }
 

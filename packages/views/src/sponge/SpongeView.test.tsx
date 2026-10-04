@@ -2,6 +2,7 @@ import { facetKey, type Lens, type Messages, type SpongeFacet, type SpongeStep, 
 import { act, fireEvent, screen, within } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
 import { createFixtureBundle, renderLab } from '@cryventure/viz/testing';
+import { vizMessages } from '@cryventure/viz/messages';
 import { loadViewMessages } from '../messages.ts';
 import SpongeView from './SpongeView.tsx';
 
@@ -15,7 +16,7 @@ const AFTER = BEFORE.map((lane, index) => (index === 0 || index === 7 ? 'ff00000
 const PI_SOURCE = [0, 6, 12, 18, 24, 3, 9, 10, 16, 22, 1, 7, 13, 19, 20, 4, 5, 11, 17, 23, 2, 8, 14, 15, 21];
 const RHO = [0, 1, 62, 28, 27, 36, 44, 6, 55, 20, 3, 10, 43, 25, 39, 41, 45, 15, 21, 8, 18, 2, 61, 56, 14];
 
-function spongeFacet(phaseStep: Omit<SpongeStep, 'step' | 'lanes'>): SpongeFacet {
+function spongeFacet(phaseStep: Omit<SpongeStep, 'step' | 'lanes'>, shape: Partial<SpongeFacet> = {}): SpongeFacet {
   return {
     kind: 'sponge',
     schemaVersion: 1,
@@ -31,18 +32,19 @@ function spongeFacet(phaseStep: Omit<SpongeStep, 'step' | 'lanes'>): SpongeFacet
       { step: 0, phase: 'pad', lanes: BEFORE },
       { step: 1, lanes: AFTER, ...phaseStep },
     ],
+    ...shape,
   };
 }
 
-const english: Messages = { ...loadViewMessages('en'), 'test.sponge.label': 'Keccak-f[1600]' };
+const english: Messages = { ...vizMessages.en, ...loadViewMessages('en'), 'test.sponge.label': 'Keccak-f[1600]' };
 
 function bundleWith(facet: SpongeFacet | undefined): TraceBundle {
   const bundle = createFixtureBundle();
   return { ...bundle, facets: { ...bundle.facets, ...(facet === undefined ? {} : { [facetKey('sponge')]: facet }) } };
 }
 
-function render(phaseStep: Omit<SpongeStep, 'step' | 'lanes'>, lens: Lens = 'engineer', messages: Messages = english) {
-  const result = renderLab(<SpongeView labId="fixture" lens={lens} />, { bundle: bundleWith(spongeFacet(phaseStep)), messages });
+function render(phaseStep: Omit<SpongeStep, 'step' | 'lanes'>, lens: Lens = 'engineer', messages: Messages = english, shape: Partial<SpongeFacet> = {}) {
+  const result = renderLab(<SpongeView labId="fixture" lens={lens} />, { bundle: bundleWith(spongeFacet(phaseStep, shape)), messages });
   act(() => result.store.getState().seek(1));
   return result;
 }
@@ -219,13 +221,39 @@ describe('SpongeView', () => {
 
   it('squeeze: the rate bytes flow into the output, grouped by the lane they come from', () => {
     render({ phase: 'squeeze', output: '6162630600000000' + 'ff'.repeat(8) });
-    expect(badges('output')).toHaveLength(17);
+    expect(badges('output')).toHaveLength(2);
     const groups = [...document.querySelectorAll('.cv-sponge__group')];
     expect(groups.map((group) => group.textContent)).toEqual(['from (0, 0)61 62 63 06 00 00 00 00', 'from (1, 0)ff ff ff ff ff ff ff ff']);
     expect(groups[0]!.hasAttribute('data-selected')).toBe(true);
     fireEvent.mouseEnter(lane(1, 0));
     expect(groups[1]!.hasAttribute('data-selected')).toBe(true);
     expect(screen.getByText(english['view.sponge.output.endianness']!)).toBeTruthy();
+  });
+
+  const outputLanes = () => [...document.querySelectorAll<HTMLElement>('.cv-sponge__lane')].filter((cell) => cell.querySelector('[data-badge="output"]') !== null).map((cell) => Number(cell.dataset.lane));
+
+  it('output: only the lanes the SHA3-256 digest comes from (lanes 0–3) are marked, in the badge and the spoken name', () => {
+    render({ phase: 'output', output: 'ab'.repeat(32) });
+    expect(outputLanes()).toEqual([0, 1, 2, 3]);
+    expect(lane(3, 0).getAttribute('aria-label')).toContain('read out to the output');
+    expect(lane(4, 0).getAttribute('aria-label')).not.toContain('read out to the output');
+  });
+
+  it('output: SHA3-512 reads 8 of its 9 rate lanes', () => {
+    render({ phase: 'output', output: 'ab'.repeat(64) }, 'engineer', english, { rateLanes: 9 });
+    expect(outputLanes()).toEqual([0, 1, 2, 3, 4, 5, 6, 7]);
+    expect(lane(3, 1).getAttribute('data-part')).toBe('rate');
+    expect(lane(3, 1).getAttribute('aria-label')).not.toContain('read out to the output');
+  });
+
+  it('squeeze: a partial SHAKE128 block marks only the lanes read so far', () => {
+    render({ phase: 'squeeze', output: 'ab'.repeat(42) }, 'engineer', english, { rateLanes: 21 });
+    expect(outputLanes()).toEqual([0, 1, 2, 3, 4, 5]);
+  });
+
+  it('separates label and phase with the localised separator', () => {
+    render({ phase: 'round', round: 0 }, 'engineer', { ...english, 'ui.scope.separator': ' | ' });
+    expect(document.querySelector('.cv-sponge__label')!.textContent).toBe('Keccak-f[1600] | Round, round 0 (of 0 … 23)');
   });
 
   it('output in the story lens: byte swatches instead of hex', () => {

@@ -138,7 +138,7 @@ describe.each(SHA3_FIXTURE_PRESETS)('isa-armv8-sha3 derive (%s)', (preset) => {
       }
   });
 
-  it('stores the permuted state: what each squeeze reads, so the squeezed rates begin with the digest', () => {
+  it('stores the permuted state: what each squeeze reads, so the bytes squeezed out begin with the digest', () => {
     const steps = sponge(bundle).steps;
     const rateBytes = sponge(bundle).rateLanes * 8;
     let squeezed = '';
@@ -147,8 +147,9 @@ describe.each(SHA3_FIXTURE_PRESETS)('isa-armv8-sha3 derive (%s)', (preset) => {
       expect(stored).toEqual(permutation.rounds[23]!.iota.lanes.flatMap(laneBytes));
       const next = steps.find((step) => step.step === permutation.exit)!;
       if (next.phase !== 'squeeze') return;
-      expect(next.output).toBe(toHex(stored.slice(0, rateBytes)));
-      squeezed += toHex(stored.slice(0, rateBytes));
+      expect(next.output!.length / 2).toBeLessThanOrEqual(rateBytes);
+      expect(next.output).toBe(toHex(stored.slice(0, next.output!.length / 2)));
+      squeezed += next.output;
     });
     expect(squeezed.startsWith(expected.digest)).toBe(true);
   });

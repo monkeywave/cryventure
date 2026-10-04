@@ -62,7 +62,7 @@ export const ROUND_TRANSFERS: readonly RegisterTransfer[] = Array.from({ length:
   return { to, from: { register: to - 1 } };
 });
 
-/** Schedule t: σ1(W_{t−2}), W_{t−7}, σ0(W_{t−15}), W_{t−16}, p1 = W_{t−16} + σ0, p2 = p1 + W_{t−7}, W_t = p2 + σ1. */
+/** Schedule t: σ1(W_{t−2}), W_{t−7}, σ0(W_{t−15}), W_{t−16}, p1 = W_{t−16} + σ0, p2 = p1 + W_{t−7}, W_t = p2 + σ1 (the story term). */
 export function scheduleTerms<W extends Word>(term: TermFactory<W>, schedule: ScheduleDetail<W>): WordTerm[] {
   const { t } = schedule;
   return [
@@ -72,6 +72,6 @@ export function scheduleTerms<W extends Word>(term: TermFactory<W>, schedule: Sc
     term('w16', 'w', schedule.w16, 'operand', { params: { t: t - 16 } }),
     term('p1', 'p1', schedule.p1, 'intermediate', { op: 'add', params: { t16: t - 16, t15: t - 15 } }),
     term('p2', 'p2', schedule.p2, 'intermediate', { op: 'add', params: { t7: t - 7 } }),
-    term('w', 'w', schedule.w, 'result', { op: 'add', params: { t } }),
+    term('w', 'w', schedule.w, 'result', { op: 'add', params: { t }, emphasis: 'story' }),
   ];
 }

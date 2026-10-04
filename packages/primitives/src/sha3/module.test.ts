@@ -2,7 +2,7 @@ import { getFacet, hashFunction, parseHexToArray, stateAt, toHex, utf8Bytes, val
 import { describe, expect, it } from 'vitest';
 import { KECCAK_ALGORITHMS } from '../_lib/keccak/algorithms.ts';
 import { keccakOutput } from '../_lib/keccak/hash.ts';
-import type { KeccakAlgorithmId } from '../_lib/keccak/manifestKit.ts';
+import { SHA3_DETAILS, type KeccakAlgorithmId } from '../_lib/keccak/manifestKit.ts';
 import { sha3Manifest, SHA3_PRESETS, type Sha3Params } from './manifest.ts';
 import { ports, run } from './module.ts';
 import cavp from './vectors/sha3-cavp-shortmsg.json';
@@ -134,7 +134,7 @@ describe('sha3 run: steps, scope and facets', () => {
     expect(coarse.scopeLevels?.length).toBe(2);
   });
 
-  it('SHAKE128 with 336 bytes squeezes twice with a permutation in between, all in the last block', () => {
+  it('SHAKE128 with 336 bytes squeezes twice; the second permutation and squeeze get their own block scope after the absorbed block', () => {
     const bundle = trace(SHA3_PRESETS.find((preset) => preset.id === 'shake128-abc-336')!.params);
     const phases = sponge(bundle).steps.map((step) => step.phase);
     expect(phases.filter((phase) => phase === 'squeeze').length).toBe(2);
@@ -142,6 +142,32 @@ describe('sha3 run: steps, scope and facets', () => {
     const squeezes = sponge(bundle).steps.filter((step) => step.phase === 'squeeze');
     expect(squeezes.map((step) => step.output!.length / 2)).toEqual([168, 168]);
     expect(digest(bundle)).toBe(squeezes.map((step) => step.output).join(''));
+    const scopes = state(bundle).steps.map((step) => step.scope);
+    expect(scopes[2 + 120]).toEqual([0]);
+    expect(scopes[2 + 120 + 1]).toEqual([1, 0, 0]);
+    expect(scopes.slice(-2)).toEqual([[1], [1]]);
+  });
+
+  it('squeeze carries only the bytes it reads out (SHAKE256, 168 bytes: 136, then 32 of the next rate block)', () => {
+    const bundle = trace({ ...ABC, algorithm: 'shake256', outputLength: '168' });
+    const squeezes = sponge(bundle).steps.filter((step) => step.phase === 'squeeze');
+    expect(squeezes.map((step) => step.output!.length / 2)).toEqual([136, 32]);
+    expect(digest(bundle)).toBe(squeezes.map((step) => step.output).join(''));
+  });
+
+  /**
+   * Every step has its own scope path, except the block-level steps at detail `mapping` (pad,
+   * absorb, squeeze, output), which sit directly in their block's scope `[block]` and share it.
+   */
+  it.each(SHA3_DETAILS)('no two steps share a scope path at %s detail (block-level steps at mapping excepted)', (detail) => {
+    const blockLevel = new Set(['pad', 'absorb', 'squeeze', 'output']);
+    for (const preset of [...SHA3_PRESETS, { id: 'shake256-168', params: { ...ABC, algorithm: 'shake256' as const, outputLength: '168' as const } }]) {
+      const steps = state(trace({ ...preset.params, detail })).steps;
+      const unique = steps.filter((step) => !(detail === 'mapping' && blockLevel.has(step.op)));
+      const paths = unique.map((step) => step.scope.join('.'));
+      expect(paths.filter((path, index) => paths.indexOf(path) !== index), preset.id).toEqual([]);
+      if (detail === 'mapping') expect(steps.filter((step) => blockLevel.has(step.op)).every((step) => step.scope.length === 1), preset.id).toBe(true);
+    }
   });
 
   it('the sponge facet is valid, has one step per state step and the Keccak-f[1600] shape', () => {
@@ -157,12 +183,12 @@ describe('sha3 run: steps, scope and facets', () => {
     expect(facet.piSource?.[1]).toBe(6);
   });
 
-  it('absorb carries the rate lanes XORed in; squeeze the whole rate block read out', () => {
+  it('absorb carries the rate lanes XORed in; squeeze the bytes read out', () => {
     const steps = sponge(trace(ABC)).steps;
     const absorb = steps.find((step) => step.phase === 'absorb')!;
     expect(absorb.input?.length).toBe(17);
     expect(absorb.input?.[0]).toBe('0000000006636261');
-    expect(steps.find((step) => step.phase === 'squeeze')!.output?.length).toBe(272);
+    expect(steps.find((step) => step.phase === 'squeeze')!.output).toBe('3a985da74fe225b2045c172d6bd390bd855f086e3e9d525b46bfe24511431532');
     expect(steps.at(-1)!.output).toBe('3a985da74fe225b2045c172d6bd390bd855f086e3e9d525b46bfe24511431532');
   });
 

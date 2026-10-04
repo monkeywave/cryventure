@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { messageLengths, paramError, readMessageInput, selectField } from './manifestKit.ts';
+import { hashMessageBytes, messageLengths, paramError, readMessageInput, selectField } from './manifestKit.ts';
 
 const NS = 'plugin.test';
 
@@ -31,5 +31,11 @@ describe('hashManifestKit', () => {
     expect(readMessageInput(NS, 'abc', 'utf8', 3)).toEqual({ ok: true, value: 'abc' });
     expect(readMessageInput(NS, 'ää', 'utf8', 3)).toEqual({ ok: false, error: { key: `${NS}.error.inputLength`, params: { length: 4 } } });
     expect(readMessageInput(NS, 1, 'utf8', 3)).toEqual({ ok: false, error: { key: `${NS}.error.invalidParams` } });
+  });
+
+  it('decodes the message bytes of UTF-8 text or normalised hex', () => {
+    expect(hashMessageBytes('utf8', 'aä')).toEqual([0x61, 0xc3, 0xa4]);
+    expect(hashMessageBytes('hex', '616263')).toEqual([0x61, 0x62, 0x63]);
+    expect(hashMessageBytes('hex', '')).toEqual([]);
   });
 });

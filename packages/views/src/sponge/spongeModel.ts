@@ -134,6 +134,12 @@ export function outputGroups(output: string, laneBits: number, rateLanes: number
   return chunk(bytes, bytesPerLane).map((group, index) => ({ lane: index % rateLanes, bytes: group }));
 }
 
+/** How many rate lanes (from lane 0) the output bytes come from: ⌈bytes / lane bytes⌉, at most the rate. */
+export function outputLaneCount(output: string, laneBits: number, rateLanes: number): number {
+  const bytes = output.length / 2;
+  return Math.min(Math.ceil(bytes / (laneBits / 8)), rateLanes);
+}
+
 /** Rate and capacity in lanes and bits. */
 export function spongeSizes(facet: Pick<SpongeFacet, 'width' | 'height' | 'laneBits' | 'rateLanes'>): { rateBits: number; capacityLanes: number; capacityBits: number } {
   const capacityLanes = facet.width * facet.height - facet.rateLanes;

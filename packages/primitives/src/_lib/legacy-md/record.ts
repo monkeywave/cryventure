@@ -9,7 +9,6 @@ import {
   type PrimitiveRecording,
   type ValueRef,
   type ValuesFacet,
-  type WordopsFacet,
 } from '@cryventure/core';
 import type { Sha2Padding } from '../sha2/padding.ts';
 import { initialSnapshot } from '../sha2/regions.ts';
@@ -101,11 +100,6 @@ function legacyValues(run: LegacyRun, { chain, digest, outputStep }: LegacyResul
   };
 }
 
-/** The recorder's wordops facet as schema v2 (transfers, emphasis and the v2 ops need it). */
-function wordopsV2(trace: LegacyTrace): WordopsFacet {
-  return { ...trace.recorder.wordopsFacet(32, trace.algorithm.registerNames), schemaVersion: 2 };
-}
-
 /** Records `run` and returns its facets and `{ digest }`; throws if the trace disagrees with the untraced reference. */
 export function recordLegacy(run: LegacyRun): PrimitiveRecording {
   const padding = run.algorithm.padding(run.message);
@@ -114,7 +108,7 @@ export function recordLegacy(run: LegacyRun): PrimitiveRecording {
   assertMatchesReference(result.digest, run.algorithm.digest(Uint8Array.from(run.message)), run.algorithm.id);
   const state = trace.recorder.stateFacet();
   return {
-    facets: { state, values: legacyValues(run, result), narration: narrationFromState(state), wordops: wordopsV2(trace) },
+    facets: { state, values: legacyValues(run, result), narration: narrationFromState(state), wordops: trace.recorder.wordopsFacet(32, trace.algorithm.registerNames) },
     output: { digest: result.digest },
   };
 }

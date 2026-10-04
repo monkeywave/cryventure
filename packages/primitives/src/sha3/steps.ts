@@ -118,14 +118,13 @@ export function recordPermutation(trace: Sha3Trace, state: KeccakState, n: numbe
   return current;
 }
 
-/** squeeze: Trunc_r(S) read out; the first `taken` of these bytes extend the output at `offset` (returned). */
+/** squeeze: the first `taken` bytes of Trunc_r(S) read out, extending the output at `offset` (returned). */
 export function recordSqueeze(trace: Sha3Trace, state: KeccakState, offset: number, taken: number, n: number): number[] {
   const { rateBytes } = trace.algorithm;
-  const block = stateBytes(state).slice(0, rateBytes);
   const narration = i18nRef(`${NS}.step.squeeze`, { n, rateBytes, taken, from: offset, to: offset + taken - 1 });
   const highlights = [highlight<Sha3Region>('A', 'read', allIndices(taken)), highlight<Sha3Region>('output', 'write', allIndices(taken).map((index) => offset + index))];
-  const squeezed = block.slice(0, taken);
-  blockStep(trace, { op: 'squeeze', writes: [{ region: 'output', offset, values: squeezed }], highlights, narration }, { phase: 'squeeze', lanes: lanesHex(state), output: toHex(block) });
+  const squeezed = stateBytes(state).slice(0, taken);
+  blockStep(trace, { op: 'squeeze', writes: [{ region: 'output', offset, values: squeezed }], highlights, narration }, { phase: 'squeeze', lanes: lanesHex(state), output: toHex(squeezed) });
   return squeezed;
 }
 

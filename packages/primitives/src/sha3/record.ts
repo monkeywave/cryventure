@@ -1,12 +1,11 @@
-import { assertMatchesReference, i18nRef, INITIAL_STEP_INDEX, narrationFromState, scopeLevels, toHex, utf8Bytes, valueRef, type I18nRef, type PrimitiveRecording, type ScopeLevel, type ValuesFacet } from '@cryventure/core';
+import { allIndices, assertMatchesReference, concatBlocks, i18nRef, INITIAL_STEP_INDEX, narrationFromState, scopeLevels, toHex, utf8Bytes, valueRef, type I18nRef, type PrimitiveRecording, type ScopeLevel, type ValuesFacet } from '@cryventure/core';
 import { isXof, KECCAK_ALGORITHMS, type KeccakAlgorithm } from '../_lib/keccak/algorithms.ts';
-import { concatBytes } from '../_lib/keccak/encoding.ts';
+import { hashMessageBytes } from '../_lib/hashKit/manifestKit.ts';
 import { keccakOutput, spongeSetup } from '../_lib/keccak/hash.ts';
-import { zeroState, type KeccakState } from '../_lib/keccak/lanes.ts';
+import { zeroState } from '../_lib/keccak/lanes.ts';
 import type { Sha3Detail, Sha3Params } from '../_lib/keccak/manifestKit.ts';
 import { spongePad, type KeccakDomain } from '../_lib/keccak/padding.ts';
 import { rateLanes } from '../_lib/keccak/sponge.ts';
-import { sha2MessageBytes } from '../_lib/sha2/record.ts';
 import { initialSnapshot } from '../_lib/sha2/regions.ts';
 import { sha3Regions } from './regions.ts';
 import { SpongeRecorder } from './spongeRecorder.ts';
@@ -30,7 +29,7 @@ interface Sha3Input {
 
 function decodeInput(params: Sha3Params): Sha3Input {
   const algorithm = KECCAK_ALGORITHMS[params.algorithm];
-  const message = Uint8Array.from(sha2MessageBytes(params.encoding, params.input));
+  const message = Uint8Array.from(hashMessageBytes(params.encoding, params.input));
   return { algorithm, message, functionName: utf8Bytes(params.functionName), customization: utf8Bytes(params.customization), outputLength: algorithm.outputSize ?? Number(params.outputLength) };
 }
 
@@ -49,17 +48,9 @@ function createTrace(params: Sha3Params, input: Sha3Input, paddedBytes: number, 
   return { recorder, algorithm: input.algorithm, detail: params.detail };
 }
 
-/** Squeezes `outputLength` bytes, permuting before every further rate block; returns the output and the last state. */
-function recordSqueezes(trace: Sha3Trace, absorbed: KeccakState, outputLength: number, permutations: number): { output: number[]; state: KeccakState } {
-  const { rateBytes } = trace.algorithm;
-  const output: number[] = [];
-  let state = absorbed;
-  for (let n = 1; output.length < outputLength; n++) {
-    if (n > 1) state = recordPermutation(trace, state, permutations + n - 1);
-    const taken = Math.min(rateBytes, outputLength - output.length);
-    output.push(...recordSqueeze(trace, state, output.length, taken, n));
-  }
-  return { output, state };
+/** The byte counts of the successive squeezes: whole rate blocks, then the rest. */
+function squeezeSizes(rateBytes: number, outputLength: number): number[] {
+  return allIndices(Math.ceil(outputLength / rateBytes)).map((n) => Math.min(rateBytes, outputLength - n * rateBytes));
 }
 
 function outputNarration(input: Sha3Input, output: readonly number[]): I18nRef {
@@ -67,22 +58,38 @@ function outputNarration(input: Sha3Input, output: readonly number[]): I18nRef {
   return isXof(input.algorithm) ? i18nRef(`${NS}.step.outputXof`, { ...params, bytes: output.length }) : i18nRef(`${NS}.step.output`, { ...params, bits: output.length * 8 });
 }
 
-/** pad, then per block absorb + permutation, then the squeezes and the output, each block in its own scope. */
+/**
+ * pad, then per block absorb + permutation, each block in its own scope; the first squeeze ends the
+ * last absorbed block, every further squeeze (with the permutation before it) gets its own block
+ * scope after it, and the output follows the last squeeze.
+ */
 function recordBlocks(trace: Sha3Trace, input: Sha3Input, padded: ReturnType<typeof spongePad>, domain: KeccakDomain, prefixBytes: number): { digest: number[]; outputStep: number } {
   const { rateBytes } = input.algorithm;
+  const sizes = squeezeSizes(rateBytes, input.outputLength);
+  const lastScope = padded.blocks + sizes.length - 2;
+  const digest: number[] = [];
   let state = zeroState();
-  let result = { digest: [] as number[], outputStep: INITIAL_STEP_INDEX };
+  let outputStep = INITIAL_STEP_INDEX;
+  const squeeze = (scope: number, n: number) => {
+    digest.push(...recordSqueeze(trace, state, digest.length, sizes[n - 1]!, n));
+    if (scope === lastScope) outputStep = recordOutput(trace, state, digest, outputNarration(input, digest));
+  };
   for (let index = 0; index < padded.blocks; index++) {
     trace.recorder.scope(index, () => {
       if (index === 0) recordPad(trace, state, padded, domain, input.message.length, prefixBytes);
       state = recordAbsorb(trace, state, padded.padded.subarray(index * rateBytes, (index + 1) * rateBytes), index);
       state = recordPermutation(trace, state, index + 1);
-      if (index < padded.blocks - 1) return;
-      const squeezed = recordSqueezes(trace, state, input.outputLength, padded.blocks);
-      result = { digest: squeezed.output, outputStep: recordOutput(trace, squeezed.state, squeezed.output, outputNarration(input, squeezed.output)) };
+      if (index === padded.blocks - 1) squeeze(index, 1);
     });
   }
-  return result;
+  for (let n = 2; n <= sizes.length; n++) {
+    const scope = padded.blocks + n - 2;
+    trace.recorder.scope(scope, () => {
+      state = recordPermutation(trace, state, scope + 1);
+      squeeze(scope, n);
+    });
+  }
+  return { digest, outputStep };
 }
 
 function sha3Values(input: Sha3Input, digest: number[], outputStep: number): ValuesFacet {
@@ -100,7 +107,7 @@ export function recordSha3(params: Sha3Params): PrimitiveRecording {
   const { algorithm, message, functionName, customization, outputLength } = input;
   const custom = { functionName, customization };
   const { prefix, domain, suffix } = spongeSetup(algorithm, custom);
-  const padded = spongePad(concatBytes(prefix, message), algorithm.rateBytes, suffix);
+  const padded = spongePad(concatBlocks([prefix, message]), algorithm.rateBytes, suffix);
   const trace = createTrace(params, input, padded.padded.length, domain);
   const { digest, outputStep } = recordBlocks(trace, input, padded, domain, prefix.length);
   assertMatchesReference(digest, keccakOutput(algorithm, message, outputLength, custom), algorithm.id);

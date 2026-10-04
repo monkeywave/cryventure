@@ -1,3 +1,5 @@
+import { concatBlocks } from '@cryventure/core';
+
 /**
  * The SP 800-185 §2.3 encodings: left_encode, right_encode, encode_string and bytepad, and the
  * cSHAKE prefix bytepad(encode_string(N) ‖ encode_string(S), rate) of §3.3.
@@ -23,26 +25,15 @@ export function rightEncode(x: number): Uint8Array {
   return Uint8Array.of(...bytes, bytes.length);
 }
 
-/** The concatenation of `parts`. */
-export function concatBytes(...parts: readonly Uint8Array[]): Uint8Array {
-  const out = new Uint8Array(parts.reduce((total, part) => total + part.length, 0));
-  let offset = 0;
-  for (const part of parts) {
-    out.set(part, offset);
-    offset += part.length;
-  }
-  return out;
-}
-
 /** encode_string(S) = left_encode(len(S) in bits) ‖ S (§2.3.2). */
 export function encodeString(bytes: Uint8Array): Uint8Array {
-  return concatBytes(leftEncode(bytes.length * 8), bytes);
+  return concatBlocks([leftEncode(bytes.length * 8), bytes]);
 }
 
 /** bytepad(X, w) = left_encode(w) ‖ X, zero-padded to a multiple of w bytes (§2.3.3). */
 export function bytepad(x: Uint8Array, w: number): Uint8Array {
   if (!Number.isInteger(w) || w <= 0) throw new RangeError(`bytepad: w ${w} is not a positive integer`);
-  const prefixed = concatBytes(leftEncode(w), x);
+  const prefixed = concatBlocks([leftEncode(w), x]);
   const out = new Uint8Array(Math.ceil(prefixed.length / w) * w);
   out.set(prefixed);
   return out;
@@ -51,6 +42,6 @@ export function bytepad(x: Uint8Array, w: number): Uint8Array {
 /** cSHAKE's prefix bytepad(encode_string(N) ‖ encode_string(S), rate) (§3.3); empty when N and S are both empty (then cSHAKE is SHAKE). */
 export function cshakePrefix(functionName: Uint8Array, customization: Uint8Array, rateBytes: number): Uint8Array {
   if (functionName.length === 0 && customization.length === 0) return new Uint8Array(0);
-  return bytepad(concatBytes(encodeString(functionName), encodeString(customization)), rateBytes);
+  return bytepad(concatBlocks([encodeString(functionName), encodeString(customization)]), rateBytes);
 }
 

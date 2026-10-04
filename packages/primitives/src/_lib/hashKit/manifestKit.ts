@@ -1,4 +1,4 @@
-import { i18nRef, parseHexOfLength, utf8Bytes, type ParamField, type ValidationResult } from '@cryventure/core';
+import { i18nRef, parseHexOfLength, parseHexToArray, utf8Bytes, type ParamField, type ValidationResult } from '@cryventure/core';
 
 /**
  * The manifest parts every hash producer kit shares (`_lib/{sha2,keccak,blake2,legacy-md}/manifestKit.ts`):
@@ -8,6 +8,11 @@ import { i18nRef, parseHexOfLength, utf8Bytes, type ParamField, type ValidationR
 
 export const HASH_ENCODINGS = ['utf8', 'hex'] as const;
 export type HashEncoding = (typeof HASH_ENCODINGS)[number];
+
+/** The message bytes of a validated `input` (UTF-8 text, or hex already normalised by `readMessageInput`). */
+export function hashMessageBytes(encoding: HashEncoding, input: string): number[] {
+  return encoding === 'utf8' ? Array.from(utf8Bytes(input)) : parseHexToArray(input);
+}
 
 /** A failed validation with the message `<ns>.error.<name>`. */
 export const paramError = (ns: string, name: string, params?: Record<string, string | number>) => ({ ok: false as const, error: i18nRef(`${ns}.error.${name}`, params) });

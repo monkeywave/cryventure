@@ -147,7 +147,7 @@ export function recordFeedForward(trace: LegacyTrace, blockIndex: number, block:
   const n = blockIndex + 1;
   const valueRef = chainingValueId(n);
   const registers = words(algorithm.registerNames.length);
-  const terms = block.hOut.map((word, j) => specTerm(trace, { id: `h${j}`, label: 'chaining', word, role: 'result', op: 'add', params: { j, n, reg: algorithm.registerNames[j]!, prev: blockIndex } }, valueRef));
+  const terms = block.hOut.map((word, j) => specTerm(trace, { id: `h${j}`, label: 'chaining', word, role: 'result', op: 'add', params: { j, n, reg: algorithm.registerNames[j]!, prev: blockIndex }, story: true }, valueRef));
   return trace.recorder.op(
     {
       op: 'feedForward',

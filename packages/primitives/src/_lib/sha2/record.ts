@@ -4,9 +4,7 @@ import {
   blocksOf,
   INITIAL_STEP_INDEX,
   narrationFromState,
-  parseHexToArray,
   scopeLevels,
-  utf8Bytes,
   valueRef,
   type PrimitiveRecording,
   type ValueRef,
@@ -14,7 +12,7 @@ import {
 } from '@cryventure/core';
 import type { AnySha2Algorithm, Sha2Algorithm } from './algorithms.ts';
 import { compressDetailed, type BlockDetail } from './compress.ts';
-import type { Sha2Detail, Sha2Encoding } from './manifestKit.ts';
+import type { Sha2Detail } from './manifestKit.ts';
 import { sha2Digest } from './hash.ts';
 import { sha2Padding, type Sha2Padding } from './padding.ts';
 import { initialSnapshot, SHA2_REGISTER_NAMES, sha2Regions, type Sha2Region } from './regions.ts';
@@ -49,11 +47,6 @@ export interface Sha2Run<W extends Word> {
   detail: Sha2Detail;
   /** Optional round terms (`sha512` adds hKW, docs/M6.md §2f). */
   options?: Sha2TraceOptions;
-}
-
-/** The message bytes of a validated `input` (UTF-8 text, or hex already normalised by `validate`). */
-export function sha2MessageBytes(encoding: Sha2Encoding, input: string): number[] {
-  return encoding === 'utf8' ? Array.from(utf8Bytes(input)) : parseHexToArray(input);
 }
 
 interface ChainingValue {

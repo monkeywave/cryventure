@@ -77,7 +77,7 @@ function wordTerms(spec: ConstantSpec, derived: DerivedWord, variant: RootVarian
     { id: 'integer', label: i18nRef(`${NS}.term.integer${variant === 'Cube' ? 'Cube' : 'Square'}`, { p: derived.prime }), hex: wordHex(derived.integerPart, bits), role: 'intermediate', op: 'root', degree: spec.root },
   ];
   if (spec.skipBits > 0) terms.push({ id: 'skipped', label: i18nRef(`${NS}.term.skipped`, { bits: spec.skipBits }), hex: wordHex(derived.skipped, bits), role: 'intermediate', op: 'root', degree: spec.root });
-  terms.push({ id: 'word', label: i18nRef(`${NS}.term.word`, { symbol: spec.symbol, index: derived.index }), hex: wordHex(derived.word, bits), role: 'result', op: 'root', degree: spec.root, valueRef: wordValueId(derived.index) });
+  terms.push({ id: 'word', label: i18nRef(`${NS}.term.word`, { symbol: spec.symbol, index: derived.index }), hex: wordHex(derived.word, bits), role: 'result', op: 'root', degree: spec.root, emphasis: 'story', valueRef: wordValueId(derived.index) });
   return terms;
 }
 

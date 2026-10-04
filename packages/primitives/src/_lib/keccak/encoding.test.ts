@@ -1,6 +1,6 @@
 import { toHex, utf8Bytes } from '@cryventure/core';
 import { describe, expect, it } from 'vitest';
-import { bytepad, concatBytes, cshakePrefix, encodeString, leftEncode, rightEncode } from './encoding.ts';
+import { bytepad, cshakePrefix, encodeString, leftEncode, rightEncode } from './encoding.ts';
 
 describe('SP 800-185 §2.3 encodings', () => {
   it('left_encode and right_encode put the byte count before / after the minimal big-endian bytes', () => {
@@ -25,10 +25,6 @@ describe('SP 800-185 §2.3 encodings', () => {
     expect(toHex(bytepad(Uint8Array.of(0xaa), 4))).toBe('0104aa00');
     expect(bytepad(new Uint8Array(6), 4).length).toBe(8);
     expect(() => bytepad(new Uint8Array(1), 0)).toThrow(RangeError);
-  });
-
-  it('concatBytes joins its parts', () => {
-    expect(toHex(concatBytes(Uint8Array.of(1), new Uint8Array(0), Uint8Array.of(2, 3)))).toBe('010203');
   });
 });
 

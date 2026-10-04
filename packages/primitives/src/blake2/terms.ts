@@ -7,7 +7,8 @@ import type { TermFactory } from '../_lib/sha2/wordTerms.ts';
 /**
  * The `wordops` terms of the BLAKE2 steps (docs/M6.md §2d), labelled `<ns>.term.<label>`. A G step
  * lists x and y, then a′, d′, c′, b′ and a″, d″, c″, b″ in the order G computes them; the four
- * results carry `emphasis: 'story'` and are the sources of the step's register `transfers`.
+ * results carry `emphasis: 'story'` and are the sources of the step's register `transfers`. The
+ * init, load and feed-forward results carry it too, so the story lens shows every step's outcome.
  */
 const story = (term: WordTerm): WordTerm => ({ ...term, emphasis: 'story' });
 
@@ -39,7 +40,7 @@ export function gTransfers<W extends Word>(g: GDetail<W>): RegisterTransfer[] {
 
 /** P0 = 0x0101kknn, then h0 = IV0 ⊕ P0 and h1 … h7 = IV1 … IV7. */
 export function initTerms<W extends Word>(term: TermFactory<W>, p0: W, h: readonly W[], outputBytes: number, keyBytes: number): WordTerm[] {
-  const hTerms = h.map((word, j) => (j === 0 ? term('h0', 'hInit0', word, 'result', { op: 'xor' }) : term(`h${j}`, 'hInit', word, 'constant', { params: { j } })));
+  const hTerms = h.map((word, j) => (j === 0 ? story(term('h0', 'hInit0', word, 'result', { op: 'xor' })) : term(`h${j}`, 'hInit', word, 'constant', { params: { j } })));
   return [term('p0', 'p0', p0, 'constant', { params: { nn: outputBytes, kk: keyBytes } }), ...hTerms];
 }
 
@@ -51,13 +52,13 @@ export function loadTerms<W extends Word>(term: TermFactory<W>, variant: Blake2V
     term('t0', 't0', block.t0, 'operand', { params: counter }),
     term('t1', 't1', block.t1, 'operand', { params: counter }),
     term('f0', block.last ? 'f0Last' : 'f0', block.f0, 'constant'),
-    term('v12', 'v12', block.vLoaded[12]!, 'result', { op: 'xor' }),
-    term('v13', 'v13', block.vLoaded[13]!, 'result', { op: 'xor' }),
-    term('v14', 'v14', block.vLoaded[14]!, 'result', { op: 'xor' }),
+    story(term('v12', 'v12', block.vLoaded[12]!, 'result', { op: 'xor' })),
+    story(term('v13', 'v13', block.vLoaded[13]!, 'result', { op: 'xor' })),
+    story(term('v14', 'v14', block.vLoaded[14]!, 'result', { op: 'xor' })),
   ];
 }
 
 /** h_j ⊕ v_j ⊕ v_{j+8} for j = 0 … 7, each linked to the chaining value `valueRef`. */
 export function feedForwardTerms<W extends Word>(term: TermFactory<W>, hOut: readonly W[], valueRef: string): WordTerm[] {
-  return hOut.map((word, j) => term(`h${j}`, 'hOut', word, 'result', { op: 'xor', params: { j, k: j + 8 }, valueRef }));
+  return hOut.map((word, j) => story(term(`h${j}`, 'hOut', word, 'result', { op: 'xor', params: { j, k: j + 8 }, valueRef })));
 }

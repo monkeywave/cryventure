@@ -1,6 +1,6 @@
 import { getFacet, hashFunction, stateAt, toHex, utf8Bytes, validateWordopsFacet, type AnyStateFacet, type TraceBundle, type ValuesFacet, type WordopsFacet } from '@cryventure/core';
 import { describe, expect, it } from 'vitest';
-import { sha2MessageBytes } from '../_lib/sha2/record.ts';
+import { hashMessageBytes } from '../_lib/hashKit/manifestKit.ts';
 import { MD5_OP_NAMES } from '../_lib/legacy-md/manifestKit.ts';
 import { MD5_T } from '../_lib/legacy-md/md5.ts';
 import { md5Manifest, MD5_PRESETS, validateMd5Params, type Md5Params } from './manifest.ts';
@@ -175,7 +175,7 @@ describe('md5 port', () => {
     expect(ports.Hash.id).toBe('md5');
     const fn = hashFunction(ports.Hash, 'md5')!;
     for (const testCase of conformance.cases) {
-      const message = Uint8Array.from(sha2MessageBytes(testCase.params.encoding as Md5Params['encoding'], testCase.params.input));
+      const message = Uint8Array.from(hashMessageBytes(testCase.params.encoding as Md5Params['encoding'], testCase.params.input));
       const context = fn.create();
       context.update(message);
       expect(toHex(fn.hash(message))).toBe(testCase.outputs.digest);

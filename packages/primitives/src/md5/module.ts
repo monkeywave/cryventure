@@ -2,7 +2,7 @@ import { runPrimitive, type PortMap, type RunOptions, type RunResult } from '@cr
 import { MD5_FAMILY } from '../_lib/legacy-md/hash.ts';
 import { MD5_ALGORITHM } from '../_lib/legacy-md/md5Detail.ts';
 import { recordLegacy } from '../_lib/legacy-md/record.ts';
-import { sha2MessageBytes } from '../_lib/sha2/record.ts';
+import { hashMessageBytes } from '../_lib/hashKit/manifestKit.ts';
 import { md5Manifest, type Md5Params } from './manifest.ts';
 
 /**
@@ -13,7 +13,7 @@ const NS = 'plugin.md5';
 
 /** Validates `params`, records the hash (checked against the untraced reference) and returns a TraceBundle. */
 export function run(params: Md5Params, _options: RunOptions = {}): RunResult {
-  return runPrimitive(md5Manifest, params, ({ encoding, input, detail }) => recordLegacy({ ns: NS, algorithm: MD5_ALGORITHM, message: sha2MessageBytes(encoding, input), detail }));
+  return runPrimitive(md5Manifest, params, ({ encoding, input, detail }) => recordLegacy({ ns: NS, algorithm: MD5_ALGORITHM, message: hashMessageBytes(encoding, input), detail }));
 }
 
 /** The `Hash` port: family `md5` with the function `md5`, untraced. */

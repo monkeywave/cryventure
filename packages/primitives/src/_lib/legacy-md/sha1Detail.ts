@@ -30,7 +30,7 @@ export function sha1ScheduleEvent(t: number, w: readonly number[]): LegacySchedu
       { id: 'w14', label: 'w', word: w14, role: 'operand', params: { t: t - 14 } },
       { id: 'w16', label: 'w', word: w16, role: 'operand', params: { t: t - 16 } },
       { id: 'xor', label: 'xor', word: xor, role: 'intermediate', op: 'xor', params: { t3: t - 3, t8: t - 8, t14: t - 14, t16: t - 16 } },
-      { id: 'w', label: 'w', word: w[t]!, role: 'result', op: 'rotl', params: { t } },
+      { id: 'w', label: 'w', word: w[t]!, role: 'result', op: 'rotl', params: { t }, story: true },
     ],
     narration: { ...indices, w3: WORD32.toHex(w3), w8: WORD32.toHex(w8), w14: WORD32.toHex(w14), w16: WORD32.toHex(w16), xor: WORD32.toHex(xor), w: WORD32.toHex(w[t]!) },
     formula: indices,

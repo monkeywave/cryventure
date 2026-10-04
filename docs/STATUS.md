@@ -4,7 +4,7 @@
 > `docs/EXTENDING.md` / `docs/AUTHORING.md` as needed. Continue with **Next up** below.
 > Update this file at the end of every milestone or significant change.
 
-_Last updated: 2026-10-04 (M5 complete + /simplify + /code-review)._
+_Last updated: 2026-10-04 (M6 complete + /simplify + /code-review)._
 
 ## Where things live
 
@@ -18,6 +18,7 @@ _Last updated: 2026-10-04 (M5 complete + /simplify + /code-review)._
 | M3 design brief (ports, modes)| `docs/M3.md`                                                                         |
 | M4 design brief (derivers)    | `docs/M4.md`                                                                         |
 | M5 design brief (hash, SHA-2) | `docs/M5.md`                                                                         |
+| M6 design brief (SHA-3, BLAKE2)| `docs/M6.md`                                                                         |
 | Add plugins                   | `docs/EXTENDING.md` (`pnpm cv new primitive\|view <id>`)                             |
 | Write lessons, EN/DE workflow | `docs/AUTHORING.md`, `docs/GLOSSARY.md`                                              |
 | Deploy                        | `docs/DEPLOY.md`                                                                     |
@@ -34,7 +35,8 @@ _Last updated: 2026-10-04 (M5 complete + /simplify + /code-review)._
 | M3 Modes I (ECB/CBC/CTR, penguin, PWA)                   | ✅ done | ports + mode primitives, mode-chain/wire views, PenguinLab, PWA, modes lessons (see `docs/M3.md`); attack labs deferred           |
 | M4 GCM + Memory & Hardware (ISA/memory derivers + views) | ✅ done | ghash/gcm, derivers isa-x86/isa-armv8/memory, views instructions/registers/memory/field, CSP; **no core diff** after wave 1 (see `docs/M4.md`) |
 | M5 Hash I (SHA-2, Hash port, SHA-NI/ARMv8 SHA2 derivers) | ✅ done | sha256/sha512/sha2-constants, `Hash` port, derivers isa-x86-sha/isa-armv8-sha, view wordops, hash lessons; **no core diff** after wave 1 (see `docs/M5.md`) |
-| M6 Hash II (proposed, see Next up)                       | ⏭ next  | Phase 2a continued: SHA-3/Keccak, BLAKE2                                                                                          |
+| M6 Hash II (SHA-3/Keccak, BLAKE2, MD5/SHA-1, ARMv8.2)    | ✅ done | sha3/keccak-constants/blake2/md5/sha1, incremental `Hash` port + XOFs, `sponge` facet + view, wordops v2, derivers ARMv8.2 SHA512/SHA3; **no core diff** after wave 1 (see `docs/M6.md`) |
+| M7 MAC & KDF I (proposed, see Next up)                   | ⏭ next  | Phase 2b: HMAC, HKDF, PBKDF2, KMAC, TLS PRFs                                                                                     |
 | Phases 2–10                                              | ☐       | see `docs/PLAN.md` §6                                                                                                            |
 
 ## What M2 delivered
@@ -140,17 +142,58 @@ _Last updated: 2026-10-04 (M5 complete + /simplify + /code-review)._
 - **Tests/CI:** e2e hash and layout specs; axe in legacy mode, `mountLabs` waits for rendered views;
   CI uploads `test-results` on failure.
 
-## Next up — M6 (proposal: Hash II, PLAN §6 Phase 2a)
+## What M6 delivered
 
-Write `docs/M6.md` first. Suggested scope:
-1. Keccak-f[1600], SHA-3, SHAKE, cSHAKE with a sponge view (5 × 5 × 64 lane state, θ ρ π χ ι step
-   choreography, rate/capacity split); Keccak round constants via the LFSR ("why these constants").
-2. BLAKE2s/2b (ARX, reusing `wordops`); optionally MD5/SHA-1 as historical producers.
-3. Extend the ISA family: a SHA-512 hardware deriver (ARMv8.2 SHA512) and ARMv8.2 SHA3
-   (`EOR3`/`RAX1`/`XAR`/`BCAX`).
-4. Consider the incremental `Hash` port (init/update/digest, midstate; a core change needed by
-   Phase 2b HMAC) — decide in `docs/M6.md`.
-5. Before planning any attack lab, ask the user (see Deviations).
+- **No-core-diff proof:** core changed only in wave 1, in two commits: `70546dc` (incremental `Hash`
+  port — `HashContext` create/update/digest/clone, `XofFunction`/`XofContext`, `HashFamily.xofs`,
+  `xofFunction()`) and `ffc201d` (`sponge` facet + `validateSpongeFacet`, wordops schema v2 with
+  `transfers`/`touched`/`registerColumns`/`emphasis`/`degree` and a non-throwing validator plus
+  exported `WORD_OPS`/`WORD_TERM_ROLES`, `words` layout `byteOrder`, generic `latestStepAt`).
+  `git diff ffc201d -- packages/core` stayed empty through producers, derivers, views, lessons, the
+  three reviews, `/simplify` and `/code-review`.
+- **Primitives:** `sha3` (SHA3-224…512, SHAKE128/256, cSHAKE128/256, Keccak-256; `mapping`/`round`/
+  `permutation` detail; message ≤ 200 bytes), `keccak-constants` (ι RC from the LFSR, ρ offsets from
+  the (x, y) walk), `blake2` (eight BLAKE2s/b functions, keyed mode, G/round/block detail), `md5`,
+  `sha1`. Shared libs `_lib/{keccak,blake2,legacy-md,hashKit}`: one manifest kit, one block-buffer
+  context (SHA-2, MD5, SHA-1 as engines), real incremental contexts everywhere. SHA-2 producers emit
+  wordops v2 (`sha512` gains `hKW` = h + K_t + W_t).
+  Conformance: NIST FIPS 202 examples (incl. the SHA3-256 Msg0 θ/ρ/π/χ/ι states of round 0 and
+  round 23), CAVP SHA-3/SHAKE ShortMsg + VariableOut ≤ 200 bytes (3234 cases), SP 800-185 cSHAKE
+  samples 1–4, RFC 7693 App. A/B (per-round v) and App. E grand hash, 258 BLAKE2 keyed KATs, RFC 1321
+  A.5, NIST SHA-1 examples + CAVP SHA1ShortMsg; noble oracles through `run()`, ports and contexts.
+- **Derivers:** `isa-armv8-sha` gains `aarch64-armv8-sha512` (ARMv8.2 `sha512h/h2/su0/su1`) and the
+  new `isa-armv8-sha3` (`aarch64-armv8-sha3`: `eor3`/`rax1`/`xar`/`bcax`), both from clang 23.1.0
+  listings verified natively on an Apple M1 (`tools/src/asm/verify/`). Keccak listings carry a
+  `loop` (body repeated 24× per permutation). Values only from the trace (`sponge` lanes, θ
+  `c`/`d`/`partial`, ι `rc`; SHA-512 `hKW`/`T1`); clang's folded last (e, f) feed-forward is shown as
+  an untraced partial sum with a note.
+- **Views:** `sponge` (5 × 5 lane grid, rate/capacity, θ C/D rows, ρ badges, π arrows/labels, χ row,
+  ι, squeeze/output; three lenses), `wordops` v2 (transfer arrows, BLAKE2 4 × 4 register grid with
+  touched cells, story emphasis, √/∛; v1 facets upgraded on read), `state` little-endian words with a
+  "memory order" toggle. Viz: captions wrap long hex; workspace panels are content-height.
+- **Tools/web:** contract checks for `sponge`, wordops v2, `byteOrder`, XOF/context port sanity
+  (incl. mid-squeeze clones and customised contexts), hash cross-check for single-function families
+  and XOFs (keyed cases skipped as MACs); one `textFieldByteLength` (only the `input` field is
+  hex-measured); one bundle-fixture table.
+- **Content (EN+DE, ai-reviewed):** `hash/{md5-sha1,sponge,keccak,blake2}`; `hash/index` (three
+  constructions) and `hash/sha512` (SHA-512 in hardware) updated; GLOSSARY M6 terms; open German
+  questions under „M6“ in `docs/translation-review-2026-10.md`.
+- **Tests/CI:** e2e `hash2Lessons`, `hash2Labs`, `sponge` (96 named lesson screenshots), the view
+  contract render timeout raised for the SHA3 listings. Unit tests 7072, e2e 333 (root and subpath).
+
+## Next up — M7 (proposal: MAC & KDF I, PLAN §6 Phase 2b)
+
+Write `docs/M7.md` first. Suggested scope:
+1. A `Mac` port (core, wave 1) and `HMAC(Hash)` over the incremental `Hash` port: ipad/opad
+   ("why these constants"), the midstate via `clone()`, HMAC-SHA-256/384/512, HMAC-SHA3, keyed
+   BLAKE2 through the same port; RFC 4231 / RFC 2202 / NIST vectors.
+2. `HKDF(Mac)` (RFC 5869) with the `derivation` facet (consider renaming the `key-schedule` view to
+   `derivation`), TLS 1.3 `HKDF-Expand-Label` as a preview; `PBKDF2` (RFC 8018, iteration counter
+   view); KMAC128/256 on cSHAKE (SP 800-185); TLS 1.2 PRF (P_SHA256) and the TLS 1.0 PRF (MD5 ⊕ SHA-1).
+3. Nested child traces (zoom HMAC → inner SHA-256 compression) — decide whether `children` is needed
+   now (a core change).
+4. Before planning any attack lab (e.g. HMAC timing comparison, length extension vs HMAC), ask the
+   user (see Deviations).
 
 ## Deviations from the plan (decided)
 
@@ -189,6 +232,22 @@ Write `docs/M6.md` first. Suggested scope:
 - **SHA-512 hardware deferred** (backlog for M6).
 - **SP 800-107r1** is withdrawn but still cited (truncation), with a note saying so.
 - **Hash axe tests** are marked slow (`test.slow()`).
+- **M6 attack labs not planned:** MD5/SHA-1 collisions, reduced-round Keccak/BLAKE2 and Keccak-256 vs
+  SHA3-256 are conceptual/historical prose only (user rule).
+- **M6 core budget:** two wave-1 commits (port, then facet schemas + `latestStepAt`); nothing after.
+- **M6 scope additions:** MD5 and SHA-1 producers (needed by the TLS 1.0 PRF in Phase 2b) and
+  Keccak-256 (Ethereum padding) for domain separation; `sha3` messages ≤ 200 bytes (NIST 1600-bit
+  example). x86 SHA512 and SHA-1 hardware are not built (no hardware to verify; Rosetta lacks them).
+- **Keccak RC source:** FIPS 202 does not print the RC values (its Table 2 is the ρ offsets); the
+  Keccak reference 3.0 §1.2 is cited for RC.
+- **Keccak spans (M6 §5c as built):** the RC load and clang's late `xar` for lane 24 are zero-width
+  at χ (spans never decrease); SHA spans still throw on reordered round instructions.
+- **Text params:** only the text field named `input` is hex-measured when `encoding` is `'hex'`
+  (`textFieldByteLength`); a per-field declaration would need core.
+- **Lesson word limit:** some cited facts in `hash/{index,sha512,blake2}` moved into tables to keep
+  prose ≤ 150 words per section.
+- **Port speed tests** use a generous 1000 ms per KiB bound (flake-proof; catches only gross
+  regressions).
 - **German review** is an AI editorial pass (`translation.status: ai-reviewed`); a human native
   speaker sign-off (`human-reviewed`) is still outstanding.
 
@@ -228,23 +287,35 @@ Write `docs/M6.md` first. Suggested scope:
   - German open questions M4 items in `docs/translation-review-2026-10.md` (e.g. Lane vs. Spur, „das Tag“).
   - Home page on phones has no menu button (splash template); check whether that predates M4.
 - **From M5:**
-  - SHA-512 hardware (x86 `SHA512` extension `vsha512rnds2`…, ARMv8.2 `sha512h`/`sha512h2`/`sha512su0`/
-    `sha512su1`).
+  - x86 SHA-512 hardware (`vsha512rnds2`…); ARMv8.2 SHA512 done in M6.
   - `SHA256_CTX` in the memory deriver.
-  - Incremental `Hash` port (init/update/digest, midstate for HMAC/PBKDF2) — a core change.
   - SHA-512 reference with 64-bit words as 32-bit hi/lo pairs (the `bigint` port is ~37× slower than noble).
-  - `wordops` schema v2: per-term story/emphasis flag; a register-transfer spec instead of the view's
-    structural SHA-2 shift detection; a root-degree field so the view can show √/∛.
-  - Core `validateWordopsFacet` should not throw on malformed input and should export the role/op
-    tables (tools duplicates them).
-  - A generic `latestStepAt` in core (views/_lib holds a third copy).
   - Deriver applicability by facet contract instead of producer id; listing types generic over the role set.
   - Runtime listing JSON still carries `source` (≈15 KB); the penguin worker bundles all manifests.
-  - ~1100 px of empty space under `wordops` on desktop (the state column shows one word per line);
-    the sticky player takes ~31% of a phone screen.
+  - Empty space next to short panels on desktop (panels are content-height since M6, but the row is
+    as tall as the state column; sticky short panels would fix it); the sticky player takes ~31% of a
+    phone screen.
   - Lab panels on phones now follow the layout order, which changed the first panel of the ghash/gf256 labs.
   - AES bundle fixtures switch to single-line JSON on their next change.
   - Style point „drücke ▶“ vs „Drück“ in `view.wordops.upcoming`; human German review of the M5 pages.
+- **From M6:**
+  - Core-only fixes found in M6 reviews: validators ignore `kind`, accept NaN/Infinity params and
+    `stepCount: NaN`, and wordops accepts a transfer source with both `register` and `term`;
+    `latestStepAt` assumes sorted input; core still has `mathStepAt`/`fieldStepAt` copies.
+  - A per-field "hex-switchable" declaration on `ParamField` (replacing the `input` name convention),
+    a manifest hook mapping params to a port call (hash cross-check without hard-coded param names),
+    a term expression ref on `WordTerm`/`RegisterTransfer` (the wordops view splits translated labels
+    on " = "), a "computes-at" step on `AlignSpan` (instructions scheduled ahead of their round).
+  - Async `derive` (or a split deriver) so the SHA-256 lab doesn't download the SHA-512 listing (≈85 KB).
+  - 32-bit hi/lo Keccak/BLAKE2b/SHA-512 port implementations (Keccak port ≈ 56× slower than node's
+    sha3) — needed once PBKDF2/ML-KEM use the ports.
+  - Deriver applicability from bundle contents instead of producer ids.
+  - Golden/bundle fixtures are large (SHA3 golden 2.9 MB pretty-printed, ≈ 114 KB gzipped; CAVP SHA-3
+    vectors 1.2 MB): consider minified JSON or per-facet hashes.
+  - BLAKE2 salt/personalization, BLAKE3, KangarooTwelve/TurboSHAKE; SHA-1 hardware.
+  - Sponge π arrows switch at a hand-tuned 30rem container width (tied to `--cv-sponge-lane`).
+  - 15 copies of `overflow-wrap: anywhere` across view CSS → one shared hex-text class.
+  - Human German review of the M6 pages (open items under „M6“ in the review report).
 - The `key-schedule` view now renders any `derivation` facet generically — consider renaming it to
   `derivation` when HKDF/TLS key schedules arrive.
 - `selection.valueRefId` is published by the key-schedule and `wordops` views and consumed by
@@ -270,7 +341,7 @@ Write `docs/M6.md` first. Suggested scope:
 ## Quality gates (all must be green before committing)
 
 ```sh
-pnpm lint && pnpm typecheck && pnpm i18n:check && pnpm test \
+pnpm lint && pnpm typecheck && pnpm i18n:check && pnpm test && pnpm licenses:check \
   && pnpm --filter @cryventure/web build && pnpm e2e && pnpm --filter @cryventure/web e2e:subpath
 ```
 
