@@ -1,5 +1,5 @@
-import { definePrimitive, opLabels, parseHexOfLength, readOption, readPortMemberRef, type ParamField, type Preset, type ValidationResult } from '@cryventure/core';
-import { HASH_ENCODINGS, messageField, messageLengths, paramError, readMessageInput, selectField, type HashEncoding } from '../_lib/hashKit/manifestKit.ts';
+import { definePrimitive, opLabels, readOption, readPortMemberRef, type ParamField, type Preset, type ValidationResult } from '@cryventure/core';
+import { HASH_ENCODINGS, messageField, paramError, readHexUpTo, readMessageInput, selectField, type HashEncoding } from '../_lib/hashKit/manifestKit.ts';
 import { HMAC_LAB_MAX_KEY_BYTES, HMAC_LAB_MAX_MESSAGE_BYTES } from '../_lib/hmac/manifestKit.ts';
 
 /**
@@ -79,12 +79,6 @@ export type HmacOpName = (typeof HMAC_OP_NAMES)[number];
 
 export const HMAC_OPS = opLabels(NS, HMAC_OP_NAMES);
 
-/** Hex of `minBytes` … `maxBytes` bytes, normalised; `name` picks the `<ns>.error.<name>Length` message. */
-function readHexParam(input: unknown, maxBytes: number, name: string): ValidationResult<string> {
-  const hex = parseHexOfLength(input, messageLengths(maxBytes), { invalidType: `${NS}.error.invalidParams`, wrongLength: `${NS}.error.${name}Length` });
-  return hex.ok ? { ok: true, value: hex.hex } : hex;
-}
-
 /** Validates and normalises params; the tag-length rule needs the hash's L and is checked at run time. */
 export function validateHmacParams(params: unknown): ValidationResult<HmacParams> {
   if (typeof params !== 'object' || params === null) return paramError(NS, 'invalidParams');
@@ -95,11 +89,11 @@ export function validateHmacParams(params: unknown): ValidationResult<HmacParams
   if (encoding === undefined) return paramError(NS, 'encoding', { encoding: String(record['encoding']) });
   const tagLength = readOption(record['tagLength'], HMAC_TAG_LENGTHS);
   if (tagLength === undefined) return paramError(NS, 'tagLengthOption', { tagLength: String(record['tagLength']) });
-  const key = readHexParam(record['key'], HMAC_MAX_KEY_BYTES, 'key');
+  const key = readHexUpTo(NS, record['key'], 'key', HMAC_MAX_KEY_BYTES);
   if (!key.ok) return key;
   const input = readMessageInput(NS, record['input'], encoding, HMAC_MAX_MESSAGE_BYTES);
   if (!input.ok) return input;
-  const expected = readHexParam(record['expected'], HMAC_MAX_TAG_BYTES, 'expected');
+  const expected = readHexUpTo(NS, record['expected'], 'expected', HMAC_MAX_TAG_BYTES);
   if (!expected.ok) return expected;
   return { ok: true, value: { hash, key: key.value, encoding, input: input.value, tagLength, expected: expected.value } };
 }

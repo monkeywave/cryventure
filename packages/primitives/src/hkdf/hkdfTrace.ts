@@ -5,10 +5,13 @@ import {
   i18nRef,
   RecordingTracer,
   toHex,
+  u8Regions,
+  zeroSnapshot,
   type Highlight,
   type I18nRef,
   type MacFunction,
   type RegionSpec,
+  type Snapshot,
   type StateFacet,
 } from '@cryventure/core';
 import {
@@ -70,11 +73,14 @@ export const expands = (mode: HkdfMode) => mode !== 'extract';
 type Tracer = RecordingTracer<HkdfRegion, HkdfOp>;
 
 /** Regions in display order; only those the mode uses and that hold bytes. */
-function regionSizes(run: HkdfRun, labelBytes: number): Partial<Record<HkdfRegion, number>> {
+function regionSizes(
+  run: HkdfRun,
+  saltBytes: number,
+  labelBytes: number,
+): Partial<Record<HkdfRegion, number>> {
   const hashLen = run.mac.outputSize;
   const sizes: Partial<Record<HkdfRegion, number>> = {};
-  if (extracts(run.mode))
-    Object.assign(sizes, { ikm: run.ikm.length, salt: extractSalt(run.salt, hashLen).length });
+  if (extracts(run.mode)) Object.assign(sizes, { ikm: run.ikm.length, salt: saltBytes });
   sizes.prk = extracts(run.mode) ? hashLen : run.prk.length;
   if (run.mode === 'expand-label') sizes.hkdfLabel = labelBytes;
   else if (expands(run.mode)) sizes.info = run.info.length;
@@ -88,34 +94,26 @@ function regionSpecs(
   sizes: Partial<Record<HkdfRegion, number>>,
   run: HkdfRun,
 ): RegionSpec<HkdfRegion>[] {
-  return (Object.keys(sizes) as HkdfRegion[]).map((id) => ({
-    id,
-    labelKey: `${NS}.region.${id}`,
-    elem: 'u8',
-    shape: [sizes[id]!],
-    // A given PRK (expand modes) is an input, not a placeholder.
-    ...(BLANK.includes(id) && !(id === 'prk' && !extracts(run.mode))
-      ? { initial: 'blank' as const }
-      : {}),
-  }));
+  // A given PRK (expand modes) is an input, not a placeholder.
+  const blankIds = BLANK.filter((id) => id !== 'prk' || extracts(run.mode));
+  return u8Regions<HkdfRegion>(NS, sizes as Record<HkdfRegion, number>, blankIds);
 }
 
+/** Zeros, except the inputs the run already knows (the Extract salt is `extractSalt`'s). */
 function initialSnapshot(
   run: HkdfRun,
-  sizes: Partial<Record<HkdfRegion, number>>,
-): Record<HkdfRegion, number[]> {
+  salt: number[],
+  regions: readonly RegionSpec<HkdfRegion>[],
+): Snapshot<HkdfRegion> {
+  const zeros = zeroSnapshot(regions);
   const known: Partial<Record<HkdfRegion, number[]>> = {
     ikm: run.ikm,
-    salt: extractSalt(run.salt, run.mac.outputSize),
+    salt,
     info: run.info,
-    prk: extracts(run.mode) ? undefined : run.prk,
+    ...(extracts(run.mode) ? {} : { prk: run.prk }),
   };
-  return Object.fromEntries(
-    (Object.keys(sizes) as HkdfRegion[]).map((id) => [
-      id,
-      known[id] ?? new Array<number>(sizes[id]!).fill(0),
-    ]),
-  ) as Record<HkdfRegion, number[]>;
+  const present = Object.entries(known).filter(([id]) => id in zeros);
+  return { ...zeros, ...Object.fromEntries(present) };
 }
 
 /** Narration of the initial state, per mode. */
@@ -157,8 +155,11 @@ const whole = (
   kind: Highlight<HkdfRegion>['kind'],
 ) => (has(sizes, region) ? [highlight(region, kind, allIndices(sizes[region]!))] : []);
 
-function recordLabel(tracer: Tracer, run: HkdfRun): HkdfLabelStruct & { step: number } {
-  const struct = hkdfLabel(run.length, run.label, run.context);
+function recordLabel(
+  tracer: Tracer,
+  run: HkdfRun,
+  struct: HkdfLabelStruct,
+): HkdfLabelStruct & { step: number } {
   tracer.step({
     op: 'hkdfLabel',
     writes: [{ region: 'hkdfLabel', offset: 0, values: struct.bytes }],
@@ -274,13 +275,15 @@ function recordOutput(tracer: Tracer, run: HkdfRun, blocks: readonly RecordedBlo
 
 /** Records the mode's steps; the module checks the results against the untraced functions. */
 export function recordHkdf(run: HkdfRun): HkdfRecording {
-  const labelBytes =
-    run.mode === 'expand-label' ? hkdfLabel(run.length, run.label, run.context).bytes.length : 0;
-  const sizes = regionSizes(run, labelBytes);
-  const tracer: Tracer = new RecordingTracer(regionSpecs(sizes, run), initialSnapshot(run, sizes), {
+  const salt = extractSalt(run.salt, run.mac.outputSize);
+  const labelStruct =
+    run.mode === 'expand-label' ? hkdfLabel(run.length, run.label, run.context) : undefined;
+  const sizes = regionSizes(run, salt.length, labelStruct?.bytes.length ?? 0);
+  const regions = regionSpecs(sizes, run);
+  const tracer: Tracer = new RecordingTracer(regions, initialSnapshot(run, salt, regions), {
     initialNarration: initialNarration(run),
   });
-  const label = run.mode === 'expand-label' ? recordLabel(tracer, run) : undefined;
+  const label = labelStruct === undefined ? undefined : recordLabel(tracer, run, labelStruct);
   const prk = extracts(run.mode) ? recordExtract(tracer, run, sizes) : run.prk;
   const prkStep = extracts(run.mode) ? tracer.stepCount - 1 : -1;
   const info = label?.bytes ?? run.info;
@@ -288,7 +291,7 @@ export function recordHkdf(run: HkdfRun): HkdfRecording {
   const okm = expands(run.mode) ? recordOutput(tracer, run, blocks) : [];
   return {
     state: tracer.toFacet(),
-    salt: extractSalt(run.salt, run.mac.outputSize),
+    salt,
     prk,
     prkStep,
     info,

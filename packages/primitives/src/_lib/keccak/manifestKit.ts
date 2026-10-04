@@ -1,5 +1,5 @@
-import { opLabels, parseHexOfLength, readOption, readText, utf8Bytes, type ParamField, type ValidationResult } from '@cryventure/core';
-import { HASH_ENCODINGS, hashLabParamsFor, messageField, messageLengths, paramError, readMessageInput, selectField, type HashEncoding, type HashLabParams } from '../hashKit/manifestKit.ts';
+import { opLabels, readOption, readText, utf8Bytes, type ParamField, type ValidationResult } from '@cryventure/core';
+import { HASH_ENCODINGS, hashLabParamsFor, messageField, paramError, readHexUpTo, readMessageInput, selectField, type HashEncoding, type HashLabParams } from '../hashKit/manifestKit.ts';
 import { hmacHashInputMaxBytes } from '../hmac/manifestKit.ts';
 
 /**
@@ -174,8 +174,7 @@ export const kmacOps = (ns: string) => opLabels(ns, KMAC_OP_NAMES);
 
 /** K: hex of 0 … 64 bytes, normalised. */
 function readKmacKey(ns: string, input: unknown): ValidationResult<string> {
-  const hex = parseHexOfLength(input, messageLengths(KMAC_MAX_KEY_BYTES), { invalidType: `${ns}.error.invalidParams`, wrongLength: `${ns}.error.keyLength` });
-  return hex.ok ? { ok: true, value: hex.hex } : hex;
+  return readHexUpTo(ns, input, 'key', KMAC_MAX_KEY_BYTES);
 }
 
 /** S: a string of at most 64 UTF-8 bytes. */

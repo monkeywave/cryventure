@@ -39,13 +39,16 @@ export function messageField(ns: string, maxBytes: number): ParamField {
 /** The admissible byte lengths 0 … maxBytes. */
 export const messageLengths = (maxBytes: number): number[] => Array.from({ length: maxBytes + 1 }, (_, length) => length);
 
+/** Hex of 0 … `maxBytes` bytes, normalised (lowercase, no separators); a wrong length reports `<ns>.error.<name>Length`, anything else `<ns>.error.invalidParams`. */
+export function readHexUpTo(ns: string, input: unknown, name: string, maxBytes: number): ValidationResult<string> {
+  const hex = parseHexOfLength(input, messageLengths(maxBytes), { invalidType: `${ns}.error.invalidParams`, wrongLength: `${ns}.error.${name}Length` });
+  return hex.ok ? { ok: true, value: hex.hex } : hex;
+}
+
 /** The message text: UTF-8 of at most `maxBytes` bytes, or hex of 0 … `maxBytes` bytes (normalised to lowercase). */
 export function readMessageInput(ns: string, input: unknown, encoding: HashEncoding, maxBytes: number): ValidationResult<string> {
   if (typeof input !== 'string') return paramError(ns, 'invalidParams');
-  if (encoding === 'hex') {
-    const hex = parseHexOfLength(input, messageLengths(maxBytes), { invalidType: `${ns}.error.invalidParams`, wrongLength: `${ns}.error.inputLength` });
-    return hex.ok ? { ok: true, value: hex.hex } : hex;
-  }
+  if (encoding === 'hex') return readHexUpTo(ns, input, 'input', maxBytes);
   const length = utf8Bytes(input).length;
   return length <= maxBytes ? { ok: true, value: input } : paramError(ns, 'inputLength', { length });
 }

@@ -1,4 +1,5 @@
-import { i18nRef, parseHexOfLength, readPortMemberRef, type ParamField, type ValidationResult } from '@cryventure/core';
+import { readPortMemberRef, type ParamField, type ValidationResult } from '@cryventure/core';
+import { paramError, readHexUpTo } from '../hashKit/manifestKit.ts';
 import { readDigits } from '../params/manifestKit.ts';
 
 /**
@@ -28,11 +29,6 @@ const ASCII_LABEL = /^[\x20-\x7e]+$/;
 /** Enough digits for `PRF_LIMITS.outputBytes`. */
 const LENGTH_DIGITS = 3;
 
-const lengths = (min: number, max: number): number[] => Array.from({ length: max - min + 1 }, (_, index) => min + index);
-
-/** A failed validation with the message `<ns>.error.<name>`. */
-const prfError = (ns: string, name: string) => ({ ok: false as const, error: i18nRef(`${ns}.error.${name}`) });
-
 /** A `Mac` member field `name` limited to HMAC (a TLS PRF is defined over HMAC only), labelled `<ns>.param.<name>`. */
 export function hmacMemberField(ns: string, name: string): ParamField {
   return { name, kind: 'port', port: 'Mac', member: true, constructions: ['hmac'], labelKey: `${ns}.param.${name}`, hintKey: `${ns}.param.${name}Hint` };
@@ -50,36 +46,31 @@ export function prfInputFields(ns: string): ParamField[] {
   return [field('secret', 'hex'), field('label', 'text', PRF_LIMITS.labelBytes), field('seed', 'hex'), field('length', 'text', LENGTH_DIGITS)];
 }
 
-/** Hex of `min` … `max` bytes, normalised; `<ns>.error.<name>Length` names the byte count. */
-function readHexInput(ns: string, input: unknown, name: string, min: number, max: number): ValidationResult<string> {
-  const hex = parseHexOfLength(input, lengths(min, max), { invalidType: `${ns}.error.invalidParams`, wrongLength: `${ns}.error.${name}Length` });
-  return hex.ok ? { ok: true, value: hex.hex } : hex;
-}
-
 /** The output length: 1 … `PRF_LIMITS.outputBytes` as decimal digits (strict, `readDigits`), normalised (no leading zeros). */
 export function readOutputLength(ns: string, input: unknown): ValidationResult<string> {
   const length = readDigits(input, { min: 1, max: PRF_LIMITS.outputBytes });
-  return length === undefined ? prfError(ns, 'length') : { ok: true, value: length };
+  return length === undefined ? paramError(ns, 'length') : { ok: true, value: length };
 }
 
 /** The label: 1 … `PRF_LIMITS.labelBytes` printable ASCII characters. */
 export function readLabel(ns: string, input: unknown): ValidationResult<string> {
-  return typeof input === 'string' && input.length <= PRF_LIMITS.labelBytes && ASCII_LABEL.test(input) ? { ok: true, value: input } : prfError(ns, 'label');
+  return typeof input === 'string' && input.length <= PRF_LIMITS.labelBytes && ASCII_LABEL.test(input) ? { ok: true, value: input } : paramError(ns, 'label');
 }
 
 /** A member ref of an HMAC field; existence and construction are checked at run time. */
 export function readMacRef(ns: string, input: unknown, name: string): ValidationResult<string> {
   const ref = readPortMemberRef(input);
-  return ref === undefined ? prfError(ns, name) : { ok: true, value: ref };
+  return ref === undefined ? paramError(ns, name) : { ok: true, value: ref };
 }
 
 /** Validates and normalises the shared PRF inputs of `record` (secret 1 … 256 bytes, seed 0 … 128 bytes). */
 export function readPrfInputs(ns: string, record: Record<string, unknown>): ValidationResult<PrfInputs> {
-  const secret = readHexInput(ns, record['secret'], 'secret', 1, PRF_LIMITS.secretBytes);
+  const secret = readHexUpTo(ns, record['secret'], 'secret', PRF_LIMITS.secretBytes);
   if (!secret.ok) return secret;
+  if (secret.value === '') return paramError(ns, 'secretLength', { length: 0 });
   const label = readLabel(ns, record['label']);
   if (!label.ok) return label;
-  const seed = readHexInput(ns, record['seed'], 'seed', 0, PRF_LIMITS.seedBytes);
+  const seed = readHexUpTo(ns, record['seed'], 'seed', PRF_LIMITS.seedBytes);
   if (!seed.ok) return seed;
   const length = readOutputLength(ns, record['length']);
   if (!length.ok) return length;
@@ -88,5 +79,5 @@ export function readPrfInputs(ns: string, record: Record<string, unknown>): Vali
 
 /** The params object of a manifest's `validate()`, or the `<ns>.error.invalidParams` failure. */
 export function readParamsRecord(ns: string, params: unknown): ValidationResult<Record<string, unknown>> {
-  return typeof params === 'object' && params !== null ? { ok: true, value: params as Record<string, unknown> } : prfError(ns, 'invalidParams');
+  return typeof params === 'object' && params !== null ? { ok: true, value: params as Record<string, unknown> } : paramError(ns, 'invalidParams');
 }

@@ -1,8 +1,6 @@
 import {
   definePrimitive,
-  i18nRef,
   opLabels,
-  parseHexOfLength,
   readOption,
   readPortMemberRef,
   readText,
@@ -12,7 +10,14 @@ import {
   type ValidationResult,
 } from '@cryventure/core';
 
-import { selectField } from '../_lib/hashKit/manifestKit.ts';
+import {
+  HASH_ENCODINGS,
+  paramError,
+  readHexUpTo as readKitHexUpTo,
+  readMessageInput,
+  selectField,
+  type HashEncoding,
+} from '../_lib/hashKit/manifestKit.ts';
 import { readDigits } from '../_lib/params/manifestKit.ts';
 /**
  * Manifest for HKDF (RFC 5869) over any HMAC of the `Mac` port, plus the TLS 1.3
@@ -21,8 +26,9 @@ import { readDigits } from '../_lib/params/manifestKit.ts';
 export const HKDF_MODES = ['hkdf', 'extract', 'expand', 'expand-label'] as const;
 export type HkdfMode = (typeof HKDF_MODES)[number];
 
-export const HKDF_INFO_ENCODINGS = ['utf8', 'hex'] as const;
-export type HkdfInfoEncoding = (typeof HKDF_INFO_ENCODINGS)[number];
+/** The info encodings: the hash kit's message encodings. */
+export const HKDF_INFO_ENCODINGS = HASH_ENCODINGS;
+export type HkdfInfoEncoding = HashEncoding;
 
 /** Byte limits of the inputs (docs/M7.md §2d); `label` leaves room for "tls13 " in a 255-byte label (RFC 8446 §7.1). */
 export const HKDF_LIMITS = {
@@ -164,33 +170,23 @@ export type HkdfOpName = (typeof HKDF_OP_NAMES)[number];
 export const HKDF_OPS = opLabels(NS, HKDF_OP_NAMES);
 
 type Read<T> = ValidationResult<T>;
-const fail = (name: string, params?: Record<string, number>) => ({
-  ok: false as const,
-  error: i18nRef(`${NS}.error.${name}`, params),
-});
-const lengthsUpTo = (max: number) => Array.from({ length: max + 1 }, (_, length) => length);
 
 /** Hex of 0 … `max` bytes, normalised; a wrong length reports `<name>Length` with `{{length}}`. */
 export function readHexUpTo(input: unknown, name: string, max: number): Read<string> {
-  const hex = parseHexOfLength(input, lengthsUpTo(max), {
-    invalidType: `${NS}.error.invalidParams`,
-    wrongLength: `${NS}.error.${name}Length`,
-  });
-  return hex.ok ? { ok: true, value: hex.hex } : hex;
+  return readKitHexUpTo(NS, input, name, max);
 }
 
-/** `info`: UTF-8 text or hex (normalised), at most 128 bytes either way. */
+/** `info`: UTF-8 text or hex (normalised), at most 128 bytes either way (the kit's message reader, reporting `infoLength`). */
 export function readInfo(input: unknown, encoding: HkdfInfoEncoding): Read<string> {
-  if (encoding === 'hex') return readHexUpTo(input, 'info', HKDF_LIMITS.info);
-  if (typeof input !== 'string') return fail('invalidParams');
-  const length = utf8Bytes(input).length;
-  return length <= HKDF_LIMITS.info ? { ok: true, value: input } : fail('infoLength', { length });
+  const info = readMessageInput(NS, input, encoding, HKDF_LIMITS.info);
+  if (info.ok || info.error.key !== `${NS}.error.inputLength`) return info;
+  return paramError(NS, 'infoLength', info.error.params);
 }
 
 /** L: decimal digits for 1 … 255 bytes (strict, `readDigits`), normalised without leading zeros. */
 export function readOutputLength(input: unknown): Read<string> {
   const length = readDigits(input, { min: 1, max: HKDF_LIMITS.length });
-  return length === undefined ? fail('length') : { ok: true, value: length };
+  return length === undefined ? paramError(NS, 'length') : { ok: true, value: length };
 }
 
 /** The TLS 1.3 label (without "tls13 "): UTF-8 of at most 249 bytes, non-empty in expand-label mode (RFC 8446 `opaque label<7..255>`). */
@@ -198,9 +194,9 @@ export function readLabel(input: unknown, mode: HkdfMode): Read<string> {
   const label = readText(input, HKDF_LIMITS.label);
   if (label === undefined)
     return typeof input === 'string'
-      ? fail('labelLength', { length: utf8Bytes(input).length })
-      : fail('invalidParams');
-  return mode === 'expand-label' && label === '' ? fail('labelEmpty') : { ok: true, value: label };
+      ? paramError(NS, 'labelLength', { length: utf8Bytes(input).length })
+      : paramError(NS, 'invalidParams');
+  return mode === 'expand-label' && label === '' ? paramError(NS, 'labelEmpty') : { ok: true, value: label };
 }
 
 type HexName = 'ikm' | 'salt' | 'prk' | 'context';
@@ -218,14 +214,14 @@ function readHexParams(record: Record<string, unknown>): Read<Record<HexName, st
 
 /** Validates and normalises params (hex lowercased, separators stripped); HashLen-dependent limits are run errors. */
 export function validateHkdfParams(params: unknown): ValidationResult<HkdfParams> {
-  if (typeof params !== 'object' || params === null) return fail('invalidParams');
+  if (typeof params !== 'object' || params === null) return paramError(NS, 'invalidParams');
   const record = params as Record<string, unknown>;
   const mac = readPortMemberRef(record['mac']);
-  if (mac === undefined) return fail('mac');
+  if (mac === undefined) return paramError(NS, 'mac');
   const mode = readOption(record['mode'], HKDF_MODES);
-  if (mode === undefined) return fail('mode');
+  if (mode === undefined) return paramError(NS, 'mode');
   const infoEncoding = readOption(record['infoEncoding'], HKDF_INFO_ENCODINGS);
-  if (infoEncoding === undefined) return fail('infoEncoding');
+  if (infoEncoding === undefined) return paramError(NS, 'infoEncoding');
   const hex = readHexParams(record);
   if (!hex.ok) return hex;
   const info = readInfo(record['info'], infoEncoding);

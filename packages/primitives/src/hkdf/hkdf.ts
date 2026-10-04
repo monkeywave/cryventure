@@ -1,5 +1,6 @@
 import { blockCount, utf8Bytes, type MacFunction } from '@cryventure/core';
 import { TLS13_LABEL_PREFIX } from './manifest.ts';
+import { keyedMac } from '../_lib/hmac/macCalls.ts';
 
 /** HKDF (RFC 5869) and the TLS 1.3 HkdfLabel (RFC 8446 §7.1) as plain functions over a `MacFunction`. */
 
@@ -44,18 +45,22 @@ export interface ExpandBlock {
   t: number[];
 }
 
-/** HKDF-Expand block by block: T(i) = HMAC-Hash(PRK, T(i−1) ‖ info ‖ i) for i = 1 … N = ⌈L / HashLen⌉. */
+/**
+ * HKDF-Expand block by block: T(i) = HMAC-Hash(PRK, T(i−1) ‖ info ‖ i) for i = 1 … N = ⌈L / HashLen⌉.
+ * PRK is keyed once (`mac.create`); each block MACs a clone of that context (`keyedMac`).
+ */
 export function hkdfExpandBlocks(
   mac: MacFunction,
   prk: readonly number[],
   info: readonly number[],
   length: number,
 ): ExpandBlock[] {
+  const keyed = mac.create(Uint8Array.from(prk));
   const blocks: ExpandBlock[] = [];
   let previous: number[] = [];
   for (let index = 1; index <= blockCount(length, mac.outputSize); index++) {
     const message = expandMessage(previous, info, index);
-    previous = macOf(mac, prk, message);
+    previous = Array.from(keyedMac(keyed, Uint8Array.from(message)));
     blocks.push({ index, message, t: previous });
   }
   return blocks;
