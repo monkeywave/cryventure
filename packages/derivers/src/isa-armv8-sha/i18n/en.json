@@ -1,0 +1,13 @@
+{
+  "deriver.isa-armv8-sha.label": "AArch64 · ARMv8 SHA2 extension",
+  "deriver.isa-armv8-sha.registers.label": "AArch64 · ARMv8 SHA2 · vector registers",
+  "deriver.isa-armv8-sha.covers.rounds": "Rounds {{first}}…{{last}}",
+  "deriver.isa-armv8-sha.covers.msg1": "W{{first}}…W{{last}}: first half (W[t−16] + σ0(W[t−15]))",
+  "deriver.isa-armv8-sha.covers.msg2": "W{{first}}…W{{last}}: finished (+ W[t−7] + σ1(W[t−2]))",
+  "deriver.isa-armv8-sha.note.sha256h": "Four rounds, first half: the destination holds A, B, C, D (A in the lowest word) and receives A … D after the fourth round; the second operand holds E … H, the third K+W of the four rounds.",
+  "deriver.isa-armv8-sha.note.sha256h2": "Four rounds, second half: the destination holds E, F, G, H and receives E … H after the fourth round. It needs A … D from before these rounds, which sha256h has just overwritten, so it reads the copy.",
+  "deriver.isa-armv8-sha.note.copyAbcd": "sha256h and sha256h2 work as a pair: sha256h overwrites A … D, but sha256h2 for the same rounds still needs the old A … D. That is why the compiler copies A … D first; sha256h works on the copy.",
+  "deriver.isa-armv8-sha.note.copyEfgh": "A copy of E … H for sha256h2 to overwrite: the original stays untouched for the feed-forward at the end of the block.",
+  "deriver.isa-armv8-sha.note.literalK": "Loads K{{first}}…K{{last}} from the literal pool next to the code (adrp gives the page, ldr the offset), often well before the rounds that use them.",
+  "deriver.isa-armv8-sha.note.scheduleAhead": "The message schedule runs ahead: this instruction works on W{{first}}…W{{last}} several rounds before the state view's schedule steps write them. The four message registers hold a sliding window of 16 schedule words."
+}

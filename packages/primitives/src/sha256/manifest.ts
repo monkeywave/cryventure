@@ -31,13 +31,15 @@ const MESSAGE_LENGTHS = Array.from({ length: SHA256_MAX_MESSAGE_BYTES + 1 }, (_,
 const ABC = 'abc';
 const TWO_BLOCK = 'abcdbcdecdefdefgefghfghighijhijkijkljklmklmnlmnomnopnopq';
 
-function preset(id: string, algorithm: Sha256AlgorithmId, input: string): Preset<Sha256Params> {
-  return { id, labelKey: `${NS}.preset.${id}`, params: { algorithm, encoding: 'utf8', input, detail: 'round' } };
+function preset(id: string, algorithm: Sha256AlgorithmId, input: string, detail: Sha256Detail = 'round'): Preset<Sha256Params> {
+  return { id, labelKey: `${NS}.preset.${id}`, params: { algorithm, encoding: 'utf8', input, detail } };
 }
 
 export const SHA256_PRESETS: Preset<Sha256Params>[] = [
   preset('sha-256-abc', 'sha-256', ABC),
   preset('sha-256-two-block', 'sha-256', TWO_BLOCK),
+  // The same message one block per step: the Merkle–Damgård chain at a glance (hash/index lab, docs/M5.md §7).
+  preset('sha-256-two-block-blocks', 'sha-256', TWO_BLOCK, 'block'),
   preset('sha-224-abc', 'sha-224', ABC),
   preset('sha-256-empty', 'sha-256', ''),
 ];

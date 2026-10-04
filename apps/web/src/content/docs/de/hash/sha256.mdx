@@ -1,0 +1,238 @@
+---
+title: SHA-256 von innen
+description: Wie die SHA-256-Kompressionsfunktion 16 Nachrichtenwörter auf 64 erweitert, 64 Runden aus Σ, Ch und Maj über acht Arbeitsvariablen ausführt, und wie Intels SHA-NI- und die ARMv8-SHA2-Befehle zwei oder vier dieser Runden auf einmal berechnen.
+lessonId: hash/sha256
+track: hash
+phase: 2
+sidebar:
+  order: 1
+tableOfContents: false
+prereqs:
+  - hash/index
+labs:
+  - sha256-abc
+  - sha256-k
+  - sha256-sha-ni
+refs:
+  - FIPS 180-4, Abschnitt 4.1.2 (Funktionen von SHA-224 und SHA-256)
+  - FIPS 180-4, Abschnitt 4.2.2 (Konstanten von SHA-224 und SHA-256)
+  - FIPS 180-4, Abschnitt 5.1.1 (Padding the message, SHA-1/224/256)
+  - FIPS 180-4, Abschnitt 5.3.3 (Anfangswert von SHA-256)
+  - FIPS 180-4, Abschnitt 6.2.2 (SHA-256 hash computation, Schritte 1–4)
+  - NIST CSRC, Examples with Intermediate Values, SHA256.pdf („abc“)
+  - Intel 64 and IA-32 Architectures Software Developer's Manual, Vol. 2B, SHA256RNDS2, SHA256MSG1 und SHA256MSG2
+  - Gulley, Gopal, Yap, Feghali, Guilford, Wolrich (2013), Intel SHA Extensions — New Instructions Supporting the Secure Hash Algorithm on Intel Architecture Processors, Intel White Paper
+  - Arm Architecture Reference Manual for A-profile (DDI 0487), FEAT_SHA256 (SHA256H, SHA256H2, SHA256SU0, SHA256SU1)
+  - Mendel, Nad, Schläffer (2013), Improving Local Collisions — New Attacks on Reduced SHA-256, EUROCRYPT 2013, LNCS 7881
+  - Handschuh, Naccache (2001), SHACAL, NESSIE submission
+  - Bernstein, Chou, Chuengsatiansup, Hülsing, Lambooij, Lange, Niederhagen, van Vredendaal (2015), How to Manipulate Curve Standards — a White Paper for the Black Hat, SSR 2015, LNCS 9497
+sourceHash: sha256:f46aa4732930b52de5966beb0cb8e2f0270f9f723d2d7772b04426cdc5db3cc4
+translation:
+  status: ai-reviewed
+  reviewedAt: '2026-10-04'
+  reviewer: AI editorial review (Claude)
+---
+
+import Lab from '../../../../components/Lab.astro';
+import CheckQuestion from '../../../../components/lesson/CheckQuestion.astro';
+import Formula from '../../../../components/lesson/Formula.astro';
+import KeyFact from '../../../../components/lesson/KeyFact.astro';
+import KeyFacts from '../../../../components/lesson/KeyFacts.astro';
+import Lens from '../../../../components/lesson/Lens.astro';
+import LessonSection from '../../../../components/lesson/LessonSection.astro';
+import WhyBox from '../../../../components/lesson/WhyBox.astro';
+
+<LessonSection part="concept">
+
+## Vierundsechzig Runden pro Block
+
+Die [Seite zu Hashfunktionen](../) hat die Kompressionsfunktion als Kasten behandelt. Darin kopiert
+SHA-256 den Verkettungswert in acht **Arbeitsvariablen** `a … h`, erweitert die 16 Wörter des
+Blocks zu einer **Nachrichtenexpansion (Message Schedule)** aus 64 Wörtern `W₀ … W₆₃` und führt
+**64 Runden** aus, eine pro Wort. Schritt 4 addiert `a … h` zurück auf den Verkettungswert: der
+Feed-Forward (FIPS 180-4, §6.2.2).
+
+<KeyFacts>
+  <KeyFact label="Wort" value="32 Bit" kind="state" />
+  <KeyFact label="Arbeitsvariablen" value="8 Wörter" kind="state" />
+  <KeyFact label="Runden" value="64" kind="constant" />
+  <KeyFact label="Block" value="16 Wörter" kind="plaintext" />
+</KeyFacts>
+
+<WhyBox constant="K₀ = 428a2f98" title="warum die Rundenkonstanten zufällig aussehen">
+  `K₀ … K₆₃` sind die ersten 32 Nachkommabits der Kubikwurzeln der ersten 64 Primzahlen
+  (FIPS 180-4, §4.2.2): ∛2 = 1,**428a2f98**… in Hex. Jeder kann sie nachrechnen.
+</WhyBox>
+
+<WhyBox constant="H₀ = 6a09e667" title="woher der Anfangswert kommt">
+  Der SHA-256-IV besteht aus den ersten 32 Nachkommabits der Quadratwurzeln der ersten 8 Primzahlen
+  (FIPS 180-4, §5.3.3): √2 = 1,**6a09e667**… in Hex.
+</WhyBox>
+
+<Lens only="story">
+
+Acht Becher auf einem Förderband. In jeder Runde bekommen zwei Becher eine frische Mischung, und
+die anderen sechs rücken einen Platz weiter.
+
+</Lens>
+
+</LessonSection>
+
+<LessonSection part="playground">
+
+## Runde 0 von „abc“
+
+Das Lab hasht das Beispiel „abc“ aus FIPS 180-4 (NIST, SHA256.pdf), aufgefüllt auf einen Block
+(§5.1.1). Es öffnet bei Runde 0. Die Ansicht „Wortoperationen“ zeigt jeden Term:
+
+- `K₀ + W₀ = 428a2f98 + 61626380 = a3ec9318`,
+- `T₁ = 54da50e8`, `T₂ = 08909ae5`,
+- neues `a = T₁ + T₂ = 5d6aebcd`, neues `e = d + T₁ = fa2a4622`,
+
+genau die Werte von NIST für `t = 0`. Geh weiter: Ab Runde 16 berechnet ein Expansionsschritt
+jedes neue `Wₜ` direkt vor seiner Runde. Die letzte Runde hinterlässt `a = 506e3058`, und der
+Feed-Forward ergibt `ba7816bf … f20015ad`.
+
+<Lab labId="sha256-abc" producerId="sha256" presetId="sha-256-abc" startAt="op:round" layout="wordops:55|state:20|narration:25" />
+
+</LessonSection>
+
+<LessonSection part="inside">
+
+## Vier Funktionen, eine Runde
+
+FIPS 180-4, §4.1.2 definiert sechs Funktionen auf 32-Bit-Wörtern:
+
+<Formula caption="SHA-256-Funktionen, FIPS 180-4 §4.1.2 (ROTR = nach rechts rotieren, SHR = nach rechts schieben, ∧ = UND, ¬ = NICHT).">
+{`Ch(x, y, z)  = (x ∧ y) ⊕ (¬x ∧ z)                 x wählt zwischen y und z
+Maj(x, y, z) = (x ∧ y) ⊕ (x ∧ z) ⊕ (y ∧ z)       bitweise Mehrheit
+Σ₀(x) = ROTR²(x)  ⊕ ROTR¹³(x) ⊕ ROTR²²(x)
+Σ₁(x) = ROTR⁶(x)  ⊕ ROTR¹¹(x) ⊕ ROTR²⁵(x)
+σ₀(x) = ROTR⁷(x)  ⊕ ROTR¹⁸(x) ⊕ SHR³(x)
+σ₁(x) = ROTR¹⁷(x) ⊕ ROTR¹⁹(x) ⊕ SHR¹⁰(x)`}
+</Formula>
+
+<Formula caption="Nachrichtenexpansion und Runde t, FIPS 180-4 §6.2.2, Schritte 1 und 3 (+ ist die Addition mod 2³²).">
+{`Wₜ = σ₁(Wₜ₋₂) + Wₜ₋₇ + σ₀(Wₜ₋₁₅) + Wₜ₋₁₆      16 ≤ t ≤ 63
+T₁ = h + Σ₁(e) + Ch(e, f, g) + Kₜ + Wₜ
+T₂ = Σ₀(a) + Maj(a, b, c)
+h ← g   g ← f   f ← e   e ← d + T₁
+d ← c   c ← b   b ← a   a ← T₁ + T₂`}
+</Formula>
+
+Nur `a` und `e` bekommen neue Wörter; die anderen sechs rücken um einen Platz weiter (Schritt 3).
+FIPS berechnet zuerst die ganze Nachrichtenexpansion (Schritt 1). Das Lab berechnet `Wₜ` stattdessen
+direkt vor Runde `t`: `Wₜ` hängt nur von früheren Wörtern ab, die Werte sind also identisch. Für
+„abc“ ist `W₁₆ = 61626380`, weil die anderen drei Terme null sind.
+
+Das Konstanten-Lab rechnet `K₀ … K₆₃` (§4.2.2) mit exakten ganzzahligen Kubikwurzeln nach:
+
+<Lab labId="sha256-k" producerId="sha2-constants" presetId="sha256-k" layout="wordops:50|state:30|narration:20" />
+
+<Lens level="cryptographer">
+
+`Ch` und `Maj` sind die einzigen nichtlinearen Teile; `Σ` und `σ` sind linear über GF(2) und
+verteilen jedes Bit über das Wort. Die Addition mod 2³² verbindet beide Welten über ihre Überträge.
+
+</Lens>
+
+</LessonSection>
+
+<LessonSection part="memory">
+
+## Zwei Runden, vier Runden
+
+Intels SHA-Erweiterungen (SHA-NI) packen den Zustand als `ABEF` und `CDGH` (Gulley et al. 2013).
+`SHA256RNDS2` führt **zwei Runden** aus und nimmt beide Summen `Kₜ + Wₜ` aus dem impliziten `xmm0`
+(Intel SDM Vol. 2B). `SHA256MSG1` berechnet `Wₜ₋₁₆ + σ₀(Wₜ₋₁₅)`, ein `PADDD` addiert `Wₜ₋₇`, und
+`SHA256MSG2` addiert `σ₁(Wₜ₋₂)`, für vier Wörter.
+
+Die SHA2-Befehle von ARMv8 (FEAT_SHA256) führen **vier Runden** pro Befehl aus: `SHA256H` liefert
+die neuen `a … d`, `SHA256H2` die neuen `e … h`; `SHA256SU0`/`SU1` setzen die Nachrichtenexpansion
+fort (Arm ARM).
+
+Beide berechnen Expansionswörter **vor** ihren Runden, in einem gleitenden Fenster aus 16 Wörtern.
+Das Lab zeigt x86-Ausgabe von clang `-O2` (wie auf der [AES-NI-Seite](../../symmetric/aes/aes-ni/));
+die Auswahl „Befehlssatz“ wechselt zwischen den ISAs.
+
+<Lab labId="sha256-sha-ni" producerId="sha256" presetId="sha-256-abc" variant="x86_64-sha-ni" startAt="op:round" layout="instructions:50|registers:50" />
+
+<Lens level="engineer">
+
+`SHA256RNDS2` liest nur die unteren zwei Wörter von `xmm0`; ein `PSHUFD` schiebt danach die nächsten
+zwei Summen nach unten (Gulley et al. 2013). Für „abc“ ist `K₁ + W₁ = K₁ = 71374491`, weil `W₁ = 0`.
+
+</Lens>
+
+</LessonSection>
+
+<LessonSection part="break">
+
+## Nichts im Ärmel
+
+Konstanten aus einer kurzen öffentlichen Regel, etwa ∛2 für `K₀` (FIPS 180-4, §4.2.2), lassen einem
+Designer wenig Spielraum, schwache Werte unterzubringen: „Nothing up my sleeve“-Zahlen („nichts im
+Ärmel“). FIPS nennt keine Begründung.
+
+Ohne den Feed-Forward (Schritt 4) ließe sich jede Runde umkehren: Die neuen `b, c, d, f, g, h` sind
+die alten `a, b, c, e, f, g`, und daraus folgen `T₂`, `T₁ = a − T₂`, das alte `d` und das alte `h`
+(§6.2.2, Schritt 3). Mallory könnte Blöcke von einem Hashwert aus rückwärts durchrechnen.
+
+Angriffe zielen auf Versionen mit **reduzierter Rundenzahl**: Mendel, Nad und Schläffer
+(EUROCRYPT 2013) geben einen Kollisionsangriff auf **31 von 64** Schritten an; für das volle SHA-256
+ist keine Kollision bekannt.
+
+<Lens level="cryptographer">
+
+Mit dem Nachrichtenblock als Schlüssel bilden die 64 Runden die Blockchiffre SHACAL-2 (Handschuh &
+Naccache 2001); Schritt 4 ist ihr Davies–Meyer-Feed-Forward. Auch eine öffentliche Regel lässt noch
+Wahlmöglichkeiten (Bernstein et al., SSR 2015).
+
+</Lens>
+
+</LessonSection>
+
+<LessonSection part="check">
+
+## Teste dich selbst
+
+<CheckQuestion
+  id="sha256-round-constant-origin"
+  number={1}
+  question="Woher stammen die SHA-256-Rundenkonstanten K₀ … K₆₃?"
+  options={[
+    'Zufallszahlen, von NIST gewählt',
+    'Aus den Kubikwurzeln der ersten 64 Primzahlen, erste 32 Nachkommabits',
+    'Aus den Quadratwurzeln der ersten 8 Primzahlen',
+    'Aus dem Hashwert der leeren Nachricht',
+  ]}
+  answer={1}
+>
+  FIPS 180-4, §4.2.2: die ersten 32 Bit der Nachkommastellen der Kubikwurzeln der ersten 64
+  Primzahlen, z. B. ergibt ∛2 = 1,428a2f98… `K₀ = 428a2f98`. Die Quadratwurzeln von 8 Primzahlen
+  ergeben den IV (§5.3.3).
+</CheckQuestion>
+
+<CheckQuestion
+  id="sha256-new-e"
+  number={2}
+  question="Welche Arbeitsvariable erhält in jeder SHA-256-Runde d + T₁?"
+  options={['a', 'b', 'e', 'h']}
+  answer={2}
+>
+  Schritt 3 von FIPS 180-4, §6.2.2 setzt `e ← d + T₁` und `a ← T₁ + T₂`; die anderen sechs
+  Variablen rücken nur um einen Platz weiter.
+</CheckQuestion>
+
+<CheckQuestion
+  id="sha256rnds2-rounds"
+  number={3}
+  question="Wie viele SHA-256-Runden berechnet ein einzelner x86-Befehl SHA256RNDS2?"
+  options={['1', '2', '4', '64']}
+  answer={1}
+>
+  Zwei Runden, mit beiden Summen `Kₜ + Wₜ` in `xmm0` (Intel SDM Vol. 2B, SHA256RNDS2). Die
+  ARMv8-Befehle `SHA256H`/`SHA256H2` decken je vier Runden ab.
+</CheckQuestion>
+
+</LessonSection>

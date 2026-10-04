@@ -238,3 +238,37 @@ Open questions for the human reviewer:
    aus“ – continues the index page's mixer image; reads naturally?
 8. **„Random Oracle“** kept English (no glossary entry yet); add to the glossary (vs.
    „Zufallsorakel“)?
+
+### M5 – `de/hash/sha256.mdx`
+
+Scope (AI editorial review, 2026-10-04): new page `de/hash/sha256.mdx`, translated from
+`en/hash/sha256.mdx` (`sourceHash` stamped, `status: ai-reviewed`). Same components, props, lab ids,
+`variant`/`startAt`/`layout` values, question ids and `answer` indexes as EN; refs translated as on
+the other hash pages (Section → Abschnitt, steps → Schritte, descriptive parentheticals translated;
+FIPS section titles and paper titles kept). Glossary terms used: Arbeitsvariablen,
+Nachrichtenexpansion (Message Schedule) / Expansionswort, Verkettungswert, Rundenkonstante,
+Anfangswert (IV), Nachkommabits, Kubik-/Quadratwurzel, Primzahl, Feed-Forward, SHA-Erweiterungen
+(SHA-NI), „die SHA2-Befehle von ARMv8“, „Wortoperationen“. Hex fractions use the decimal comma
+(„∛2 = 1,428a2f98…“) as in the DE narration.
+
+Editorial pass vs. EN: meaning, numbers, hex values and section references match; no style-lint
+findings. Fixed in this pass: description „die Intel-Befehle SHA-NI und …“ → „Intels SHA-NI- und die
+ARMv8-SHA2-Befehle“; „Variantenauswahl“ → „die Auswahl „Befehlssatz““, the actual DE label of the
+picker (`view.instructions.variant`).
+
+Open questions for the human reviewer:
+
+1. **„Nothing up my sleeve“-Zahlen („nichts im Ärmel“)**: English term kept with a German gloss;
+   heading „Nichts im Ärmel“. Natural, or drop the English term?
+2. **„Versionen mit reduzierter Rundenzahl“** for *reduced-round versions*, while the same sentence
+   keeps „31 von 64 Schritten“ (EN *steps*, as in Mendel et al.). Ok?
+3. **„Expansionsschritt“** (playground) for *schedule step*, and „Expansionswörter“ for *schedule
+   words* (memory part): consistent with the glossary short label, but does it match the sha256
+   catalog's step label?
+4. **„Davies–Meyer-Feed-Forward“** (cryptographer lens): compound with an en dash as in
+   „Merkle–Damgård-Konstruktion“; ok?
+5. **„Designer“** for the constant designer in the break part (vs. „Entwickler“ / „Entwerfer“).
+6. Story lens: „Acht Becher auf einem Förderband … rücken einen Platz weiter“ – reads naturally?
+7. Formula comments translated („x wählt zwischen y und z“, „bitweise Mehrheit“), unlike the M4 code
+   listings (see item 15 above); `ROTR`/`SHR` glossed in the caption as „nach rechts rotieren/schieben“.
+8. „ISAs“ (plural acronym) in „wechselt zwischen den ISAs“ vs. „Befehlssatzarchitekturen“.

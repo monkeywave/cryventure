@@ -6,7 +6,7 @@ import { catalogLabels, runPreset } from './modeViewFixture.ts';
 
 /**
  * JSON snapshots around the derivers (derivers may not import primitives, views may not import
- * derivers): the real AES bundles the deriver tests run on, and the derived facets the
+ * derivers): the real AES and SHA-256 bundles the deriver tests run on, and the derived facets the
  * instructions, registers and memory view tests render. Kept fresh by `snapshotFixtures.test.ts`;
  * `pnpm fixtures:update` rewrites them.
  */
@@ -36,9 +36,34 @@ const DERIVER_INPUT_FACETS = ['state@default', 'values@default'];
 
 /** A fresh AES run of `preset` at op detail, reduced to the state and values facets. */
 export async function buildAesBundleFixture(presetId: AesFixturePreset): Promise<AesBundleFixture> {
-  const bundle = await runPreset('aes', presetId);
-  const facets = Object.fromEntries(Object.entries(bundle.facets).filter(([key]) => DERIVER_INPUT_FACETS.includes(key)));
-  return { producerId: 'aes', presetId, bundle: { ...bundle, facets } };
+  return { producerId: 'aes', presetId, bundle: await runPresetKeepingFacets('aes', presetId, DERIVER_INPUT_FACETS) };
+}
+
+export const SHA_FIXTURE_PRESETS = ['sha-256-abc', 'sha-256-two-block', 'sha-224-abc'] as const;
+export type ShaFixturePreset = (typeof SHA_FIXTURE_PRESETS)[number];
+
+export const shaBundleFixturePath = (preset: ShaFixturePreset): string =>
+  `packages/derivers/src/_lib/sha/fixtures/sha256-${preset}.bundle.json`;
+
+export interface ShaBundleFixture {
+  producerId: 'sha256';
+  presetId: ShaFixturePreset;
+  bundle: TraceBundle;
+}
+
+/** The facets the SHA derivers read: the AES ones plus the word operations. */
+const SHA_DERIVER_INPUT_FACETS = [...DERIVER_INPUT_FACETS, 'wordops@default'];
+
+/** A fresh `sha256` run of `preset`, reduced to the state, values and wordops facets. */
+export async function buildShaBundleFixture(presetId: ShaFixturePreset): Promise<ShaBundleFixture> {
+  return { producerId: 'sha256', presetId, bundle: await runPresetKeepingFacets('sha256', presetId, SHA_DERIVER_INPUT_FACETS) };
+}
+
+/** A fresh run of the producer's preset with only the `kept` facets. */
+async function runPresetKeepingFacets(producer: string, presetId: string, kept: readonly string[]): Promise<TraceBundle> {
+  const bundle = await runPreset(producer, presetId);
+  const facets = Object.fromEntries(Object.entries(bundle.facets).filter(([key]) => kept.includes(key)));
+  return { ...bundle, facets };
 }
 
 async function derive(id: string, bundle: TraceBundle): Promise<DerivedFacets> {

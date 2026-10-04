@@ -50,6 +50,18 @@
       }
     },
     {
+      "name": "SHA-256, 448-bit message at block detail (SHA256.pdf, two blocks)",
+      "params": {
+        "algorithm": "sha-256",
+        "encoding": "utf8",
+        "input": "abcdbcdecdefdefgefghfghighijhijkijkljklmklmnlmnomnopnopq",
+        "detail": "block"
+      },
+      "outputs": {
+        "digest": "248d6a61d20638b8e5c026930c3e6039a33ce45964ff2167f6ecedd419db06c1"
+      }
+    },
+    {
       "name": "SHA-224, \"abc\" (SHA224.pdf, one block)",
       "params": {
         "algorithm": "sha-224",

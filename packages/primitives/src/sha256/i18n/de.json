@@ -2,6 +2,7 @@
   "plugin.sha256.title": "SHA-256 und SHA-224",
   "plugin.sha256.preset.sha-256-abc": "SHA-256 von „abc“ (Beispiel aus FIPS 180-4, ein Block)",
   "plugin.sha256.preset.sha-256-two-block": "SHA-256 der 56-Byte-Beispielnachricht (zwei Blöcke)",
+  "plugin.sha256.preset.sha-256-two-block-blocks": "SHA-256 der 56-Byte-Beispielnachricht, ein Schritt pro Block",
   "plugin.sha256.preset.sha-224-abc": "SHA-224 von „abc“ (anderer Anfangswert, 224-Bit-Ausgabe)",
   "plugin.sha256.preset.sha-256-empty": "SHA-256 der leeren Nachricht (nur Padding)",
   "plugin.sha256.param.algorithm": "Hashfunktion",

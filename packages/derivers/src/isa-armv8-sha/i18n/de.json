@@ -1,0 +1,13 @@
+{
+  "deriver.isa-armv8-sha.label": "AArch64 · ARMv8-SHA2-Erweiterung",
+  "deriver.isa-armv8-sha.registers.label": "AArch64 · ARMv8 SHA2 · Vektorregister",
+  "deriver.isa-armv8-sha.covers.rounds": "Runden {{first}}…{{last}}",
+  "deriver.isa-armv8-sha.covers.msg1": "W{{first}}…W{{last}}: erste Hälfte (W[t−16] + σ0(W[t−15]))",
+  "deriver.isa-armv8-sha.covers.msg2": "W{{first}}…W{{last}}: fertig (+ W[t−7] + σ1(W[t−2]))",
+  "deriver.isa-armv8-sha.note.sha256h": "Vier Runden, erste Hälfte: Das Ziel enthält A, B, C, D (A im niedrigsten Wort) und erhält A … D nach der vierten Runde; der zweite Operand enthält E … H, der dritte K+W der vier Runden.",
+  "deriver.isa-armv8-sha.note.sha256h2": "Vier Runden, zweite Hälfte: Das Ziel enthält E, F, G, H und erhält E … H nach der vierten Runde. Es braucht A … D von vor diesen Runden, die sha256h gerade überschrieben hat, und liest daher die Kopie.",
+  "deriver.isa-armv8-sha.note.copyAbcd": "sha256h und sha256h2 arbeiten als Paar: sha256h überschreibt A … D, aber sha256h2 braucht für dieselben Runden noch die alten A … D. Deshalb kopiert der Compiler A … D zuerst; sha256h arbeitet auf der Kopie.",
+  "deriver.isa-armv8-sha.note.copyEfgh": "Eine Kopie von E … H, die sha256h2 überschreiben darf: Das Original bleibt für den Feed-Forward am Ende des Blocks unverändert.",
+  "deriver.isa-armv8-sha.note.literalK": "Lädt K{{first}}…K{{last}} aus dem Literal-Pool neben dem Code (adrp liefert die Seite, ldr den Offset), oft lange vor den Runden, die sie verwenden.",
+  "deriver.isa-armv8-sha.note.scheduleAhead": "Die Nachrichtenexpansion (Message Schedule) läuft voraus: Dieser Befehl arbeitet an W{{first}}…W{{last}}, einige Runden bevor die Zustandsansicht diese Expansionswörter schreibt. Die vier Nachrichtenregister halten ein gleitendes Fenster aus 16 Expansionswörtern."
+}

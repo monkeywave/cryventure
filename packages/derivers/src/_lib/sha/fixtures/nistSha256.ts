@@ -1,6 +1,6 @@
 /**
  * Test-only: NIST CSRC "Examples with Intermediate Values" (SHA256.pdf, SHA224.pdf), copied here
- * because derivers may not import primitives. `vars[t]`: a … h after round t of block 1 of "abc";
+ * because derivers may not import primitives. `vars[t]`: a … h after round t (1, 3, 15, 63) of block 1 of "abc";
  * `h`: the chaining values H^(1), H^(2), … as 8 words (the digest is their leftmost bytes; SHA-224's
  * H_7, which its digest drops, is IV_7 + h after round 63 = befa4fa4 + 13dfb889).
  */
@@ -21,6 +21,16 @@ export const NIST_SHA256_ABC: NistShaExample = {
       'fa2a4622',
       '510e527f',
       '9b05688c',
+    ],
+    3: [
+      'd550f666',
+      'c8c347a7',
+      '5a6ad9ad',
+      '5d6aebcd',
+      '24e00850',
+      'f92939eb',
+      '78ce7989',
+      'fa2a4622',
     ],
     15: [
       'b0fa238e',
@@ -69,6 +79,16 @@ export const NIST_SHA224_ABC: NistShaExample = {
       '0434225e',
       'ffc00b31',
       '68581511',
+    ],
+    3: [
+      '8253cc1a',
+      'ab113b7a',
+      'c20dab6b',
+      '0e96b2da',
+      '8346b27d',
+      '82177fe8',
+      '9cab416f',
+      '0434225e',
     ],
     15: [
       '9f341a45',
