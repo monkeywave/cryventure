@@ -1,7 +1,9 @@
 import type { PrimitiveManifest } from '@cryventure/core';
+import { deriverManifests } from '@cryventure/derivers';
 import { primitiveManifests } from '@cryventure/primitives';
 import { describe, expect, it } from 'vitest';
 import { cachedPrimitiveBundleCases, DEFAULTS_PRESET_ID, primitiveBundleCases } from './deriverCases.ts';
+import { appliesToBundle } from './deriverChecks.ts';
 import { producerRegistry, type ProducerSet } from './runWithPorts.ts';
 
 const set = (ids: string[]): ProducerSet => {
@@ -31,4 +33,16 @@ describe('cachedPrimitiveBundleCases', () => {
     expect(cachedPrimitiveBundleCases(producers)).toBe(cachedPrimitiveBundleCases(producers));
     expect(cachedPrimitiveBundleCases(set(['xor']))).not.toBe(cachedPrimitiveBundleCases(producers));
   });
+});
+
+describe('deriver applicability to the MAC/KDF producers (docs/M7.md §6)', () => {
+  const M7_PRODUCERS = ['hmac', 'kmac', 'hkdf', 'pbkdf2', 'tls12-prf', 'tls10-prf'];
+
+  it('no deriver applies to any defaults/preset bundle of hmac, kmac, hkdf, pbkdf2 or the TLS PRFs', async () => {
+    const list = primitiveManifests.filter((manifest) => M7_PRODUCERS.includes(manifest.id));
+    expect(list.map(({ id }) => id).sort()).toEqual([...M7_PRODUCERS].sort());
+    const cases = await primitiveBundleCases({ list, lookup: producerRegistry(primitiveManifests) });
+    const applied = cases.flatMap(({ name, bundle }) => deriverManifests.filter((deriver) => appliesToBundle(deriver, bundle)).map((deriver) => `${deriver.id} applies to ${name}`));
+    expect(applied).toEqual([]);
+  }, 30_000); // pbkdf2's rfc7914-sha256-c80000 preset records 80 000 iterations
 });

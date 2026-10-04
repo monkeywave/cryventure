@@ -1,5 +1,5 @@
 import { blake2b, blake2s } from '@noble/hashes/blake2.js';
-import { hashFunction, toHex, type HashFamily, type PrimitiveManifest } from '@cryventure/core';
+import { hashFunction, macFunction, toHex, type HashFamily, type MacFamily, type PrimitiveManifest } from '@cryventure/core';
 import fc from 'fast-check';
 import { describe, expect, it } from 'vitest';
 import { primitiveProducers, runWithPorts } from '../contracts/runWithPorts.ts';
@@ -8,7 +8,7 @@ import { primitiveProducers, runWithPorts } from '../contracts/runWithPorts.ts';
  * Oracle (docs/M6.md §2g): the traced `blake2` producer must agree with @noble/hashes (blake2s /
  * blake2b with `dkLen` and `key`) for random messages of 0–128 bytes and random keys, through `run()`
  * (hex input, every detail level), and its untraced `ports.Hash` (unkeyed) through `hash()` and
- * through incremental contexts fed in random pieces.
+ * through incremental contexts fed in random pieces; its keyed `ports.Mac` (docs/M7.md §2g) likewise.
  */
 const PRODUCER = 'blake2';
 const MAX_MESSAGE_BYTES = 128;
@@ -56,6 +56,12 @@ async function hashPort(): Promise<HashFamily> {
   return family;
 }
 
+async function macPort(): Promise<MacFamily> {
+  const family = (await manifest().load()).ports?.Mac;
+  if (family === undefined) throw new Error(`${PRODUCER} exposes no Mac port`);
+  return family;
+}
+
 const pieces = (data: Uint8Array, splits: readonly number[]): Uint8Array[] => {
   const cuts = [0, ...splits.map((at) => Math.min(at, data.length)).sort((a, b) => a - b), data.length];
   return cuts.slice(1).map((end, index) => data.subarray(cuts[index], end));
@@ -87,5 +93,38 @@ describe.each(ORACLE_CASES)('blake2 $algorithm oracle (@noble/hashes)', ({ algor
       }),
       { numRuns: RUNS * 5 },
     );
+  });
+});
+
+/** Keyed BLAKE2 through `ports.Mac` (docs/M7.md §2a): keys of 1…max bytes (0 is the unkeyed hash, not a MAC). */
+describe.each(ORACLE_CASES)('blake2 $algorithm keyed Mac oracle (@noble/hashes)', ({ algorithm, maxKeyBytes, noble }) => {
+  const macKeyArb = fc.uint8Array({ minLength: 1, maxLength: maxKeyBytes });
+
+  it(`ports.Mac mac() and contexts over random splits and clones match noble (${RUNS * 2} runs)`, async () => {
+    const fn = macFunction(await macPort(), algorithm)!;
+    expect(fn).toBeDefined();
+    fc.assert(
+      fc.property(messageArb, macKeyArb, splitsArb, fc.nat(), (message, key, splits, cloneAt) => {
+        const expected = toHex(noble(message, key));
+        expect(toHex(fn.mac(key, message))).toBe(expected);
+        const parts = pieces(message, splits);
+        const split = cloneAt % (parts.length + 1);
+        const context = fn.create(key);
+        parts.slice(0, split).forEach((part) => context.update(part));
+        const clone = context.clone();
+        parts.slice(split).forEach((part) => {
+          context.update(part);
+          clone.update(part);
+        });
+        expect([toHex(context.mac()), toHex(clone.mac())]).toEqual([expected, expected]);
+      }),
+      { numRuns: RUNS * 2 },
+    );
+  });
+
+  it('rejects the empty key and keys longer than the maximum', async () => {
+    const fn = macFunction(await macPort(), algorithm)!;
+    expect(() => fn.mac(new Uint8Array(), new Uint8Array())).toThrow(RangeError);
+    expect(() => fn.mac(new Uint8Array(maxKeyBytes + 1), new Uint8Array())).toThrow(RangeError);
   });
 });
