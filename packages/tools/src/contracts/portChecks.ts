@@ -239,10 +239,55 @@ function xofCustomizationProblems(xof: XofFunction): string[] {
   return [...(accepted.length > 0 ? [`Hash ${xof.id}: is not customizable but accepts a non-empty N or S`] : []), ...empty];
 }
 
+const MID_SQUEEZE = { before: 5, after: 7 } as const;
+
+/** A context over `data` that has already squeezed `MID_SQUEEZE.before` bytes. */
+function midSqueeze(xof: XofFunction, data: Uint8Array): XofContext {
+  const context = xof.create();
+  context.update(data);
+  context.squeeze(MID_SQUEEZE.before);
+  return context;
+}
+
+/**
+ * A clone taken mid-squeeze continues the stream exactly where its source stood, and squeezing
+ * either one (first) leaves the other unaffected.
+ */
+function xofMidSqueezeCloneProblems(xof: XofFunction): string[] {
+  const where = `Hash ${xof.id}: context`;
+  return guarded(`${where}: mid-squeeze clone()`, () => {
+    const data = testBytes(3, HASH_INPUT_SEED);
+    const { before, after } = MID_SQUEEZE;
+    const expected = xof.xof(data, before + after).subarray(before);
+    const continues = (first: XofContext, second: XofContext): boolean => bytesEqual(first.squeeze(after), expected) && bytesEqual(second.squeeze(after), expected);
+    const sourceFirst = midSqueeze(xof, data);
+    const cloneSurvives = continues(sourceFirst, sourceFirst.clone());
+    const cloneFirst = midSqueeze(xof, data);
+    const sourceSurvives = continues(cloneFirst.clone(), cloneFirst);
+    return [
+      ...(cloneSurvives ? [] : [`${where}: a clone taken mid-squeeze changes when its source squeezes on`]),
+      ...(sourceSurvives ? [] : [`${where}: a source changes when its mid-squeeze clone squeezes on`]),
+    ];
+  });
+}
+
+const CUSTOMIZATION_LABEL = (custom: XofCustomization): string => (custom.functionName !== undefined ? 'N' : 'S');
+
+/** On a customizable XOF, `create(custom)` + `update` equals `xof(data, n, custom)` for a non-empty N or S. */
+function xofCustomContextProblems(xof: XofFunction): string[] {
+  if (xof.customizable !== true) return [];
+  const data = testBytes(3, HASH_INPUT_SEED);
+  return NON_EMPTY.flatMap((custom) => {
+    const label = CUSTOMIZATION_LABEL(custom);
+    const where = `Hash ${xof.id}: create(${label}) + update`;
+    return guarded(where, () => (bytesEqual(squeezed(xof.create(custom), data, [32]), xof.xof(data, 32, custom)) ? [] : [`${where} differs from xof(m, 32, ${label})`]));
+  });
+}
+
 function xofFunctionProblems(xof: XofFunction): string[] {
   if (!isPositiveInteger(xof.blockSize)) return [`Hash ${xof.id}: blockSize ${xof.blockSize} is not a positive integer`];
   if (!isPositiveInteger(xof.securityBits)) return [`Hash ${xof.id}: securityBits ${xof.securityBits} is not a positive integer`];
-  return [...xofSqueezeProblems(xof), ...xofContextProblems(xof), ...xofCustomizationProblems(xof)];
+  return [...xofSqueezeProblems(xof), ...xofContextProblems(xof), ...xofMidSqueezeCloneProblems(xof), ...xofCustomizationProblems(xof), ...xofCustomContextProblems(xof)];
 }
 
 /** cSHAKE with N and S both empty equals the SHAKE of the same strength in the family (SP 800-185 §3.3). */

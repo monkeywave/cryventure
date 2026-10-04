@@ -5,14 +5,16 @@
  * never differ by colour alone). Story lens: each lane's tone grows with its top byte
  * (--cv-sponge-level, 0 … 1). Changed lanes: a heavier key-amber border plus a • glyph, and a short
  * flash unless the reader prefers reduced motion. Selection: a solid focus outline for the lane,
- * dashed outlines for the θ column and the χ row.
+ * dashed outlines for the θ column and the χ row; the keyboard focus ring (solid, 3px) always wins
+ * over the dashed marking.
  *
  * Phones: the grid (and the θ rows) scroll horizontally inside their region, never the page. π shows
  * arrows on wide panels and "← (x, y)" badges on narrow ones (container query).
  */
 
 .cv-sponge {
-  --cv-sponge-lane: 5.5rem;
+  /* 5 lanes × 5rem + the 2.5rem row heads + gaps ≈ 29rem: fits a 1280px desktop panel (≈ 33rem) with arrows. */
+  --cv-sponge-lane: 5rem;
   --cv-sponge-rate: color-mix(in srgb, var(--cv-plaintext, CanvasText) 14%, var(--cv-surface, Canvas));
   --cv-sponge-hatch: color-mix(in srgb, var(--cv-state, CanvasText) 30%, transparent);
   container-type: inline-size;
@@ -122,9 +124,12 @@
   border: 1px solid var(--cv-border-subtle, GrayText);
   border-radius: 0.25rem;
   overflow: hidden;
+  /* The lane's base colour: the story tone is mixed into it, and π's text plates reuse it. */
+  --cv-sponge-base: var(--cv-surface-elevated, Canvas);
 }
 
 .cv-sponge__lane[data-part='rate'] {
+  --cv-sponge-base: var(--cv-sponge-rate);
   background-color: var(--cv-sponge-rate);
 }
 
@@ -132,11 +137,14 @@
   background-image: repeating-linear-gradient(135deg, var(--cv-sponge-hatch) 0 2px, transparent 2px 8px);
 }
 
-/* Story: tone from the lane value on top of the rate tint / capacity hatching. */
+/*
+ * Story: tone from the lane value mixed into the lane's base (the rate tint for rate lanes, so a zero
+ * rate lane still matches the legend swatch), on top of the capacity hatching.
+ */
 .cv-sponge[data-lens='story'] .cv-sponge__lane,
 .cv-sponge[data-lens='story'] .cv-sponge__parity {
   --cv-sponge-tone: var(--cv-state, CanvasText);
-  background-color: color-mix(in srgb, var(--cv-sponge-tone) calc(var(--cv-sponge-level, 0) * 80%), var(--cv-surface-elevated, Canvas));
+  background-color: color-mix(in srgb, var(--cv-sponge-tone) calc(var(--cv-sponge-level, 0) * 80%), var(--cv-sponge-base, var(--cv-surface-elevated, Canvas)));
 }
 
 .cv-sponge[data-lens='story'] .cv-sponge__lane[data-part='rate'] {
@@ -148,11 +156,6 @@
   background: var(--cv-surface, Canvas);
   border-radius: 0.125rem;
   justify-self: start;
-}
-
-.cv-sponge__lane:focus-visible {
-  outline: 3px solid var(--cv-cell-focus-border, Highlight);
-  outline-offset: 1px;
 }
 
 .cv-sponge__lane[data-changed] {
@@ -168,6 +171,12 @@
 .cv-sponge__lane[data-in-row] {
   outline: 2px dashed var(--cv-text, CanvasText);
   outline-offset: 1px;
+}
+
+/* After the selection marks and more specific: the focused lane keeps a solid ring (WCAG 2.4.7). */
+.cv-sponge .cv-sponge__lane:focus-visible {
+  outline: 3px solid var(--cv-cell-focus-border, Highlight);
+  outline-offset: 2px;
 }
 
 .cv-sponge__lanehead {
@@ -233,7 +242,12 @@
   font-style: italic;
 }
 
-/* π: arrows on wide panels; "← (x, y)" badges on narrow ones. */
+/*
+ * π: arrows on wide panels; "← (x, y)" badges on narrow ones. The cutoff sits just above the
+ * engineer/cryptographer grid width (≈ 29rem, see --cv-sponge-lane), so arrows show whenever the whole
+ * grid fits without scrolling (a 1280px desktop panel), and phones get the badges. The badges stay in
+ * each lane's accessible name either way.
+ */
 .cv-sponge__badge[data-badge='pi'] {
   display: none;
 }
@@ -265,7 +279,25 @@
   fill: context-stroke;
 }
 
-@container (max-width: 40rem) {
+/*
+ * The arrows run over the lane backgrounds but beneath the lane content: the head and the hex sit on
+ * a plate of the lane's base colour one layer above the arrows.
+ */
+.cv-sponge[data-phase='pi'] .cv-sponge__lanehead,
+.cv-sponge[data-phase='pi'] .cv-sponge__hex {
+  position: relative;
+  z-index: 2;
+}
+
+.cv-sponge[data-phase='pi']:not([data-lens='story']) .cv-sponge__coord,
+.cv-sponge[data-phase='pi'] .cv-sponge__hexline {
+  justify-self: start;
+  padding-inline: 0.125rem;
+  background: var(--cv-sponge-base);
+  border-radius: 0.125rem;
+}
+
+@container (max-width: 30rem) {
   .cv-sponge__arrows {
     display: none;
   }

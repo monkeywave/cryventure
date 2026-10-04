@@ -118,7 +118,7 @@ function Legend() {
 /* ---------- selection ---------- */
 
 interface LaneSelection {
-  /** The selected lane: the hovered one, else the keyboard (roving focus) one; (0, 0) at first. */
+  /** The selected lane: the hovered one, else the keyboard (roving focus) one; (0, 0) at first. A key press drops the hover (the latest input wins). */
   position: LanePosition;
   /** The roving-focus lane (the one in the tab order). */
   active: LanePosition;
@@ -129,7 +129,11 @@ interface LaneSelection {
 function useLaneSelection(width: number): LaneSelection {
   const [active, setActive] = useState<LanePosition>({ x: 0, y: 0 });
   const [hovered, setHovered] = useState<number | undefined>(undefined);
-  return { position: hovered === undefined ? active : lanePosition(hovered, width), active, setActive, hover: setHovered };
+  const setActiveAndDropHover = (position: LanePosition) => {
+    setHovered(undefined);
+    setActive(position);
+  };
+  return { position: hovered === undefined ? active : lanePosition(hovered, width), active, setActive: setActiveAndDropHover, hover: setHovered };
 }
 
 /* ---------- the lane grid ---------- */
@@ -211,6 +215,8 @@ function Lane({ facet, step, index, hex, changed, parts, selection }: LaneProps)
     t('view.sponge.lane', { x, y }),
     t(rate ? 'view.sponge.part.rate' : 'view.sponge.part.capacity'),
     ...(changed ? [t('view.sponge.changed')] : []),
+    ...(marks.inColumn ? [t('view.sponge.spoken.inColumn')] : []),
+    ...(marks.inRow ? [t('view.sponge.spoken.inRow')] : []),
     ...badges.map((badge) => t(badge.spoken, badge.params)),
     ...(parts.hex ? [laneLines(hex).join(' ')] : []),
   ].join(', ');
@@ -290,7 +296,7 @@ function laneBadges(facet: SpongeFacet, step: SpongeStep | undefined, index: num
       return rate ? [badge('absorb')] : [];
     case 'rho': {
       const offset = facet.rhoOffsets?.[index];
-      return offset === undefined ? [] : [badge('rho', { n: offset })];
+      return offset === undefined ? [] : [badge('rho', { n: offset, count: offset })];
     }
     case 'pi': {
       const source = piSourceOf(facet, index);
@@ -409,7 +415,7 @@ function PhaseValues({ facet, step, before, parts, selected, t }: PhaseDetailPro
       return <Equation parts={parts} title={t('view.sponge.detail.theta', { x: selected.x, left, right })} rows={theta === undefined ? [] : [[t('view.sponge.theta.c', { x: left }), theta.c[left]], [t('view.sponge.theta.c', { x: right }), theta.c[right]], [t('view.sponge.theta.d', { x: selected.x }), theta.d[selected.x]]]} />;
     }
     case 'rho':
-      return <Equation parts={parts} title={t('view.sponge.detail.rho', { lane, n: facet.rhoOffsets?.[index] ?? 0 })} rows={[[t('view.sponge.term.before'), before?.[index]], [t('view.sponge.term.after'), step.lanes[index]]]} />;
+      return <Equation parts={parts} title={t('view.sponge.detail.rho', { lane, count: facet.rhoOffsets?.[index] ?? 0 })} rows={[[t('view.sponge.term.before'), before?.[index]], [t('view.sponge.term.after'), step.lanes[index]]]} />;
     case 'pi': {
       const source = piSourceOf(facet, index);
       if (source === undefined) return null;

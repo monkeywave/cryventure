@@ -51,8 +51,8 @@ Keccak-f[1600] (FIPS 202, §3.1, §5.2). The state splits in two (§4):
 - the **rate** `r`: the part the message is XORed into and the output is read from;
 - the **capacity** `c = 1600 − r`: never touched by input, never output.
 
-It **absorbs** the padded message `r` bits per permutation, then **squeezes** `r` bits per
-permutation until it has enough output (§4, Algorithm 8).
+It **absorbs** the padded message `r` bits per permutation, then **squeezes** out `r` bits at a
+time as needed (§4, Algorithm 8).
 
 <KeyFacts>
   <KeyFact label="State" value="1600 bit" kind="state" />
@@ -62,15 +62,15 @@ permutation until it has enough output (§4, Algorithm 8).
 </KeyFacts>
 
 <WhyBox constant="c = 2d" title="why the capacity is twice the digest">
-  FIPS 202, §6.1 sets `c = 2d` for every SHA-3 hash: SHA3-256 uses `c = 512`. Generic attacks on a
-  sponge need about 2<sup>c/2</sup> work, so `c = 2d` matches the `d/2`-bit collision bound of a
-  `d`-bit digest (Appendix A.1).
+  FIPS 202, §6.1 sets `c = 2d` for every SHA-3 hash (SHA3-256: `c = 512`). Generic attacks on a
+  sponge need about 2<sup>c/2</sup> work, so `c = 2d` gives `d`-bit preimage resistance; collisions
+  stay at the `d/2`-bit birthday bound (Appendix A.1, Table 4).
 </WhyBox>
 
 <Lens only="story">
 
 A sponge soaks up water through its surface and keeps a wet core you never see. Squeeze it, and
-water comes out of the surface only.
+water leaves only through the surface.
 
 </Lens>
 
@@ -118,7 +118,7 @@ absorbed before the data (SP 800-185, §2.3, §3.3):
 <Formula caption='cSHAKE128 with N = "", S = "Email Signature" (SP 800-185, §3.3; sample #1).'>
 {`bytepad(encode_string(N) ‖ encode_string(S), 168)
   = 01 a8 | 01 00 | 01 78 45 6d 61 69 6c 20 … 75 72 65 | 00 … 00    (168 bytes)
-then data ‖ 00 ‖ pad10*1
+then data ‖ (bits 00) ‖ pad10*1
   = 00 01 02 03 04 00 … 00 80                                     (168 bytes)`}
 </Formula>
 
@@ -154,9 +154,9 @@ absorbs 72 bytes per permutation, SHA3-224 absorbs 144 (FIPS 202, §7, Table 3).
 
 ## Mallory finds no handle
 
-A [SHA-512](../sha512/) digest **is** the chaining value, so Mallory can keep hashing from it. A
-SHA3-256 digest is only 256 rate bits; the 512-bit capacity never leaves the sponge (FIPS 202, §4,
-§6.1), so there is no state to extend: SHA-3 resists length extension (Appendix A.1).
+A [SHA-512](../sha512/) digest **is** the chaining value, so Mallory can keep hashing. A SHA3-256
+digest is only 256 rate bits; the 512-bit capacity never leaves the sponge (FIPS 202, §4, §6.1), so
+SHA-3 resists length extension (Appendix A.1).
 
 Drop the suffix bits and `SHA3-256(M)` and `SHAKE256(M)` become the same sponge, `KECCAK[512]`, on
 the same input (§6.1–6.2). Keccak won the SHA-3 competition (2007–2012; NIST IR 7896); the

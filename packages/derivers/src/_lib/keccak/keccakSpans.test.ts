@@ -67,6 +67,13 @@ describe('resolveSpans', () => {
     ]);
   });
 
+  it('reports a natural span that runs backwards (a broken trace) instead of raising it into shape', () => {
+    // θ … π with θ after π: raising it to the floor {7, 7} would turn it into a plausible point(7).
+    expect(() => resolveSpans([point(7), { first: 6, last: 4 }], INITIAL_SPAN)).toThrow(
+      'Keccak trace contract: instruction 1 has a span from step 6 back to step 4',
+    );
+  });
+
   it('starts at the span before the run and keeps bookkeeping after the last instruction there', () => {
     expect(resolveSpans([undefined, undefined], point(122))).toEqual([point(122), point(122)]);
   });

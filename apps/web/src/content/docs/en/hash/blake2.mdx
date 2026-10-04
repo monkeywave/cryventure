@@ -162,24 +162,25 @@ diagonal G wraps around. Every word in it is shown in the byte order the RFC sto
 start (RFC 7693, §2.5, §3.3). Without it, BLAKE2s-128 would be half of BLAKE2s-256.
 
 **Counter and final flag.** `t` counts bytes so far; `f` inverts `v[14]` for the last block only
-(§3.2). Padding is just zeros; `t` encodes the length (Aumasson et al. 2013, §4.2). A digest is
-a *finalized* state; extending it would need that state as input to a non-final block, which no
-honest computation produces. Hence the designers' claim of immunity to length extension (abstract),
-unlike SHA-256.
+(§3.2). Zero padding suffices because `t` encodes the length (Aumasson et al. 2013, §4.2). No honest
+computation feeds a *finalized* digest state into a non-final block, hence the designers' claimed
+immunity to length extension (abstract), unlike SHA-256.
 
 **Key.** The zero-padded key becomes block 0 (§3.3): a prefix MAC without HMAC (§1), at least one
-compression cheaper (Aumasson et al. 2013, §2.9). WireGuard's `Mac` is keyed BLAKE2s (Donenfeld,
-NDSS 2017, §5.4).
+compression cheaper (Aumasson et al. 2013, §2.9). WireGuard's `Mac` is keyed BLAKE2s; its KDF still
+uses HMAC-BLAKE2s (Donenfeld, NDSS 2017, §5.4).
 
 <Lab labId="blake2s-256-keyed" producerId="blake2" presetId="blake2s-256-keyed" startAt="op:load" layout="state:60|narration:40" />
 
 <Lens level="cryptographer">
 
-BLAKE-256 and BLAKE-512 ran 14 and 16 rounds, BLAKE2s and BLAKE2b 10 and 12 (Aumasson et al.
-2013, §2.1). Too Much Crypto
-(§3.2) lists the best attacks as impractical pseudo-preimages on 6.75 (BLAKE2s, 2²⁵³·⁸) and 7.5
-rounds (BLAKE2b, 2⁵¹⁰·³; Espitau et al. 2015), and proposes 7 and 8 rounds (§5.3). WireGuard's
-KDF still uses HMAC-BLAKE2s (NDSS 2017, §5.4).
+BLAKE2 cut BLAKE's rounds (Aumasson et al. 2013, §2.1). Too Much Crypto lists the best attacks, all
+impractical pseudo-preimages (§3.2), and proposes fewer rounds (§5.3):
+
+| Words | BLAKE | BLAKE2 | Best attack | Proposed |
+|---|---|---|---|---|
+| 32-bit (BLAKE-256, BLAKE2s) | 14 | 10 | 6.75 rounds, 2²⁵³·⁸ | 7 |
+| 64-bit (BLAKE-512, BLAKE2b) | 16 | 12 | 7.5 rounds, 2⁵¹⁰·³ (Espitau et al. 2015) | 8 |
 
 </Lens>
 

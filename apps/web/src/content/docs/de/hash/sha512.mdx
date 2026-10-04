@@ -14,6 +14,7 @@ labs:
   - sha512-abc
   - sha512-256-iv
   - sha384-iv
+  - sha512-armv8
 refs:
   - FIPS 180-4, Abschnitt 1 (Introduction, Abbildung 1 – Nachrichten-, Block- und Hashwertgrößen)
   - FIPS 180-4, Abschnitt 3.1 (Big-Endian-Konvention)
@@ -34,7 +35,7 @@ refs:
   - Coron, Dodis, Malinaud, Puniya (2005), Merkle–Damgård Revisited, CRYPTO 2005, LNCS 3621
   - Maurer, Renner, Holenstein (2004), Indifferentiability, Impossibility Results on Reductions, and Applications to the Random Oracle Methodology, TCC 2004, LNCS 2951
   - RFC 2104 (HMAC)
-sourceHash: sha256:56f5fd0016a510b7bbca154109a84c0e898f47c59f3a15ca0c38df6970fd3a79
+sourceHash: sha256:45ebcf90756d767eb12ffc8808bec026c3986920002f106d203ca8d5265362ae
 translation:
   status: ai-reviewed
   reviewedAt: '2026-10-04'
@@ -149,18 +150,29 @@ gleich den unteren 32 Bit des entsprechenden SHA-384-IV-Worts, z. B. `c1059ed8` 
 
 ## Nativ auf 64-Bit-Kernen
 
-Der SHA-512-Verkettungswert besteht aus acht 64-Bit-Wörtern, 64 Byte (FIPS 180-4, §6.4.2). Jedes
-64-Bit-Wort passt in ein Allzweckregister von x86-64 oder AArch64, und eine Kompression verarbeitet
-128 Byte Nachricht in 80 Runden, gegenüber 64 Byte in 64 Runden bei SHA-256. Auf 64-Bit-Prozessoren
-ist SHA-512 in Software daher pro Byte schneller als SHA-256; Gueron, Johnson und Walker (ITNG 2011)
-haben das gemessen und SHA-512/256 vorgeschlagen, um einen 256-Bit-Hashwert mit
-SHA-512-Geschwindigkeit zu erhalten.
+Der Verkettungswert besteht aus acht 64-Bit-Wörtern, 64 Byte (FIPS 180-4, §6.4.2); jedes passt in
+ein Allzweckregister von x86-64 oder AArch64. Eine Kompression verarbeitet 128 Byte in 80 Runden,
+SHA-256 64 Byte in 64 Runden. Auf 64-Bit-Prozessoren ist SHA-512 in Software daher pro Byte
+schneller; Gueron, Johnson und Walker (ITNG 2011) haben das gemessen und SHA-512/256 für
+256-Bit-Hashwerte in diesem Tempo vorgeschlagen. Die Wörter sind Big-Endian (§3.1): Ein
+Little-Endian-Kern vertauscht die Bytes jedes geladenen 8-Byte-Worts
+([Bytereihenfolge](../../foundations/endianness/)).
 
-Die Wörter sind Big-Endian (§3.1): Ein Little-Endian-Kern vertauscht die Bytes jedes
-8-Byte-Worts, das er lädt, wie auf der [Seite zur Bytereihenfolge](../../foundations/endianness/).
-Armv8.2-A ergänzt optionale SHA-512-Befehle (`SHA512H`, `SHA512H2`, `SHA512SU0`, `SHA512SU1`;
-Arm ARM, FEAT_SHA512). Die [SHA-256-Seite](../sha256/) zeigt, wie solche Befehle auf die Runde
-abgebildet werden.
+Das optionale FEAT_SHA512 von Armv8.2-A führt **zwei Runden** pro Befehlspaar aus, zwei 64-Bit-Wörter
+pro 128-Bit-Vektorregister (Arm ARM), wie bei [SHA-256](../sha256/):
+
+| Befehl (Arm ARM) | Nimmt | Liefert |
+|---|---|---|
+| `SHA512H` | `h + Kₜ + Wₜ` beider Runden, `(f, g)`, `(d, e)` | `T₁` beider Runden |
+| `SHA512H2` | `T₁` beider Runden | neues `(a, b)` |
+| `ADD` | `T₁` beider Runden, `d` | neues `(e, f)` |
+| `SHA512SU0`, `SHA512SU1` | Nachrichtenexpansion | nächste zwei Expansionswörter |
+
+Im Lab mit AArch64-Ausgabe von clang `-O2` für „abc“ addiert der Compiler das alte `(e, f)` schon in
+den Feed-Forward, bevor `T₁` der Runden 78 und 79 feststeht. Ein Register enthält so kurz eine
+Teilsumme, die in FIPS 180-4 nicht vorkommt, bis das nächste `ADD` `H⁽¹⁾` vervollständigt.
+
+<Lab labId="sha512-armv8" producerId="sha512" presetId="sha-512-abc" variant="aarch64-armv8-sha512" startAt="op:round" layout="instructions:50|registers:50" />
 
 </LessonSection>
 

@@ -206,6 +206,20 @@ function walkPermutation(
   walk.previous = spans.at(-1) ?? walk.previous;
 }
 
+/** The profile's note on instruction `index`; a failure names the instruction (index and address). */
+function noteOf(
+  profile: KeccakIsaProfile,
+  instructions: readonly KeccakListingInstruction[],
+  index: number,
+): I18nRef | undefined {
+  try {
+    return profile.note?.(instructions, index);
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    throw listingError(instructions[index]!, `note of instruction ${index}: ${message}`);
+  }
+}
+
 /** Derives `instructions@<variant>` and `registers@<variant>` for a Keccak-f[1600] bundle at mapping detail. */
 export function deriveKeccakIsaFacets(
   bundle: TraceBundle,
@@ -217,7 +231,9 @@ export function deriveKeccakIsaFacets(
     throw new Error(
       `listing: the loop runs ${listing.loop.iterations} rounds, the trace has ${trace.sponge.rounds}`,
     );
-  const notes = listing.instructions.map((_, index) => profile.note?.(listing.instructions, index));
+  const notes = listing.instructions.map((_, index) =>
+    noteOf(profile, listing.instructions, index),
+  );
   const context = { trace, profile, parts: listingParts(listing), notes };
   const walk = { instructions: [], steps: [], previous: INITIAL_SPAN };
   trace.permutations.forEach((permutation) => walkPermutation(context, permutation, walk));

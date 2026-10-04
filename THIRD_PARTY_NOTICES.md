@@ -36,6 +36,44 @@ with their licenses by `pnpm licenses list`.
 - Works of the US federal government (NIST), not subject to copyright in the United States
   (17 U.S.C. §105). Reproduced with attribution to NIST.
 
+### NIST FIPS 202 / SP 800-185 examples and CAVP SHA-3, SHAKE and SHA-1 vectors — public domain (US government work)
+- Files: `packages/primitives/src/sha3/vectors/` (`sha3-nist-examples.json`, `cshake-samples.json`,
+  `sha3-cavp-shortmsg.json`, and the NIST cases in `conformance.json`) and
+  `packages/primitives/src/sha1/vectors/` (`conformance.json`, `nist-intermediate-abc.json`,
+  `cavp-shortmsg.json`).
+- `sha3-nist-examples.json`: digests, XOF outputs and intermediate states transcribed from the NIST
+  CSRC "Examples with Intermediate Values" PDFs for FIPS 202 (byte-aligned 0- and 1600-bit messages
+  only). `cshake-samples.json`: the four NIST SP 800-185 cSHAKE samples (`cSHAKE_samples.pdf`).
+- `sha3-cavp-shortmsg.json`: a filtered copy (messages ≤ 200 bytes) of the CAVP SHA-3 and SHAKE
+  byte-oriented vectors (CAVS 19.0, `sha-3bytetestvectors.zip`, `shakebytetestvectors.zip`).
+  `sha1/cavp-shortmsg.json`: all 65 cases of `SHA1ShortMsg.rsp` (CAVS 11.0,
+  `shabytetestvectors.zip`). SHA-1 intermediate values from the NIST `SHA1.pdf` example.
+- Cases filtered; values unchanged. Source URLs, zip SHA-256s, filters and counts are recorded in
+  each file's `source` / `filter` / `counts` fields.
+- Works of the US federal government (NIST), not subject to copyright in the United States
+  (17 U.S.C. §105). Reproduced with attribution to NIST.
+
+### RFC 7693 (BLAKE2) and RFC 1321 (MD5) test vectors — IETF Trust
+- Files: `packages/primitives/src/blake2/vectors/rfc7693-kat.json` (Appendix A and B examples with
+  round states, Appendix E self-test grand hashes and parameters) and the RFC cases in
+  `blake2/vectors/conformance.json`; `packages/primitives/src/md5/vectors/conformance.json` (the
+  Appendix A.5 test suite, all seven messages) and `md5/vectors/rfc1321-t.json` (the 64 constants
+  T[1..64], §3.4 / A.3). Values transcribed unchanged (hex lower-cased / zero-padded).
+- RFC text Copyright (c) IETF Trust and the persons identified as the document authors (RFC 7693:
+  M-J. Saarinen, J-P. Aumasson; RFC 1321: R. Rivest). Code components are licensed under the
+  Revised BSD License per the IETF Trust Legal Provisions (https://trustee.ietf.org/license-info;
+  RFC 7693's boilerplate names it the Simplified BSD License). **No RFC code is copied** — only test
+  values and constants; RFC 1321's `md5c.c` (RSA Data Security, Inc.) is cited for the T constants,
+  not reproduced.
+
+### BLAKE2 reference KATs — CC0 1.0
+- Files: the `kat` cases of `packages/primitives/src/blake2/vectors/rfc7693-kat.json` and the keyed
+  KAT cases of `blake2/vectors/conformance.json`, a filtered copy (messages ≤ 128 bytes) of
+  `testvectors/blake2s-kat.txt` and `blake2b-kat.txt` from https://github.com/BLAKE2/BLAKE2 (commit
+  `ed1974ea83433eba7b2d95c5dcd9ac33cb847913`; file SHA-256s recorded in the JSON). Values unchanged.
+- By J-P. Aumasson, S. Neves, Z. Wilcox-O'Hearn and C. Winnerlein, dedicated to the public domain
+  under CC0 1.0 (https://creativecommons.org/publicdomain/zero/1.0/). Reproduced with attribution.
+
 ### OpenSSL 3.5.9 — Apache-2.0 (facts and citations only)
 - The memory/ABI data (`packages/derivers/src/memory/data/`) records layout facts (struct sizes,
   offsets, stored round counts) checked against OpenSSL tag `openssl-3.5.9` (commit
@@ -58,6 +96,13 @@ with their licenses by `pnpm licenses list`.
   extensions and ARMv8 SHA2 intrinsics) via `pnpm asm:generate`. The x86 source follows the
   structure described in Intel's public white paper (Gulley et al., "Intel SHA Extensions", 2013);
   no code is copied from it. Same terms as the AES listings above.
+- The ARMv8.2 SHA-512 and SHA-3 listings (`packages/derivers/src/isa-armv8-sha/data/sha512.json`,
+  `packages/derivers/src/isa-armv8-sha3/data/keccak.json`) are output of the same pinned clang
+  (`-march=armv8.2-a+sha3`) compiling **our own** `sha512_armv8.c` and `keccak_armv8.c` in
+  `packages/tools/src/asm/` via `pnpm asm:generate`. `sha512_armv8.c` follows the register
+  arrangement described in Linux `arch/arm64/crypto/sha512-ce-core.S` (cited in its header); no code
+  is copied from it. The round constants are the published FIPS 180-4 / FIPS 202 values. Same terms
+  as the AES listings above.
 
 ## Inspiration only — no code copied
 - The Rijndael Animation (Enrique Zabala / formaestudio) — proprietary
@@ -69,4 +114,8 @@ with their licenses by `pnpm licenses list`.
   used only as an independent oracle in unit tests (AES, modes, GCM cross-checks); never bundled.
 - @noble/hashes (MIT) — Copyright (c) 2022 Paul Miller (https://github.com/paulmillr/noble-hashes).
   Root dev dependency, used only as an independent oracle in unit tests (SHA-224, SHA-256,
-  SHA-384, SHA-512, SHA-512/224, SHA-512/256 cross-checks); never bundled.
+  SHA-384, SHA-512, SHA-512/224, SHA-512/256 cross-checks; from M6 also SHA-3, SHAKE, cSHAKE,
+  Keccak-256, BLAKE2s/b, MD5 and SHA-1); never bundled. Some conformance cases are values *computed*
+  with it (no code or text copied), marked as such in each file's `source` field
+  (`sha3/vectors/keccak-256.json`, the `abc` presets in `sha3/vectors/conformance.json`, the
+  non-RFC/non-KAT digests in `blake2/vectors/conformance.json`).

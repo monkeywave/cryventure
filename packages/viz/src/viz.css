@@ -508,9 +508,12 @@
   min-width: 0;
 }
 
+/* Long unbroken runs (a hex digest) wrap anywhere: otherwise their min-content width widens the page on phones. */
 .cv-caption__text {
   display: -webkit-box;
+  max-width: 100%;
   margin: 0;
+  overflow-wrap: anywhere;
   overflow: hidden;
   font-size: var(--sl-text-sm, 0.875rem);
   line-height: 1.45;

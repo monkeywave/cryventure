@@ -265,4 +265,18 @@ describe('deriveKeccakIsaFacets with this profile', () => {
       'listing 0xbc xar: lane 16 and D',
     );
   });
+
+  it('names the listed instruction (index and address) when building its note fails', () => {
+    const listing = JSON.parse(JSON.stringify(ARMV8_SHA3_PROFILE.listing)) as KeccakListing;
+    const index = listing.instructions.findIndex((instruction) => instruction.address === '0xbc');
+    listing.instructions[index]!.operands[3] = 'x9';
+    expect(() =>
+      deriveKeccakIsaFacets(sharedSha3FixtureBundle('sha3-256-abc'), {
+        ...ARMV8_SHA3_PROFILE,
+        listing,
+      }),
+    ).toThrow(
+      `listing 0xbc xar: note of instruction ${index}: no rotation immediate in operand "x9"`,
+    );
+  });
 });

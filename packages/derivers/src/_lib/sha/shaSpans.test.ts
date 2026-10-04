@@ -96,6 +96,16 @@ describe('blockSpans (docs/M5.md §5c)', () => {
     expect(spans).toEqual([point(5), { first: 10, last: 11 }]);
   });
 
+  it('throws for a round instruction that starts before the running span (a reordered listing)', () => {
+    const reordered = [listed('rounds', 4), listed('addK'), listed('rounds', 0)];
+    expect(() => spansOf(reordered, timeline(2), INITIAL_SPAN)).toThrow(
+      'listing 0x0 rounds: rounds 0 … 1 (steps 10 … 11) start before the span before it (steps 14 … 15)',
+    );
+    expect(() => spansOf([listed('rounds', 0)], timeline(2), point(12))).toThrow(
+      /start before the span before it \(steps 12 … 12\)/,
+    );
+  });
+
   it('throws for a listing without round instructions or a round instruction without a round', () => {
     expect(() => spansOf([listed('loadState')], timeline(2), INITIAL_SPAN)).toThrow(
       /no round instruction/,

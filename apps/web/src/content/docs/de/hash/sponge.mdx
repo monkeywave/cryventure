@@ -1,0 +1,234 @@
+---
+title: 'Die Sponge-Konstruktion: SHA-3 und SHAKE'
+description: SHA-3 absorbiert eine aufgefüllte Nachricht über die Rate in einen 1600-Bit-Zustand, hält die Kapazität verborgen und presst so viele Bits aus, wie du anforderst; einige Suffixbits trennen SHA3, SHAKE, cSHAKE und das ursprüngliche Keccak.
+lessonId: hash/sponge
+track: hash
+phase: 2
+sidebar:
+  order: 4
+tableOfContents: false
+prereqs:
+  - hash/index
+  - hash/sha512
+labs:
+  - sha3-256-abc-permutation
+  - shake128-abc-336
+  - cshake128-sample1
+refs:
+  - FIPS 202, Abschnitt 1 (Introduction – SHA-3 im Vergleich zur Keccak-Einreichung, Suffix aus zwei Bit)
+  - FIPS 202, Abschnitt 3.1 und Tabelle 1 (Zustand, Lanes, b = 1600, w = 64)
+  - FIPS 202, Abschnitt 4 (Sponge Construction, Algorithmus 8)
+  - FIPS 202, Abschnitt 5.1 (pad10*1) und Abschnitt 5.2 (KECCAK[c])
+  - FIPS 202, Abschnitt 6.1 (SHA-3-Hashfunktionen) und Abschnitt 6.2 (SHAKE128, SHAKE256)
+  - FIPS 202, Abschnitt 7, Tabelle 3 (Rate in Byte je SHA-3-Funktion)
+  - FIPS 202, Anhang A.1 (Sicherheitsübersicht, Tabelle 4) und A.2 (XOF-Ausgaben sind verwandt)
+  - FIPS 202, Anhang B.1 (Bitreihenfolge innerhalb eines Bytes) und B.2 (hexadezimale Form des Paddings)
+  - Draft FIPS 202 (Mai 2014), Abschnitte 6.1–6.2 (Suffixe 01 und 1111 erstmals veröffentlicht)
+  - NIST SP 800-185, Abschnitt 2.3 (left_encode, encode_string, bytepad) und Abschnitt 3 (cSHAKE)
+  - NIST CSRC, Examples with Intermediate Values, SHA3-256_Msg0.pdf, SHAKE128_Msg0.pdf, cSHAKE_samples.pdf
+  - Bertoni, Daemen, Peeters, Van Assche (2008), On the Indifferentiability of the Sponge Construction, EUROCRYPT 2008, LNCS 4965
+  - Bertoni, Daemen, Peeters, Van Assche (2011), The Keccak reference, version 3.0
+  - Chang et al. (2012), NIST IR 7896, Third-Round Report of the SHA-3 Cryptographic Hash Algorithm Competition
+  - Wood, Ethereum Yellow Paper, Abschnitt 3 (Conventions; KEC = Keccak-256 wie in Keccak Version 3, nicht das endgültige SHA-3)
+sourceHash: sha256:0ef62686b3c5e51d2277f61dbea1948d9b6e25e6f5e2d3aba7b2eca00e0ed8b0
+translation:
+  status: ai-reviewed
+  reviewedAt: '2026-10-04'
+  reviewer: AI editorial review (Claude)
+---
+
+import Lab from '../../../../components/Lab.astro';
+import CheckQuestion from '../../../../components/lesson/CheckQuestion.astro';
+import Formula from '../../../../components/lesson/Formula.astro';
+import KeyFact from '../../../../components/lesson/KeyFact.astro';
+import KeyFacts from '../../../../components/lesson/KeyFacts.astro';
+import Lens from '../../../../components/lesson/Lens.astro';
+import LessonSection from '../../../../components/lesson/LessonSection.astro';
+import WhyBox from '../../../../components/lesson/WhyBox.astro';
+
+<LessonSection part="concept">
+
+## Ein Zustand statt einer Kette
+
+SHA-3 ersetzt Merkle–Damgård durch die **Sponge-Konstruktion** („Schwammkonstruktion“): einen
+**1600-Bit-Zustand** und eine Permutation, Keccak-f[1600] (FIPS 202, §3.1, §5.2). Der Zustand hat
+zwei Teile (§4):
+
+- die **Rate** `r`: nimmt die Nachricht per XOR auf und liefert die Ausgabe;
+- die **Kapazität** `c = 1600 − r`: nie von der Eingabe berührt, nie ausgegeben.
+
+Der Sponge **absorbiert** die aufgefüllte Nachricht mit `r` Bit pro Permutation und **presst** dann
+nach Bedarf ebenso viele **aus** (engl. *squeeze*; §4, Algorithmus 8).
+
+<KeyFacts>
+  <KeyFact label="Zustand" value="1600 Bit" kind="state" />
+  <KeyFact label="SHA3-256-Rate" value="1088 Bit" kind="plaintext" />
+  <KeyFact label="SHA3-256-Kapazität" value="512 Bit" kind="key" />
+  <KeyFact label="Runden" value="24" kind="constant" />
+</KeyFacts>
+
+<WhyBox constant="c = 2d" title="warum die Kapazität doppelt so groß ist wie der Hashwert">
+  FIPS 202, §6.1 setzt `c = 2d` für jede SHA-3-Hashfunktion (SHA3-256: `c = 512`). Generische
+  Sponge-Angriffe kosten etwa 2<sup>c/2</sup>, also ergibt `c = 2d` eine Urbildresistenz von `d` Bit;
+  Kollisionen bleiben bei der Geburtstagsschranke von `d/2` Bit (Anhang A.1, Tabelle 4).
+</WhyBox>
+
+<Lens only="story">
+
+Ein Schwamm saugt Wasser über seine Oberfläche auf und behält einen nassen Kern, den du nie siehst.
+Ausgedrückt gibt er Wasser nur dort ab.
+
+</Lens>
+
+</LessonSection>
+
+<LessonSection part="playground">
+
+## „abc“ durch eine Permutation
+
+Dieses Lab hasht „abc“ mit SHA3-256 und zeigt einen Schritt pro Permutation (FIPS 202, §4). Die
+drei Bytes und das Padding füllen einen Rate-Block von 136 Byte (§7, Tabelle 3). Achte auf die
+Phasen: **Padding**, **Absorbieren** in die Rate-Lanes, **Permutation** aller 1600 Bit,
+**Auspressen** der Rate, Übernahme der ersten 256 Bit.
+
+Der Hashwert ist `3a985da7 4fe225b2 … 11431532` (NIST, SHA3-256-Beispiele).
+
+<Lab labId="sha3-256-abc-permutation" producerId="sha3" presetId="sha3-256-abc-permutation" layout="sponge:60|narration:40" />
+
+</LessonSection>
+
+<LessonSection part="inside">
+
+## Padding, Domänenbits und endlose Ausgabe
+
+Jede Funktion hängt zuerst ein **Suffix** an (FIPS 202, §6.1–6.2; SP 800-185, §3.3); **pad10\*1**
+fügt dann eine `1`, Nullen und eine abschließende `1` hinzu (§5.1). Die Bits füllen jedes Byte vom
+niedrigstwertigen Ende an (Anhang B.1), daher teilen sich Suffix und erstes Padding-Bit ein Byte.
+Dieses Suffix sorgt für die **Domänentrennung**:
+
+| Funktion | Suffixbits | Erstes Padding-Byte | Rate |
+|---|---|---|---|
+| SHA3-256 | `01` | `06` | 136 Byte |
+| SHAKE128 | `1111` | `1f` | 168 Byte |
+| cSHAKE128 (N oder S gesetzt) | `00` | `04` | 168 Byte |
+| Keccak-256 (ursprünglich) | keine | `01` | 136 Byte |
+
+Das letzte Padding-Byte ist `80`; für „abc“ lautet der Block `61 62 63 06 00 … 00 80` (Anhang B.2).
+
+SHAKE128 ist eine **Funktion mit erweiterbarer Ausgabe (XOF)**: Sie presst aus, so lange du willst.
+Hier brauchen 336 Byte zwei Rate-Blöcke, mit einer Permutation vor dem zweiten Auspressen
+(§4, Schritte 8–10).
+
+<Lab labId="shake128-abc-336" producerId="sha3" presetId="shake128-abc-336" layout="sponge:55|state:20|narration:25" />
+
+**cSHAKE** ergänzt einen Funktionsnamen `N` und einen **Anpassungsstring** `S` (engl.
+*customization string*), codiert in einen vollen Rate-Block, der vor den Daten absorbiert wird
+(SP 800-185, §2.3, §3.3):
+
+<Formula caption="cSHAKE128 mit leerem N und S = „Email Signature“ (SP 800-185, §3.3; Beispiel Nr. 1).">
+{`bytepad(encode_string(N) ‖ encode_string(S), 168)
+  = 01 a8 | 01 00 | 01 78 45 6d 61 69 6c 20 … 75 72 65 | 00 … 00    (168 Byte)
+dann Daten ‖ (Bits 00) ‖ pad10*1
+  = 00 01 02 03 04 00 … 00 80                                     (168 Byte)`}
+</Formula>
+
+<Lab labId="cshake128-sample1" producerId="sha3" presetId="cshake128-sample1" layout="state:60|narration:40" />
+
+Sind `N` und `S` beide leer, ist cSHAKE128 genau SHAKE128 (SP 800-185, §3.2).
+
+</LessonSection>
+
+<LessonSection part="memory">
+
+## 200 Byte, 25 Lanes
+
+Der Zustand ist ein 5 × 5-Array aus **Lanes** (64-Bit-Wörtern) mit je `w = 64` Bit (FIPS 202,
+§3.1, Tabelle 1): 200 Byte, genau 25 Register auf einem 64-Bit-Kern. Weil Bit `z` einer Lane das
+Bit `z` des Strings ist (§3.1.2) und die Bits jedes Byte vom niedrigen Ende an füllen (Anhang B.1),
+ist jede Lane ein **Little-Endian**-64-Bit-Wort. Ein Little-Endian-Kern lädt sie direkt, anders als
+die Big-Endian-Wörter von [SHA-512](../sha512/).
+
+Das Absorbieren berührt nur die ersten `r/64` Lanes: 17 bei SHA3-256, 21 bei SHAKE128 (§7,
+Tabelle 3). Die übrigen 8 bzw. 4 Lanes bilden die Kapazität. Die Zustandsansicht in den Labs oben
+zeigt alle 200 Byte in dieser Bytereihenfolge.
+
+<Lens level="engineer">
+
+Jeder Rate-Block kostet eine volle Permutation, eine größere Kapazität macht den Hash also langsamer:
+SHA3-512 absorbiert 72 Byte pro Permutation, SHA3-224 absorbiert 144 (FIPS 202, §7, Tabelle 3).
+
+</Lens>
+
+</LessonSection>
+
+<LessonSection part="break">
+
+## Mallory findet keinen Ansatzpunkt
+
+Ein [SHA-512](../sha512/)-Hashwert **ist** der Verkettungswert, also kann Mallory weiterhashen. Ein
+SHA3-256-Hashwert umfasst nur 256 Rate-Bits; die 512-Bit-Kapazität verlässt den Sponge nie
+(FIPS 202, §4, §6.1), also widersteht SHA-3 der Längenerweiterung (Anhang A.1).
+
+Lass die Suffixbits weg, und `SHA3-256(M)` und `SHAKE256(M)` werden zum selben Sponge, `KECCAK[512]`,
+mit derselben Eingabe (§6.1–6.2). Keccak gewann den SHA-3-Wettbewerb (2007–2012; NIST IR 7896); die
+Suffixe erschienen im Entwurf von FIPS 202 vom Mai 2014 (§1). Ethereum spezifiziert Keccak Version 3,
+„rather than the final SHA-3 specification“ (Yellow Paper, §3). Deshalb ist sein
+`Keccak-256("abc")` gleich `4e03657a …`, nicht `3a985da7 …`.
+
+<Lens level="cryptographer">
+
+Bertoni, Daemen, Peeters und Van Assche (EUROCRYPT 2008) beweisen, dass der Sponge über einer
+zufälligen Permutation bis zu etwa 2<sup>c/2</sup> Anfragen *indifferentiable* von einem Random
+Oracle ist (im Sinne von Maurer et al.): SHAKE128 (`c = 256`) beansprucht bei jeder Ausgabelänge
+höchstens 128 Bit (FIPS 202, Anhang A.1, Tabelle 4).
+
+</Lens>
+
+</LessonSection>
+
+<LessonSection part="check">
+
+## Teste dich selbst
+
+<CheckQuestion
+  id="sha3-256-rate"
+  number={1}
+  question="Wie viele Nachrichtenbytes absorbiert SHA3-256 pro Permutation Keccak-f[1600]?"
+  options={['64', '128', '136', '200']}
+  answer={2}
+>
+  SHA3-256 hat die Kapazität `c = 512` (FIPS 202, §6.1), die Rate ist also `1600 − 512 = 1088` Bit,
+  136 Byte (§7, Tabelle 3). Die übrigen 64 Byte des 200-Byte-Zustands werden nie mit Eingabe
+  XOR-verknüpft.
+</CheckQuestion>
+
+<CheckQuestion
+  id="shake128-pad-byte"
+  number={2}
+  question="Eine Nachricht aus ganzen Bytes wird mit SHAKE128 gehasht. Welches Byte folgt auf die Nachricht (wenn das Padding mindestens zwei Byte braucht)?"
+  options={['01', '06', '1f', '80']}
+  answer={2}
+>
+  SHAKE128 hängt das Suffix `1111` an, und pad10\*1 fügt eine `1` hinzu (FIPS 202, §6.2, §5.1). Vom
+  niedrigstwertigen Bit an gefüllt, ergibt `1111 1` den Wert `0x1f`; das letzte Padding-Byte ist
+  `0x80` (Anhang B.2). SHA3 ergibt `06`, das ursprüngliche Keccak `01`.
+</CheckQuestion>
+
+<CheckQuestion
+  id="sponge-no-length-extension"
+  number={3}
+  question="Warum kannst du mit einem SHA3-256-Hashwert nicht weiterhashen, wie es mit einem SHA-256-Hashwert geht?"
+  options={[
+    'SHA3-256 nutzt mehr Runden als SHA-256',
+    'Der Hashwert ist nur ein Teil der Rate; die Kapazität wird nie ausgegeben',
+    'SHA3-256 füllt mit einem 128-Bit-Längenfeld auf',
+    'Die Permutation lässt sich ohne Schlüssel nicht vorwärts berechnen',
+  ]}
+  answer={1}
+>
+  Zum Weiterhashen brauchst du den ganzen 1600-Bit-Zustand. Der Hashwert verrät 256 Bit der Rate; die
+  512-Bit-Kapazität verlässt den Sponge nie (FIPS 202, §4, §6.1). Deshalb widersteht SHA-3 der
+  Längenerweiterung (Anhang A.1).
+</CheckQuestion>
+
+</LessonSection>

@@ -1,6 +1,7 @@
 import { act, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import '../viz.css';
 import { vizMessages } from '../i18n/messages.ts';
 import { LabLayoutProvider } from '../lab/LabLayout.tsx';
 import { createFixtureBundle, fixtureMessages } from '../testing/fixtureBundle.ts';
@@ -40,6 +41,15 @@ describe('Caption', () => {
     act(() => store.getState().seek(1));
     expect(live()?.textContent).toBe('Substitute 2 bytes');
     expect(document.querySelectorAll('[aria-live]')).toHaveLength(1);
+  });
+
+  it('wraps long unbroken runs (a hex digest) inside the caption instead of widening the page', () => {
+    renderCaption(true);
+    const text = live() as HTMLElement;
+    expect(text.classList.contains('cv-caption__text')).toBe(true);
+    expect(getComputedStyle(text).overflowWrap).toBe('anywhere');
+    expect(getComputedStyle(text).maxWidth).toBe('100%');
+    expect(getComputedStyle(text.closest('.cv-caption') as HTMLElement).minWidth).toBe('0px');
   });
 
   it('renders German', () => {

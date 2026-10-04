@@ -1,0 +1,252 @@
+---
+title: 'BLAKE2: Hashen mit Addition, Rotation und XOR'
+description: BLAKE2 mischt eine 4 × 4-Matrix aus Wörtern mit der ARX-Funktion G, erst die Spalten, dann die Diagonalen, startet mit den Anfangswerten (IV) von SHA-2, markiert den letzten Block mit einem Zähler und einem Flag und wird zum MAC, wenn der Schlüssel in den ersten Block kommt.
+lessonId: hash/blake2
+track: hash
+phase: 2
+sidebar:
+  order: 6
+tableOfContents: false
+prereqs:
+  - hash/index
+  - hash/sha256
+labs:
+  - blake2s-256-abc
+  - blake2b-512-abc-round
+  - blake2s-256-keyed
+refs:
+  - RFC 7693, Abschnitt 1 (Introduction and Terminology – eingebaute Schlüsselunterstützung, kein HMAC nötig)
+  - RFC 7693, Abschnitt 2.1 (Parameters – Runden, Blockgröße, Rotationsweiten)
+  - RFC 7693, Abschnitt 2.4 (Little-Endian Interpretation of Words as Bytes)
+  - RFC 7693, Abschnitt 2.5 (Parameter Block)
+  - RFC 7693, Abschnitt 2.6 (Initialization Vector)
+  - RFC 7693, Abschnitt 2.7 (Message Schedule SIGMA)
+  - RFC 7693, Abschnitt 3.1 (Mixing Function G)
+  - RFC 7693, Abschnitt 3.2 (Compression Function F – Zähler t und Flag f für den letzten Block)
+  - RFC 7693, Abschnitt 3.3 (Padding Data and Computing a BLAKE2 Digest – schlüsselabhängiges Hashen)
+  - RFC 7693, Anhang B (Example of BLAKE2s Computation, „abc“)
+  - BLAKE2-Referenz-Testvektoren (blake2s-kat.txt), CC0
+  - Aumasson, Neves, Wilcox-O'Hearn, Winnerlein (2013), BLAKE2 — simpler, smaller, fast as MD5, ACNS 2013, LNCS 7954 (Kurzfassung; Abschnitte 2.1, 2.2, 2.5, 2.9, 3.3, 4.1, 4.2)
+  - Chang, Perlner, Burr, Turan, Kelsey, Paul, Bassham (2012), Third-Round Report of the SHA-3 Cryptographic Hash Algorithm Competition, NIST IR 7896 (Abschnitt 3)
+  - Donenfeld (2017), WireGuard — Next Generation Kernel Network Tunnel, NDSS 2017 (Abschnitt 5.4)
+  - Aumasson (2019), Too Much Crypto, IACR ePrint 2019/1492 (Abschnitte 3.2, 5.3)
+  - Espitau, Fouque, Karpman (2015), Higher-Order Differential Meet-in-the-Middle Preimage Attacks on SHA-1 and BLAKE, CRYPTO 2015, LNCS 9215
+sourceHash: sha256:d8af1618890b29de5bfd5074c9dc01791c80ffc923d70654ffe5f142fceeb766
+translation:
+  status: ai-reviewed
+  reviewedAt: '2026-10-04'
+  reviewer: AI editorial review (Claude)
+---
+
+import Lab from '../../../../components/Lab.astro';
+import CheckQuestion from '../../../../components/lesson/CheckQuestion.astro';
+import Formula from '../../../../components/lesson/Formula.astro';
+import KeyFact from '../../../../components/lesson/KeyFact.astro';
+import KeyFacts from '../../../../components/lesson/KeyFacts.astro';
+import Lens from '../../../../components/lesson/Lens.astro';
+import LessonSection from '../../../../components/lesson/LessonSection.astro';
+import WhyBox from '../../../../components/lesson/WhyBox.astro';
+
+<LessonSection part="concept">
+
+## Addieren, rotieren, XOR-verknüpfen
+
+BLAKE2 nutzt drei Wortoperationen: Addition, Rotation und XOR (**ARX**), ohne S-Box. Es
+verfeinert BLAKE, einen Finalisten des SHA-3-Wettbewerbs (NIST IR 7896, §3). **BLAKE2s** arbeitet
+mit 32-Bit-Wörtern, **BLAKE2b** mit 64-Bit-Wörtern (RFC 7693, §1, §2.1).
+
+Die Kompressionsfunktion F kopiert den Verkettungswert `h` und den IV in einen **Arbeitsvektor**
+`v` aus 16 Wörtern, eine 4 × 4-Matrix. Jede Runde führt die Mischfunktion **G** auf den vier
+Spalten aus, dann auf den vier Diagonalen (RFC 7693, §3.2). Zum Schluss werden beide Hälften von
+`v` per XOR in `h` eingerechnet.
+
+<KeyFacts>
+  <KeyFact label="BLAKE2s: Wort / Block" value="32 Bit / 64 B" kind="state" />
+  <KeyFact label="BLAKE2b: Wort / Block" value="64 Bit / 128 B" kind="state" />
+  <KeyFact label="Runden (s / b)" value="10 / 12" kind="constant" />
+  <KeyFact label="G-Aufrufe pro Runde" value="8" kind="constant" />
+</KeyFacts>
+
+<WhyBox constant="IV₀ = 6a09e667" title="warum der IV der von SHA-256 ist">
+  RFC 7693, §2.6: Die IV-Wörter sind die Nachkommastellen von √2 … √19, dieselben wie bei SHA-256
+  (BLAKE2s) und SHA-512 (BLAKE2b); siehe die [Seite zu SHA-256](../sha256/). √2 = 1,**6a09e667**…
+</WhyBox>
+
+<Lens only="story">
+
+Sechzehn nummerierte Becher auf einem 4 × 4-Tablett. G rührt jeweils vier Becher um: erst jede
+Spalte, dann jede Diagonale, sodass bald jeder Becher nach allen anderen schmeckt.
+
+</Lens>
+
+</LessonSection>
+
+<LessonSection part="playground">
+
+## Das erste G von „abc“
+
+Das Lab hasht das Beispiel aus Anhang B von RFC 7693: BLAKE2s-256 von „abc“. Der Nachrichtenblock
+enthält `m[0] = 00636261` (Little-Endian, §2.4) und sonst Nullen. `init` setzt
+`h[0] = 6a09e667 ⊕ 01010020 = 6b08e647`. `load` füllt `v`: `v[12] = 510e527f ⊕ 3 = 510e527c`
+(bisher drei Byte) und `v[14] = 1f83d9ab ⊕ ffffffff = e07c2654` (letzter Block). Beide stimmen
+mit `v` bei `i=0` in Anhang B überein.
+
+Das Lab öffnet beim ersten G, auf Spalte 0 (`v0, v4, v8, v12`). Die Ansicht „Wortoperationen“
+zeigt `a1 = v0 + v4 + m[0] = bc7a9b27` und, vier Schritte später, `a2 = d6c0c1df`,
+`b2 = 7f898693`, `c2 = de856f07`, `d2 = ab1f9b2c`. Nach 10 Runden und dem Feed-Forward ist der
+Hashwert `508c5e8c … 86675982`, wie in Anhang B.
+
+<Lab labId="blake2s-256-abc" producerId="blake2" presetId="blake2s-256-abc" startAt="op:g" layout="wordops:55|state:20|narration:25" />
+
+</LessonSection>
+
+<LessonSection part="inside">
+
+## G, Spalten, Diagonalen
+
+G mischt vier Wörter `a, b, c, d` mit zwei Nachrichtenwörtern `x, y` (RFC 7693, §3.1). Die
+Rotationsweiten R1…R4 sind 16, 12, 8, 7 für BLAKE2s und 32, 24, 16, 63 für BLAKE2b (§2.1).
+
+<Formula caption="Mischfunktion G, RFC 7693 §3.1 (+ ist die Addition mod 2ʷ, ⋙ rotiert nach rechts).">
+{`a ← a + b + x     d ← (d ⊕ a) ⋙ R1
+c ← c + d         b ← (b ⊕ c) ⋙ R2
+a ← a + b + y     d ← (d ⊕ a) ⋙ R3
+c ← c + d         b ← (b ⊕ c) ⋙ R4`}
+</Formula>
+
+<Formula caption="Eine Runde von F, RFC 7693 §3.2 (s = SIGMA[i mod 10], §2.7).">
+{`Spalten:    G(v0, v4, v8,  v12)  G(v1, v5, v9,  v13)  G(v2, v6, v10, v14)  G(v3, v7, v11, v15)
+Diagonalen: G(v0, v5, v10, v15)  G(v1, v6, v11, v12)  G(v2, v7, v8,  v13)  G(v3, v4, v9,  v14)`}
+</Formula>
+
+Der `i`-te G-Aufruf nimmt `m[s[2i]]` und `m[s[2i+1]]`; SIGMA ordnet die 16 Nachrichtenwörter in
+jeder Runde neu an (§2.7). Die Kernpermutation beruht auf der von Bernsteins Stromchiffre ChaCha
+(Aumasson et al. 2013, §4.1). Das Runden-Lab zeigt die 12 Runden von BLAKE2b einzeln:
+
+<Lab labId="blake2b-512-abc-round" producerId="blake2" presetId="blake2b-512-abc-round" startAt="op:round" layout="state:60|narration:40" />
+
+<Lens level="cryptographer">
+
+Die Addition ist der einzige nichtlineare Teil: Über GF(2) sind ihre Überträge genau das, was XOR
+und Rotation nicht ausdrücken können. BLAKE2b ändert die Rotationen von BLAKE-512 von 32, 25, 16, 11
+auf 32, 24, 16, 63: Eine Rotation um 24 Bit ist auf SSSE3-Prozessoren eine reine Byte-Umordnung
+(Shuffle; Aumasson et al. 2013, §2.2).
+
+</Lens>
+
+</LessonSection>
+
+<LessonSection part="memory">
+
+## Little-Endian, 168 Byte
+
+BLAKE2 liest Bytes als **Little-Endian** in Wörter ein (RFC 7693, §2.4), wie MD5 und anders als
+SHA-2, weil die meisten Zielprozessoren Little-Endian sind (Aumasson et al. 2013, §2.5); siehe
+[Bytereihenfolge](../../foundations/endianness/). Der Hashwert besteht aus den ersten `nn` Byte
+von `h`, als Little-Endian geschrieben (§3.3).
+
+Eine BLAKE2s-Implementierung hält den Verkettungswert (32 Byte), den Nachrichtenblock (64), den
+Arbeitsvektor (64) und den Zähler (8) im RAM: **168 Byte**, gegenüber 232 bei BLAKE-256 (Aumasson
+et al. 2013, §3.3).
+
+Die vier Spaltenaufrufe von G berühren disjunkte Wörter, die vier Diagonalaufrufe ebenso (§3.2).
+Deshalb kann SIMD-Code sie nebeneinander ausführen, ein G pro Vektor-Lane.
+
+<Lens level="engineer">
+
+Die Zustandsansicht ordnet `v` in vier Zeilen zu je vier Wörtern an. Ein Spalten-G ist so eine
+senkrechte Linie, ein Diagonal-G läuft über den Rand weiter. Jedes Wort darin erscheint in der
+Bytereihenfolge, in der der RFC es speichert (`byteOrder: little`).
+
+</Lens>
+
+</LessonSection>
+
+<LessonSection part="break">
+
+## Zähler, Flag, Schlüssel, Runden
+
+**Parameterwort 0.** `h[0] ⊕= 0x0101kknn` rechnet Hashwertlänge `nn` und Schlüssellänge
+`kk` in den Startwert ein (RFC 7693, §2.5, §3.3). Sonst wäre BLAKE2s-128 die Hälfte von BLAKE2s-256.
+
+**Zähler und Flag für den letzten Block.** `t` zählt die bisherigen Bytes; `f` invertiert `v[14]`
+nur für den letzten Block (§3.2). Null-Padding genügt, weil `t` die Länge kodiert (Aumasson et al.
+2013, §4.2). Keine ehrliche Berechnung gibt einen *finalisierten* Zustand in einen nicht finalen
+Block, daher nennen die Autoren BLAKE2 immun gegen Längenerweiterung (Kurzfassung), anders als
+SHA-256.
+
+**Schlüssel.** Der mit Nullen aufgefüllte Schlüssel wird zu Block 0
+(§3.3): ein Präfix-MAC ohne HMAC (§1), mindestens eine Kompression günstiger (Aumasson et al.
+2013, §2.9). WireGuards `Mac` ist schlüsselabhängiges BLAKE2s, seine KDF weiterhin
+HMAC-BLAKE2s (Donenfeld, NDSS 2017, §5.4).
+
+<Lab labId="blake2s-256-keyed" producerId="blake2" presetId="blake2s-256-keyed" startAt="op:load" layout="state:60|narration:40" />
+
+<Lens level="cryptographer">
+
+BLAKE2 hat weniger Runden als BLAKE (Aumasson et al. 2013, §2.1). Too Much Crypto nennt die besten
+Angriffe, allesamt unpraktikable Pseudo-Urbilder (§3.2), und schlägt weniger Runden vor (§5.3):
+
+| Wörter | BLAKE | BLAKE2 | Bester Angriff | Vorschlag |
+|---|---|---|---|---|
+| 32 Bit (BLAKE-256, BLAKE2s) | 14 | 10 | 6,75 Runden, 2²⁵³·⁸ | 7 |
+| 64 Bit (BLAKE-512, BLAKE2b) | 16 | 12 | 7,5 Runden, 2⁵¹⁰·³ (Espitau et al. 2015) | 8 |
+
+</Lens>
+
+</LessonSection>
+
+<LessonSection part="check">
+
+## Teste dich selbst
+
+<CheckQuestion
+  id="blake2-g-order"
+  number={1}
+  question="In welcher Reihenfolge wendet eine BLAKE2-Runde G auf den 4 × 4-Arbeitsvektor v an?"
+  options={[
+    'Zeilen, dann Spalten',
+    'Spalten, dann Diagonalen',
+    'Diagonalen, dann Spalten',
+    'Auf jedes der 16 Wörter einzeln',
+  ]}
+  answer={1}
+>
+  RFC 7693, §3.2: vier G-Aufrufe auf den Spalten `(v0, v4, v8, v12)` … `(v3, v7, v11, v15)`, dann
+  vier auf den Diagonalen `(v0, v5, v10, v15)` … `(v3, v4, v9, v14)` – das Muster, das BLAKE von
+  ChaCha übernommen hat.
+</CheckQuestion>
+
+<CheckQuestion
+  id="blake2-final-flag-word"
+  number={2}
+  question="Was macht F mit dem Arbeitsvektor, wenn es den letzten Block komprimiert?"
+  options={[
+    'Es hängt die Nachrichtenlänge in Bit an',
+    'Es verknüpft den Bytezähler per XOR mit v[14]',
+    'Es invertiert alle Bits von v[14]',
+    'Es führt zwei zusätzliche Runden aus',
+  ]}
+  answer={2}
+>
+  Ist das Flag `f` für den letzten Block gesetzt, gilt `v[14] ← v[14] ⊕ 0xFF..FF` (RFC 7693,
+  §3.2). Der Zähler `t` geht in `v[12]` und `v[13]` ein; das Padding enthält kein Längenfeld.
+</CheckQuestion>
+
+<CheckQuestion
+  id="blake2-keyed-mode"
+  number={3}
+  question="Wie macht schlüsselabhängiges BLAKE2 aus der Hashfunktion einen MAC?"
+  options={[
+    'Mit der HMAC-Konstruktion (zwei verschachtelte Hashberechnungen)',
+    'Der mit Nullen aufgefüllte Schlüssel wird der erste Block, und kk geht in Parameterwort 0 ein',
+    'Der Schlüssel ersetzt den IV',
+    'Der Schlüssel wird mit jedem Nachrichtenblock XOR-verknüpft',
+  ]}
+  answer={1}
+>
+  RFC 7693, §3.3: Der Schlüssel, mit Nullen auf einen vollen Block aufgefüllt, ist `d[0]`, und
+  `h[0] ⊕= 0x0101kknn` hält seine Länge fest. HMAC ist nicht nötig (§1).
+</CheckQuestion>
+
+</LessonSection>

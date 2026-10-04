@@ -327,8 +327,9 @@ function rhoOf(machine: KeccakMachine, lane: number): KeccakValue {
 
 /** The `#imm` of `xar`. */
 function immediate(instruction: KeccakListingInstruction): number {
-  const match = /^#(\d+)$/.exec(operand(instruction, 3));
-  if (match === null) throw new Error('no rotation immediate');
+  const text = operand(instruction, 3);
+  const match = /^#(\d+)$/.exec(text);
+  if (match === null) throw new Error(`no rotation immediate in operand "${text}"`);
   return Number(match[1]);
 }
 

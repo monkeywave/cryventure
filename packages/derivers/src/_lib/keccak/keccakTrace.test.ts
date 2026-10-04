@@ -69,6 +69,24 @@ describe('keccakTrace', () => {
     expect(broken((facet) => facet.steps.splice(122))).toThrow(
       'nothing reads the last permutation',
     );
+    expect(broken((facet) => (facet.steps[3]!.step = 50))).toThrow(
+      'pi of round 0 at state step 4 does not follow state step 50',
+    );
+    expect(broken((facet) => (facet.steps[1]!.step = 2))).toThrow(
+      'theta of round 0 at state step 2 does not follow state step 2',
+    );
+    expect(broken((facet) => (facet.steps[122]!.step = 121))).toThrow(
+      'the step after the permutation at state step 121 does not follow state step 121',
+    );
+    expect(broken((facet) => (facet.steps[1]!.phase = 'pad'))).toThrow(
+      'a permutation is entered from a pad step, not an absorb or squeeze',
+    );
+    expect(broken((facet) => (facet.steps[122]!.phase = 'pad'))).toThrow(
+      'a permutation is left to a pad step, not an absorb or squeeze',
+    );
+    expect(broken((facet) => (facet.steps[50]!.step = 500))).toThrow(
+      'sponge step 500 beyond 124 state steps',
+    );
     expect(broken((facet) => (facet.steps = facet.steps.slice(0, 2)))).toThrow(
       'no permutation at mapping detail',
     );

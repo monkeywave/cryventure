@@ -142,6 +142,32 @@ another producer through a **port**, an interface in `@cryventure/core` (`ports.
   `@cryventure/tools`, which resolves ports against the producers they pass (`primitiveProducers`
   for the real primitive registry; `runOptionsFor` gives just the options).
 
+### XOFs and incremental contexts
+
+The `Hash` port is a `HashFamily` (`{ id, functions, xofs? }`, family id = producer id, ids unique
+across `functions` and `xofs`). Look up a member with `hashFunction(family, id)` or
+`xofFunction(family, id)`; both return `undefined` when the family lacks it, and the consumer reports that.
+
+- **Incremental:** `HashFunction.create()` returns a `HashContext`: `update(data)` any number of
+  times, then `digest()`. `digest()` finalises a copy, so it does not change the context (calling it
+  twice gives the same bytes, and a later `update` still counts). `clone()` is an independent copy;
+  taken after a whole block it is a true **midstate** (e.g. HMAC after the ipad block), so a context
+  must compress full blocks as data arrives and keep only a partial block, never buffer everything.
+  `blockSize` is the compression block, or the sponge rate (SHA3-256: 136).
+- **XOFs:** an `XofFunction` (`shake128`, `cshake256`, …) has `blockSize` (the rate),
+  `securityBits`, `xof(data, outputLength, custom?)` and `create(custom?)` → `XofContext`
+  (`update*`, then `squeeze(length)` any number of times; `update` after the first `squeeze`
+  throws; `clone()`). `custom` is an `XofCustomization` `{ functionName?, customization? }` (N and S
+  of SP 800-185 §3.3, bytes; absent = empty). With `customizable: false` a non-empty N or S throws,
+  in both `xof` and `create`; cSHAKE with N and S both empty must equal the SHAKE of the same
+  `securityBits`.
+- **`PORT_SANITY.Hash`** (contract kit, `tools/src/contracts/portChecks.ts`) checks per function:
+  sizes; for 0-, 1- and `blockSize`-byte inputs a deterministic, non-mutating `hash` with pairwise
+  distinct digests; then `create()` + `update` equal to `hash()` for the splits `0 | n`, `1 | n−1`, block-aligned and byte
+  by byte, `digest()` twice, `clone()` independent both ways. Per XOF: `xof(m, a + b)` =
+  `squeeze(a) ‖ squeeze(b)` across a rate boundary, clone independence, `update` after `squeeze`
+  throws, the customization rule above, and cSHAKE(N = S = empty) = SHAKE.
+
 ### `runIn`
 
 `runIn?: 'main' | 'worker'` (optional, additive; default `'main'`). A producer whose run is heavy
@@ -158,6 +184,9 @@ way to get a word layout; views do not guess one from the shape:
   words named `w0`, `w1`, … (`labelPrefix` is a symbol, not translated), grouped `wordsPerGroup` per
   row (for example the four words of one AES round key). `wordBytes` must divide the region's byte
   size (`regionSize × elemBytes(elem)`); the contract kit checks this.
+- `byteOrder: 'big' | 'little'` (optional, default `'big'`) on a `words` layout says how a word's
+  bytes form its integer value. Set `'little'` for Keccak lanes, BLAKE2 and MD5 words; the state view
+  then shows each word's integer value (the region's bytes stay in memory order).
 
 In a `words` region the state view marks the words that contain the step's highlighted elements,
 so a producer selects "the current round key" simply by highlighting its bytes. Without a hint (or
@@ -184,6 +213,47 @@ leave it unset. Producers that only set `group` still work: `isResultNode(node)`
 (`{ id, label: I18nRef }[]`) names each `group` value, for example "Round key 3"; the key-schedule
 view lists results under these labels (generic "Group n" otherwise). The contract kit checks the
 label keys and `{{params}}` in EN and DE.
+
+### Sponge facet
+
+`SpongeFacet` (`kind: 'sponge'`, `schemaVersion: 1`, `core/src/facets/sponge.ts`) records the lanes
+of a permutation state after each sponge step (Keccak-f[1600]; later Ascon):
+
+- **Shape:** `label` (I18nRef, e.g. "Keccak-f[1600]"), `width` × `height` lanes of `laneBits`
+  (8, 16, 32 or 64), `rounds`, `rateLanes` (lanes `0 … rateLanes−1` are the rate, the rest the
+  capacity), optional `rhoOffsets[i]` (ρ left rotation of lane i) and `piSource[i]` (after π, lane i
+  holds what lane `piSource[i]` held; a permutation).
+- **Lanes:** lane index `x + width·y` (FIPS 202 A[x, y]). Each lane is an **integer**, written as
+  `laneBits / 4` lowercase hex digits, MSB first; Keccak lanes are little-endian in the state bytes,
+  so lane hex is the byte-reversed slice of the state (64-bit lane = 16 digits). Byte strings
+  (`output`) are hex in byte order.
+- **Steps:** `{ step, phase, round?, lanes, input?, output?, theta?, iota? }`, `step` strictly
+  increasing state-facet indices (−1 = initial). `phase` is `pad`, `absorb`, `theta` … `iota`,
+  `round`, `permute`, `squeeze` or `output`; the round phases need `round`. `lanes` are all lanes
+  after the step; `absorb` adds `input` (the `rateLanes` lanes XORed in), `squeeze`/`output` add
+  `output`. θ adds `theta: { c, d, partial? }` (`width` lanes each): column parities C[x],
+  D[x] = C[x−1] ⊕ ROT(C[x+1], 1), and optionally `partial[x]` = A[x,0] ⊕ A[x,1] ⊕ A[x,2], what a
+  three-input XOR (`eor3`) holds after the first of the two it takes per column. ι adds
+  `iota: { rc }`.
+- `validateSpongeFacet(facet, stepCount?)` checks all of this; the contract kit runs it, checks the
+  `label` ref (also in deriver output), and view fixtures (`facetFixtures`) carry the sponge facet
+  of real `sha3` runs.
+
+### Wordops v2
+
+`WordopsFacet.schemaVersion: 2` (`core/src/facets/wordops.ts`) adds, all optional:
+
+- ops `or`, `parity`, `md5G`, `md5I` (`WORD_OPS` and the per-op version table live in core; the kit
+  imports them);
+- per term `emphasis: 'story'` (the story lens shows exactly the marked terms, none when none is)
+  and `degree: 2 | 3` (only with `op: 'root'`; the view writes √ or ∛);
+- per step `registers.touched` (register indices the step reads and writes, e.g. a BLAKE2 column or
+  diagonal) and `registers.transfers` (`{ to, from: { register } | { term } }`, each `to` once:
+  how `after[to]` comes about; the view draws these arrows);
+- `registerColumns` on the facet: draw the registers as a grid (BLAKE2: 4).
+
+A v2 field on a v1 facet is a contract error. A v1 facet keeps the old behaviour: the view detects
+the SHA-2 shift structurally and the story lens shows results and T1/T2.
 
 ### Conformance vectors (`vectors/conformance.json`)
 
@@ -321,6 +391,22 @@ pieces without new facets:
 - **Values:** every register value is read from the producer's trace (state regions and `wordops`
   terms such as `K_t + W_t`, `p1`, `p2`); the deriver only rearranges bytes (byte swaps, lane
   order, ABEF/CDGH packing) and computes no hash.
+- **64-bit lanes** (`aarch64-armv8-sha512`, `aarch64-armv8-sha3`, docs/M6.md §5): a q register
+  holds two 64-bit words (SHA-512: (a,b), (c,d), …) or, for Keccak, one lane in its low half (the
+  high half must stay zero; the profile throws otherwise). Values still come from the trace: SHA-512
+  from `vars`/`w`/`wordops`, Keccak lanes, C, D, `partial` and RC from the `sponge` steps.
+- **Loop-body listings:** a listing may carry `loop: { first, last, iterations }` (`ListingLoop` in
+  `derivers/src/_lib/listing.ts`): the instructions from address `first` through `last` (the back
+  branch) are the body. The deriver replays prologue, the body `iterations` times (Keccak: 24, one
+  round each), then epilogue, once per permutation. Spills, moves and the loop counter stay in the
+  listing with role `other`/`loop`.
+- **Spans when the compiler interleaves** (`_lib/keccak/keccakSpans.ts`): every instruction has a
+  natural span (`eor3`/`rax1` θ, `xar` θ … π, `bcax` χ, ι `eor` ι; loads at the permutation's entry,
+  stores at its exit), resolved in listing order so neither end decreases. A late instruction is
+  deferred: clang schedules the `xar` for lane 24 after the first `bcax`, so it becomes zero-width
+  at χ (its value is unchanged). Instructions without Keccak work sit between their neighbours,
+  zero-width at the next one's `first`; so the RC load, which clang places inside χ, is zero-width
+  at χ.
 
 ## What the contract kit checks
 

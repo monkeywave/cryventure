@@ -69,7 +69,38 @@ function readRound(steps: readonly SpongeStep[], start: number, round: number): 
   return mapped;
 }
 
-/** The permutation whose first θ is `steps[start]`. */
+/** The phases a permutation is entered from and left to. */
+const BOUNDARY_PHASES: ReadonlySet<SpongeStep['phase']> = new Set(['absorb', 'squeeze']);
+
+function checkBoundary(step: SpongeStep, side: 'entered from' | 'left to'): void {
+  if (!BOUNDARY_PHASES.has(step.phase))
+    throw fail(`a permutation is ${side} a ${step.phase} step, not an absorb or squeeze`);
+}
+
+/** Throws unless the state steps entry → θ … ι of every round → exit strictly increase. */
+function checkIncreasing(
+  before: SpongeStep,
+  rounds: readonly KeccakRoundSteps[],
+  after: SpongeStep,
+): void {
+  const labelled = [
+    ...rounds.flatMap((round, index) =>
+      ROUND_PHASES.map((phase) => ({
+        label: `${phase} of round ${index}`,
+        step: round[phase].step,
+      })),
+    ),
+    { label: 'the step after the permutation', step: after.step },
+  ];
+  let previous = before.step;
+  for (const { label, step } of labelled) {
+    if (step <= previous)
+      throw fail(`${label} at state step ${step} does not follow state step ${previous}`);
+    previous = step;
+  }
+}
+
+/** The permutation whose first θ is `steps[start]`; entered from an absorb/squeeze, left to one, on strictly increasing steps. */
 function readPermutation(
   steps: readonly SpongeStep[],
   start: number,
@@ -79,13 +110,13 @@ function readPermutation(
   const after = steps[start + rounds * ROUND_PHASES.length];
   if (before === undefined) throw fail('a permutation starts before any absorb');
   if (after === undefined) throw fail('nothing reads the last permutation');
-  return {
-    entry: before.step,
-    rounds: Array.from({ length: rounds }, (_, round) =>
-      readRound(steps, start + round * ROUND_PHASES.length, round),
-    ),
-    exit: after.step,
-  };
+  checkBoundary(before, 'entered from');
+  checkBoundary(after, 'left to');
+  const read = Array.from({ length: rounds }, (_, round) =>
+    readRound(steps, start + round * ROUND_PHASES.length, round),
+  );
+  checkIncreasing(before, read, after);
+  return { entry: before.step, rounds: read, exit: after.step };
 }
 
 function readPermutations(sponge: SpongeFacet): KeccakPermutation[] {
@@ -103,7 +134,8 @@ function readPermutations(sponge: SpongeFacet): KeccakPermutation[] {
 function readKeccakTrace(bundle: TraceBundle): KeccakTrace {
   const sponge = requiredFacet<SpongeFacet>(bundle, 'sponge', KECCAK_CONTRACT);
   const stepCount = requiredFacet<AnyStateFacet>(bundle, 'state', KECCAK_CONTRACT).steps.length;
-  const lastStep = sponge.steps.at(-1)?.step ?? -1;
+  // The largest step, not the last one: the steps' order is checked per permutation, not assumed here.
+  const lastStep = sponge.steps.reduce((largest, { step }) => Math.max(largest, step), -1);
   if (lastStep >= stepCount) throw fail(`sponge step ${lastStep} beyond ${stepCount} state steps`);
   return {
     sponge,

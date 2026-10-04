@@ -294,6 +294,26 @@ describe('hashFamilyProblems: XOFs', () => {
     expect(problems).toContain('Hash toyshake128: context: update after squeeze does not throw');
   });
 
+  it('reports a clone taken mid-squeeze that shares the squeeze position (the old pre-squeeze check let it pass)', () => {
+    const sharedSqueeze = (custom: XofCustomization | undefined, state = { bytes: [] as number[], position: -1 }): XofContext => ({
+      ...toyXofContext(128, custom, state),
+      clone: () => (state.position >= 0 ? sharedSqueeze(custom, state) : sharedSqueeze(custom, { bytes: [...state.bytes], position: state.position })),
+    });
+    const sharing = toyXof({ create: (custom) => { if (!isEmpty(custom)) throw new Error('toy: not customizable'); return sharedSqueeze(custom); } });
+    expect(hashFamilyProblems(xofFamily([sharing]), 'toy')).toEqual([
+      'Hash toyshake128: context: a clone taken mid-squeeze changes when its source squeezes on',
+      'Hash toyshake128: context: a source changes when its mid-squeeze clone squeezes on',
+    ]);
+  });
+
+  it('reports a customizable XOF whose create() ignores a non-empty N or S', () => {
+    const ignoring = toyCshake({ create: () => toyXofContext(128, undefined) });
+    expect(hashFamilyProblems(xofFamily([toyXof(), ignoring]), 'toy')).toEqual([
+      'Hash toycshake128: create(N) + update differs from xof(m, 32, N)',
+      'Hash toycshake128: create(S) + update differs from xof(m, 32, S)',
+    ]);
+  });
+
   it('reports a non-customizable XOF that accepts N or S, or a non-boolean flag', () => {
     const permissive = toyXof({ xof: (data, outputLength) => toyStream(toySeed(128, data, undefined), 0, outputLength) });
     expect(hashFamilyProblems(xofFamily([permissive]), 'toy')).toEqual(['Hash toyshake128: is not customizable but accepts a non-empty N or S']);

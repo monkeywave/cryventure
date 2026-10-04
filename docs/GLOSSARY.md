@@ -149,6 +149,39 @@ and `packages/views/src/wordops/i18n/de.json` (2026-10-04): they already use the
 | left-most n bits (truncation) | **die ersten n Bit** | Not „die linken n Bit“. |
 | ISA, instruction set | **Befehlssatz** (der), plural **Befehlssätze** | „ISA“ alone avoided in prose. |
 
+### Sponge, SHA-3, BLAKE2, MD5 and SHA-1 (M6)
+
+Settled from the M6 §7 proposals (2026-10-04) and checked against the DE catalogs
+`packages/primitives/src/{sha3,keccak-constants,blake2,md5,sha1}`, `packages/views/src/sponge` and
+`packages/derivers/src/{isa-armv8-sha3,isa-armv8-sha}`. Open points are in
+`docs/translation-review-2026-10.md`, section „M6“.
+
+| English | German | Decision and rationale |
+|---|---|---|
+| sponge construction | **Sponge-Konstruktion** (die), first use „Sponge-Konstruktion („Schwammkonstruktion“)“; short **Sponge** in titles and labels („Sponge-Zustand“) | FIPS 202 term kept; the German image only as a gloss. „Schwammfunktion“ not used. |
+| rate / capacity | **Rate** (die) `r` / **Kapazität** (die) `c` | Compounds: „Rate-Block“, „Rate-Lanes“, „Kapazitäts-Lanes“. |
+| absorb / squeeze | **absorbieren** / **auspressen**; phase labels **Absorbieren** / **Auspressen** | First use in prose may add „(engl. *squeeze*)“. „Squeeze-Phase“ not used in UI (one language per label). |
+| permutation | **Permutation** (die); `Keccak-f[1600]`, `Keccak-p[b, nᵣ]` unchanged | |
+| lane (Keccak, 64-bit word of the state) | **Lane** (die), plural **Lanes**; first use „Lane (64-Bit-Wort)“ or „25 Lanes, d. h. 64-Bit-Wörter“ | Same word as the SIMD lane (M4), deliberately: both are established anglicisms; „Spur“ stays reserved for the mode-chain lanes. Where both meanings meet (ARMv8 SHA3 registers), the Keccak lane is „Lane“ and the SIMD part is „untere/obere Hälfte“ of the register. |
+| slice / row / column (Keccak state) | **Scheibe** (die), first use „Scheibe (Slice)“ / **Zeile** / **Spalte** | FIPS 202 §3.1.1 names; „Spaltenparität“ for θ's `C[x]`. |
+| step mapping (θ, ρ, π, χ, ι) | **Schrittabbildung** (die); Greek letters unchanged | UI option „Pro Schrittabbildung“. |
+| rotation offset (ρ), rotation amount | **Rotationsweite** (die) | As for SHA-2 (M5). Not „Offset“ or „Rotationsbetrag“ in labels. |
+| round constant (ι, `RC`) | **Rundenkonstante** (die), as for AES and SHA-2 | |
+| extendable-output function (XOF) | **Funktion mit erweiterbarer Ausgabe (XOF)** (die), then **die XOF**, plural **XOFs** | „anpassbare XOF“ for cSHAKE. |
+| output byte(s) | **Ausgabebyte** (das); „336 Ausgabebyte“ (unit form), „die Ausgabebytes“ without a number | |
+| domain separation | **Domänentrennung** (die); the suffix bits are **Domänenbits** | FIPS 202 §6.1/§6.2 suffixes `01`, `1111`. |
+| customization string `S` / function name `N` (cSHAKE) | **Anpassungsstring S** (der) / **Funktionsname N** (der) | SP 800-185 §3.2. „Anpassungszeichenkette“ rejected (long). |
+| keyed hashing | **schlüsselabhängiges Hashen**; labels „mit Schlüssel“ („BLAKE2s-256 mit 32-Byte-Schlüssel“) | |
+| ARX | **ARX** (Addition, Rotation, XOR), unchanged | |
+| HAIFA(-style) | **HAIFA**; „ARX im HAIFA-Stil“; salt → **Salt** (das) | |
+| G function (BLAKE2) | **G-Funktion** (die); one call **G-Aufruf** (der) | RFC 7693 §3.1. „Spaltenaufruf“ / „Diagonalaufruf“ for the two halves of a round. |
+| final-block flag (`f₀`) | **Flag für den letzten Block** (das) | RFC 7693 §3.2 *final block indicator*. „Abschlussflag“ / „Final-Flag“ rejected (coined / mixed). |
+| counter `t` (BLAKE2) | **Zähler** (der); **Bytezähler** in prose | Not „Zählerblock“ (that is CTR, M3). |
+| parameter block / working vector `v` | **Parameterblock** (der) / **Arbeitsvektor** (der) | RFC 7693 §2.5, §3.2. |
+| chosen-prefix collision / identical-prefix collision | **Kollision mit gewähltem Präfix** / **Kollision mit identischem Präfix** (die) | Stevens et al. 2007. |
+| detail level (lab parameter) | **Detailstufe** (die) | UI label in the hash and BLAKE2 producers; „Detailgrad“ is the older AES wording. |
+| span (of an instruction, instructions view) | **Spanne** (die) | As on the AES-NI page (M4); not „Zeitspanne“. |
+
 ## Style guide
 
 - **Address the reader with „du“** everywhere (imperative „Drück …“, „Geh …“, „Wähle …“). No

@@ -20,8 +20,11 @@ const ROUND_0 = {
   T1: '54da 50e8',
   T2: '0890 9ae5',
 } as const;
-/** The nine round terms in dataflow order (`roundTerms`); the story lens keeps T1 and T2 only. */
-const ROUND_TERMS = ['Sigma1', 'ch', 'k', 'w', 'kw', 'T1', 'Sigma0', 'maj', 'T2'];
+/**
+ * The round terms in dataflow order (`roundTerms`), ending with the new e = d + T1 and a = T1 + T2
+ * (wordops v2, the sources of the register shift); the story lens keeps T1 and T2 only (emphasis 'story').
+ */
+const ROUND_TERMS = ['Sigma1', 'ch', 'k', 'w', 'kw', 'T1', 'Sigma0', 'maj', 'T2', 'e', 'a'];
 const STORY_TERMS = ['T1', 'T2'];
 
 /** SHA-NI keeps A, B, E, F in one XMM register, A in the highest dword: the SHA-256 IV in memory order. */

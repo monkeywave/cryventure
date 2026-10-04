@@ -1,4 +1,5 @@
 import type { AlignSpan } from '@cryventure/core';
+import { listingError } from '../isaFacets.ts';
 import { nextFrom, pointSpan } from '../isaSpans.ts';
 import type { ShaListingInstruction, ShaListingRole } from '../listing.ts';
 import { roundStep, type ShaBlockSteps } from './shaTrace.ts';
@@ -83,6 +84,22 @@ function roundSpan(instruction: ShaListingInstruction, timeline: ShaBlockTimelin
   };
 }
 
+/** A round instruction's span; throws (naming the instruction) when it starts before the running span `last` (a reordered listing). */
+function orderedRoundSpan(
+  instruction: ShaListingInstruction,
+  timeline: ShaBlockTimeline,
+  last: AlignSpan,
+): AlignSpan {
+  const span = roundSpan(instruction, timeline);
+  if (span.first >= last.first && span.last >= last.last) return span;
+  const t = requiredShaRound(instruction);
+  const rounds = `rounds ${t} … ${t + timeline.roundsPerInstruction - 1}`;
+  throw listingError(
+    instruction,
+    `${rounds} (steps ${span.first} … ${span.last}) start before the span before it (steps ${last.first} … ${last.last})`,
+  );
+}
+
 /** The zero-width target of a non-round, non-copy instruction, before the monotonic guard. */
 function homeStep(
   instruction: ShaListingInstruction,
@@ -112,7 +129,8 @@ function resolveCopies(targets: (number | undefined)[]): number[] {
 /**
  * The spans of one block's instructions, after `previous` (the span before the block). A zero-width
  * target behind the previous span's `last` (e.g. a move between `sha256h` and `sha256h2` of the same
- * rounds) takes the previous span, so spans never decrease.
+ * rounds) takes the previous span, so spans never decrease; a round instruction that would start
+ * before it (a reordered listing) throws instead.
  */
 export function blockSpans(
   instructions: readonly ShaListingInstruction[],
@@ -135,7 +153,7 @@ export function blockSpans(
   let last = previous;
   return instructions.map((instruction, index) => {
     const target = targets[index]!;
-    if (isRound[index]) last = roundSpan(instruction, timeline);
+    if (isRound[index]) last = orderedRoundSpan(instruction, timeline, last);
     else if (target >= last.last) last = pointSpan(target);
     return last;
   });

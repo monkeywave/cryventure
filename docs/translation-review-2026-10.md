@@ -314,3 +314,53 @@ three notions cite HAC §9.2.2; Mendel–Nad–Schläffer with its 2⁶⁵·⁵ 
 „together cover four rounds“. All sections ≤ 150 words.
 
 Still open: sha256 3 („Expansionsschritt“ vs. the sha256 catalog step label).
+
+## M6
+
+Scope (AI editorial review, 2026-10-04): the updated pages `de/hash/index.mdx` (new section „Drei
+Wege zu einer Hashfunktion“ and six refs) and `de/hash/sha512.mdx` (new section „SHA-512 in
+Hardware“ and the `sha512-armv8` lab), both re-stamped and `status: ai-reviewed`; the M6 glossary
+terms (`docs/GLOSSARY.md`, section „Sponge, SHA-3, BLAKE2, MD5 and SHA-1 (M6)“); and the DE catalogs
+of `sha3`, `keccak-constants`, `blake2`, `md5`, `sha1`, the `sponge` view, the `isa-armv8-sha3`
+deriver and the new SHA-512 keys of `isa-armv8-sha`. The pages `de/hash/{md5-sha1,sponge,keccak,
+blake2}.mdx` are reviewed separately.
+
+All M6 §7 proposals were adopted as proposed, except „Squeeze-Phase“ (UI labels say „Auspressen“).
+Added beyond the proposals: Scheibe (Slice), Rotationsweite, Domänenbits, Funktionsname N, G-Funktion
+/ G-Aufruf, Flag für den letzten Block, Zähler, Parameterblock, Arbeitsvektor, Ausgabebyte, Salt,
+Kollision mit identischem Präfix, Detailstufe, Spanne.
+
+Fixed in the catalogs:
+
+- `sha3`: „Detailgrad“ → „Detailstufe“ (as in md5/sha1/blake2/sha256/sha512); π „Nur A[0,0] bleibt,
+  wo es ist“ → „wo sie ist“ (die Lane).
+- `isa-armv8-sha3`: „ρ-Offset“ / „Offset der Lane“ → „Rotationsweite“ (as in `keccak-constants`);
+  „Zeitspannen“ → „Spannen“; „des Trace“ → „des Traces“ (as in `isa-armv8-sha`).
+- `sponge`: „vorbereitet…“ → „vorbereitet …“ (ellipsis after a complete word, as in the other views).
+- Section references with a comma per the style guide („FIPS 202, §6.1“, „RFC 1321, §3.1–3.2“,
+  „RFC 7693, §2.5“, „FIPS 202, Tabelle 2“) in all M6 catalogs.
+
+Catalog notes (not changed, outside this pass):
+
+- `aes` still says „Detailgrad“ (`plugin.aes.error.detail`); the M5 catalogs `sha256`, `sha512`,
+  `sha2-constants` and `isa-armv8-sha` write „FIPS 180-4 §5.1.1“ without the comma.
+
+Open questions for the human reviewer:
+
+1. **„auspressen“** for *squeeze* (op label „Auspressen“, „zweimal auspressen“): natural, or keep the
+   English „Squeeze“ like „Padding“? Same for „absorbieren“ (fine as a loanword?).
+2. **„Lane“** for the Keccak lane, the same word as the SIMD lane (M4 item 5): in the ARMv8 SHA3
+   notes a Keccak lane sits „in der unteren Hälfte eines Vektorregisters“. Unambiguous enough, or
+   „Lane (64-Bit-Wort)“ every time on that view?
+3. **„Anpassungsstring S“** for *customization string*: „String“ is an anglicism; „Anpassungstext“?
+4. **„schlüsselabhängiges Hashen“** for *keyed hashing* vs. „Hashen mit Schlüssel“ (labels already
+   say „mit Schlüssel“).
+5. **„Flag für den letzten Block“** for BLAKE2's *final-block flag* (RFC 7693 *final block
+   indicator*): long but plain; „Schlussblock-Flag“ (parallel to „Schlussrunde“) as a short label?
+6. **„Scheibe (Slice)“** for the Keccak *slice* (`sha3` ρ narration); textbooks often keep „Slice“.
+7. **„Kollision mit gewähltem Präfix“** vs. the common anglicism „Chosen-Prefix-Kollision“.
+8. **„ARX im HAIFA-Stil“** (index table) for *HAIFA-style ARX*; and „ein Salt“ (das Salt) in the
+   HAIFA sentence.
+9. `de/hash/sha512.mdx`: „setzen die Nachrichtenexpansion um jeweils zwei Wörter fort“ for *extend
+   the message schedule two words at a time*; „Teilsumme, die in FIPS 180-4 nicht vorkommt“ for
+   *a partial sum that is not a value of FIPS 180-4*.

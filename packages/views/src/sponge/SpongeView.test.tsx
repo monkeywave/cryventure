@@ -138,7 +138,47 @@ describe('SpongeView', () => {
     render({ phase: 'rho', round: 0 });
     expect(badges('rho')).toHaveLength(25);
     expect(lane(1, 0).querySelector('[data-badge="rho"]')!.textContent).toBe('≪ 1');
-    expect(lane(1, 0).getAttribute('aria-label')).toContain('rotated left by 1 bits');
+    expect(lane(1, 0).getAttribute('aria-label')).toContain('rotated left by 1 bit,');
+    expect(lane(0, 1).getAttribute('aria-label')).toContain('rotated left by 36 bits');
+  });
+
+  it('ρ: the detail line uses the singular for a 1-bit rotation (EN and DE)', () => {
+    render({ phase: 'rho', round: 0 });
+    fireEvent.mouseEnter(lane(1, 0));
+    expect(screen.getByText('Lane (1, 0) rotated left by 1 bit')).toBeTruthy();
+    fireEvent.mouseEnter(lane(0, 1));
+    expect(screen.getByText('Lane (0, 1) rotated left by 36 bits')).toBeTruthy();
+  });
+
+  it('the most recent input wins: arrow keys move the selection while the mouse rests on a lane', () => {
+    render({ phase: 'theta', round: 0, theta: { c: BEFORE.slice(0, 5), d: BEFORE.slice(0, 5) } });
+    fireEvent.mouseEnter(lane(3, 2));
+    expect(lane(3, 0).hasAttribute('data-in-column')).toBe(true);
+    act(() => lane(0, 0).focus());
+    fireEvent.keyDown(lane(0, 0), { key: 'ArrowRight' });
+    expect(lane(1, 0).hasAttribute('data-in-column')).toBe(true);
+    expect(lane(3, 0).hasAttribute('data-in-column')).toBe(false);
+    fireEvent.mouseEnter(lane(4, 4));
+    expect(lane(4, 0).hasAttribute('data-in-column')).toBe(true);
+  });
+
+  it('names the selected column (θ) and row (χ) in the lanes’ accessible names', () => {
+    const { store } = render({ phase: 'theta', round: 0, theta: { c: BEFORE.slice(0, 5), d: BEFORE.slice(0, 5) } });
+    expect(lane(0, 3).getAttribute('aria-label')).toContain('in the selected column');
+    expect(lane(1, 3).getAttribute('aria-label')).not.toContain('selected column');
+    act(() => store.getState().seek(0));
+    expect(lane(0, 3).getAttribute('aria-label')).not.toContain('selected');
+  });
+
+  it('χ: lanes of the selected row say so in their accessible names', () => {
+    render({ phase: 'chi', round: 0 });
+    expect(lane(2, 0).getAttribute('aria-label')).toContain('in the selected row');
+    expect(lane(2, 1).getAttribute('aria-label')).not.toContain('selected row');
+  });
+
+  it('the selection hint mentions tapping, too', () => {
+    render({ phase: 'chi', round: 0 });
+    expect(document.querySelector('.cv-sponge__hint')!.textContent).toMatch(/\btap\b/i);
   });
 
   it('π: a source label per lane and an arrow per moved lane, the selected one bold', () => {
@@ -217,6 +257,14 @@ describe('SpongeView', () => {
     render({ phase: 'squeeze', output: '00' }, 'engineer', { ...loadViewMessages('de'), 'test.sponge.label': 'Keccak-f[1600]' });
     expect(screen.getByRole('region', { name: 'Sponge-Zustand' })).toBeTruthy();
     expect(badges('output')[0]).toBe('→ Ausgabe');
+  });
+
+  it('German: ρ in the singular for 1 bit, the glossary term „Rotationsweite“, the hint mentions tapping', () => {
+    const german = { ...loadViewMessages('de'), 'test.sponge.label': 'Keccak-f[1600]' };
+    render({ phase: 'rho', round: 0 }, 'engineer', german);
+    expect(lane(1, 0).getAttribute('aria-label')).toContain('um 1 Bit nach links rotiert');
+    expect(screen.getByText(/ρ rotiert jede Lane um ihre eigene feste Rotationsweite/)).toBeTruthy();
+    expect(document.querySelector('.cv-sponge__hint')!.textContent).toMatch(/tipp/i);
   });
 
   it('explains when the facet is missing', () => {

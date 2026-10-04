@@ -184,8 +184,8 @@ and NIST plans to retire SHA-1 entirely by 31 December 2030 (NIST, 2022).
 
 <Lens level="cryptographer">
 
-Constants matter: changing 45 bits of SHA-1's round constants yields a variant with a
-designer-planted collision (Albertini et al., SAC 2014). Public rules like √2 limit that freedom.
+Constants matter: changing about 40 bits (on average) of SHA-1's round constants yields a
+variant with a designer-planted collision (Albertini et al., SAC 2014). Public rules like √2 limit that freedom.
 
 </Lens>
 
@@ -223,7 +223,7 @@ designer-planted collision (Albertini et al., SAC 2014). Public rules like √2 
 </CheckQuestion>
 
 <CheckQuestion
-  id="collision-breaks-signature"
+  id="md5-sha1-collision-breaks-signature"
   number={3}
   question="Why does a practical collision attack make a hash unfit for digital signatures?"
   options={[

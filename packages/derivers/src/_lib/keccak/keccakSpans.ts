@@ -1,7 +1,8 @@
 import type { AlignSpan } from '@cryventure/core';
+import { traceContractError } from '../traceFacets.ts';
 import { nextFrom, pointSpan } from '../isaSpans.ts';
 import type { KeccakListingRole } from '../listing.ts';
-import type { KeccakPermutation, KeccakRoundSteps } from './keccakTrace.ts';
+import { KECCAK_CONTRACT, type KeccakPermutation, type KeccakRoundSteps } from './keccakTrace.ts';
 
 /**
  * Spans of the Keccak listing (docs/M6.md §5c; M4 §1e: spans never decrease). Each instruction that
@@ -54,14 +55,22 @@ const raise = (span: AlignSpan, floor: AlignSpan): AlignSpan => ({
   last: Math.max(span.last, floor.last),
 });
 
-/** Natural spans raised so that neither end decreases (deferring an instruction clang scheduled late). */
+/**
+ * Natural spans raised so that neither end decreases (deferring an instruction clang scheduled late).
+ * A natural span that runs backwards comes from a broken trace; raising would hide it, so it throws.
+ */
 function resolveKeccakWork(
   natural: readonly (AlignSpan | undefined)[],
   previous: AlignSpan,
 ): (AlignSpan | undefined)[] {
   let floor = previous;
-  return natural.map((span) => {
+  return natural.map((span, index) => {
     if (span === undefined) return undefined;
+    if (span.first > span.last)
+      throw traceContractError(
+        KECCAK_CONTRACT,
+        `instruction ${index} has a span from step ${span.first} back to step ${span.last}`,
+      );
     floor = raise(span, floor);
     return floor;
   });

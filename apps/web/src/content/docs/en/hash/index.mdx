@@ -52,7 +52,7 @@ import WhyBox from '../../../../components/lesson/WhyBox.astro';
 ## A fingerprint of fixed size
 
 A **hash function** maps a message of almost any length to a fixed-size **digest**. It is
-deterministic, public and has **no key**: anyone can recompute `H(m)` (FIPS 180-4, §1, Figure 1).
+deterministic, public and **keyless**: anyone can recompute `H(m)` (FIPS 180-4, §1, Figure 1).
 
 <KeyFacts>
   <KeyFact label="Message" value="< 2⁶⁴ bit" kind="plaintext" />
@@ -60,10 +60,9 @@ deterministic, public and has **no key**: anyone can recompute `H(m)` (FIPS 180-
   <KeyFact label="SHA-256 digest" value="256 bit" kind="ciphertext" />
 </KeyFacts>
 
-SHA-2 is a **Merkle–Damgård** design (Merkle 1989; Damgård 1989): **pad** the message to whole
-512-bit blocks (§5.1.1), then feed them one by one into a **compression function**. Its output, the
-**chaining value** `H⁽ⁱ⁾`, enters the next block; step 4 of §6.2.2 adds the old one back in: the
-**feed-forward**.
+SHA-2 is a **Merkle–Damgård** design (Merkle 1989; Damgård 1989): **pad** the message to 512-bit
+blocks (§5.1.1) and feed each into a **compression function**. Its output, the **chaining value**
+`H⁽ⁱ⁾`, enters the next block; §6.2.2 step 4 adds the old one back in (**feed-forward**).
 
 <Formula caption="Merkle–Damgård chaining in SHA-256, FIPS 180-4 §5.3.3 and §6.2.2 (+ is addition mod 2³² per word).">
 {`H⁽⁰⁾ = IV
@@ -73,32 +72,25 @@ H(m) = H⁽ᴺ⁾`}
 
 <WhyBox constant="64-bit length" title="why the padding ends with the length">
   The padding ends with the message length `ℓ` in 64 bits (FIPS 180-4 §5.1.1; 128 bits for
-  SHA-384/512, §5.1.2). This "strengthening" makes every collision of the hash a collision of the
-  compression function (Damgård 1989; HAC §9.3.2, Algorithm 9.26), and caps messages below 2⁶⁴ bits.
+  SHA-384/512, §5.1.2). This "strengthening" turns every hash collision into a compression-function
+  collision (Damgård 1989; HAC §9.3.2, Algorithm 9.26) and caps messages below 2⁶⁴ bits.
 </WhyBox>
 
 <Lens only="story">
 
-A blender with memory: it mixes one 64-byte scoop at a time into what is already there.
+A blender with memory: each 64-byte scoop is mixed into what is already there.
 
 </Lens>
 
 ### Three ways to build a hash
 
-The hash pages follow three constructions:
+| Construction | How it works | Functions | Pages |
+|---|---|---|---|
+| Merkle–Damgård | chains a compression function over padded blocks (RFC 1321, §3; FIPS 180-4, §6.1–6.7) | MD5, SHA-1, SHA-2 | [MD5 and SHA-1](./md5-sha1/), [SHA-256](./sha256/), [SHA-512](./sha512/) |
+| Sponge | absorbs blocks into a larger permutation state (FIPS 202, §4; Bertoni et al. 2007) | SHA-3, SHAKE | [Sponge](./sponge/), [Keccak](./keccak/) |
+| HAIFA-style ARX | chain plus a bit counter and a salt per call (Biham and Dunkelman, ePrint 2007/278); BLAKE2 takes a byte counter and a final-block flag and mixes only with addition, rotation and XOR (RFC 7693, §3.2) | BLAKE2 | [BLAKE2](./blake2/) |
 
-| Construction | Functions | Pages |
-|---|---|---|
-| Merkle–Damgård | MD5, SHA-1, SHA-2 | [MD5 and SHA-1](./md5-sha1/), [SHA-256](./sha256/), [SHA-512](./sha512/) |
-| Sponge | SHA-3, SHAKE | [Sponge](./sponge/), [Keccak](./keccak/) |
-| HAIFA-style ARX | BLAKE2 | [BLAKE2](./blake2/) |
-
-**Merkle–Damgård** chains a compression function over padded blocks, as above: MD5 (RFC 1321, §3),
-SHA-1 (FIPS 180-4, §6.1) and SHA-2 (§6.2–6.7). A **sponge** instead absorbs blocks into a larger
-permutation state, part of which is never output (FIPS 202, §4; Bertoni et al. 2007). **HAIFA**
-keeps the chain but gives every compression call the number of bits hashed so far and a salt
-(Biham and Dunkelman, ePrint 2007/278). BLAKE2's compression function likewise takes a byte counter
-and a final-block flag and mixes only with addition, rotation and XOR (RFC 7693, §3.2).
+Only the sponge leaves the chain behind: part of its state is never output (FIPS 202, §4).
 
 </LessonSection>
 
