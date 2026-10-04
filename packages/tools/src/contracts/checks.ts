@@ -107,11 +107,12 @@ export function runtimeLabelKeys(bundle: TraceBundle): string[] {
   return [...new Set([...regions, ...scopes, ...values])];
 }
 
-/** Op label keys (`ops[op].labelKey`/`shortLabelKey`) and output label keys a primitive manifest declares. */
-export function manifestLabelKeys(manifest: Pick<PrimitiveManifest, 'ops' | 'outputs'>): string[] {
+/** Op label keys (`ops[op].labelKey`/`shortLabelKey`), output label keys and port member label keys a primitive manifest declares. */
+export function manifestLabelKeys(manifest: Pick<PrimitiveManifest, 'ops' | 'outputs' | 'portMembers'>): string[] {
   const ops = Object.values(manifest.ops ?? {}).flatMap((labels) => [labels.labelKey, labels.shortLabelKey].filter((key) => key !== undefined));
   const outputs = Object.values(manifest.outputs ?? {}).map((label) => label.labelKey);
-  return [...new Set([...ops, ...outputs])];
+  const members = Object.values(manifest.portMembers ?? {}).flatMap((declared) => (declared ?? []).map((member) => member.labelKey));
+  return [...new Set([...ops, ...outputs, ...members])];
 }
 
 const WORD_BYTE_ORDERS: readonly unknown[] = ['big', 'little'];

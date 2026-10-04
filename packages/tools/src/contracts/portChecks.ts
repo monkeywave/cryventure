@@ -1,4 +1,27 @@
-import { bytesEqual, isPortName, type BlockCipher, type HashFamily, type HashFunction, type ParamField, type PortMap, type PortName, type PrimitiveManifest, type PrimitiveModule, type XofContext, type XofCustomization, type XofFunction } from '@cryventure/core';
+import {
+  bytesEqual,
+  isMemberPortName,
+  isPortName,
+  parsePortMemberRef,
+  type BlockCipher,
+  type HashContext,
+  type HashFamily,
+  type HashFunction,
+  type MacContext,
+  type MacFamily,
+  type MacFunction,
+  type MacOptions,
+  type MemberPortName,
+  type ParamField,
+  type PortMap,
+  type PortMemberDecl,
+  type PortName,
+  type PrimitiveManifest,
+  type PrimitiveModule,
+  type XofContext,
+  type XofCustomization,
+  type XofFunction,
+} from '@cryventure/core';
 import { textFieldByteLength } from '@cryventure/primitives';
 
 /**
@@ -152,45 +175,68 @@ function guarded(where: string, check: () => string[]): string[] {
   }
 }
 
-function hashSplitProblems(fn: HashFunction): string[] {
-  return hashSplits(fn.blockSize).flatMap(({ name, length, parts }) => {
+/** A context type checked against its one-shot function (`HashContext`, `MacContext`). */
+interface Incremental<C extends { update(data: Uint8Array): void; clone(): C }> {
+  /** Problem prefix, e.g. `Hash sha-256` or `Mac hmac-sha-256 (32-byte key)`. */
+  name: string;
+  /** How the context is made and finalised, and the one-shot function, as named in problems. */
+  labels: { create: string; final: string; oneShot: string };
+  blockSize: number;
+  create(): C;
+  final(context: C): Uint8Array;
+  oneShot(data: Uint8Array): Uint8Array;
+}
+
+function splitProblems<C extends { update(data: Uint8Array): void; clone(): C }>(subject: Incremental<C>): string[] {
+  return hashSplits(subject.blockSize).flatMap(({ name, length, parts }) => {
     const data = testBytes(length, HASH_INPUT_SEED);
-    const where = `Hash ${fn.id}: create() + update (${name}, ${length} bytes)`;
-    return guarded(where, () => (bytesEqual(absorbAll(fn.create(), parts(data)).digest(), fn.hash(data)) ? [] : [`${where} differs from hash()`]));
+    const where = `${subject.name}: ${subject.labels.create} + update (${name}, ${length} bytes)`;
+    return guarded(where, () => (bytesEqual(subject.final(absorbAll(subject.create(), parts(data))), subject.oneShot(data)) ? [] : [`${where} differs from ${subject.labels.oneShot}`]));
   });
 }
 
-/** `digest()` twice gives the same bytes and does not stop `update`. */
-function hashDigestTwiceProblems(fn: HashFunction): string[] {
-  const where = `Hash ${fn.id}: digest()`;
+/** Finalising twice gives the same bytes and does not stop `update`. */
+function finalTwiceProblems<C extends { update(data: Uint8Array): void; clone(): C }>(subject: Incremental<C>): string[] {
+  const where = `${subject.name}: ${subject.labels.final}`;
   return guarded(where, () => {
-    const data = testBytes(fn.blockSize + 1, HASH_INPUT_SEED);
-    const context = absorbAll(fn.create(), [data.subarray(0, 1)]);
-    const first = context.digest();
-    const problems = bytesEqual(first, context.digest()) ? [] : [`${where} twice gives different bytes`];
+    const data = testBytes(subject.blockSize + 1, HASH_INPUT_SEED);
+    const context = absorbAll(subject.create(), [data.subarray(0, 1)]);
+    const first = subject.final(context);
+    const problems = bytesEqual(first, subject.final(context)) ? [] : [`${where} twice gives different bytes`];
     context.update(data.subarray(1));
-    return bytesEqual(context.digest(), fn.hash(data)) ? problems : [...problems, `${where} stops a later update from counting`];
+    return bytesEqual(subject.final(context), subject.oneShot(data)) ? problems : [...problems, `${where} stops a later update from counting`];
   });
 }
 
 /** A clone taken after `prefix` is independent of its source in both directions. */
-function hashCloneProblems(fn: HashFunction): string[] {
-  const where = `Hash ${fn.id}: clone()`;
+function cloneProblems<C extends { update(data: Uint8Array): void; clone(): C }>(subject: Incremental<C>): string[] {
+  const where = `${subject.name}: clone()`;
   return guarded(where, () => {
-    const prefix = testBytes(fn.blockSize + 1, HASH_INPUT_SEED);
-    const source = absorbAll(fn.create(), [prefix]);
+    const prefix = testBytes(subject.blockSize + 1, HASH_INPUT_SEED);
+    const source = absorbAll(subject.create(), [prefix]);
     const clone = source.clone();
     source.update(Uint8Array.of(1));
-    const cloneUnchanged = bytesEqual(clone.digest(), fn.hash(prefix));
+    const cloneUnchanged = bytesEqual(subject.final(clone), subject.oneShot(prefix));
     clone.update(Uint8Array.of(2));
-    const sourceUnchanged = bytesEqual(source.digest(), fn.hash(Uint8Array.of(...prefix, 1)));
+    const sourceUnchanged = bytesEqual(subject.final(source), subject.oneShot(Uint8Array.of(...prefix, 1)));
     return cloneUnchanged && sourceUnchanged ? [] : [`${where} is not independent of its source`];
   });
 }
 
+function incrementalProblems<C extends { update(data: Uint8Array): void; clone(): C }>(subject: Incremental<C>): string[] {
+  return [...splitProblems(subject), ...finalTwiceProblems(subject), ...cloneProblems(subject)];
+}
+
 function hashContextProblems(fn: HashFunction): string[] {
   if (typeof fn.create !== 'function') return [`Hash ${fn.id}: create is not a function`];
-  return [...hashSplitProblems(fn), ...hashDigestTwiceProblems(fn), ...hashCloneProblems(fn)];
+  return incrementalProblems<HashContext>({
+    name: `Hash ${fn.id}`,
+    labels: { create: 'create()', final: 'digest()', oneShot: 'hash()' },
+    blockSize: fn.blockSize,
+    create: () => fn.create(),
+    final: (context) => context.digest(),
+    oneShot: (data) => fn.hash(data),
+  });
 }
 
 /** The output of a fresh context over `data`, squeezed in `lengths` pieces and joined. */
@@ -325,10 +371,139 @@ export function hashFamilyProblems(family: HashFamily, producerId: string): stri
   return [...problems, ...family.functions.flatMap(hashFunctionProblems), ...xofs.flatMap(xofFunctionProblems), ...cshakeAsShakeProblems(xofs)];
 }
 
+const MAC_KEY_SEED = 11;
+const MAC_CONSTRUCTIONS: readonly unknown[] = ['hmac', 'kmac', 'keyed-hash'];
+const isNonNegativeInteger = (value: unknown): boolean => typeof value === 'number' && Number.isInteger(value) && value >= 0;
+
+const keyAllowed = (fn: MacFunction, length: number): boolean => length >= fn.keySizes.min && (fn.keySizes.max === undefined || length <= fn.keySizes.max);
+
+/** The key lengths a MAC is exercised with: min, 1, blockSize and blockSize + 1, each when allowed. */
+const macKeyLengths = (fn: MacFunction): number[] => [...new Set([fn.keySizes.min, 1, fn.blockSize, fn.blockSize + 1])].filter((length) => keyAllowed(fn, length));
+
+function macConstructionProblems(fn: MacFunction): string[] {
+  const { construction } = fn;
+  if (!MAC_CONSTRUCTIONS.includes(construction?.kind)) return [`Mac ${fn.id}: construction kind "${String(construction?.kind)}" is not hmac, kmac or keyed-hash`];
+  if (construction.kind === 'hmac' && parsePortMemberRef(construction.hash) === undefined) return [`Mac ${fn.id}: hmac construction hash "${construction.hash}" is not a member ref`];
+  return [];
+}
+
+/** Sizes, key sizes, the option flags and the construction. */
+function macShapeProblems(fn: MacFunction): string[] {
+  const { min, max } = fn.keySizes;
+  return [
+    ...(isPositiveInteger(fn.outputSize) ? [] : [`Mac ${fn.id}: outputSize ${fn.outputSize} is not a positive integer`]),
+    ...(isPositiveInteger(fn.blockSize) ? [] : [`Mac ${fn.id}: blockSize ${fn.blockSize} is not a positive integer`]),
+    ...(isNonNegativeInteger(min) ? [] : [`Mac ${fn.id}: keySizes.min ${min} is not a non-negative integer`]),
+    ...(max === undefined || (isNonNegativeInteger(max) && max >= min) ? [] : [`Mac ${fn.id}: keySizes.max ${max} is not an integer ≥ min`]),
+    ...(typeof fn.customizable === 'boolean' && typeof fn.variableOutput === 'boolean' ? [] : [`Mac ${fn.id}: customizable or variableOutput is not a boolean`]),
+    ...macConstructionProblems(fn),
+  ];
+}
+
+/** Deterministic, `outputSize` bytes, key and message unchanged, for one key and message length. */
+function tagProblems(fn: MacFunction, keyLength: number, length: number): string[] {
+  const where = `Mac ${fn.id}: ${keyLength}-byte key, ${length}-byte message`;
+  return guarded(where, () => {
+    const [key, data] = [testBytes(keyLength, MAC_KEY_SEED), testBytes(length, HASH_INPUT_SEED)];
+    const [keyCopy, dataCopy] = [key.slice(), data.slice()];
+    const [first, second] = [fn.mac(key, data), fn.mac(keyCopy, dataCopy)];
+    const pristine = bytesEqual(key, testBytes(keyLength, MAC_KEY_SEED)) && bytesEqual(data, testBytes(length, HASH_INPUT_SEED));
+    const mutated = pristine ? [] : [`${where}: mac mutates its key or message`];
+    if (!(first instanceof Uint8Array) || first.length !== fn.outputSize) return [`${where}: tag is not ${fn.outputSize} bytes`, ...mutated];
+    return bytesEqual(first, second) ? mutated : [`${where}: mac is not deterministic`, ...mutated];
+  });
+}
+
+function macContextProblems(fn: MacFunction, keyLength: number): string[] {
+  const key = testBytes(keyLength, MAC_KEY_SEED);
+  return incrementalProblems<MacContext>({
+    name: `Mac ${fn.id} (${keyLength}-byte key)`,
+    labels: { create: 'create(key)', final: 'mac()', oneShot: 'mac(key, m)' },
+    blockSize: fn.blockSize,
+    create: () => fn.create(key),
+    final: (context) => context.mac(),
+    oneShot: (data) => fn.mac(key, data),
+  });
+}
+
+function throwsRangeError(action: () => unknown): boolean {
+  try {
+    action();
+    return false;
+  } catch (error) {
+    return error instanceof RangeError;
+  }
+}
+
+/** `mac` and `create` throw a `RangeError` for a key just below `min` and just above `max`. */
+function macKeyRangeProblems(fn: MacFunction): string[] {
+  const { min, max } = fn.keySizes;
+  const outside = [min - 1, ...(max === undefined ? [] : [max + 1])].filter((length) => length >= 0);
+  const data = testBytes(3, HASH_INPUT_SEED);
+  return outside.flatMap((length) => {
+    const key = testBytes(length, MAC_KEY_SEED);
+    const calls = [['mac', () => fn.mac(key, data)], ['create', () => fn.create(key)]] as const;
+    return calls.filter(([, call]) => !throwsRangeError(call)).map(([name]) => `Mac ${fn.id}: ${name} does not throw a RangeError for a ${length}-byte key`);
+  });
+}
+
+/** Options a function does not accept throw (in `mac` and `create`); a variable output length is honoured. */
+function macOptionProblems(fn: MacFunction): string[] {
+  const [key, data] = [testBytes(fn.keySizes.min, MAC_KEY_SEED), testBytes(3, HASH_INPUT_SEED)];
+  const unsupported: [string, MacOptions][] = [
+    ...(fn.customizable ? [] : [['a customization', { customization: Uint8Array.of(0x53) }] as [string, MacOptions]]),
+    ...(fn.variableOutput ? [] : [['an outputLength', { outputLength: fn.outputSize + 1 }] as [string, MacOptions]]),
+  ];
+  const accepted = unsupported.filter(([, options]) => !throws(() => fn.mac(key, data, options)) || !throws(() => fn.create(key, options)));
+  const problems = accepted.map(([what]) => `Mac ${fn.id}: accepts ${what} it does not support`);
+  if (!fn.variableOutput) return problems;
+  const outputLength = fn.outputSize + 1;
+  const where = `Mac ${fn.id}: outputLength ${outputLength}`;
+  const lengths = guarded(where, () => ([fn.mac(key, data, { outputLength }), fn.create(key, { outputLength }).mac()].every((tag) => tag.length === outputLength) ? [] : [`${where} is not honoured`]));
+  return [...problems, ...lengths];
+}
+
+/** HMAC hashes a key longer than B (RFC 2104 §2): two such keys differing only in byte B give different tags. */
+function hmacLongKeyProblems(fn: MacFunction): string[] {
+  if (fn.construction.kind !== 'hmac' || !keyAllowed(fn, fn.blockSize + 1)) return [];
+  const where = `Mac ${fn.id}: a ${fn.blockSize + 1}-byte key`;
+  return guarded(where, () => {
+    const key = testBytes(fn.blockSize + 1, MAC_KEY_SEED);
+    const other = Uint8Array.from(key, (byte, i) => (i === fn.blockSize ? byte ^ 1 : byte));
+    const data = testBytes(3, HASH_INPUT_SEED);
+    return bytesEqual(fn.mac(key, data), fn.mac(other, data)) ? [`${where}: keys differing only after byte ${fn.blockSize} give the same tag (the long key is not hashed)`] : [];
+  });
+}
+
+/**
+ * Shape first; then per allowed key length {min, 1, B, B + 1} and message length {0, 1, B, 2B + 3}
+ * well-formed tags; once those hold, the incremental context per key length, out-of-range keys,
+ * unsupported options and HMAC's long-key branch (docs/M7.md §1a).
+ */
+function macFunctionProblems(fn: MacFunction): string[] {
+  const shape = macShapeProblems(fn);
+  if (shape.length > 0) return shape;
+  const keyLengths = macKeyLengths(fn);
+  const messageLengths = [...new Set([0, 1, fn.blockSize, 2 * fn.blockSize + 3])];
+  const tags = keyLengths.flatMap((keyLength) => messageLengths.flatMap((length) => tagProblems(fn, keyLength, length)));
+  if (tags.length > 0) return tags;
+  if (typeof fn.create !== 'function') return [`Mac ${fn.id}: create is not a function`];
+  return [...keyLengths.flatMap((keyLength) => macContextProblems(fn, keyLength)), ...macKeyRangeProblems(fn), ...macOptionProblems(fn), ...hmacLongKeyProblems(fn)];
+}
+
+/** Family id = producer id, at least one function, unique ids, every function sane (docs/M7.md §1a). */
+export function macFamilyProblems(family: MacFamily, producerId: string): string[] {
+  const problems = family.id === producerId ? [] : [`Mac: family id "${family.id}" is not the producer id "${producerId}"`];
+  if (family.functions.length === 0) return [...problems, 'Mac: functions is empty'];
+  problems.push(...duplicateIds(family.functions).map((id) => `Mac: function id "${id}" is not unique`));
+  return [...problems, ...family.functions.flatMap(macFunctionProblems)];
+}
+
 /** The sanity check per port; the `Record` makes a new port without a check a type error. */
 const PORT_SANITY: { [N in PortName]: (implementation: PortMap[N], producerId: string) => string[] } = {
   BlockCipher: blockCipherProblems,
   Hash: hashFamilyProblems,
+  Mac: macFamilyProblems,
 };
 
 function portSanity<N extends PortName>(port: N, implementation: PortMap[N], producerId: string): string[] {
@@ -345,7 +520,16 @@ export function implementedPortProblems(manifest: Pick<PrimitiveManifest, 'id' |
   });
 }
 
-/** `port` fields name a real port that at least one registered producer implements. */
+/** A member field's port is `Hash` or `Mac`, and only `Mac` member fields filter by `constructions` (docs/M7.md §1b). */
+function memberFieldProblems(field: ParamField): string[] {
+  const memberPort = field.member === true && isMemberPortName(field.port);
+  return [
+    ...(field.member === true && !memberPort ? [`param "${field.name}": a member field needs port Hash or Mac, not "${String(field.port)}"`] : []),
+    ...(field.constructions !== undefined && !(memberPort && field.port === 'Mac') ? [`param "${field.name}": constructions need a Mac member field`] : []),
+  ];
+}
+
+/** `port` fields name a real port that at least one registered producer implements; member fields name a family port. */
 export function portFieldProblems(fields: readonly ParamField[], producers: readonly Pick<PrimitiveManifest, 'implements'>[]): string[] {
   return fields
     .filter((field) => field.kind === 'port')
@@ -353,8 +537,41 @@ export function portFieldProblems(fields: readonly ParamField[], producers: read
       const { port } = field;
       if (!isPortName(port)) return [`param "${field.name}": "${String(port)}" is not a port name`];
       const implemented = producers.some((producer) => producer.implements.includes(port));
-      return implemented ? [] : [`param "${field.name}": no registered producer implements port "${port}"`];
+      return [...(implemented ? [] : [`param "${field.name}": no registered producer implements port "${port}"`]), ...memberFieldProblems(field)];
     });
+}
+
+type LoadedMember = Pick<PortMemberDecl, 'id' | 'construction'>;
+
+/** The members of a loaded family port, in order; the mapped type makes a new member port without an entry a type error. */
+const LOADED_MEMBERS: { [N in MemberPortName]: (implementation: PortMap[N]) => LoadedMember[] } = {
+  Hash: (family) => family.functions.map((fn) => ({ id: fn.id })),
+  Mac: (family) => family.functions.map((fn) => ({ id: fn.id, construction: fn.construction.kind })),
+};
+
+function loadedMembers<N extends MemberPortName>(port: N, implementation: PortMap[N]): LoadedMember[] {
+  return LOADED_MEMBERS[port](implementation);
+}
+
+/** Declared ids equal the loaded ids in order, and each declared construction equals the loaded one (none for Hash). */
+function memberListProblems(port: MemberPortName, declared: readonly PortMemberDecl[], loaded: readonly LoadedMember[]): string[] {
+  const ids = (members: readonly LoadedMember[]): string => members.map((member) => member.id).join(', ');
+  if (ids(declared) !== ids(loaded)) return [`portMembers.${port}: [${ids(declared)}] is not the loaded members [${ids(loaded)}] in order`];
+  return declared.flatMap((member, index) => {
+    const construction = loaded[index]?.construction;
+    return member.construction === construction ? [] : [`portMembers.${port}: "${member.id}" declares construction "${String(member.construction)}", the loaded member has "${String(construction)}"`];
+  });
+}
+
+/** Every declared `portMembers` port is a family port in `implements` whose loaded members match the declaration (docs/M7.md §1b). */
+export function portMemberProblems(manifest: Pick<PrimitiveManifest, 'implements' | 'portMembers'>, module: Pick<PrimitiveModule<unknown>, 'ports'>): string[] {
+  return Object.entries(manifest.portMembers ?? {}).flatMap(([port, declared]) => {
+    if (!isMemberPortName(port)) return [`portMembers: "${port}" is not Hash or Mac`];
+    if (!manifest.implements.includes(port)) return [`portMembers: "${port}" is not in implements`];
+    const implementation = module.ports?.[port];
+    if (implementation === undefined) return [`portMembers: port "${port}" is missing from module.ports`];
+    return memberListProblems(port, declared ?? [], loadedMembers(port, implementation));
+  });
 }
 
 interface ParamCase {

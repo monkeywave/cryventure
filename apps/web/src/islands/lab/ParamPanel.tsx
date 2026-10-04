@@ -198,10 +198,10 @@ function SelectField(props: FieldProps) {
   return <ChoiceField {...props} options={props.field.options ?? []} />;
 }
 
-/** A `port` param: every registered producer implementing the port, labelled by its title (docs/M3.md §2). */
+/** A `port` param: every registered producer implementing the port, labelled by its title, or its members (docs/M3.md §2, docs/M7.md §1b). */
 function PortField(props: FieldProps) {
   const { field, producers = producerRegistry.list() } = props;
-  return <ChoiceField {...props} options={field.port === undefined ? [] : portOptions(producers, field.port)} />;
+  return <ChoiceField {...props} options={portOptions(producers, field)} />;
 }
 
 const FIELD_INPUTS = { hex: HexField, select: SelectField, port: PortField, text: TextField } satisfies Record<ParamField['kind'], (props: FieldProps) => ReactNode>;

@@ -26,6 +26,12 @@ export interface HashContext {
   digest(): Uint8Array;
   /** An independent copy, e.g. the HMAC midstate after the ipad block. */
   clone(): HashContext;
+  /**
+   * Optional (docs/M7.md §1a): the internal chaining value without buffered bytes (MD/SHA-2: the H
+   * words in the spec's byte order; sponge: the 200-byte state; BLAKE2: h in little-endian). For
+   * teaching midstates only.
+   */
+  chainingState?(): Uint8Array;
 }
 
 /** One hash function, untraced (docs/M5.md §1, docs/M6.md §1). */
@@ -96,16 +102,69 @@ export interface HashFamily {
   readonly xofs?: readonly XofFunction[];
 }
 
+/** How a MAC is built: metadata for zoom links and combinator filters, not behaviour (docs/M7.md §1a). */
+export type MacConstruction =
+  /** `hash` is the Hash member ref, e.g. `sha256:sha-256`. */
+  | { readonly kind: 'hmac'; readonly hash: string }
+  | { readonly kind: 'kmac' }
+  /** Keyed BLAKE2 (RFC 7693 §2.5). */
+  | { readonly kind: 'keyed-hash' };
+
+/** KMAC's S and L (SP 800-185 §4.3); absent = empty S, default length. */
+export interface MacOptions {
+  readonly customization?: Uint8Array;
+  readonly outputLength?: number;
+}
+
+/** A running MAC computation keyed once: update* → mac. */
+export interface MacContext {
+  /** Absorbs more data; the caller may reuse `data` afterwards. */
+  update(data: Uint8Array): void;
+  /** The tag of everything absorbed so far; does not change the context. */
+  mac(): Uint8Array;
+  /** An independent copy (for HMAC: both midstates; PBKDF2 clones one per iteration). */
+  clone(): MacContext;
+}
+
+/** One MAC function, untraced (docs/M7.md §1a). */
+export interface MacFunction {
+  /** Lowercase name, e.g. `hmac-sha-256`, `hmac-sha3-256`, `kmac128`, `blake2s-256`. */
+  readonly id: string;
+  /** The default tag length in bytes (KMAC128: 32, KMAC256: 64). */
+  readonly outputSize: number;
+  /** HMAC: the hash's B; KMAC: the rate; BLAKE2: the block. */
+  readonly blockSize: number;
+  /** Accepted key lengths in bytes; no `max` = unbounded. */
+  readonly keySizes: { readonly min: number; readonly max?: number };
+  /** Accepts `MacOptions.customization` (KMAC only). */
+  readonly customizable: boolean;
+  /** Accepts `MacOptions.outputLength` (KMAC only). */
+  readonly variableOutput: boolean;
+  readonly construction: MacConstruction;
+  /** The tag of `data` under `key`; throws a `RangeError` on a key outside `keySizes` or options the function does not accept. */
+  mac(key: Uint8Array, data: Uint8Array, options?: MacOptions): Uint8Array;
+  /** A fresh incremental context keyed with `key` (same throwing rules as `mac`). */
+  create(key: Uint8Array, options?: MacOptions): MacContext;
+}
+
+/** The MAC functions one producer offers. */
+export interface MacFamily {
+  /** The producer id that implements it, e.g. `sha256`, `blake2`, `kmac`. */
+  readonly id: string;
+  readonly functions: readonly MacFunction[];
+}
+
 /** Every port by name. */
 export interface PortMap {
   BlockCipher: BlockCipher;
   Hash: HashFamily;
+  Mac: MacFamily;
 }
 
 export type PortName = keyof PortMap;
 
 /** One entry per port; the `Record` makes adding a port to `PortMap` without listing it here a type error. */
-const PORTS: Record<PortName, true> = { BlockCipher: true, Hash: true };
+const PORTS: Record<PortName, true> = { BlockCipher: true, Hash: true, Mac: true };
 
 /** Every port name, for runtime checks (contract kit, param validation). */
 export const PORT_NAMES = Object.keys(PORTS) as PortName[];
@@ -122,4 +181,51 @@ export function hashFunction(family: HashFamily, id: string): HashFunction | und
 /** The XOF `id` of `family`, or `undefined` when the family does not offer it (the consumer reports that). */
 export function xofFunction(family: HashFamily, id: string): XofFunction | undefined {
   return family.xofs?.find((candidate) => candidate.id === id);
+}
+
+/** The function `id` of `family`, or `undefined` when the family does not offer it (the consumer reports that). */
+export function macFunction(family: MacFamily, id: string): MacFunction | undefined {
+  return family.functions.find((candidate) => candidate.id === id);
+}
+
+/**
+ * Port members (docs/M7.md §1b): a family port offers several functions, and a member ref
+ * `"<producerId>:<memberId>"` (e.g. `sha256:hmac-sha-256`) names one, so a combinator picks a hash
+ * or a MAC without hard-coding plugin ids. Hash members are `HashFamily.functions` (not XOFs).
+ */
+export interface PortMemberMap {
+  Hash: HashFunction;
+  Mac: MacFunction;
+}
+
+export type MemberPortName = keyof PortMemberMap;
+
+/** One lookup per member port; the mapped type makes a new member port without a lookup a type error. */
+const MEMBER_LOOKUP: { [N in MemberPortName]: (family: PortMap[N], memberId: string) => PortMemberMap[N] | undefined } = {
+  Hash: hashFunction,
+  Mac: macFunction,
+};
+
+export function isMemberPortName(value: unknown): value is MemberPortName {
+  return typeof value === 'string' && Object.hasOwn(MEMBER_LOOKUP, value);
+}
+
+const MEMBER_SEPARATOR = ':';
+
+/** The member ref `"<producerId>:<memberId>"`. */
+export function portMemberRef(producerId: string, memberId: string): string {
+  return `${producerId}${MEMBER_SEPARATOR}${memberId}`;
+}
+
+/** The two parts of a member ref, or `undefined` unless it is exactly one `:` between two non-empty parts. */
+export function parsePortMemberRef(ref: string): { producerId: string; memberId: string } | undefined {
+  const parts = ref.split(MEMBER_SEPARATOR);
+  if (parts.length !== 2) return undefined;
+  const [producerId = '', memberId = ''] = parts;
+  return producerId === '' || memberId === '' ? undefined : { producerId, memberId };
+}
+
+/** The member `memberId` of a loaded `port` implementation, or `undefined` when the family does not offer it. */
+export function portMember<N extends MemberPortName>(port: N, family: PortMap[N], memberId: string): PortMemberMap[N] | undefined {
+  return MEMBER_LOOKUP[port](family, memberId);
 }

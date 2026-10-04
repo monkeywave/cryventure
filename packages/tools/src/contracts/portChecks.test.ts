@@ -1,6 +1,7 @@
-import type { BlockCipher, HashContext, HashFamily, HashFunction, ParamField, PrimitiveManifest, XofContext, XofCustomization, XofFunction } from '@cryventure/core';
+import { createHash } from 'node:crypto';
+import type { BlockCipher, HashContext, HashFamily, HashFunction, MacContext, MacFamily, MacFunction, MacOptions, ParamField, PrimitiveManifest, XofContext, XofCustomization, XofFunction } from '@cryventure/core';
 import { describe, expect, it } from 'vitest';
-import { blockCipherProblems, hashFamilyProblems, implementedPortProblems, portFieldProblems, runInProblems, textFieldProblems } from './portChecks.ts';
+import { blockCipherProblems, hashFamilyProblems, implementedPortProblems, macFamilyProblems, portFieldProblems, portMemberProblems, runInProblems, textFieldProblems } from './portChecks.ts';
 
 /** 4-byte toy cipher: E(k, b) = b ⊕ k, with the length checks a real port must have. */
 function toyCipher(overrides: Partial<BlockCipher> = {}): BlockCipher {
@@ -332,6 +333,190 @@ describe('hashFamilyProblems: XOFs', () => {
   });
 });
 
+const sha256 = (data: Uint8Array): Uint8Array => new Uint8Array(createHash('sha256').update(data).digest());
+const concat = (...parts: Uint8Array[]): Uint8Array => Uint8Array.from(parts.flatMap((part) => [...part]));
+
+/** A buffering MAC context over a one-shot `tag` (fine for a test; real ports keep midstates). */
+function bufferingMacContext(tag: (data: Uint8Array) => Uint8Array, absorbed: readonly number[] = []): MacContext {
+  const bytes = [...absorbed];
+  return { update: (data) => { bytes.push(...data); }, mac: () => tag(Uint8Array.from(bytes)), clone: () => bufferingMacContext(tag, bytes) };
+}
+
+/** RFC 2104 key preparation: hash a key longer than B, then zero-pad to B. `truncate` instead cuts it (the bug the long-key check catches). */
+function hmacKeyBlock(key: Uint8Array, truncate = false): Uint8Array {
+  const block = new Uint8Array(64);
+  block.set(key.length > 64 ? (truncate ? key.subarray(0, 64) : sha256(key)) : key);
+  return block;
+}
+
+const hmacTag = (key: Uint8Array, data: Uint8Array, truncate = false): Uint8Array => {
+  const block = hmacKeyBlock(key, truncate);
+  return sha256(concat(block.map((byte) => byte ^ 0x5c), sha256(concat(block.map((byte) => byte ^ 0x36), data))));
+};
+
+function rejectOptions(options: MacOptions | undefined): void {
+  if (options?.customization !== undefined || options?.outputLength !== undefined) throw new RangeError('test hmac: no options');
+}
+
+/** A fake HMAC-SHA-256 (test only); overrides replace any member. */
+function testHmac(overrides: Partial<MacFunction> = {}): MacFunction {
+  const fn: MacFunction = {
+    id: 'hmac-toy-256',
+    outputSize: 32,
+    blockSize: 64,
+    keySizes: { min: 0 },
+    customizable: false,
+    variableOutput: false,
+    construction: { kind: 'hmac', hash: 'toy:toy-256' },
+    mac: (key, data, options) => { rejectOptions(options); return hmacTag(key, data); },
+    create: (key, options) => { rejectOptions(options); const copy = key.slice(); return bufferingMacContext((data) => fn.mac(copy, data)); },
+    ...overrides,
+  };
+  return fn;
+}
+
+/** A fake KMAC-like function: SHAKE256 over S ‖ key ‖ data, with 1..32-byte keys and a variable output length. */
+function testKmac(overrides: Partial<MacFunction> = {}): MacFunction {
+  const checkKey = (key: Uint8Array): void => { if (key.length < 1 || key.length > 32) throw new RangeError('test kmac: key length'); };
+  const tag = (key: Uint8Array, data: Uint8Array, options?: MacOptions): Uint8Array =>
+    new Uint8Array(createHash('shake256', { outputLength: options?.outputLength ?? 64 }).update(concat(options?.customization ?? new Uint8Array(0), key, data)).digest());
+  return {
+    id: 'kmac-toy',
+    outputSize: 64,
+    blockSize: 136,
+    keySizes: { min: 1, max: 32 },
+    customizable: true,
+    variableOutput: true,
+    construction: { kind: 'kmac' },
+    mac: (key, data, options) => { checkKey(key); return tag(key, data, options); },
+    create: (key, options) => { checkKey(key); const copy = key.slice(); return bufferingMacContext((data) => tag(copy, data, options)); },
+    ...overrides,
+  };
+}
+
+const macFamily = (functions: MacFunction[] = [testHmac()], id = 'toy'): MacFamily => ({ id, functions });
+
+describe('macFamilyProblems', () => {
+  it('passes a sane HMAC and a sane customizable, variable-length MAC', () => {
+    expect(macFamilyProblems(macFamily([testHmac(), testKmac()]), 'toy')).toEqual([]);
+  });
+
+  it('reports a foreign family id, an empty family and duplicate ids', () => {
+    expect(macFamilyProblems(macFamily(undefined, 'sha256'), 'toy')).toEqual(['Mac: family id "sha256" is not the producer id "toy"']);
+    expect(macFamilyProblems(macFamily([]), 'toy')).toEqual(['Mac: functions is empty']);
+    expect(macFamilyProblems(macFamily([testHmac(), testHmac()]), 'toy')).toEqual(['Mac: function id "hmac-toy-256" is not unique']);
+  });
+
+  it('reports bad sizes, key sizes, flags and constructions', () => {
+    expect(macFamilyProblems(macFamily([testHmac({ outputSize: 0, blockSize: 1.5 })]), 'toy')).toEqual([
+      'Mac hmac-toy-256: outputSize 0 is not a positive integer',
+      'Mac hmac-toy-256: blockSize 1.5 is not a positive integer',
+    ]);
+    expect(macFamilyProblems(macFamily([testHmac({ keySizes: { min: -1 } })]), 'toy')).toEqual(['Mac hmac-toy-256: keySizes.min -1 is not a non-negative integer']);
+    expect(macFamilyProblems(macFamily([testHmac({ keySizes: { min: 8, max: 4 } })]), 'toy')).toEqual(['Mac hmac-toy-256: keySizes.max 4 is not an integer ≥ min']);
+    expect(macFamilyProblems(macFamily([testHmac({ customizable: 'no' as unknown as boolean })]), 'toy')).toEqual(['Mac hmac-toy-256: customizable or variableOutput is not a boolean']);
+    expect(macFamilyProblems(macFamily([testHmac({ construction: { kind: 'cmac' } as never })]), 'toy')).toEqual(['Mac hmac-toy-256: construction kind "cmac" is not hmac, kmac or keyed-hash']);
+    expect(macFamilyProblems(macFamily([testHmac({ construction: { kind: 'hmac', hash: 'sha-256' } })]), 'toy')).toEqual(['Mac hmac-toy-256: hmac construction hash "sha-256" is not a member ref']);
+  });
+
+  it('reports tags of the wrong length, per key and message length', () => {
+    const short = testHmac({ mac: (key, data) => hmacTag(key, data).subarray(data.length === 1 ? 1 : 0) });
+    expect(macFamilyProblems(macFamily([short]), 'toy')).toEqual([
+      'Mac hmac-toy-256: 0-byte key, 1-byte message: tag is not 32 bytes',
+      'Mac hmac-toy-256: 1-byte key, 1-byte message: tag is not 32 bytes',
+      'Mac hmac-toy-256: 64-byte key, 1-byte message: tag is not 32 bytes',
+      'Mac hmac-toy-256: 65-byte key, 1-byte message: tag is not 32 bytes',
+    ]);
+  });
+
+  it('reports a non-deterministic or mutating mac, and one that throws on valid input', () => {
+    let calls = 0;
+    const drifting = testHmac({ keySizes: { min: 1, max: 1 }, mac: (key, data) => hmacTag(key, concat(data, Uint8Array.of(calls++))) });
+    expect(macFamilyProblems(macFamily([drifting]), 'toy')).toHaveLength(4);
+    expect(macFamilyProblems(macFamily([drifting]), 'toy')[0]).toBe('Mac hmac-toy-256: 1-byte key, 0-byte message: mac is not deterministic');
+    const mutating = testHmac({ keySizes: { min: 1, max: 1 }, mac: (key, data) => { const tag = hmacTag(key, data); key.fill(0); return tag; } });
+    expect(macFamilyProblems(macFamily([mutating]), 'toy')[0]).toBe('Mac hmac-toy-256: 1-byte key, 0-byte message: mac mutates its key or message');
+    const throwing = testHmac({ keySizes: { min: 1, max: 1 }, mac: () => { throw new Error('boom'); } });
+    expect(macFamilyProblems(macFamily([throwing]), 'toy')[0]).toBe('Mac hmac-toy-256: 1-byte key, 0-byte message threw: boom');
+  });
+
+  it('reports a context that disagrees with mac(), and a shared clone', () => {
+    const keyless = testHmac({ keySizes: { min: 1, max: 1 }, create: () => bufferingMacContext((data) => hmacTag(new Uint8Array(1), data)) });
+    expect(macFamilyProblems(macFamily([keyless]), 'toy')).toContain('Mac hmac-toy-256 (1-byte key): create(key) + update (0 | n, 131 bytes) differs from mac(key, m)');
+    const sharing = testHmac({ create: (key, options) => { const context = testHmac().create(key, options); return { ...context, clone: () => context }; } });
+    expect(macFamilyProblems(macFamily([sharing]), 'toy')).toEqual([0, 1, 64, 65].map((length) => `Mac hmac-toy-256 (${length}-byte key): clone() is not independent of its source`));
+  });
+
+  it('reports a key outside keySizes that does not throw a RangeError', () => {
+    const lenient = testKmac({ mac: (key, data) => testKmac().mac(Uint8Array.of(1), concat(key, data)), create: (key) => testKmac().create(key.length === 0 ? Uint8Array.of(1) : key) });
+    const problems = macFamilyProblems(macFamily([lenient]), 'toy');
+    expect(problems).toContain('Mac kmac-toy: mac does not throw a RangeError for a 0-byte key');
+    expect(problems).toContain('Mac kmac-toy: create does not throw a RangeError for a 0-byte key');
+    expect(problems).toContain('Mac kmac-toy: mac does not throw a RangeError for a 33-byte key');
+    const plainError = testKmac({ create: (key, options) => { if (key.length === 0) throw new Error('not a RangeError'); return testKmac().create(key, options); } });
+    expect(macFamilyProblems(macFamily([plainError]), 'toy')).toEqual(['Mac kmac-toy: create does not throw a RangeError for a 0-byte key']);
+  });
+
+  it('reports options a function accepts without supporting them, and an ignored output length', () => {
+    const permissive = testHmac({ mac: (key, data) => hmacTag(key, data), create: (key) => bufferingMacContext((data) => hmacTag(key, data)) });
+    expect(macFamilyProblems(macFamily([permissive]), 'toy')).toEqual([
+      'Mac hmac-toy-256: accepts a customization it does not support',
+      'Mac hmac-toy-256: accepts an outputLength it does not support',
+    ]);
+    const fixed = testKmac({ mac: (key, data, options) => testKmac().mac(key, data, { ...options, outputLength: 64 }) });
+    expect(macFamilyProblems(macFamily([fixed]), 'toy')).toContain('Mac kmac-toy: outputLength 65 is not honoured');
+  });
+
+  it('reports an HMAC that truncates a key longer than B instead of hashing it (RFC 2104 §2)', () => {
+    const truncating = testHmac({ mac: (key, data, options) => { rejectOptions(options); return hmacTag(key, data, true); } });
+    truncating.create = (key, options) => { rejectOptions(options); const copy = key.slice(); return bufferingMacContext((data) => truncating.mac(copy, data)); };
+    expect(macFamilyProblems(macFamily([truncating]), 'toy')).toEqual(['Mac hmac-toy-256: a 65-byte key: keys differing only after byte 64 give the same tag (the long key is not hashed)']);
+  });
+
+  it('skips the long-key check when keys longer than B are not allowed', () => {
+    const bounded = testHmac({ keySizes: { min: 0, max: 64 }, mac: (key, data, options) => { if (key.length > 64) throw new RangeError('long'); rejectOptions(options); return hmacTag(key, data, true); } });
+    bounded.create = (key, options) => { bounded.mac(key, new Uint8Array(0), options); const copy = key.slice(); return bufferingMacContext((data) => bounded.mac(copy, data)); };
+    expect(macFamilyProblems(macFamily([bounded]), 'toy')).toEqual([]);
+  });
+
+  it('is the sanity check implementedPortProblems runs for Mac', () => {
+    expect(implementedPortProblems({ id: 'toy', implements: ['Mac'] }, { ports: { Mac: macFamily() } })).toEqual([]);
+    expect(implementedPortProblems({ id: 'other', implements: ['Mac'] }, { ports: { Mac: macFamily() } })).toEqual(['Mac: family id "toy" is not the producer id "other"']);
+  });
+});
+
+describe('portMemberProblems', () => {
+  const ports = { Hash: toyFamily(), Mac: macFamily([testHmac(), testKmac()]) };
+  const declared: PrimitiveManifest['portMembers'] = {
+    Hash: [{ id: 'toy-256', labelKey: 'plugin.toy.hash.256' }, { id: 'toy-224', labelKey: 'plugin.toy.hash.224' }],
+    Mac: [{ id: 'hmac-toy-256', labelKey: 'plugin.toy.mac.hmac', construction: 'hmac' }, { id: 'kmac-toy', labelKey: 'plugin.toy.mac.kmac', construction: 'kmac' }],
+  };
+
+  it('passes members declared in the loaded order with matching constructions', () => {
+    expect(portMemberProblems({ implements: ['Hash', 'Mac'], portMembers: declared }, { ports })).toEqual([]);
+    expect(portMemberProblems({ implements: ['Hash'] }, { ports })).toEqual([]);
+  });
+
+  it('reports ids that differ from the loaded members or their order', () => {
+    const swapped = { Hash: [...declared.Hash!].reverse() };
+    expect(portMemberProblems({ implements: ['Hash'], portMembers: swapped }, { ports })).toEqual(['portMembers.Hash: [toy-224, toy-256] is not the loaded members [toy-256, toy-224] in order']);
+    expect(portMemberProblems({ implements: ['Mac'], portMembers: { Mac: declared.Mac!.slice(1) } }, { ports })).toEqual(['portMembers.Mac: [kmac-toy] is not the loaded members [hmac-toy-256, kmac-toy] in order']);
+  });
+
+  it('reports constructions that differ from the loaded ones (and any on a Hash member)', () => {
+    const wrong = { Mac: [{ ...declared.Mac![0]!, construction: 'keyed-hash' as const }, declared.Mac![1]!] };
+    expect(portMemberProblems({ implements: ['Mac'], portMembers: wrong }, { ports })).toEqual(['portMembers.Mac: "hmac-toy-256" declares construction "keyed-hash", the loaded member has "hmac"']);
+    const hashWithKind = { Hash: [{ ...declared.Hash![0]!, construction: 'hmac' as const }, declared.Hash![1]!] };
+    expect(portMemberProblems({ implements: ['Hash'], portMembers: hashWithKind }, { ports })).toEqual(['portMembers.Hash: "toy-256" declares construction "hmac", the loaded member has "undefined"']);
+  });
+
+  it('reports members of a port that is not a family port, not implemented or not exposed', () => {
+    expect(portMemberProblems({ implements: ['BlockCipher'], portMembers: { BlockCipher: [] } as never }, { ports })).toEqual(['portMembers: "BlockCipher" is not Hash or Mac']);
+    expect(portMemberProblems({ implements: ['Hash'], portMembers: { Mac: declared.Mac } }, { ports })).toEqual(['portMembers: "Mac" is not in implements']);
+    expect(portMemberProblems({ implements: ['Mac'], portMembers: { Mac: declared.Mac } }, {})).toEqual(['portMembers: port "Mac" is missing from module.ports']);
+  });
+});
+
 describe('implementedPortProblems', () => {
   it('passes when every declared port is exposed and sane', () => {
     expect(implementedPortProblems({ id: 'toy', implements: ['BlockCipher'] }, { ports: { BlockCipher: toyCipher() } })).toEqual([]);
@@ -362,6 +547,19 @@ describe('portFieldProblems', () => {
   });
 
   it('ignores other field kinds', () => expect(portFieldProblems([{ name: 'keyHex', labelKey: 'k', kind: 'hex' }], [])).toEqual([]));
+
+  it('accepts member fields on Hash and Mac, constructions only on Mac', () => {
+    const producers = [producer('sha256', ['Hash', 'Mac'])];
+    const mac: ParamField = { name: 'mac', labelKey: 'k', kind: 'port', port: 'Mac', member: true, constructions: ['hmac'] };
+    expect(portFieldProblems([mac, { ...mac, name: 'hash', port: 'Hash', constructions: undefined }], producers)).toEqual([]);
+  });
+
+  it('reports member fields on other ports and constructions outside Mac member fields', () => {
+    const producers = [producer('aes', ['BlockCipher']), producer('sha256', ['Hash', 'Mac'])];
+    expect(portFieldProblems([{ ...cipher, member: true }], producers)).toEqual(['param "cipher": a member field needs port Hash or Mac, not "BlockCipher"']);
+    expect(portFieldProblems([{ name: 'hash', labelKey: 'k', kind: 'port', port: 'Hash', member: true, constructions: ['hmac'] }], producers)).toEqual(['param "hash": constructions need a Mac member field']);
+    expect(portFieldProblems([{ name: 'mac', labelKey: 'k', kind: 'port', port: 'Mac', constructions: ['hmac'] }], producers)).toEqual(['param "mac": constructions need a Mac member field']);
+  });
 });
 
 describe('textFieldProblems', () => {

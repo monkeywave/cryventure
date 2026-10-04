@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { inferHexFields, optionLabelKey, paramFieldKeys, paramFieldsOf, portParamFields, readOption, readProducerId, readText, type ParamField } from './params.ts';
+import { inferHexFields, optionLabelKey, paramFieldKeys, paramFieldsOf, portParamFields, readOption, readPortMemberRef, readProducerId, readText, type ParamField } from './params.ts';
 
 const detail: ParamField = {
   name: 'detail',
@@ -111,5 +111,21 @@ describe('readProducerId', () => {
     expect(readProducerId('')).toBeUndefined();
     expect(readProducerId('a--b')).toBeUndefined();
     expect(readProducerId(7)).toBeUndefined();
+  });
+});
+
+describe('readPortMemberRef', () => {
+  it('accepts a kebab-case producer id and a non-empty member id', () => {
+    expect(readPortMemberRef('sha256:hmac-sha-256')).toBe('sha256:hmac-sha-256');
+    expect(readPortMemberRef('sha512:sha-512/256')).toBe('sha512:sha-512/256');
+  });
+
+  it('rejects anything else', () => {
+    expect(readPortMemberRef('sha256')).toBeUndefined();
+    expect(readPortMemberRef('sha256:')).toBeUndefined();
+    expect(readPortMemberRef(':sha-256')).toBeUndefined();
+    expect(readPortMemberRef('SHA256:sha-256')).toBeUndefined();
+    expect(readPortMemberRef('sha256:a:b')).toBeUndefined();
+    expect(readPortMemberRef(7)).toBeUndefined();
   });
 });

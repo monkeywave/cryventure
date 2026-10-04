@@ -25,11 +25,11 @@ export function outputLabelKey(producer: Pick<PrimitiveManifest, 'outputs'>, nam
 }
 
 /**
- * Label key of a choice field's current value: a `select` option, or the title of the producer a
- * `port` field names (among `producers`); `undefined` for other kinds or an unknown value.
+ * Label key of a choice field's current value: a `select` option, or the title of the producer (the
+ * member label) a `port` field names (among `producers`); `undefined` for other kinds or an unknown value.
  */
 export function choiceLabelKey(field: ParamField, value: unknown, producers: readonly PrimitiveManifest[]): string | undefined {
   if (field.kind === 'select') return optionLabelKey(field, value);
-  if (field.kind !== 'port' || field.port === undefined) return undefined;
-  return portOptions(producers, field.port).find((option) => option.value === value)?.labelKey;
+  if (field.kind !== 'port') return undefined;
+  return portOptions(producers, field).find((option) => option.value === value)?.labelKey;
 }

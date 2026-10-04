@@ -3,5 +3,6 @@
   "core.error.hexOddLength": "Hex braucht eine gerade Anzahl an Ziffern (zwei pro Byte), hier sind es aber {{length}}.",
   "core.error.keyLength": "Für diese Chiffre muss der Schlüssel {{sizes}} Byte lang sein.",
   "core.error.portLoadFailed": "Der Baustein „{{id}}“ konnte nicht geladen werden. Prüf deine Verbindung und lade die Seite neu.",
+  "core.error.portMemberMissing": "Die Funktion „{{id}}“ gibt es hier nicht.",
   "core.error.portMissing": "Den Baustein „{{id}}“ gibt es hier nicht."
 }

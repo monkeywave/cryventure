@@ -2,7 +2,7 @@ import type { I18nRef } from './i18n.ts';
 import type { ChoreographyModule } from './choreography.ts';
 import type { ParamField } from './params.ts';
 import type { PortResolver } from './plugin/ports.ts';
-import type { PortMap, PortName } from './ports.ts';
+import type { MacConstruction, MemberPortName, PortMap, PortName } from './ports.ts';
 import type { FacetKey, FacetKind, TraceBundle } from './trace.ts';
 import type { Tracer } from './tracer.ts';
 
@@ -43,6 +43,16 @@ export interface OutputLabel {
   labelKey: string;
 }
 
+/** One function a producer offers through a family port, for member pickers (docs/M7.md §1b). */
+export interface PortMemberDecl {
+  /** The member id, e.g. `hmac-sha-256` (the loaded function's `id`). */
+  id: string;
+  /** In the producer's namespace, e.g. `plugin.sha256.mac.hmac-sha-256`. */
+  labelKey: string;
+  /** Mac members only: the loaded function's `construction.kind`. */
+  construction?: MacConstruction['kind'];
+}
+
 export interface PrimitiveManifest<P = unknown> {
   kind: 'primitive';
   id: string;
@@ -50,6 +60,11 @@ export interface PrimitiveManifest<P = unknown> {
   family: string;
   /** Ports the module exposes in `PrimitiveModule.ports`. */
   implements: PortName[];
+  /**
+   * Optional (additive): the members of each family port in `implements`, in the loaded family's
+   * order; `port` params with `member: true` offer them (`portOptions`).
+   */
+  portMembers?: Partial<Record<MemberPortName, readonly PortMemberDecl[]>>;
   /** Optional (additive): `'worker'` runs the producer in a Web Worker; default `'main'`. */
   runIn?: RunIn;
   titleKey: string;

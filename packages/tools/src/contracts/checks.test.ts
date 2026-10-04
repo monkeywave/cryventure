@@ -151,6 +151,11 @@ describe('manifestLabelKeys', () => {
     expect(manifestLabelKeys({ ops, outputs: { out: { labelKey: 'p.op.a' } } })).toEqual(['p.op.a', 'p.opShort.a', 'p.op.b']);
     expect(manifestLabelKeys({})).toEqual([]);
   });
+
+  it('collects port member label keys', () => {
+    const portMembers = { Hash: [{ id: 'sha-256', labelKey: 'p.hash.sha-256' }], Mac: [{ id: 'hmac-sha-256', labelKey: 'p.mac.hmac-sha-256', construction: 'hmac' as const }] };
+    expect(manifestLabelKeys({ outputs: { out: { labelKey: 'p.out' } }, portMembers })).toEqual(['p.out', 'p.hash.sha-256', 'p.mac.hmac-sha-256']);
+  });
 });
 
 describe('regionLayoutProblems', () => {

@@ -3,12 +3,12 @@
  * them without knowing the algorithm (docs/PLAN.md §2b). Additive to apiVersion 1.
  */
 import { utf8Bytes } from './bytes.ts';
-import type { PortName } from './ports.ts';
+import { parsePortMemberRef, type MacConstruction, type PortName } from './ports.ts';
 
 /**
  * `hex`: bytes as hex. `select`: one of `options`. `port`: the id of a producer that implements
- * `port` (options come from the registry, see `portOptions`). `text`: a UTF-8 string of at most
- * `maxLength` bytes.
+ * `port`, or with `member: true` a member ref naming one of its functions (options come from the
+ * registry, see `portOptions`). `text`: a UTF-8 string of at most `maxLength` bytes.
  */
 export type ParamFieldKind = 'hex' | 'select' | 'port' | 'text';
 
@@ -27,6 +27,10 @@ export interface ParamField {
   options?: ParamFieldOption[];
   /** The port a `port` field's producer must implement. */
   port?: PortName;
+  /** A `port` field whose value is a member ref `"<producerId>:<memberId>"` (`Hash` or `Mac`, docs/M7.md §1b). */
+  member?: true;
+  /** `Mac` member fields: the constructions offered; absent = all. */
+  constructions?: readonly MacConstruction['kind'][];
   /** Maximum length of a `text` field in UTF-8 bytes. */
   maxLength?: number;
 }
@@ -82,6 +86,17 @@ const PRODUCER_ID = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 /** Param validation for a `port` field: `input` if it is a kebab-case producer id, else `undefined` (existence is checked at run time by `requirePort`). */
 export function readProducerId(input: unknown): string | undefined {
   return typeof input === 'string' && PRODUCER_ID.test(input) ? input : undefined;
+}
+
+/**
+ * Param validation for a member `port` field: `input` if it is a member ref with a kebab-case
+ * producer id and a non-empty member id, else `undefined` (existence is checked at run time by
+ * `requirePortMember`).
+ */
+export function readPortMemberRef(input: unknown): string | undefined {
+  if (typeof input !== 'string') return undefined;
+  const parts = parsePortMemberRef(input);
+  return parts !== undefined && readProducerId(parts.producerId) !== undefined ? input : undefined;
 }
 
 /** Label key of the option matching `value`; `undefined` when none matches. */

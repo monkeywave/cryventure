@@ -3,5 +3,6 @@
   "core.error.hexOddLength": "Hex needs an even number of digits (two per byte), but this has {{length}}.",
   "core.error.keyLength": "The key must be {{sizes}} bytes long for this cipher.",
   "core.error.portLoadFailed": "The building block “{{id}}” could not be loaded. Check your connection and reload the page.",
+  "core.error.portMemberMissing": "The function “{{id}}” is not available here.",
   "core.error.portMissing": "The building block “{{id}}” is not available here."
 }

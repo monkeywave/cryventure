@@ -51,7 +51,7 @@ import {
 } from './checks.ts';
 import { checksHashRuns, hashRunProblems, publishedMessage, type HashRunCase } from './hashRunChecks.ts';
 import { modeFacetIssues, modeFacetRefs } from './modeFacetChecks.ts';
-import { implementedPortProblems, portFieldProblems, runInProblems, textFieldProblems } from './portChecks.ts';
+import { implementedPortProblems, portFieldProblems, portMemberProblems, runInProblems, textFieldProblems } from './portChecks.ts';
 import { runOptionsFor, type ProducerSet } from './runWithPorts.ts';
 
 export interface PrimitiveContractOptions<P> {
@@ -94,7 +94,7 @@ function manifestSuite<P>(manifest: PrimitiveManifest<P>, catalogs: LocaleCatalo
     expect(missingKeys(keys, catalogs)).toEqual([]);
   });
 
-  it('declares op and output label keys present in EN and DE', () => expect(missingKeys(manifestLabelKeys(manifest), catalogs)).toEqual([]));
+  it('declares op, output and port member label keys present in EN and DE', () => expect(missingKeys(manifestLabelKeys(manifest), catalogs)).toEqual([]));
 
   it('declares param fields for real params, with label/hint/option keys present in EN and DE', () => {
     const fields = paramFieldsOf(manifest);
@@ -115,18 +115,25 @@ function manifestSuite<P>(manifest: PrimitiveManifest<P>, catalogs: LocaleCatalo
     expect(normalFormProblems(manifest, runCases(manifest))).toEqual([]);
   });
 
-  it('declares port fields some producer implements, text fields whose values fit, and a valid runIn', () => {
-    const fields = paramFieldsOf(manifest);
-    expect([...portFieldProblems(fields, producers.list), ...textFieldProblems(fields, runCases(manifest)), ...runInProblems(manifest)]).toEqual([]);
-  });
-
-  if (manifest.implements.length > 0) {
-    it('exposes every declared port, each passing its sanity check', async () => expect(implementedPortProblems(manifest, await manifest.load())).toEqual([]));
-  }
+  portSuite(manifest, producers);
   if (checksHashRuns(manifest)) {
     it('reproduces every default/preset digest with its own Hash port (algorithms outside the family skipped)', async () => {
       expect(await hashPortRunProblems(manifest, producers)).toEqual([]);
     });
+  }
+}
+
+/** Port and text params, `runIn`, the exposed ports and their declared members. */
+function portSuite<P>(manifest: PrimitiveManifest<P>, producers: ProducerSet): void {
+  it('declares port fields some producer implements, text fields whose values fit, and a valid runIn', () => {
+    const fields = paramFieldsOf(manifest);
+    expect([...portFieldProblems(fields, producers.list), ...textFieldProblems(fields, runCases(manifest)), ...runInProblems(manifest)]).toEqual([]);
+  });
+  if (manifest.implements.length > 0) {
+    it('exposes every declared port, each passing its sanity check', async () => expect(implementedPortProblems(manifest, await manifest.load())).toEqual([]));
+  }
+  if (manifest.portMembers !== undefined) {
+    it('declares port members matching its loaded ports in order', async () => expect(portMemberProblems(manifest, await manifest.load())).toEqual([]));
   }
 }
 
