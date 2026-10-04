@@ -31,7 +31,10 @@ export function squeezeBlock(state: readonly bigint[], rateBytes: number): Uint8
   return Uint8Array.from(stateBytes(state).slice(0, rateBytes));
 }
 
-/** The first `outputLength` bytes of SPONGE[f, pad, r](`input` ‖ suffix, d). */
+/**
+ * The first `outputLength` bytes of SPONGE[f, pad, r](`input` ‖ suffix, d). Test reference: only the
+ * tests use it, as the `bigint` oracle for the hi/lo sponge and the contexts.
+ */
 export function sponge(input: Uint8Array, rateBytes: number, suffix: DomainSuffix, outputLength: number): Uint8Array {
   const { padded } = spongePad(input, rateBytes, suffix);
   let state = zeroState();

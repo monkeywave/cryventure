@@ -13,6 +13,7 @@ import {
   type StateFacet,
   type StepInput,
 } from '@cryventure/core';
+import { macDisplayName } from '../hmac/macCalls.ts';
 import type { PHashChain } from './pHash.ts';
 
 /**
@@ -25,14 +26,9 @@ import type { PHashChain } from './pHash.ts';
 export type PrfOpName = 'split' | 'seed' | 'a' | 'p' | 'xor' | 'output';
 export type PrfOp = { op: PrfOpName };
 
-/** The display name of an HMAC member, e.g. `hmac-sha-256` → `HMAC-SHA-256`. */
-export function macName(mac: Pick<MacFunction, 'id'>): string {
-  return mac.id.toUpperCase();
-}
-
 /** P_hash's name for an HMAC member, e.g. `P_SHA-256` (the hash's name after `hmac-`). */
 export function prfName(mac: Pick<MacFunction, 'id'>): string {
-  return `P_${macName(mac).replace(/^HMAC-/, '')}`;
+  return `P_${macDisplayName(mac).replace(/^HMAC-/, '')}`;
 }
 
 export class PrfRecorder<R extends string> {
@@ -109,7 +105,7 @@ export function recordSeedStep<R extends string>(recorder: PrfRecorder<R>, ns: s
 }
 
 function chainParams<R extends string>(spec: PrfChainSpec<R>, index: number) {
-  return { prf: prfName(spec.mac), mac: macName(spec.mac), key: spec.keySymbol, n: spec.chain.p.length, i: index + 1 };
+  return { prf: prfName(spec.mac), mac: macDisplayName(spec.mac), key: spec.keySymbol, n: spec.chain.p.length, i: index + 1 };
 }
 
 /** Block 1's narration says "A(1)" and "block 1" in its text, so it takes no `i`. */

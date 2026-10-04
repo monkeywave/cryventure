@@ -4,11 +4,9 @@ import {
   i18nRef,
   INITIAL_STEP_INDEX,
   narrationFromState,
-  parseHexOrThrow,
   runPrimitive,
   scopeLevels,
   u8Regions,
-  utf8Bytes,
   valueRef,
   zeroSnapshot,
   type DerivationFacet,
@@ -18,10 +16,11 @@ import {
   type RunResult,
   type ValuesFacet,
 } from '@cryventure/core';
-import { addChainNodes, PrfDerivationBuilder } from '../_lib/prf/derivation.ts';
-import { labelSeed, pHashChain, type PHashChain } from '../_lib/prf/pHash.ts';
-import { macName, PrfRecorder, prfName, recordChainBlock, recordSeedStep, type PrfBlockSteps, type PrfChainSpec } from '../_lib/prf/record.ts';
-import { requireHmac } from '../_lib/prf/requireHmac.ts';
+import { addChainNodes, addPrfInputNodes, PrfDerivationBuilder } from '../_lib/prf/derivation.ts';
+import { decodePrfInputs, pHashChain, type PHashChain, type PrfRunInputs } from '../_lib/prf/pHash.ts';
+import { PrfRecorder, prfName, recordChainBlock, recordSeedStep, type PrfBlockSteps, type PrfChainSpec } from '../_lib/prf/record.ts';
+import { macDisplayName } from '../_lib/hmac/macCalls.ts';
+import { requireHmacMember } from '../_lib/hmac/requireHmacMember.ts';
 import { tls12PrfManifest, type Tls12PrfParams } from './manifest.ts';
 
 /**
@@ -33,13 +32,9 @@ const NS = 'plugin.tls12-prf';
 
 type Region = 'secret' | 'labelSeed' | 'a' | 'p' | 'stream' | 'output';
 
-/** The decoded inputs of one run. */
-interface Tls12Run {
+/** The decoded inputs of one run, its HMAC and P_hash chain. */
+interface Tls12Run extends PrfRunInputs {
   mac: MacFunction;
-  secret: Uint8Array;
-  label: string;
-  seed: Uint8Array;
-  labelSeed: Uint8Array;
   chain: PHashChain;
 }
 
@@ -50,10 +45,8 @@ interface Tls12Steps {
 }
 
 function toRun(params: Tls12PrfParams, mac: MacFunction): Tls12Run {
-  const secret = parseHexOrThrow(params.secret);
-  const seed = parseHexOrThrow(params.seed);
-  const joined = labelSeed(params.label, seed);
-  return { mac, secret, label: params.label, seed, labelSeed: joined, chain: pHashChain(mac, secret, joined, Number(params.length)) };
+  const inputs = decodePrfInputs(params);
+  return { ...inputs, mac, chain: pHashChain(mac, inputs.secret, inputs.labelSeed, inputs.length) };
 }
 
 function createRecorder(run: Tls12Run): PrfRecorder<Region> {
@@ -69,7 +62,7 @@ function createRecorder(run: Tls12Run): PrfRecorder<Region> {
     label: run.label,
     seedLength: run.seed.length,
     prf: prfName(mac),
-    mac: macName(mac),
+    mac: macDisplayName(mac),
     hashLength: mac.outputSize,
     n: chain.p.length,
     length: chain.output.length,
@@ -126,11 +119,8 @@ function buildValues(run: Tls12Run, steps: Tls12Steps): ValuesFacet {
 /** secret, label, seed → label ‖ seed → A(i), P(i) per block → output. */
 function buildDerivation(run: Tls12Run, steps: Tls12Steps): DerivationFacet {
   const builder = new PrfDerivationBuilder(NS);
-  const keyNodeId = builder.add({ id: 'secret', label: 'secret', bytes: run.secret, op: 'input', valueRef: 'secret' });
-  const labelId = builder.add({ id: 'label', label: 'label', labelParams: { label: run.label }, bytes: utf8Bytes(run.label), op: 'input' });
-  const seedId = builder.add({ id: 'seed', label: 'seed', bytes: run.seed, op: 'input' });
-  const labelSeedNodeId = builder.add({ id: 'labelSeed', label: 'labelSeed', bytes: run.labelSeed, op: 'concat', inputs: [labelId, seedId], valueRef: 'labelSeed', step: steps.seed });
-  const blockIds = addChainNodes(builder, { prefix: 'prf', mac: run.mac, key: run.secret, keyNodeId, labelSeed: run.labelSeed, labelSeedNodeId, chain: run.chain, steps: steps.blocks });
+  const { secretId, labelSeedId } = addPrfInputNodes(builder, run, steps.seed);
+  const blockIds = addChainNodes(builder, { prefix: 'prf', mac: run.mac, key: run.secret, keyNodeId: secretId, labelSeed: run.labelSeed, labelSeedNodeId: labelSeedId, chain: run.chain, steps: steps.blocks });
   builder.add({ id: 'output', label: 'output', labelParams: { length: run.chain.output.length }, bytes: run.chain.output, op: 'truncate', inputs: blockIds, result: true, valueRef: 'output', step: steps.output });
   return builder.facet();
 }
@@ -150,7 +140,7 @@ function record(params: Tls12PrfParams, mac: MacFunction): PrimitiveRecording {
 export function run(params: Tls12PrfParams, options: RunOptions = {}): RunResult {
   const validated = tls12PrfManifest.validate(params);
   if (!validated.ok) return validated;
-  const mac = requireHmac(options.resolve, validated.value.mac, NS);
+  const mac = requireHmacMember(options.resolve, validated.value.mac, NS);
   if (!mac.ok) return mac;
   return runPrimitive(tls12PrfManifest, validated.value, (value) => record(value, mac.mac));
 }

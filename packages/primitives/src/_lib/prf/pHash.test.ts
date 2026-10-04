@@ -1,7 +1,7 @@
-import { parseHexOrThrow, toHex, utf8Bytes } from '@cryventure/core';
+import { blockCount, parseHexOrThrow, toHex, utf8Bytes } from '@cryventure/core';
 import { describe, expect, it } from 'vitest';
 import vectors from './vectors/tls-prf-cavp.json' with { type: 'json' };
-import { concatBytes, labelSeed, pHash, pHashBlockCount, pHashChain, splitSecret, tls10Prf, tls12Prf } from './pHash.ts';
+import { concatBytes, decodePrfInputs, labelSeed, pHash, pHashChain, splitSecret, tls10Prf, tls12Prf } from './pHash.ts';
 import { HMAC_MD5, HMAC_SHA1, HMAC_SHA256, HMAC_SHA384, oraclePHash, oracleTls10, oracleTls12, TLS12_HMACS } from './testMacs.ts';
 
 const bytes = (hex: string) => parseHexOrThrow(hex);
@@ -67,10 +67,10 @@ describe('IETF TLS list P_hash vectors through the lib', () => {
   });
 });
 
-describe('pHashBlockCount', () => {
+describe('P_hash block count (core blockCount)', () => {
   it('is ⌈length / outputSize⌉', () => {
-    expect([0, 1, 32, 33, 48, 64, 65].map((length) => pHashBlockCount(32, length))).toEqual([0, 1, 1, 2, 2, 2, 3]);
-    expect(pHashBlockCount(20, 104)).toBe(6);
+    expect([0, 1, 32, 33, 48, 64, 65].map((length) => blockCount(length, 32))).toEqual([0, 1, 1, 2, 2, 2, 3]);
+    expect(blockCount(104, 20)).toBe(6);
   });
 });
 
@@ -175,5 +175,12 @@ describe('tls12Prf and tls10Prf against the oracle', () => {
     expect(toHex(tls10Prf(HMAC_MD5, HMAC_SHA1, bytes('0102030405'), 'test label', bytes('aabb'), 40))).toBe(
       '16ccf2af0d445d2b2576fbee9e0c309391d86daaa92f385773a43e1804082a65723249fe4b45241f',
     );
+  });
+});
+
+describe('decodePrfInputs', () => {
+  it('decodes secret and seed hex, joins label ‖ seed and reads the length', () => {
+    const decoded = decodePrfInputs({ secret: '0102', label: 'ab', seed: 'ff', length: '48' });
+    expect(decoded).toEqual({ secret: Uint8Array.of(1, 2), label: 'ab', seed: Uint8Array.of(0xff), labelSeed: Uint8Array.of(0x61, 0x62, 0xff), length: 48 });
   });
 });

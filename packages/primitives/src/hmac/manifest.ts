@@ -1,5 +1,6 @@
 import { definePrimitive, opLabels, parseHexOfLength, readOption, readPortMemberRef, type ParamField, type Preset, type ValidationResult } from '@cryventure/core';
 import { HASH_ENCODINGS, messageField, messageLengths, paramError, readMessageInput, selectField, type HashEncoding } from '../_lib/hashKit/manifestKit.ts';
+import { HMAC_LAB_MAX_KEY_BYTES, HMAC_LAB_MAX_MESSAGE_BYTES } from '../_lib/hmac/manifestKit.ts';
 
 /**
  * Manifest for the traced HMAC lab over any `Hash` member (RFC 2104, FIPS 198-1; docs/M7.md §2b):
@@ -26,9 +27,9 @@ export interface HmacParams {
   expected: string;
 }
 
-/** Byte limits (docs/M7.md §2b): RFC 4231 test 7 has a 131-byte key and a 152-byte message. */
-export const HMAC_MAX_KEY_BYTES = 256;
-export const HMAC_MAX_MESSAGE_BYTES = 256;
+/** Byte limits (docs/M7.md §2b), shared with every zoom into this lab (`_lib/hmac/labZoom.ts`). */
+export const HMAC_MAX_KEY_BYTES = HMAC_LAB_MAX_KEY_BYTES;
+export const HMAC_MAX_MESSAGE_BYTES = HMAC_LAB_MAX_MESSAGE_BYTES;
 /** The longest tag any `Hash` member produces (SHA-512, SHA3-512, BLAKE2b-512). */
 export const HMAC_MAX_TAG_BYTES = 64;
 

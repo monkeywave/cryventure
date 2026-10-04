@@ -24,19 +24,19 @@ function expectValid(manifest: PrimitiveManifest<never>, params: Record<string, 
 
 const cases: { manifest: PrimitiveManifest<never>; functions: string[]; limit: number; expected: (fn: string, input: string) => Record<string, string> }[] = [
   { manifest: sha256Manifest as never, functions: ['sha-224', 'sha-256'], limit: 128, expected: (algorithm, input) => ({ algorithm, encoding: 'hex', input, detail: 'round' }) },
-  { manifest: sha512Manifest as never, functions: ['sha-384', 'sha-512', 'sha-512/224', 'sha-512/256'], limit: 128, expected: (algorithm, input) => ({ algorithm, encoding: 'hex', input, detail: 'round' }) },
-  { manifest: md5Manifest as never, functions: ['md5'], limit: 128, expected: (_, input) => ({ encoding: 'hex', input, detail: 'round' }) },
-  { manifest: sha1Manifest as never, functions: ['sha-1'], limit: 128, expected: (_, input) => ({ encoding: 'hex', input, detail: 'round' }) },
+  { manifest: sha512Manifest as never, functions: ['sha-384', 'sha-512', 'sha-512/224', 'sha-512/256'], limit: 384, expected: (algorithm, input) => ({ algorithm, encoding: 'hex', input, detail: 'round' }) },
+  { manifest: md5Manifest as never, functions: ['md5'], limit: 320, expected: (_, input) => ({ encoding: 'hex', input, detail: 'round' }) },
+  { manifest: sha1Manifest as never, functions: ['sha-1'], limit: 320, expected: (_, input) => ({ encoding: 'hex', input, detail: 'round' }) },
   {
     manifest: sha3Manifest as never,
     functions: ['sha3-224', 'sha3-256', 'sha3-384', 'sha3-512', 'keccak-256'],
-    limit: 200,
+    limit: 400,
     expected: (algorithm, input) => ({ algorithm, encoding: 'hex', input, outputLength: '32', functionName: '', customization: '', detail: 'mapping' }),
   },
   {
     manifest: blake2Manifest as never,
     functions: ['blake2s-128', 'blake2s-160', 'blake2s-224', 'blake2s-256', 'blake2b-160', 'blake2b-256', 'blake2b-384', 'blake2b-512'],
-    limit: 128,
+    limit: 384,
     expected: (algorithm, input) => ({ algorithm, encoding: 'hex', input, key: '', detail: 'g' }),
   },
 ];

@@ -13,7 +13,8 @@ import {
 import { beforeAll, describe, expect, it } from 'vitest';
 import conformance from './vectors/conformance.json' with { type: 'json' };
 import { PBKDF2_PRESETS, pbkdf2Manifest, type Pbkdf2Params } from './manifest.ts';
-import { macDisplayName, run } from './module.ts';
+import { macDisplayName } from '../_lib/hmac/macCalls.ts';
+import { run } from './module.ts';
 import { resolverFor } from './testMacs.ts';
 
 const NS = 'plugin.pbkdf2';

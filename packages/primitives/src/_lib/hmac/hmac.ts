@@ -15,13 +15,14 @@ export const OPAD = 0x5c;
 /** How K0 came from K: |K| = B as is, |K| < B zero-padded, |K| > B hashed then zero-padded. */
 export type HmacK0Branch = 'exact' | 'padded' | 'hashed';
 
-/** K0, the B-byte key block (FIPS 198-1 §4 steps 1–3), and which branch built it. */
-export function hmacK0(hash: HashFunction, key: Uint8Array): { k0: Uint8Array; branch: HmacK0Branch } {
+/** K0, the B-byte key block (FIPS 198-1 §4 steps 1–3), which branch built it and, when hashed, H(K). */
+export function hmacK0(hash: HashFunction, key: Uint8Array): { k0: Uint8Array; branch: HmacK0Branch; keyDigest?: Uint8Array } {
   if (key.length === hash.blockSize) return { k0: key.slice(), branch: 'exact' };
   const k0 = new Uint8Array(hash.blockSize);
   if (key.length > hash.blockSize) {
-    k0.set(hash.hash(key));
-    return { k0, branch: 'hashed' };
+    const keyDigest = hash.hash(key);
+    k0.set(keyDigest);
+    return { k0, branch: 'hashed', keyDigest };
   }
   k0.set(key);
   return { k0, branch: 'padded' };

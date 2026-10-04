@@ -1,6 +1,6 @@
-import { assertTopologicalOrder, parseHexOrThrow, toHex, validateDerivationFacet, type MacFunction } from '@cryventure/core';
+import { assertTopologicalOrder, parseHexOrThrow, toHex, validateDerivationFacet } from '@cryventure/core';
 import { describe, expect, it } from 'vitest';
-import { addChainNodes, HMAC_LAB_MAX_BYTES, hmacZoom, PrfDerivationBuilder } from './derivation.ts';
+import { addChainNodes, addPrfInputNodes, PrfDerivationBuilder } from './derivation.ts';
 import { concatBytes, labelSeed, pHashChain } from './pHash.ts';
 import { HMAC_SHA256 } from './testMacs.ts';
 
@@ -8,28 +8,6 @@ const NS = 'plugin.test-prf';
 const SECRET = parseHexOrThrow('0102030405');
 const JOINED = labelSeed('test label', parseHexOrThrow('aabb'));
 const CHAIN = pHashChain(HMAC_SHA256, SECRET, JOINED, 40);
-const KEYED_HASH: Pick<MacFunction, 'construction'> = { construction: { kind: 'keyed-hash' } };
-
-describe('hmacZoom', () => {
-  it('opens the hmac lab on the exact call with the Mac construction hash', () => {
-    expect(hmacZoom(HMAC_SHA256, SECRET, JOINED)).toEqual({
-      producerId: 'hmac',
-      params: { hash: 'sha256:sha-256', key: '0102030405', encoding: 'hex', input: toHex(JOINED), tagLength: 'full', expected: '' },
-    });
-  });
-
-  it('accepts key and message at the lab limit and refuses longer ones', () => {
-    const limit = new Uint8Array(HMAC_LAB_MAX_BYTES);
-    const over = new Uint8Array(HMAC_LAB_MAX_BYTES + 1);
-    expect(hmacZoom(HMAC_SHA256, limit, limit)).toBeDefined();
-    expect(hmacZoom(HMAC_SHA256, over, JOINED)).toBeUndefined();
-    expect(hmacZoom(HMAC_SHA256, SECRET, over)).toBeUndefined();
-  });
-
-  it('has no zoom for a MAC that is not an HMAC', () => {
-    expect(hmacZoom(KEYED_HASH, SECRET, JOINED)).toBeUndefined();
-  });
-});
 
 describe('PrfDerivationBuilder', () => {
   it('labels nodes under <ns>.derivation and omits absent optionals', () => {
@@ -79,5 +57,18 @@ describe('addChainNodes', () => {
     expect(node('prf/a/2').zoom?.params['input']).toBe(toHex(CHAIN.a[0]!));
     expect(node('prf/p/2').zoom?.params['input']).toBe(toHex(concatBytes(CHAIN.a[1]!, JOINED)));
     expect(node('prf/p/2').zoom?.params['key']).toBe('0102030405');
+  });
+});
+
+describe('addPrfInputNodes', () => {
+  it('adds secret, label and seed, then label ‖ seed at the seed step', () => {
+    const builder = new PrfDerivationBuilder(NS);
+    const seed = parseHexOrThrow('aabb');
+    expect(addPrfInputNodes(builder, { secret: SECRET, label: 'test label', seed, labelSeed: JOINED }, 3)).toEqual({ secretId: 'secret', labelSeedId: 'labelSeed' });
+    const nodes = builder.facet().nodes;
+    expect(nodes.map((node) => [node.id, node.op, node.inputs])).toEqual([['secret', 'input', []], ['label', 'input', []], ['seed', 'input', []], ['labelSeed', 'concat', ['label', 'seed']]]);
+    expect(nodes[1]!.label).toEqual({ key: `${NS}.derivation.label`, params: { label: 'test label' } });
+    expect(nodes[3]).toMatchObject({ bytes: Array.from(JOINED), valueRef: 'labelSeed', step: 3 });
+    expect(nodes[0]).toMatchObject({ bytes: Array.from(SECRET), valueRef: 'secret' });
   });
 });

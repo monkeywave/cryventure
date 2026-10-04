@@ -1,5 +1,5 @@
 import { definePrimitive, type Preset, type ValidationResult } from '@cryventure/core';
-import { readSha2Input, sha2HashLabParams, sha2Ops, sha2ParamFields, sha2Preset, validateSha2Params, type Sha2Detail, type Sha2Encoding, type Sha2HashParams } from '../_lib/sha2/manifestKit.ts';
+import { readSha2Input, SHA256_MAX_MESSAGE_BYTES, sha2HashLabParams, sha2Ops, sha2ParamFields, sha2Preset, validateSha2Params, type Sha2Detail, type Sha2Encoding, type Sha2HashParams } from '../_lib/sha2/manifestKit.ts';
 import { hashPortMembers, hmacPortMembers } from '../_lib/hmac/manifestKit.ts';
 
 /**
@@ -36,19 +36,19 @@ export const SHA256_PRESETS: Preset<Sha256Params>[] = [
   preset('sha-256-empty', 'sha-256', ''),
 ];
 
-export const SHA256_PARAM_FIELDS = sha2ParamFields(NS, SHA256_ALGORITHM_IDS);
+export const SHA256_PARAM_FIELDS = sha2ParamFields(NS, SHA256_ALGORITHM_IDS, SHA256_MAX_MESSAGE_BYTES);
 
 /** Every op the module records (`StateStep.op`): `SHA2_OP_NAMES` of `_lib/sha2/manifestKit.ts`. */
 export const SHA256_OPS = sha2Ops(NS);
 
 /** The message text: UTF-8 of at most 128 bytes, or hex of 0 … 128 bytes (normalised to lowercase). */
 export function readSha256Input(input: unknown, encoding: Sha256Encoding): ValidationResult<string> {
-  return readSha2Input(NS, input, encoding);
+  return readSha2Input(NS, input, encoding, SHA256_MAX_MESSAGE_BYTES);
 }
 
 /** Validates and normalises params (hex lowercased with separators stripped; every select checked). */
 export function validateSha256Params(params: unknown): ValidationResult<Sha256Params> {
-  return validateSha2Params(NS, SHA256_ALGORITHM_IDS, params);
+  return validateSha2Params(NS, SHA256_ALGORITHM_IDS, SHA256_MAX_MESSAGE_BYTES, params);
 }
 
 export const sha256Manifest = definePrimitive<Sha256Params>({
@@ -73,7 +73,7 @@ export const sha256Manifest = definePrimitive<Sha256Params>({
   ops: SHA256_OPS,
   outputs: { digest: { labelKey: `${NS}.value.digest` } },
   validate: validateSha256Params,
-  hashLabParams: sha2HashLabParams(SHA256_ALGORITHM_IDS),
+  hashLabParams: sha2HashLabParams(SHA256_ALGORITHM_IDS, SHA256_MAX_MESSAGE_BYTES),
   load: () => import('./module.ts'),
 });
 

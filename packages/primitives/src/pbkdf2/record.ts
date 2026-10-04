@@ -1,6 +1,6 @@
-import { allIndices, i18nRef, RecordingTracer, scopeLevels, toHex, type MacContext, type RegionSpec, type StateFacet } from '@cryventure/core';
+import { allIndices, blockCount, i18nRef, RecordingTracer, scopeLevels, toHex, type MacContext, type RegionSpec, type StateFacet } from '@cryventure/core';
 import type { Pbkdf2OpName } from './manifest.ts';
-import { blockCount, int32be, pbkdf2Block } from './pbkdf2.ts';
+import { int32be, pbkdf2Block } from './pbkdf2.ts';
 
 /**
  * The traced PBKDF2 run (docs/M7.md §2e): per block `u1`, then `u` + `xor` per iteration, `block`;

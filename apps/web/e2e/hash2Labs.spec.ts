@@ -110,7 +110,7 @@ for (const lang of ['en', 'de'] as const satisfies readonly Lang[]) {
     const utf8 = (count: number, max: number) => interpolate(ui['ui.lab.params.byteCount'], { count, max });
     const hex = (count: number, max: number) => interpolate(ui['ui.lab.params.byteCountHex'], { count, max });
 
-    await expect(counter(lab, sha3['plugin.sha3.param.input'])).toHaveText(hex(4, 200));
+    await expect(counter(lab, sha3['plugin.sha3.param.input'])).toHaveText(hex(4, 400));
     await expect(counter(lab, sha3['plugin.sha3.param.functionName'])).toHaveText(utf8(0, 64));
     await expect(counter(lab, sha3['plugin.sha3.param.customization'])).toHaveText(utf8(15, 64)); // "Email Signature"
 

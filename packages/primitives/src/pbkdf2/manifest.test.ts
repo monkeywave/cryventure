@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { PBKDF2_DEFAULT_MAC, PBKDF2_ITERATIONS, PBKDF2_PARAM_FIELDS, PBKDF2_PRESETS, pbkdf2Manifest, readDigits, validatePbkdf2Params, type Pbkdf2Params } from './manifest.ts';
+import { readDigits } from '../_lib/params/manifestKit.ts';
+import { PBKDF2_DEFAULT_MAC, PBKDF2_ITERATIONS, PBKDF2_PARAM_FIELDS, PBKDF2_PRESETS, pbkdf2Manifest, validatePbkdf2Params, type Pbkdf2Params } from './manifest.ts';
 
 const NS = 'plugin.pbkdf2';
 const TC1 = PBKDF2_PRESETS[0]!.params;

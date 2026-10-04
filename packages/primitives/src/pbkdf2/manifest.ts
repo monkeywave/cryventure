@@ -1,4 +1,5 @@
 import { definePrimitive, opLabels, readOption, readPortMemberRef, type ParamField, type Preset, type ValidationResult } from '@cryventure/core';
+import { readDigits } from '../_lib/params/manifestKit.ts';
 import { HASH_ENCODINGS, paramError, readMessageInput, selectField, type HashEncoding } from '../_lib/hashKit/manifestKit.ts';
 
 /**
@@ -74,18 +75,6 @@ export type Pbkdf2OpName = (typeof PBKDF2_OP_NAMES)[number];
 
 /** Labels of every op the module records (`StateStep.op`). */
 export const PBKDF2_OPS = opLabels(NS, PBKDF2_OP_NAMES);
-
-const DIGITS = /^[0-9]+$/;
-
-/**
- * Decimal digits naming an integer in `min … max`, normalised without leading zeros (`"007"` → `"7"`);
- * `undefined` for anything else (signs, spaces, decimals, out of range).
- */
-export function readDigits(input: unknown, range: { readonly min: number; readonly max: number }): string | undefined {
-  if (typeof input !== 'string' || !DIGITS.test(input)) return undefined;
-  const value = Number(input);
-  return value >= range.min && value <= range.max ? String(value) : undefined;
-}
 
 /** The password or salt text in its encoding (hex normalised), with `<ns>.error.<name>Length` past `maxBytes`. */
 function readBytesText(name: string, input: unknown, encoding: Pbkdf2Encoding, maxBytes: number): ValidationResult<string> {

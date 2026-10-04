@@ -1,12 +1,10 @@
-import { i18nRef, INITIAL_STEP_INDEX, toHex, valueId, valueRef, type DerivationFacet, type DerivationNode, type LabZoom, type ValuesFacet } from '@cryventure/core';
+import { i18nRef, INITIAL_STEP_INDEX, valueId, valueRef, type DerivationFacet, type DerivationNode, type LabZoom, type ValuesFacet } from '@cryventure/core';
+import { hmacLabZoom } from '../_lib/hmac/labZoom.ts';
 import { saltWithIndex } from './pbkdf2.ts';
 import { LEADING_ITERATIONS, type Pbkdf2Recording, type RecordedBlock, type RecordedU } from './record.ts';
 
 /** The `values` and `derivation` facets of a recorded PBKDF2 run (docs/M7.md §2e). */
 const NS = 'plugin.pbkdf2';
-
-/** The `hmac` lab takes keys and messages up to this many bytes; longer calls get no zoom link. */
-export const HMAC_LAB_MAX_BYTES = 256;
 
 export const PASSWORD_ID = valueId([], 'password');
 export const SALT_ID = valueId([], 'salt');
@@ -37,12 +35,6 @@ export interface DerivationInput {
   salt: number[];
 }
 
-/** The `hmac` lab computing U₁ = HMAC(P, S ‖ INT(i)), or `undefined` past the lab's limits. */
-export function u1Zoom(hashRef: string, password: readonly number[], message: readonly number[]): LabZoom | undefined {
-  if (password.length > HMAC_LAB_MAX_BYTES || message.length > HMAC_LAB_MAX_BYTES) return undefined;
-  return { producerId: 'hmac', params: { hash: hashRef, key: toHex(password), encoding: 'hex', input: toHex(message), tagLength: 'full', expected: '' } };
-}
-
 function uNode(block: RecordedBlock, u: RecordedU, previous: string, zoom: LabZoom | undefined): DerivationNode {
   const label = u.skipped ? i18nRef(`${NS}.derivation.uSkipped`, { j: u.j, hidden: u.j - LEADING_ITERATIONS }) : i18nRef(`${NS}.derivation.u`, { j: u.j, block: block.index });
   return { id: uNodeId(block.index, u.j), label, bytes: u.bytes, op: 'hmac', inputs: [previous, PASSWORD_ID], step: u.step, ...(zoom === undefined ? {} : { zoom }) };
@@ -54,7 +46,7 @@ function blockNodes(input: DerivationInput, block: RecordedBlock): DerivationNod
   const nodes: DerivationNode[] = [{ id: messageNodeId(block.index), label: i18nRef(`${NS}.derivation.message`, { block: block.index }), bytes: message, op: 'concat', inputs: [SALT_ID] }];
   for (const u of block.us) {
     const previous = nodes.at(-1)!.id;
-    nodes.push(uNode(block, u, previous, u.j === 1 ? u1Zoom(input.hashRef, input.password, message) : undefined));
+    nodes.push(uNode(block, u, previous, u.j === 1 ? hmacLabZoom(input.hashRef, input.password, message) : undefined));
   }
   const uIds = block.us.map((u) => uNodeId(block.index, u.j));
   nodes.push({

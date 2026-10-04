@@ -1,5 +1,5 @@
 import type { RegionSpec } from '@cryventure/core';
-import { spongeRegions } from '../_lib/keccak/spongeRecording.ts';
+import { byteRegion, spongeRegions } from '../_lib/keccak/spongeRecording.ts';
 import type { SpongeRegion } from '../_lib/keccak/spongeSteps.ts';
 
 /**
@@ -14,6 +14,5 @@ const NS = 'plugin.sha3';
 
 /** The regions of one run. */
 export function sha3Regions(messageBytes: number, paddedBytes: number, outputBytes: number): RegionSpec<Sha3Region>[] {
-  const message: RegionSpec<Sha3Region> = { id: 'message', labelKey: `${NS}.region.message`, elem: 'u8', shape: [messageBytes] };
-  return [...(messageBytes > 0 ? [message] : []), ...spongeRegions(NS, paddedBytes, outputBytes)];
+  return [...(messageBytes > 0 ? [byteRegion<Sha3Region>(NS, 'message', messageBytes)] : []), ...spongeRegions(NS, paddedBytes, outputBytes)];
 }

@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { HMAC_PARAM_FIELDS, HMAC_PRESETS, hmacManifest, validateHmacParams, type HmacParams } from './manifest.ts';
+import { hmacLabZoom } from '../_lib/hmac/labZoom.ts';
+import { HMAC_MAX_KEY_BYTES, HMAC_MAX_MESSAGE_BYTES, HMAC_PARAM_FIELDS, HMAC_PRESETS, hmacManifest, validateHmacParams, type HmacParams } from './manifest.ts';
 
 const NS = 'plugin.hmac';
 const BASE = hmacManifest.defaults as HmacParams;
@@ -61,5 +62,13 @@ describe('hmac manifest', () => {
     const [pass, fail] = ['verify-pass', 'verify-fail'].map((id) => HMAC_PRESETS.find((preset) => preset.id === id)!.params.expected);
     expect(fail!.slice(0, -2)).toBe(pass!.slice(0, -2));
     expect(fail!.slice(-2)).not.toBe(pass!.slice(-2));
+  });
+});
+
+describe('zooms into this lab (_lib/hmac/labZoom.ts)', () => {
+  it('validate accepts the shared builder\'s params unchanged, up to the key and message limits', () => {
+    const zoom = hmacLabZoom('sha512:sha-512', new Array<number>(HMAC_MAX_KEY_BYTES).fill(7), new Array<number>(HMAC_MAX_MESSAGE_BYTES).fill(9))!;
+    expect(validateHmacParams(zoom.params)).toEqual({ ok: true, value: zoom.params });
+    expect(hmacLabZoom('sha512:sha-512', new Array<number>(HMAC_MAX_KEY_BYTES + 1).fill(7), [])).toBeUndefined();
   });
 });

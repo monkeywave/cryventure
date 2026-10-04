@@ -7,7 +7,7 @@ import type { KmacOpName, KmacParams } from '../_lib/keccak/manifestKit.ts';
 import { DOMAIN_SUFFIXES, spongePad, type SpongePadding } from '../_lib/keccak/padding.ts';
 import { rateLanes } from '../_lib/keccak/sponge.ts';
 import { SpongeRecorder } from '../_lib/keccak/spongeRecorder.ts';
-import { recordSpongeBlocks, spongeScopeLevels } from '../_lib/keccak/spongeRecording.ts';
+import { recordSpongeBlocks, spongeOutputNarration, spongeScopeLevels } from '../_lib/keccak/spongeRecording.ts';
 import { blockStep, padShapeParams, recordPad, type SpongeTrace } from '../_lib/keccak/spongeSteps.ts';
 import { initialSnapshot } from '../_lib/sha2/regions.ts';
 import { kmacRegions, type KmacRegion } from './regions.ts';
@@ -114,8 +114,7 @@ function recordKmacPad(trace: KmacTrace, state: KeccakState, input: KmacInput, p
 }
 
 function outputNarration(input: KmacInput, output: readonly number[]): I18nRef {
-  const params = { algorithm: input.variant.name, tag: toHex(output) };
-  return input.variant.xof ? i18nRef(`${NS}.step.outputXof`, { ...params, bytes: output.length }) : i18nRef(`${NS}.step.output`, { ...params, bits: output.length * 8 });
+  return spongeOutputNarration(NS, input.variant.name, input.variant.xof, 'tag', output);
 }
 
 function kmacValues(input: KmacInput, encodeKeyStep: number, tag: number[], outputStep: number): ValuesFacet {

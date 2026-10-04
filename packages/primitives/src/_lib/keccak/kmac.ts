@@ -59,7 +59,10 @@ export function kmacOutput(variant: KmacVariant, key: Uint8Array, data: Uint8Arr
   return keccakOutput(variant.cshake, newX, outputLength, { functionName: KMAC_N, customization });
 }
 
-/** L from the options: the default tag length, or a positive integer number of bytes. */
+/**
+ * L from the options: the default tag length, or a positive integer number of bytes. SP 800-185 §4
+ * also allows L = 0 (an empty output); the `Mac` port rejects it on purpose, since an empty tag authenticates nothing.
+ */
 function outputLengthOf(id: string, defaultLength: number, options: MacOptions | undefined): number {
   const length = options?.outputLength ?? defaultLength;
   if (!Number.isInteger(length) || length < 1) throw new RangeError(`${id}: output length ${length} is not a positive integer`);

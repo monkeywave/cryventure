@@ -201,7 +201,7 @@ describe('sha512 ports.Hash', () => {
 describe('sha512 validate', () => {
   it('declares the text field limit as the message byte limit validation enforces, in both encodings', () => {
     const field = sha512Manifest.paramFields!.find((entry) => entry.name === 'input')!;
-    expect(field.maxLength).toBe(128);
+    expect(field.maxLength).toBe(384);
     const max = field.maxLength!;
     expect(validateSha512Params({ ...ABC, input: 'x'.repeat(max) }).ok).toBe(true);
     expect(validateSha512Params({ ...ABC, input: 'x'.repeat(max + 1) }).ok).toBe(false);
@@ -217,8 +217,8 @@ describe('sha512 validate', () => {
 
   it.each([
     [{ ...ABC, encoding: 'hex', input: '616' }, 'core.error.hexOddLength'],
-    [{ ...ABC, input: 'x'.repeat(129) }, 'plugin.sha512.error.inputLength'],
-    [{ ...ABC, encoding: 'hex', input: '00'.repeat(129) }, 'plugin.sha512.error.inputLength'],
+    [{ ...ABC, input: 'x'.repeat(385) }, 'plugin.sha512.error.inputLength'],
+    [{ ...ABC, encoding: 'hex', input: '00'.repeat(385) }, 'plugin.sha512.error.inputLength'],
     [{ ...ABC, algorithm: 'sha-256' }, 'plugin.sha512.error.algorithm'],
     [{ ...ABC, encoding: 'base64' }, 'plugin.sha512.error.encoding'],
     [{ ...ABC, detail: 'bit' }, 'plugin.sha512.error.detail'],

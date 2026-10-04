@@ -9,7 +9,7 @@ import {
   type ValueRole,
   type ValuesFacet,
 } from '@cryventure/core';
-import { hmacZoom } from './hkdf.ts';
+import { macLabZoom } from '../_lib/hmac/labZoom.ts';
 import { expands, extracts, type HkdfRecording, type HkdfRun } from './hkdfTrace.ts';
 
 /** The values and derivation facets of an HKDF recording (docs/M7.md §2d). */
@@ -53,7 +53,7 @@ const input = (id: string, bytes: number[], valueRefId?: string): Node => ({
   inputs: [],
   ...(valueRefId === undefined ? {} : { valueRef: valueRefId }),
 });
-const withZoom = (node: Node, zoom: ReturnType<typeof hmacZoom>): Node =>
+const withZoom = (node: Node, zoom: ReturnType<typeof macLabZoom>): Node =>
   zoom === undefined ? node : { ...node, zoom };
 
 /** IKM, salt → PRK = HMAC(salt, IKM): the chain continues from IKM, the salt is the key operand. */
@@ -71,7 +71,7 @@ function extractNodes(run: HkdfRun, recording: HkdfRecording): Node[] {
   return [
     input('ikm', run.ikm, run.ikm.length > 0 ? 'ikm' : undefined),
     input('salt', recording.salt, 'salt'),
-    withZoom(prk, hmacZoom(run.mac, recording.salt, run.ikm)),
+    withZoom(prk, macLabZoom(run.mac, recording.salt, run.ikm)),
   ];
 }
 
@@ -128,7 +128,7 @@ function expandNodes(run: HkdfRun, recording: HkdfRecording, infoId: string | un
       valueRef: tValueId(n),
       step: block.step,
     };
-    return [counter, message, withZoom(t, hmacZoom(run.mac, recording.prk, block.message))];
+    return [counter, message, withZoom(t, macLabZoom(run.mac, recording.prk, block.message))];
   });
 }
 

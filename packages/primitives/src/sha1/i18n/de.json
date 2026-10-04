@@ -8,7 +8,7 @@
   "plugin.sha1.param.encodingOption.utf8": "Text (UTF-8)",
   "plugin.sha1.param.encodingOption.hex": "Hex",
   "plugin.sha1.param.input": "Nachricht",
-  "plugin.sha1.param.inputHint": "0 bis 128 Byte; mit Padding werden daraus höchstens drei 64-Byte-Blöcke. Die Nachricht darf leer sein.",
+  "plugin.sha1.param.inputHint": "0 bis 320 Byte; mit Padding werden daraus höchstens sechs 64-Byte-Blöcke. Die Nachricht darf leer sein.",
   "plugin.sha1.param.detail": "Detailstufe",
   "plugin.sha1.param.detailHint": "„Pro Runde“ zeigt jedes Wort der Nachrichtenexpansion und jede der 80 Runden. „Pro Block“ führt die ganze Kompressionsfunktion eines Blocks in einem Schritt aus.",
   "plugin.sha1.param.detailOption.round": "Pro Runde",
@@ -74,6 +74,6 @@
   "plugin.sha1.error.invalidParams": "Die Parameter für SHA-1 sind ungültig.",
   "plugin.sha1.error.encoding": "Unbekanntes Eingabeformat „{{encoding}}“: Wähle Text oder Hex.",
   "plugin.sha1.error.detail": "Unbekannte Detailstufe „{{detail}}“.",
-  "plugin.sha1.error.inputLength": "Die Nachricht hat {{length}} Byte; erlaubt sind höchstens 128 Byte.",
+  "plugin.sha1.error.inputLength": "Die Nachricht hat {{length}} Byte; erlaubt sind höchstens 320 Byte.",
   "plugin.sha1.mac.hmac-sha-1": "HMAC-SHA-1"
 }

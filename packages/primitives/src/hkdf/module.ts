@@ -2,7 +2,6 @@ import {
   i18nRef,
   narrationFromState,
   parseHexToArray,
-  requirePortMember,
   runPrimitive,
   utf8Bytes,
   type I18nRef,
@@ -10,6 +9,7 @@ import {
   type RunOptions,
   type RunResult,
 } from '@cryventure/core';
+import { requireHmacMember } from '../_lib/hmac/requireHmacMember.ts';
 import { hkdfExpand, hkdfExtract, maxOutputLength } from './hkdf.ts';
 import { hkdfDerivation, hkdfValues } from './hkdfFacets.ts';
 import { expands, extracts, recordHkdf, type HkdfRecording, type HkdfRun } from './hkdfTrace.ts';
@@ -40,11 +40,13 @@ export function toRun(params: HkdfParams, mac: MacFunction): HkdfRun {
   };
 }
 
-/** Run errors that depend on HashLen: HKDF needs an HMAC; Expand needs PRK ≥ HashLen and L ≤ 255 · HashLen (RFC 5869 §2.3). */
+/**
+ * Run errors that depend on HashLen (the member is an HMAC, `requireHmacMember`): Expand needs
+ * PRK ≥ HashLen and L ≤ 255 · HashLen (RFC 5869 §2.3). `lengthTooLong` is a guard only: L ≤ 255
+ * (`HKDF_LIMITS.length`) never exceeds 255 · HashLen for a real HMAC.
+ */
 export function runError(run: HkdfRun): I18nRef | undefined {
   const hashLen = run.mac.outputSize;
-  if (run.mac.construction.kind !== 'hmac')
-    return i18nRef(`${NS}.error.notHmac`, { id: run.mac.id });
   if (!extracts(run.mode) && run.prk.length < hashLen)
     return i18nRef(`${NS}.error.prkTooShort`, { length: run.prk.length, hashLen });
   if (expands(run.mode) && run.length > maxOutputLength(hashLen))
@@ -69,9 +71,9 @@ function assertMatchesReference(run: HkdfRun, recording: HkdfRecording): void {
 export function run(params: HkdfParams, options: RunOptions = {}): RunResult {
   const validated = hkdfManifest.validate(params);
   if (!validated.ok) return validated;
-  const resolved = requirePortMember(options.resolve, 'Mac', validated.value.mac);
+  const resolved = requireHmacMember(options.resolve, validated.value.mac, NS);
   if (!resolved.ok) return resolved;
-  const hkdfRun = toRun(validated.value, resolved.member);
+  const hkdfRun = toRun(validated.value, resolved.mac);
   const error = runError(hkdfRun);
   if (error !== undefined) return { ok: false, error };
   return runPrimitive(hkdfManifest, validated.value, () => {

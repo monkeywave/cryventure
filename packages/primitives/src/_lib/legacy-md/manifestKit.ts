@@ -1,6 +1,7 @@
 import { opLabels, readOption, type ParamField, type Preset, type ValidationResult } from '@cryventure/core';
 import { hashLabParamsFor, messageField, paramError, selectField, type HashLabParams } from '../hashKit/manifestKit.ts';
-import { readSha2Input, SHA2_DETAILS, SHA2_ENCODINGS, SHA2_MAX_MESSAGE_BYTES, SHA2_OP_NAMES, type Sha2Detail, type Sha2Encoding, type Sha2OpName } from '../sha2/manifestKit.ts';
+import { hmacHashInputMaxBytes } from '../hmac/manifestKit.ts';
+import { readSha2Input, SHA2_DETAILS, SHA2_ENCODINGS, SHA2_OP_NAMES, type Sha2Detail, type Sha2Encoding, type Sha2OpName } from '../sha2/manifestKit.ts';
 
 /**
  * The manifest parts the `md5` and `sha1` producers share (docs/M6.md §2e): message encodings,
@@ -24,8 +25,15 @@ export const SHA1_OP_NAMES = SHA2_OP_NAMES;
 export const MD5_OP_NAMES = ['pad', 'init', 'round', 'compress', 'feedForward', 'output'] as const;
 export type LegacyOpName = Sha2OpName;
 
-/** At most 128 message bytes (three blocks after padding) in either encoding; also the text field's `maxLength`. */
-export const LEGACY_MAX_MESSAGE_BYTES = SHA2_MAX_MESSAGE_BYTES;
+/** MD5's and SHA-1's block size B in bytes. */
+const LEGACY_BLOCK_BYTES = 64;
+
+/**
+ * At most 320 message bytes (six blocks after padding) in either encoding: B + 256, the longest hash
+ * input of the `hmac` lab over MD5 or SHA-1, so every HMAC hash call zooms into the lab (docs/M7.md
+ * §1d). Also the text field's `maxLength`.
+ */
+export const LEGACY_MAX_MESSAGE_BYTES = hmacHashInputMaxBytes(LEGACY_BLOCK_BYTES);
 
 export interface LegacyHashParams {
   encoding: LegacyEncoding;
@@ -34,8 +42,10 @@ export interface LegacyHashParams {
   detail: LegacyDetail;
 }
 
-/** The message text: UTF-8 of at most 128 bytes, or hex of 0 … 128 bytes (normalised to lowercase). */
-export const readLegacyInput = readSha2Input;
+/** The message text: UTF-8 of at most 320 bytes, or hex of 0 … 320 bytes (normalised to lowercase). */
+export function readLegacyInput(ns: string, input: unknown, encoding: LegacyEncoding): ValidationResult<string> {
+  return readSha2Input(ns, input, encoding, LEGACY_MAX_MESSAGE_BYTES);
+}
 
 /** Validates and normalises params (hex lowercased with separators stripped; every select checked). */
 export function validateLegacyParams(ns: string, params: unknown): ValidationResult<LegacyHashParams> {
@@ -67,7 +77,7 @@ export function legacyPreset(ns: string, id: string, input: string, detail: Lega
   return { id, labelKey: `${ns}.preset.${id}`, params: { encoding: 'utf8', input, detail } };
 }
 
-/** `hashLabParams` of an MD5 or SHA-1 lab, whose one function is `functionId` (`md5`, `sha-1`): `round` detail, hex messages of at most 128 bytes. */
+/** `hashLabParams` of an MD5 or SHA-1 lab, whose one function is `functionId` (`md5`, `sha-1`): `round` detail, hex messages of at most 320 bytes. */
 export function legacyHashLabParams(functionId: string): HashLabParams {
   return hashLabParamsFor([functionId], LEGACY_MAX_MESSAGE_BYTES, (_, input) => ({ encoding: 'hex', input, detail: 'round' }));
 }

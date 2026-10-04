@@ -19,7 +19,7 @@ export interface BlockEngine<S extends BlockState> {
   readonly compress: (state: S, block: Uint8Array) => S;
   /** The final block(s): the tail after the last whole block, padded with the whole message's length. */
   readonly padTail: (tail: Uint8Array, messageBytes: number) => Uint8Array;
-  /** The state as bytes (big-endian for SHA-2, FIPS 180-4 §3.1). */
+  /** The state as bytes (big-endian for SHA-2, FIPS 180-4 §3.1), in a fresh array that never aliases `state`. */
   readonly bytes: (state: S) => Uint8Array;
 }
 
@@ -72,9 +72,9 @@ class BlockContext<S extends BlockState> implements HashContext {
     return engine.bytes(compressBlocks(this.state.slice() as S, tail, engine.blockBytes, engine.compress)).slice(0, this.outputSize);
   }
 
-  /** H, the chaining value after the last whole block, as `engine.bytes` writes it (docs/M7.md §1a). */
+  /** H, the chaining value after the last whole block, as `engine.bytes` writes it (docs/M7.md §1a); a fresh copy. */
   chainingState(): Uint8Array {
-    return this.engine.bytes(this.state.slice() as S);
+    return this.engine.bytes(this.state);
   }
 
   clone(): HashContext {

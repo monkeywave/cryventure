@@ -56,12 +56,13 @@ describe('readOutputLength', () => {
     ['1', '1'],
     ['42', '42'],
     ['007', '7'],
-    [' 255 ', '255'],
-  ])('accepts %j as %j', (input, value) =>
+    ['0042', '42'],
+    ['255', '255'],
+  ])('accepts %j as %j (digits only, leading zeros dropped)', (input, value) =>
     expect(readOutputLength(input)).toEqual({ ok: true, value }),
   );
 
-  it.each(['0', '256', '', '4.2', '-1', 'abc', '1000', 42])('rejects %j', (input) =>
+  it.each(['0', '256', '', '4.2', '-1', '+1', 'abc', '1000', ' 42 ', '42 ', '1e2', 42])('rejects %j', (input) =>
     expect(readOutputLength(input)).toEqual(error('length')),
   );
 });

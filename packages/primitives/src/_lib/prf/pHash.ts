@@ -1,4 +1,6 @@
-import { utf8Bytes, xorBytes, type MacContext, type MacFunction } from '@cryventure/core';
+import { blockCount, parseHexOrThrow, utf8Bytes, xorBytes, type MacFunction } from '@cryventure/core';
+import { keyedMac } from '../hmac/macCalls.ts';
+import type { PrfInputs } from './manifestKit.ts';
 
 /**
  * The TLS PRFs as untraced references (docs/M7.md §2a, §2f): P_hash (RFC 5246 §5, unchanged from
@@ -6,7 +8,7 @@ import { utf8Bytes, xorBytes, type MacContext, type MacFunction } from '@cryvent
  * The traced producers record from `pHashChain`, so trace and reference share one computation.
  */
 
-/** Every value of one P_hash run: A(1) … A(n), the blocks P(i) = HMAC(secret, A(i) ‖ seed), their concatenation and the first `length` bytes. */
+/** Every value of one P_hash run (n = ⌈length / HashLen⌉): A(1) … A(n), the blocks P(i) = HMAC(secret, A(i) ‖ seed), their concatenation and the first `length` bytes. */
 export interface PHashChain {
   /** A(1) … A(n); A(0) is the seed itself. */
   readonly a: readonly Uint8Array[];
@@ -16,11 +18,6 @@ export interface PHashChain {
   readonly stream: Uint8Array;
   /** The first `length` bytes of `stream`. */
   readonly output: Uint8Array;
-}
-
-/** n = ⌈length / outputSize⌉: the number of P blocks P_hash needs for `length` bytes. */
-export function pHashBlockCount(outputSize: number, length: number): number {
-  return Math.ceil(length / outputSize);
 }
 
 /** a ‖ b as a new array. */
@@ -40,13 +37,6 @@ function assertLength(length: number): void {
   if (!Number.isInteger(length) || length < 0) throw new RangeError(`P_hash: length must be a non-negative integer (got ${length})`);
 }
 
-/** HMAC(secret, data) from the keyed context (a clone per call: the midstates are computed once). */
-function macOf(keyed: MacContext, data: Uint8Array): Uint8Array {
-  const context = keyed.clone();
-  context.update(data);
-  return context.mac();
-}
-
 /**
  * P_hash(secret, seed) with every intermediate (RFC 5246 §5): A(0) = seed, A(i) = HMAC(secret,
  * A(i−1)), P(i) = HMAC(secret, A(i) ‖ seed), output = the first `length` bytes of P(1) ‖ P(2) ‖ ….
@@ -55,14 +45,14 @@ function macOf(keyed: MacContext, data: Uint8Array): Uint8Array {
 export function pHashChain(mac: MacFunction, secret: Uint8Array, seed: Uint8Array, length: number): PHashChain {
   assertLength(length);
   const keyed = mac.create(secret);
-  const blocks = pHashBlockCount(mac.outputSize, length);
+  const blocks = blockCount(length, mac.outputSize);
   const a: Uint8Array[] = [];
   const p: Uint8Array[] = [];
   let previous = seed;
   for (let index = 0; index < blocks; index += 1) {
-    previous = macOf(keyed, previous);
+    previous = keyedMac(keyed, previous);
     a.push(previous);
-    p.push(macOf(keyed, concatBytes(previous, seed)));
+    p.push(keyedMac(keyed, concatBytes(previous, seed)));
   }
   const stream = new Uint8Array(blocks * mac.outputSize);
   p.forEach((block, index) => stream.set(block, index * mac.outputSize));
@@ -90,4 +80,20 @@ export function tls10Prf(md5: MacFunction, sha1: MacFunction, secret: Uint8Array
   const { s1, s2 } = splitSecret(secret);
   const joined = labelSeed(label, seed);
   return xorBytes(pHash(md5, s1, joined, length), pHash(sha1, s2, joined, length));
+}
+
+/** The decoded inputs of a TLS PRF run: secret and seed bytes, the label, label ‖ seed and the output length L. */
+export interface PrfRunInputs {
+  secret: Uint8Array;
+  label: string;
+  seed: Uint8Array;
+  labelSeed: Uint8Array;
+  length: number;
+}
+
+/** Decodes validated PRF inputs (hex already normalised, `length` decimal digits). */
+export function decodePrfInputs(inputs: PrfInputs): PrfRunInputs {
+  const secret = parseHexOrThrow(inputs.secret);
+  const seed = parseHexOrThrow(inputs.seed);
+  return { secret, label: inputs.label, seed, labelSeed: labelSeed(inputs.label, seed), length: Number(inputs.length) };
 }

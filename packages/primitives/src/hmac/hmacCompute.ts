@@ -84,7 +84,7 @@ function hmacHalf(hash: HashFunction, k0: Uint8Array, pad: number, data: Uint8Ar
 
 /** HMAC of `message` under `key` with `hash`, cut to `tagBytes`, compared with `expected` when given. */
 export function computeHmac(hash: HashFunction, key: Uint8Array, message: Uint8Array, tagBytes: number, expected?: Uint8Array): HmacComputation {
-  const { k0, branch } = hmacK0(hash, key);
+  const { k0, branch, keyDigest } = hmacK0(hash, key);
   const inner = hmacHalf(hash, k0, IPAD, message);
   const outer = hmacHalf(hash, k0, OPAD, Uint8Array.from(inner.digest));
   const tag = outer.digest.slice(0, tagBytes);
@@ -93,7 +93,7 @@ export function computeHmac(hash: HashFunction, key: Uint8Array, message: Uint8A
     key: Array.from(key),
     message: Array.from(message),
     branch,
-    ...(branch === 'hashed' ? { keyDigest: Array.from(hash.hash(key)) } : {}),
+    ...(keyDigest === undefined ? {} : { keyDigest: Array.from(keyDigest) }),
     k0: Array.from(k0),
     inner,
     outer,

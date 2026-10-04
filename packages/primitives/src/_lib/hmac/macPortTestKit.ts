@@ -5,6 +5,8 @@ import { testHash } from './testHashes.ts';
 /**
  * Test support for the producers' `Mac` ports (docs/M7.md §2a): published vectors and the context
  * contract checked through `ports.Mac`, so each producer test proves its own port, not only the lib.
+ * The split and clone checks twin `PORT_SANITY.Mac` in @cryventure/tools (`portChecks.ts`), which
+ * primitives may not import; keep the two in step.
  */
 
 /** One vector as the files in `vectors/` store it: the hash by its file name, hex key, message and (possibly truncated) tag. */

@@ -1,27 +1,22 @@
 import {
   getFacet,
   parseHexOrThrow,
-  preparePorts,
-  Registry,
   toHex,
   utf8Bytes,
   type AnyStateFacet,
   type DerivationFacet,
   type I18nRef,
-  type PrimitiveManifest,
   type RunResult,
   type TraceBundle,
   type ValuesFacet,
 } from '@cryventure/core';
-import { primitiveManifests } from '@cryventure/primitives';
 import { describe, expect, it } from 'vitest';
+import { portResolverFor } from '../testing/hmacPorts.ts';
 import { oracleTls10 } from '../_lib/prf/testMacs.ts';
 import { tls10PrfManifest, validateTls10PrfParams, type Tls10PrfParams } from './manifest.ts';
 import { run } from './module.ts';
 
 const NS = 'plugin.tls10-prf';
-const registry = new Registry<PrimitiveManifest>('producers');
-primitiveManifests.forEach((manifest) => registry.register(manifest));
 
 const DEFAULTS = tls10PrfManifest.defaults;
 /** CAVP SP 800-135 TLS [TLS 1.0/1.1] COUNT=0 master secret. */
@@ -30,7 +25,7 @@ const CAVP_MASTER_SECRET = '2f6962dfbc744c4b2138bb6b3d33054c5ecc14f24851d9896395
 const ODD: Tls10PrfParams = { ...DEFAULTS, secret: '0102030405', label: 'test label', seed: 'aabb', length: '40' };
 
 async function runWithPorts(params: Tls10PrfParams): Promise<RunResult> {
-  return run(params, { resolve: await preparePorts(tls10PrfManifest, params, registry) });
+  return run(params, { resolve: await portResolverFor(tls10PrfManifest, params) });
 }
 
 async function trace(params: Tls10PrfParams): Promise<TraceBundle> {

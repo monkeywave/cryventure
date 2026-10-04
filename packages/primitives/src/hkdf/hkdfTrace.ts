@@ -1,5 +1,6 @@
 import {
   allIndices,
+  blockCount,
   highlight,
   i18nRef,
   RecordingTracer,
@@ -11,7 +12,6 @@ import {
   type StateFacet,
 } from '@cryventure/core';
 import {
-  blockCount,
   extractSalt,
   hkdfExpandBlocks,
   hkdfLabel,
@@ -21,6 +21,7 @@ import {
   type HkdfLabelStruct,
 } from './hkdf.ts';
 import type { HkdfMode, HkdfOpName } from './manifest.ts';
+import { macDisplayName } from '../_lib/hmac/macCalls.ts';
 
 /** Traced HKDF (RFC 5869, RFC 8446 §7.1): hkdfLabel? → extract? → expand per block → output. Flat steps. */
 export type HkdfRegion = 'ikm' | 'salt' | 'prk' | 'info' | 'hkdfLabel' | 't' | 'okm';
@@ -65,8 +66,6 @@ export interface HkdfRecording {
 export const extracts = (mode: HkdfMode) => mode === 'hkdf' || mode === 'extract';
 export const expands = (mode: HkdfMode) => mode !== 'extract';
 
-/** "HMAC-SHA-256" for the member id `hmac-sha-256`. */
-export const macName = (mac: MacFunction) => mac.id.toUpperCase();
 
 type Tracer = RecordingTracer<HkdfRegion, HkdfOp>;
 
@@ -122,7 +121,7 @@ function initialSnapshot(
 /** Narration of the initial state, per mode. */
 export function initialNarration(run: HkdfRun): I18nRef {
   const hashLen = run.mac.outputSize;
-  const common = { mac: macName(run.mac), hashLen };
+  const common = { mac: macDisplayName(run.mac), hashLen };
   switch (run.mode) {
     case 'hkdf':
       return i18nRef(`${NS}.step.initial.hkdf`, {
@@ -183,7 +182,7 @@ function recordExtract(
   sizes: Partial<Record<HkdfRegion, number>>,
 ): number[] {
   const prk = hkdfExtract(run.mac, run.salt, run.ikm);
-  const common = { mac: macName(run.mac), ikmBytes: run.ikm.length, prk: toHex(prk) };
+  const common = { mac: macDisplayName(run.mac), ikmBytes: run.ikm.length, prk: toHex(prk) };
   tracer.step({
     op: 'extract',
     writes: [{ region: 'prk', offset: 0, values: prk }],
@@ -216,7 +215,7 @@ function expandNarration(run: HkdfRun, block: ExpandBlock): I18nRef {
   const params = {
     n: block.index,
     counter: toHex([block.index]),
-    mac: macName(run.mac),
+    mac: macDisplayName(run.mac),
     t: toHex(block.t),
   };
   return block.index === 1

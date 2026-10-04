@@ -1,7 +1,8 @@
 import { parseHexOrThrow, toHex, u8Regions, zeroSnapshot, type I18nRef } from '@cryventure/core';
 import { describe, expect, it } from 'vitest';
 import { labelSeed, pHashChain } from './pHash.ts';
-import { macName, PrfRecorder, prfName, recordChainBlock, recordSeedStep, type PrfChainSpec, type PrfOpName } from './record.ts';
+import { macDisplayName as macName } from '../hmac/macCalls.ts';
+import { PrfRecorder, prfName, recordChainBlock, recordSeedStep, type PrfChainSpec, type PrfOpName } from './record.ts';
 import { HMAC_MD5, HMAC_SHA1, HMAC_SHA256 } from './testMacs.ts';
 
 const NS = 'plugin.test-prf';

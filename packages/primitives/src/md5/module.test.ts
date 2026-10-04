@@ -162,7 +162,7 @@ describe('md5 validate', () => {
 
   it.each([
     [{ ...ABC, encoding: 'hex', input: '616' }, 'core.error.hexOddLength'],
-    [{ ...ABC, input: 'x'.repeat(129) }, 'plugin.md5.error.inputLength'],
+    [{ ...ABC, input: 'x'.repeat(321) }, 'plugin.md5.error.inputLength'],
     [{ ...ABC, encoding: 'base64' }, 'plugin.md5.error.encoding'],
     [{ ...ABC, detail: 'bit' }, 'plugin.md5.error.detail'],
     [{ ...ABC, input: 42 }, 'plugin.md5.error.invalidParams'],

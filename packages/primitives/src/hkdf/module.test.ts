@@ -15,7 +15,8 @@ import {
 import { beforeAll, describe, expect, it } from 'vitest';
 import conformance from './vectors/conformance.json' with { type: 'json' };
 import { hkdfLabel } from './hkdf.ts';
-import { initialNarration, macName, type HkdfRun } from './hkdfTrace.ts';
+import { macDisplayName } from '../_lib/hmac/macCalls.ts';
+import { initialNarration, type HkdfRun } from './hkdfTrace.ts';
 import { HKDF_OP_NAMES, hkdfManifest, type HkdfParams } from './manifest.ts';
 import { run, runError, toRun } from './module.ts';
 import { bytes, realMac, resolverFor } from './testPorts.ts';
@@ -385,7 +386,7 @@ describe('hkdf run errors', () => {
       { mac: 'sha256:hmac-sha-999' },
       { key: 'core.error.portMemberMissing', params: { id: 'sha256:hmac-sha-999' } },
     ],
-    [{ mac: 'blake2:blake2s-256' }, { key: `${NS}.error.notHmac`, params: { id: 'blake2s-256' } }],
+    [{ mac: 'blake2:blake2s-256' }, { key: `${NS}.error.notHmac`, params: { id: 'blake2:blake2s-256' } }],
     [
       { mode: 'expand', prk: '00'.repeat(31) },
       { key: `${NS}.error.prkTooShort`, params: { length: 31, hashLen: 32 } },
@@ -443,9 +444,9 @@ describe('runError and toRun', () => {
   });
 });
 
-describe('initialNarration and macName', () => {
+describe('initialNarration and macDisplayName', () => {
   it('names the MAC from its member id', () => {
-    expect(macName(sha256)).toBe('HMAC-SHA-256');
+    expect(macDisplayName(sha256)).toBe('HMAC-SHA-256');
   });
 
   it('has one key per mode', () => {

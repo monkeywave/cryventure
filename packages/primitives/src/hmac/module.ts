@@ -1,4 +1,4 @@
-import { facetKey, narrationFromState, parseHexOrThrow, requirePortMember, type PrimitiveManifest, type ProducerLookup, type RunOptions, type RunResult, type TraceBundle } from '@cryventure/core';
+import { narrationFromState, parseHexOrThrow, parseHexToArray, requirePortMember, runPrimitive, type PrimitiveManifest, type ProducerLookup, type RunOptions, type RunResult } from '@cryventure/core';
 import { hashMessageBytes } from '../_lib/hashKit/manifestKit.ts';
 import { primitiveManifests } from '../index.ts';
 import { hashZoom } from './hashZoom.ts';
@@ -17,7 +17,7 @@ import { hmacManifest, type HmacParams } from './manifest.ts';
  */
 const registeredProducers: ProducerLookup = new Map<string, PrimitiveManifest>(primitiveManifests.map((manifest) => [manifest.id, manifest]));
 
-/** Validates `params`, resolves the hash member, records HMAC and returns a TraceBundle (run errors: hash missing, tag length). */
+/** Validates `params`, resolves the hash member, records HMAC and returns a TraceBundle via `runPrimitive` (run errors: hash missing, tag length). */
 export function run(params: HmacParams, options: RunOptions = {}): RunResult {
   const validated = hmacManifest.validate(params);
   if (!validated.ok) return validated;
@@ -26,26 +26,19 @@ export function run(params: HmacParams, options: RunOptions = {}): RunResult {
   if (!member.ok) return member;
   const tagLength = resolveTagLength(value.tagLength, member.member);
   if (!tagLength.ok) return tagLength;
-  const expected = value.expected === '' ? undefined : Array.from(parseHexOrThrow(value.expected));
+  const expected = value.expected === '' ? undefined : parseHexToArray(value.expected);
   const message = Uint8Array.from(hashMessageBytes(value.encoding, value.input));
   const computation = computeHmac(member.member, parseHexOrThrow(value.key), message, tagLength.bytes, expected === undefined ? undefined : Uint8Array.from(expected));
   const { state, steps } = recordHmac(computation, expected);
   const zoom = (data: readonly number[]) => hashZoom(registeredProducers, member.producerId, member.memberId, data);
-  const output: Record<string, number[]> = { tag: computation.tag };
-  if (computation.comparison !== undefined) output['verified'] = [computation.comparison.equal ? 1 : 0];
-  const trace: TraceBundle = {
-    schemaVersion: 1,
-    producer: { kind: 'primitive', id: hmacManifest.id, apiVersion: hmacManifest.apiVersion },
-    provenance: 'modeled',
-    params: value,
+  return runPrimitive(hmacManifest, value, () => ({
     facets: {
-      [facetKey('state')]: state,
-      [facetKey('values')]: hmacValues(computation, steps, expected),
-      [facetKey('narration')]: narrationFromState(state),
-      [facetKey('derivation')]: hmacDerivation(computation, steps, zoom),
-      [facetKey('math')]: hmacMath(computation, steps),
+      state,
+      values: hmacValues(computation, steps, expected),
+      narration: narrationFromState(state),
+      derivation: hmacDerivation(computation, steps, zoom),
+      math: hmacMath(computation, steps),
     },
-    output,
-  };
-  return { ok: true, trace };
+    output: { tag: computation.tag, ...(computation.comparison === undefined ? {} : { verified: [computation.comparison.equal ? 1 : 0] }) },
+  }));
 }

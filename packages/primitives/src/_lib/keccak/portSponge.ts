@@ -7,10 +7,12 @@ import { spongePad, type DomainSuffix } from './padding.ts';
  * which the traced recordings keep.
  */
 
-/** `outputLength` bytes squeezed from an absorbed (already permuted) state; `absorbed` is left unchanged. */
-export function squeezeFromHiLo(absorbed: KeccakHiLoState, rateBytes: number, outputLength: number): Uint8Array {
+/**
+ * `outputLength` bytes squeezed from an absorbed (already permuted) state. Takes ownership of `state`:
+ * a multi-block squeeze permutes it in place, so callers pass a state of their own (`finish()`'s copy).
+ */
+export function squeezeFromHiLo(state: KeccakHiLoState, rateBytes: number, outputLength: number): Uint8Array {
   const out = new Uint8Array(outputLength);
-  const state = absorbed.slice();
   for (let offset = 0; offset < outputLength; offset += rateBytes) {
     if (offset > 0) keccakF1600HiLo(state);
     out.set(hiLoStateBytes(state, Math.min(rateBytes, outputLength - offset)), offset);

@@ -23,8 +23,9 @@ import {
 import { primitiveManifests } from '@cryventure/primitives';
 import { beforeAll, describe, expect, it } from 'vitest';
 import { hmacFunction } from '../_lib/hmac/hmac.ts';
+import { allHmacMembers, type HmacMember } from '../testing/hmacPorts.ts';
 import conformance from './vectors/conformance.json' with { type: 'json' };
-import { HMAC_PRESETS, hmacManifest, type HmacParams } from './manifest.ts';
+import { HMAC_MAX_KEY_BYTES, HMAC_MAX_MESSAGE_BYTES, HMAC_PRESETS, hmacManifest, type HmacParams } from './manifest.ts';
 import { run } from './module.ts';
 
 const NS = 'plugin.hmac';
@@ -270,11 +271,47 @@ describe('derivation facet', () => {
     const zoomed = (await sha256.load()).run(inner.zoom!.params);
     expect(zoomed.ok && zoomed.trace.output['digest']).toEqual(inner.bytes);
   });
+});
 
-  it('has no zoom when the hash lab cannot take the input (SHA-512: 128 + 20 bytes > 128)', () => {
-    const nodes = getFacet<DerivationFacet>(runWith({ hash: 'sha512:sha-512' }), 'derivation')!.nodes;
-    expect(nodes.find((node) => node.id === 'inner')?.zoom).toBeUndefined();
-    expect(nodes.find((node) => node.id === 'tag')?.zoom).toBeUndefined();
+describe('hash-lab zooms of every HMAC member (docs/M7.md §1d)', () => {
+  let members: HmacMember[];
+  beforeAll(async () => {
+    members = await allHmacMembers();
+  });
+
+  const hashNodes = (trace: TraceBundle) => getFacet<DerivationFacet>(trace, 'derivation')!.nodes.filter((node) => node.op === 'hash');
+  const unlinked = (trace: TraceBundle) => hashNodes(trace).filter((node) => node.zoom === undefined).map((node) => node.id);
+  /** The longest key (hashed first) and message the lab takes: every hash call is as long as it gets. */
+  const LIMITS: Partial<HmacParams> = { key: 'aa'.repeat(HMAC_MAX_KEY_BYTES), encoding: 'hex', input: '5c'.repeat(HMAC_MAX_MESSAGE_BYTES) };
+  /** The sha256 lab takes 2·B = 128 bytes: a 128-byte key (hashed) and a 64-byte message still zoom everywhere. */
+  const SHA256_LAB_LIMITS: Partial<HmacParams> = { key: 'aa'.repeat(128), encoding: 'hex', input: '5c'.repeat(64) };
+  const limitsOf = (ref: string) => (ref.startsWith('sha256:') ? SHA256_LAB_LIMITS : LIMITS);
+
+  it('links the inner and outer hash of every preset (the 131-byte key of tc6 exceeds the sha256 lab, so its key hash has none)', () => {
+    for (const preset of HMAC_PRESETS) expect(unlinked(runWith(preset.params)).filter((id) => id !== 'keyDigest'), preset.id).toEqual([]);
+    expect(unlinked(runWith(presetParams('rfc4231-tc6-longkey')))).toEqual(['keyDigest']);
+  });
+
+  it('links the key hash, inner and outer hash of every member, at the default and at the key and message limits', () => {
+    for (const { ref, mac } of members) {
+      const hash = mac.construction.kind === 'hmac' ? mac.construction.hash : '';
+      for (const [name, overrides] of [['default', {}], ['at the limits', limitsOf(ref)]] as const) {
+        const trace = runWith({ hash, ...overrides });
+        expect(hashNodes(trace).length, ref).toBeGreaterThanOrEqual(2);
+        expect(unlinked(trace), `${ref} ${name}`).toEqual([]);
+      }
+    }
+  });
+
+  it('every zoom opens a hash lab run whose digest is exactly the node bytes', async () => {
+    for (const { ref, mac } of members) {
+      const hash = mac.construction.kind === 'hmac' ? mac.construction.hash : '';
+      for (const node of hashNodes(runWith({ hash, ...limitsOf(ref) }))) {
+        const producer = primitiveManifests.find((manifest) => manifest.id === node.zoom!.producerId)!;
+        const zoomed = (await producer.load()).run(node.zoom!.params);
+        expect(zoomed.ok && toHex(zoomed.trace.output['digest'] ?? []), `${ref} ${node.id}`).toBe(toHex(node.bytes));
+      }
+    }
   });
 });
 

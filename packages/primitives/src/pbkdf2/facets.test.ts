@@ -1,6 +1,6 @@
 import { isResultNode, validateDerivationFacet, type MacFunction } from '@cryventure/core';
 import { beforeAll, describe, expect, it } from 'vitest';
-import { blockValueId, DK_ID, HMAC_LAB_MAX_BYTES, PASSWORD_ID, pbkdf2Derivation, pbkdf2Values, SALT_ID, u1Zoom, uNodeId } from './facets.ts';
+import { blockValueId, DK_ID, PASSWORD_ID, pbkdf2Derivation, pbkdf2Values, SALT_ID, uNodeId } from './facets.ts';
 import { recordPbkdf2, type Pbkdf2Recording } from './record.ts';
 import { hmacMember } from './testMacs.ts';
 
@@ -16,19 +16,6 @@ beforeAll(async () => {
 function recording(iterations: number, length: number): Pbkdf2Recording {
   return recordPbkdf2({ macName: 'HMAC-SHA-1', outputSize: 20, keyed: sha1.create(Uint8Array.from(PASSWORD)), password: PASSWORD, salt: SALT, iterations, length });
 }
-
-describe('u1Zoom', () => {
-  it('opens the hmac lab with hex key and message, full tag, nothing to verify', () => {
-    expect(u1Zoom('sha1:sha-1', [0xab], [0x01, 0x02])).toEqual({ producerId: 'hmac', params: { hash: 'sha1:sha-1', key: 'ab', encoding: 'hex', input: '0102', tagLength: 'full', expected: '' } });
-  });
-
-  it('gives no link past the lab limit of 256 bytes', () => {
-    const limit = Array<number>(HMAC_LAB_MAX_BYTES).fill(1);
-    expect(u1Zoom('h:x', limit, limit)).toBeDefined();
-    expect(u1Zoom('h:x', [...limit, 1], [])).toBeUndefined();
-    expect(u1Zoom('h:x', [], [...limit, 1])).toBeUndefined();
-  });
-});
 
 describe('pbkdf2Values', () => {
   it('marks password and DK secret, the salt public, one T per block', () => {

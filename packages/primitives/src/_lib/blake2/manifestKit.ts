@@ -1,5 +1,6 @@
 import { opLabels, parseHexOfLength, readOption, type ParamField, type ValidationResult } from '@cryventure/core';
 import { HASH_ENCODINGS, hashLabParamsFor, messageField, messageLengths, paramError, readMessageInput, selectField, type HashEncoding, type HashLabParams } from '../hashKit/manifestKit.ts';
+import { hmacHashInputMaxBytes } from '../hmac/manifestKit.ts';
 
 /**
  * The eagerly loaded manifest parts of the `blake2` producer (docs/M6.md §2d): the eight RFC 7693 §4
@@ -29,8 +30,14 @@ export type Blake2Detail = (typeof BLAKE2_DETAILS)[number];
 export const BLAKE2_OP_NAMES = ['init', 'load', 'g', 'round', 'compress', 'feedForward', 'output'] as const;
 export type Blake2OpName = (typeof BLAKE2_OP_NAMES)[number];
 
-/** At most 128 message bytes in either encoding; also the text field's `maxLength` (hex counts decoded bytes). */
-export const BLAKE2_MAX_MESSAGE_BYTES = 128;
+/** The BLAKE2b block size in bytes (BLAKE2s: 64). */
+const BLAKE2B_BLOCK_BYTES = 128;
+
+/**
+ * At most 384 message bytes in either encoding: the longest hash input of the `hmac` lab over
+ * BLAKE2b, B + 256 (docs/M7.md §1d). Also the text field's `maxLength` (hex counts decoded bytes).
+ */
+export const BLAKE2_MAX_MESSAGE_BYTES = hmacHashInputMaxBytes(BLAKE2B_BLOCK_BYTES);
 
 /** The longest key of either flavour (BLAKE2b); BLAKE2s allows 32 bytes (RFC 7693 §2.1). */
 const MAX_KEY_BYTES: Readonly<Record<Blake2Flavour, number>> = { blake2s: 32, blake2b: 64 };

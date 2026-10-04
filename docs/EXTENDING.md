@@ -230,10 +230,15 @@ BLAKE2, RFC 7693 §2.5).
   `{ ok, member, producerId, memberId }` or a `core.error.portMissing` / `portLoadFailed` /
   `portMemberMissing` (`{{id}}`) run error.
 - **Zooming into the `hmac` lab:** a KDF node computed by one HMAC call carries
-  `zoom: hmacZoom(mac, key, message)` (`primitives/src/_lib/prf/derivation.ts`): a `LabZoom` into the
-  `hmac` lab with the MAC's `construction.hash` as its `hash` param, or `undefined` when the MAC is not
-  an HMAC or the inputs pass the lab's 256-byte limit. The `hmac` lab in turn links its inner and outer
-  hash nodes to the hash producer's lab via `hashLabParams` (above), so every hop is a real lab run.
+  `zoom: macLabZoom(mac, key, message)` (or `hmacLabZoom(hashRef, key, message)`;
+  `primitives/src/_lib/hmac/labZoom.ts`): a `LabZoom` into the `hmac` lab with the MAC's
+  `construction.hash` as its `hash` param, or `undefined` when the MAC is not an HMAC or the inputs
+  pass the lab's 256-byte limits (`HMAC_LAB_MAX_KEY_BYTES` / `HMAC_LAB_MAX_MESSAGE_BYTES` in
+  `_lib/hmac/manifestKit.ts`). Resolve the member with `requireHmacMember` (`_lib/hmac/`), which adds
+  the `<ns>.error.notHmac` (`{{id}}` = the member ref) run error. The `hmac` lab in turn links its key
+  hash, inner and outer hash nodes to the hash producer's lab via `hashLabParams` (above), so every
+  hop is a real lab run; a hash lab that takes `hmacHashInputMaxBytes(B)` = B + 256 bytes receives
+  every such zoom (the sha256 lab takes 2·B = 128, so long HMAC-SHA-256 inputs get no link).
 - **`PORT_SANITY.Mac`** (`portChecks.ts`) checks the family (id = producer id, non-empty, unique ids)
   and per function: sizes (`keySizes.min ≥ 0`, `max ≥ min`), the construction kind (an `hmac` `hash`
   must be a member ref); for key lengths {min, 1, B, B + 1} and messages {0, 1, B, 2B + 3} bytes (those
@@ -302,7 +307,7 @@ its raw name).
 
 **Zoom (`LabZoom`):** a node may carry `zoom: LabZoom` (`{ producerId, params }`, every param a
 string, `core/src/facets/derivation.ts`): a link to another producer's lab computing that node.
-Examples: a KDF's HMAC call into the `hmac` lab (`hmacZoom`), and the `hmac` lab's inner and outer
+Examples: a KDF's HMAC call into the `hmac` lab (`macLabZoom`), and the `hmac` lab's inner and outer
 hash calls into the hash lab via that producer's `hashLabParams`. Leave it unset when the target lab
 cannot take the inputs. The view renders it as a link via the host's `useLabActions().labHref`
 (no link without one, or for an unknown producer). It is the generic successor of the chain facet's

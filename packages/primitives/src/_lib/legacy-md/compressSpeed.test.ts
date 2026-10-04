@@ -10,6 +10,15 @@ import { SHA1_IV, sha1Compress, sha1CompressSpec } from './sha1.ts';
 /** The package compiles without DOM/Node lib types; the test runner provides `performance`. */
 const { performance } = globalThis as unknown as { performance: { now(): number } };
 
+/**
+ * The speed-up a test asserts: the spec's `target` under `CV_PERF=1` (a quiet machine), else the loose
+ * `flakeGuard` so a loaded CI machine does not flake. Reads the env without Node types.
+ */
+function requiredSpeedup(target: number, flakeGuard: number): number {
+  const env = (globalThis as unknown as { process?: { env: Record<string, string | undefined> } }).process?.env;
+  return env?.['CV_PERF'] === '1' ? target : flakeGuard;
+}
+
 /** A deterministic pseudo-random byte stream (xorshift32), so failures reproduce. */
 function randomBytes(length: number, seed: number): Uint8Array {
   let x = seed >>> 0 || 1;
@@ -49,13 +58,13 @@ describe.each(CASES)('%s port compression', (_name, iv, fast, spec) => {
     }
   });
 
-  it('is much faster than the spec-shaped compression (target ≤ 2.5 µs; asserted ≥ 3× so it does not flake)', () => {
+  it('is much faster than the spec-shaped compression (target ≤ 2.5 µs; ≥ 10× under CV_PERF=1, else ≥ 3× so it does not flake)', () => {
     const block = randomBytes(64, 42);
     const before = microsPerCall(() => spec(Uint32Array.from(iv), block), 4000);
     const h = Uint32Array.from(iv);
     const after = microsPerCall(() => fast(h, block), 40000);
     const measured = `spec ${before.toFixed(2)} µs, port ${after.toFixed(2)} µs per compression: ${(before / after).toFixed(1)}×`;
     // Measured about 55× for MD5 (25.6 → 0.46 µs) and 33× for SHA-1 (14.6 → 0.44 µs) on an M-series Mac.
-    expect(before / after, measured).toBeGreaterThanOrEqual(3);
+    expect(before / after, measured).toBeGreaterThanOrEqual(requiredSpeedup(10, 3));
   });
 });

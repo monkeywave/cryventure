@@ -12,6 +12,8 @@ import {
   type ValidationResult,
 } from '@cryventure/core';
 
+import { selectField } from '../_lib/hashKit/manifestKit.ts';
+import { readDigits } from '../_lib/params/manifestKit.ts';
 /**
  * Manifest for HKDF (RFC 5869) over any HMAC of the `Mac` port, plus the TLS 1.3
  * `HKDF-Expand-Label` preview (RFC 8446 §7.1; docs/M7.md §2d). Imports core only; the recorder loads lazily.
@@ -121,13 +123,6 @@ const hexField = (name: string): ParamField => ({
   labelKey: `${NS}.param.${name}`,
   hintKey: `${NS}.param.${name}Hint`,
 });
-const selectField = (name: string, options: readonly string[]): ParamField => ({
-  name,
-  kind: 'select',
-  labelKey: `${NS}.param.${name}`,
-  hintKey: `${NS}.param.${name}Hint`,
-  options: options.map((value) => ({ value, labelKey: `${NS}.param.${name}Option.${value}` })),
-});
 const textField = (
   name: string,
   maxLength: number,
@@ -151,11 +146,11 @@ export const HKDF_PARAM_FIELDS: ParamField[] = [
     labelKey: `${NS}.param.mac`,
     hintKey: `${NS}.param.macHint`,
   },
-  selectField('mode', HKDF_MODES),
+  selectField(NS, 'mode', HKDF_MODES),
   hexField('ikm'),
   hexField('salt'),
   hexField('prk'),
-  selectField('infoEncoding', HKDF_INFO_ENCODINGS),
+  selectField(NS, 'infoEncoding', HKDF_INFO_ENCODINGS),
   textField('info', HKDF_LIMITS.info, { encodingParam: 'infoEncoding' }),
   textField('length', 3),
   textField('label', HKDF_LIMITS.label),
@@ -192,13 +187,10 @@ export function readInfo(input: unknown, encoding: HkdfInfoEncoding): Read<strin
   return length <= HKDF_LIMITS.info ? { ok: true, value: input } : fail('infoLength', { length });
 }
 
-/** L: decimal digits for 1 … 255 bytes, normalised without leading zeros. */
+/** L: decimal digits for 1 … 255 bytes (strict, `readDigits`), normalised without leading zeros. */
 export function readOutputLength(input: unknown): Read<string> {
-  if (typeof input !== 'string' || !/^\d{1,3}$/.test(input.trim())) return fail('length');
-  const length = Number(input.trim());
-  return length >= 1 && length <= HKDF_LIMITS.length
-    ? { ok: true, value: String(length) }
-    : fail('length');
+  const length = readDigits(input, { min: 1, max: HKDF_LIMITS.length });
+  return length === undefined ? fail('length') : { ok: true, value: length };
 }
 
 /** The TLS 1.3 label (without "tls13 "): UTF-8 of at most 249 bytes, non-empty in expand-label mode (RFC 8446 `opaque label<7..255>`). */

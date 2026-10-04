@@ -1,5 +1,5 @@
 import type { RegionSpec } from '@cryventure/core';
-import { spongeRegions } from '../_lib/keccak/spongeRecording.ts';
+import { byteRegion, spongeRegions } from '../_lib/keccak/spongeRecording.ts';
 import type { SpongeRegion } from '../_lib/keccak/spongeSteps.ts';
 
 /**
@@ -22,7 +22,7 @@ export interface KmacRegionSizes {
 }
 
 function region(id: KmacRegion, size: number, extra: Partial<RegionSpec<KmacRegion>> = {}): RegionSpec<KmacRegion> {
-  return { id, labelKey: `${NS}.region.${id}`, elem: 'u8', shape: [size], ...extra };
+  return byteRegion(NS, id, size, extra);
 }
 
 /** The regions of one run. */

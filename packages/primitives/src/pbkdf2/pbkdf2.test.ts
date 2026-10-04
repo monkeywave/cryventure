@@ -1,7 +1,8 @@
-import { parseHexOrThrow, toHex, utf8Bytes, type MacFunction } from '@cryventure/core';
+import { blockCount, parseHexOrThrow, toHex, utf8Bytes, type MacFunction } from '@cryventure/core';
 import { beforeAll, describe, expect, it } from 'vitest';
 import conformance from './vectors/conformance.json' with { type: 'json' };
-import { blockCount, int32be, pbkdf2, pbkdf2Block, prf, saltWithIndex } from './pbkdf2.ts';
+import { keyedMac } from '../_lib/hmac/macCalls.ts';
+import { int32be, pbkdf2, pbkdf2Block, saltWithIndex } from './pbkdf2.ts';
 import { hmacMember } from './testMacs.ts';
 
 let sha1: MacFunction;
@@ -32,9 +33,9 @@ describe('blockCount', () => {
 describe('prf', () => {
   it('equals the one-shot HMAC and leaves the keyed context unchanged', () => {
     const keyed = sha256.create(ascii('key'));
-    const first = toHex(prf(keyed, ascii('a')));
+    const first = toHex(keyedMac(keyed, ascii('a')));
     expect(first).toBe(toHex(sha256.mac(ascii('key'), ascii('a'))));
-    expect(toHex(prf(keyed, ascii('a')))).toBe(first);
+    expect(toHex(keyedMac(keyed, ascii('a')))).toBe(first);
   });
 });
 

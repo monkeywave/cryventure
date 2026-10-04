@@ -72,6 +72,15 @@ describe('sha2PortDigest (the SHA-512 family on hi/lo)', () => {
   });
 });
 
+/**
+ * The speed-up a test asserts: the spec's `target` under `CV_PERF=1` (a quiet machine), else the loose
+ * `flakeGuard` so a loaded CI machine does not flake. Reads the env without Node types.
+ */
+function requiredSpeedup(target: number, flakeGuard: number): number {
+  const env = (globalThis as unknown as { process?: { env: Record<string, string | undefined> } }).process?.env;
+  return env?.['CV_PERF'] === '1' ? target : flakeGuard;
+}
+
 /** Mean µs per call of `run` over `count` calls, after a warm-up. */
 function microsPerCall(run: () => void, count: number): number {
   for (let i = 0; i < count / 4; i++) run();
@@ -81,7 +90,7 @@ function microsPerCall(run: () => void, count: number): number {
 }
 
 describe('port speed', () => {
-  it('hi/lo is much faster than the bigint compression (target ≥ 10×; asserted ≥ 4× so it does not flake)', () => {
+  it('hi/lo is much faster than the bigint compression (≥ 10× under CV_PERF=1, else ≥ 4× so it does not flake)', () => {
     const block = randomBytes(128, 42);
     const big = BigUint64Array.from(SHA512_IV);
     const hl = toHiLo(SHA512_IV);
@@ -89,6 +98,6 @@ describe('port speed', () => {
     const hiLo = microsPerCall(() => sha512CompressHiLo(hl, block), 20000);
     const measured = `bigint ${bigint.toFixed(2)} µs, hi/lo ${hiLo.toFixed(2)} µs per compression: ${(bigint / hiLo).toFixed(1)}×`;
     // Measured about 30× (bigint ≈ 68 µs, hi/lo ≈ 2.2 µs) on an M-series Mac; 4× keeps a loaded CI machine from flaking.
-    expect(bigint / hiLo, measured).toBeGreaterThanOrEqual(4);
+    expect(bigint / hiLo, measured).toBeGreaterThanOrEqual(requiredSpeedup(10, 4));
   });
 });

@@ -8,7 +8,7 @@
   "plugin.sha1.param.encodingOption.utf8": "Text (UTF-8)",
   "plugin.sha1.param.encodingOption.hex": "Hex",
   "plugin.sha1.param.input": "Message",
-  "plugin.sha1.param.inputHint": "0 to 128 bytes, which pad to at most three 64-byte blocks. The message may be empty.",
+  "plugin.sha1.param.inputHint": "0 to 320 bytes, which pad to at most six 64-byte blocks. The message may be empty.",
   "plugin.sha1.param.detail": "Level of detail",
   "plugin.sha1.param.detailHint": "“Per round” shows every message schedule word and every one of the 80 rounds. “Per block” runs the whole compression function of a block in one step.",
   "plugin.sha1.param.detailOption.round": "Per round",
@@ -74,6 +74,6 @@
   "plugin.sha1.error.invalidParams": "The SHA-1 parameters are invalid.",
   "plugin.sha1.error.encoding": "Unknown input format “{{encoding}}”: choose text or hex.",
   "plugin.sha1.error.detail": "Unknown level of detail “{{detail}}”.",
-  "plugin.sha1.error.inputLength": "The message has {{length}} bytes; at most 128 bytes are allowed.",
+  "plugin.sha1.error.inputLength": "The message has {{length}} bytes; at most 320 bytes are allowed.",
   "plugin.sha1.mac.hmac-sha-1": "HMAC-SHA-1"
 }

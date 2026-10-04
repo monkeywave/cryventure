@@ -21,7 +21,7 @@ export function toHiLo(words: ArrayLike<bigint>): Uint32Array {
   return hl;
 }
 
-/** The 64-bit words of a hi/lo array. */
+/** The 64-bit words of a hi/lo array. Test reference: only the tests use it, to compare with the `bigint` compression. */
 export function fromHiLo(hl: Uint32Array): bigint[] {
   return Array.from({ length: hl.length / 2 }, (_, i) => (BigInt(hl[2 * i]!) << 32n) | BigInt(hl[2 * i + 1]!));
 }
@@ -64,7 +64,12 @@ function addVars(hl: Uint32Array, vars: readonly number[]): void {
   }
 }
 
-/** SHA-384/512/512-t compression of one 128-byte block into `hl` (16 hi/lo entries) in place; returns it. */
+/**
+ * SHA-384/512/512-t compression of one 128-byte block into `hl` (16 hi/lo entries) in place; returns it.
+ * Deliberately one long function: it is the hot path of the `Hash` port (PBKDF2-HMAC runs it twice per
+ * iteration), so the eight working variables stay unrolled in 16 local numbers instead of an
+ * array or helper calls that would allocate or box per round (≈ 30× faster than the `bigint` reference).
+ */
 export function sha512CompressHiLo(hl: Uint32Array, block: Uint8Array): Uint32Array {
   schedule(block);
   let ah = hl[0]!, al = hl[1]!, bh = hl[2]!, bl = hl[3]!, ch = hl[4]!, cl = hl[5]!, dh = hl[6]!, dl = hl[7]!;

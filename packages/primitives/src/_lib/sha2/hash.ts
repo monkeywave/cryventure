@@ -16,13 +16,8 @@ import { WORD64, wordsFromBytes } from './words.ts';
 const ALGORITHMS: Readonly<Record<Sha2AlgorithmId, AnySha2Algorithm>> = { ...SHA256_ALGORITHMS, ...SHA512_ALGORITHMS };
 
 function digest32(algorithm: Sha2Algorithm<number>, data: Uint8Array): Uint8Array {
-  const h = Uint32Array.from(algorithm.iv);
-  const padded = sha2Pad(data, 64);
-  for (let offset = 0; offset < padded.length; offset += 64) sha256Compress(h, padded.subarray(offset, offset + 64));
-  const bytes = new Uint8Array(32);
-  const view = new DataView(bytes.buffer);
-  h.forEach((word, index) => view.setUint32(index * 4, word));
-  return bytes.slice(0, algorithm.outputSize);
+  const h = compressBlocks(Uint32Array.from(algorithm.iv), sha2Pad(data, 64), 64, sha256Compress);
+  return bigEndianWordBytes(h).slice(0, algorithm.outputSize);
 }
 
 function digest64(algorithm: Sha2Algorithm<bigint>, data: Uint8Array): Uint8Array {

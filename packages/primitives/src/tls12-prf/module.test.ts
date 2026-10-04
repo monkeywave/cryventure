@@ -1,34 +1,29 @@
 import {
   getFacet,
   parseHexOrThrow,
-  preparePorts,
-  Registry,
   toHex,
   utf8Bytes,
   type AnyStateFacet,
   type DerivationFacet,
   type NarrationFacet,
-  type PrimitiveManifest,
   type RunResult,
   type TraceBundle,
   type ValuesFacet,
 } from '@cryventure/core';
-import { primitiveManifests } from '@cryventure/primitives';
 import { describe, expect, it } from 'vitest';
+import { portResolverFor } from '../testing/hmacPorts.ts';
 import { HMAC_SHA256, HMAC_SHA384, HMAC_SHA512, oracleTls12 } from '../_lib/prf/testMacs.ts';
 import conformance from './vectors/conformance.json' with { type: 'json' };
 import { TLS12_PRF_OP_NAMES, TLS12_PRF_PRESETS, tls12PrfManifest, validateTls12PrfParams, type Tls12PrfParams } from './manifest.ts';
 import { run } from './module.ts';
 
 const NS = 'plugin.tls12-prf';
-const registry = new Registry<PrimitiveManifest>('producers');
-primitiveManifests.forEach((manifest) => registry.register(manifest));
 
 const presetParams = (id: string): Tls12PrfParams => TLS12_PRF_PRESETS.find((preset) => preset.id === id)!.params;
 const DEFAULTS = tls12PrfManifest.defaults;
 
 async function runWithPorts(params: Tls12PrfParams): Promise<RunResult> {
-  return run(params, { resolve: await preparePorts(tls12PrfManifest, params, registry) });
+  return run(params, { resolve: await portResolverFor(tls12PrfManifest, params) });
 }
 
 async function trace(params: Tls12PrfParams): Promise<TraceBundle> {

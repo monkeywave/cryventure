@@ -42,11 +42,12 @@ describe('blake2 manifestKit', () => {
     expect(blake2Ops(NS).g).toEqual({ labelKey: `${NS}.op.g`, shortLabelKey: `${NS}.opShort.g` });
   });
 
-  it('reads at most 128 message bytes in either encoding', () => {
+  it('reads at most 384 message bytes (BLAKE2b HMAC inner call: B + 256) in either encoding', () => {
+    expect(BLAKE2_MAX_MESSAGE_BYTES).toBe(128 + 256);
     expect(readBlake2Input(NS, 'AB cd', 'hex')).toEqual({ ok: true, value: 'abcd' });
-    expect(readBlake2Input(NS, 'a'.repeat(128), 'utf8')).toEqual({ ok: true, value: 'a'.repeat(128) });
-    expect(readBlake2Input(NS, 'ä'.repeat(65), 'utf8')).toEqual({ ok: false, error: { key: `${NS}.error.inputLength`, params: { length: 130 } } });
-    expect(readBlake2Input(NS, '00'.repeat(129), 'hex')).toEqual({ ok: false, error: { key: `${NS}.error.inputLength`, params: { length: 129 } } });
+    expect(readBlake2Input(NS, 'a'.repeat(384), 'utf8')).toEqual({ ok: true, value: 'a'.repeat(384) });
+    expect(readBlake2Input(NS, 'ä'.repeat(193), 'utf8')).toEqual({ ok: false, error: { key: `${NS}.error.inputLength`, params: { length: 386 } } });
+    expect(readBlake2Input(NS, '00'.repeat(385), 'hex')).toEqual({ ok: false, error: { key: `${NS}.error.inputLength`, params: { length: 385 } } });
     expect(readBlake2Input(NS, 1, 'utf8')).toEqual({ ok: false, error: { key: `${NS}.error.invalidParams` } });
   });
 

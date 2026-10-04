@@ -1,4 +1,5 @@
 import { i18nRef, parseHexOfLength, readPortMemberRef, type ParamField, type ValidationResult } from '@cryventure/core';
+import { readDigits } from '../params/manifestKit.ts';
 
 /**
  * The manifest parts both TLS PRF producers share (docs/M7.md §2f): the secret, label, seed and
@@ -24,7 +25,6 @@ export interface PrfInputs {
 
 /** Printable ASCII (RFC 5246 §5: "an ASCII string"), at least one character. */
 const ASCII_LABEL = /^[\x20-\x7e]+$/;
-const DECIMAL = /^[0-9]{1,3}$/;
 /** Enough digits for `PRF_LIMITS.outputBytes`. */
 const LENGTH_DIGITS = 3;
 
@@ -56,11 +56,10 @@ function readHexInput(ns: string, input: unknown, name: string, min: number, max
   return hex.ok ? { ok: true, value: hex.hex } : hex;
 }
 
-/** The output length: 1 … `PRF_LIMITS.outputBytes` as decimal digits, normalised (no leading zeros). */
+/** The output length: 1 … `PRF_LIMITS.outputBytes` as decimal digits (strict, `readDigits`), normalised (no leading zeros). */
 export function readOutputLength(ns: string, input: unknown): ValidationResult<string> {
-  if (typeof input !== 'string' || !DECIMAL.test(input.trim())) return prfError(ns, 'length');
-  const length = Number(input.trim());
-  return length >= 1 && length <= PRF_LIMITS.outputBytes ? { ok: true, value: String(length) } : prfError(ns, 'length');
+  const length = readDigits(input, { min: 1, max: PRF_LIMITS.outputBytes });
+  return length === undefined ? prfError(ns, 'length') : { ok: true, value: length };
 }
 
 /** The label: 1 … `PRF_LIMITS.labelBytes` printable ASCII characters. */

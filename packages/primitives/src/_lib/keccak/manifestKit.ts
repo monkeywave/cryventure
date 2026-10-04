@@ -1,5 +1,6 @@
 import { opLabels, parseHexOfLength, readOption, readText, utf8Bytes, type ParamField, type ValidationResult } from '@cryventure/core';
 import { HASH_ENCODINGS, hashLabParamsFor, messageField, messageLengths, paramError, readMessageInput, selectField, type HashEncoding, type HashLabParams } from '../hashKit/manifestKit.ts';
+import { hmacHashInputMaxBytes } from '../hmac/manifestKit.ts';
 
 /**
  * The eager manifest parts of the `sha3` and `kmac` producers (docs/M6.md §2b, docs/M7.md §2c):
@@ -28,8 +29,15 @@ export type Sha3OutputLength = (typeof SHA3_OUTPUT_LENGTHS)[number];
 export const SHA3_OP_NAMES = ['pad', 'absorb', 'theta', 'rho', 'pi', 'chi', 'iota', 'round', 'permute', 'squeeze', 'output'] as const;
 export type Sha3OpName = (typeof SHA3_OP_NAMES)[number];
 
-/** At most 200 message bytes (admits the NIST 1600-bit example), in either encoding; also the text field's `maxLength`. */
-export const SHA3_MAX_MESSAGE_BYTES = 200;
+/** The largest SHA3 rate in bytes (SHA3-224: 1152 bits); HMAC's B is the rate (SP 800-224). */
+const SHA3_MAX_RATE_BYTES = 144;
+
+/**
+ * At most 400 message bytes in either encoding (admits the NIST 1600-bit example): the longest hash
+ * input of the `hmac` lab over SHA3-224, rate + 256, so every HMAC hash call zooms into the sha3 lab
+ * (docs/M7.md §1d). Also the text field's `maxLength`.
+ */
+export const SHA3_MAX_MESSAGE_BYTES = hmacHashInputMaxBytes(SHA3_MAX_RATE_BYTES);
 /** N and S: at most 64 UTF-8 bytes each. */
 export const SHA3_MAX_CUSTOM_BYTES = 64;
 
@@ -70,7 +78,7 @@ export function sha3ParamFields(ns: string): ParamField[] {
 /** The op labels (`<ns>.op.<name>`, `<ns>.opShort.<name>`). */
 export const sha3Ops = (ns: string) => opLabels(ns, SHA3_OP_NAMES);
 
-/** The message text: UTF-8 of at most 200 bytes, or hex of 0 … 200 bytes (normalised to lowercase). */
+/** The message text: UTF-8 of at most 400 bytes, or hex of 0 … 400 bytes (normalised to lowercase). */
 export function readSha3Input(ns: string, input: unknown, encoding: Sha3Encoding): ValidationResult<string> {
   return readMessageInput(ns, input, encoding, SHA3_MAX_MESSAGE_BYTES);
 }
@@ -106,7 +114,7 @@ export function validateSha3Params(ns: string, params: unknown): ValidationResul
 
 /**
  * `hashLabParams` of the SHA-3 lab: the fixed-length functions (`KECCAK_HASH_IDS`, not the XOFs)
- * at `mapping` detail, hex messages of at most 200 bytes.
+ * at `mapping` detail, hex messages of at most 400 bytes.
  */
 export const sha3HashLabParams: HashLabParams = hashLabParamsFor(KECCAK_HASH_IDS, SHA3_MAX_MESSAGE_BYTES, (algorithm, input) => ({
   algorithm,
@@ -132,7 +140,7 @@ export const KMAC_OP_NAMES = ['encodeKey', 'encodeLength', ...SHA3_OP_NAMES] as 
 export type KmacOpName = (typeof KMAC_OP_NAMES)[number];
 /** K: at most 64 bytes (SP 800-185 samples: 32); X: at most 200 bytes; S: at most 64 UTF-8 bytes. */
 export const KMAC_MAX_KEY_BYTES = 64;
-export const KMAC_MAX_MESSAGE_BYTES = SHA3_MAX_MESSAGE_BYTES;
+export const KMAC_MAX_MESSAGE_BYTES = 200;
 export const KMAC_MAX_CUSTOM_BYTES = SHA3_MAX_CUSTOM_BYTES;
 
 export interface KmacParams {

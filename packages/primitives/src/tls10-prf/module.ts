@@ -4,12 +4,10 @@ import {
   i18nRef,
   INITIAL_STEP_INDEX,
   narrationFromState,
-  parseHexOrThrow,
   runPrimitive,
   scopeLevels,
   toHex,
   u8Regions,
-  utf8Bytes,
   valueId,
   valueRef,
   xorBytes,
@@ -21,10 +19,11 @@ import {
   type RunResult,
   type ValuesFacet,
 } from '@cryventure/core';
-import { addChainNodes, PrfDerivationBuilder } from '../_lib/prf/derivation.ts';
-import { labelSeed, pHashChain, splitSecret, type PHashChain } from '../_lib/prf/pHash.ts';
-import { macName, PrfRecorder, prfName, recordChainBlock, recordSeedStep, type PrfBlockSteps, type PrfChainSpec } from '../_lib/prf/record.ts';
-import { requireHmac } from '../_lib/prf/requireHmac.ts';
+import { addChainNodes, addPrfInputNodes, PrfDerivationBuilder } from '../_lib/prf/derivation.ts';
+import { decodePrfInputs, pHashChain, splitSecret, type PHashChain, type PrfRunInputs } from '../_lib/prf/pHash.ts';
+import { PrfRecorder, prfName, recordChainBlock, recordSeedStep, type PrfBlockSteps, type PrfChainSpec } from '../_lib/prf/record.ts';
+import { macDisplayName } from '../_lib/hmac/macCalls.ts';
+import { requireHmacMember } from '../_lib/hmac/requireHmacMember.ts';
 import { tls10PrfManifest, type Tls10PrfParams } from './manifest.ts';
 
 /**
@@ -44,11 +43,7 @@ interface Half {
   chain: PHashChain;
 }
 
-interface Tls10Run {
-  secret: Uint8Array;
-  label: string;
-  seed: Uint8Array;
-  labelSeed: Uint8Array;
+interface Tls10Run extends PrfRunInputs {
   halves: readonly [Half, Half];
   output: Uint8Array;
 }
@@ -68,16 +63,13 @@ const HALVES = [
 ] as const;
 
 function toRun(params: Tls10PrfParams, md5: MacFunction, sha1: MacFunction): Tls10Run {
-  const secret = parseHexOrThrow(params.secret);
-  const seed = parseHexOrThrow(params.seed);
-  const joined = labelSeed(params.label, seed);
-  const length = Number(params.length);
-  const { s1, s2 } = splitSecret(secret);
+  const inputs = decodePrfInputs(params);
+  const { s1, s2 } = splitSecret(inputs.secret);
   const halves = [
-    { mac: md5, key: s1, chain: pHashChain(md5, s1, joined, length) },
-    { mac: sha1, key: s2, chain: pHashChain(sha1, s2, joined, length) },
+    { mac: md5, key: s1, chain: pHashChain(md5, s1, inputs.labelSeed, inputs.length) },
+    { mac: sha1, key: s2, chain: pHashChain(sha1, s2, inputs.labelSeed, inputs.length) },
   ] as const;
-  return { secret, label: params.label, seed, labelSeed: joined, halves, output: xorBytes(halves[0].chain.output, halves[1].chain.output) };
+  return { ...inputs, halves, output: xorBytes(halves[0].chain.output, halves[1].chain.output) };
 }
 
 function createRecorder(run: Tls10Run): PrfRecorder<Region> {
@@ -93,8 +85,8 @@ function createRecorder(run: Tls10Run): PrfRecorder<Region> {
     secretLength: run.secret.length,
     label: run.label,
     seedLength: run.seed.length,
-    md5Mac: macName(first.mac),
-    sha1Mac: macName(second.mac),
+    md5Mac: macDisplayName(first.mac),
+    sha1Mac: macDisplayName(second.mac),
     length: run.output.length,
   });
   return new PrfRecorder<Region>(regions, { ...zeroSnapshot(regions), secret: Array.from(run.secret) }, narration, scopeLevels(NS, 'half', 'op'));
@@ -188,10 +180,7 @@ function buildValues(run: Tls10Run, steps: Tls10Steps): ValuesFacet {
 /** secret → S1, S2; label ‖ seed; the two chains; each stream cut to L bytes; their XOR. */
 function buildDerivation(run: Tls10Run, steps: Tls10Steps): DerivationFacet {
   const builder = new PrfDerivationBuilder(NS);
-  const secretId = builder.add({ id: 'secret', label: 'secret', bytes: run.secret, op: 'input', valueRef: 'secret' });
-  const labelId = builder.add({ id: 'label', label: 'label', labelParams: { label: run.label }, bytes: utf8Bytes(run.label), op: 'input' });
-  const seedId = builder.add({ id: 'seed', label: 'seed', bytes: run.seed, op: 'input' });
-  const labelSeedNodeId = builder.add({ id: 'labelSeed', label: 'labelSeed', bytes: run.labelSeed, op: 'concat', inputs: [labelId, seedId], valueRef: 'labelSeed', step: steps.seed });
+  const { secretId, labelSeedId: labelSeedNodeId } = addPrfInputNodes(builder, run, steps.seed);
   const length = run.output.length;
   const streamIds = HALVES.map((names, index) => {
     const half = run.halves[index]!;
@@ -218,9 +207,9 @@ function record(params: Tls10PrfParams, md5: MacFunction, sha1: MacFunction): Pr
 export function run(params: Tls10PrfParams, options: RunOptions = {}): RunResult {
   const validated = tls10PrfManifest.validate(params);
   if (!validated.ok) return validated;
-  const md5 = requireHmac(options.resolve, validated.value.md5Mac, NS);
+  const md5 = requireHmacMember(options.resolve, validated.value.md5Mac, NS);
   if (!md5.ok) return md5;
-  const sha1 = requireHmac(options.resolve, validated.value.sha1Mac, NS);
+  const sha1 = requireHmacMember(options.resolve, validated.value.sha1Mac, NS);
   if (!sha1.ok) return sha1;
   return runPrimitive(tls10PrfManifest, validated.value, (value) => record(value, md5.mac, sha1.mac));
 }

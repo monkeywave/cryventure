@@ -5,7 +5,10 @@
  * (Educational: a JavaScript engine gives no constant-time guarantee.)
  */
 
-/** Whether `actual` equals `expected`. */
+/**
+ * Whether `actual` equals `expected`. The loop deliberately repeats `timingSafeEqualSteps` without
+ * its per-byte record: the HMAC `Mac` ports compare here and allocate nothing.
+ */
 export function timingSafeEqual(expected: Uint8Array, actual: Uint8Array): boolean {
   let accumulator = 0;
   for (let index = 0; index < expected.length; index++) accumulator |= expected[index]! ^ (actual[index] ?? 0);

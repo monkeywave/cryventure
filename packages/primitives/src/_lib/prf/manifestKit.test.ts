@@ -69,13 +69,13 @@ describe('readLabel', () => {
 });
 
 describe('readOutputLength', () => {
-  it('accepts 1 … 256 and drops leading zeros and surrounding spaces', () => {
+  it('accepts 1 … 256 as digits only and drops leading zeros', () => {
     expect(readOutputLength(NS, '1')).toEqual({ ok: true, value: '1' });
     expect(readOutputLength(NS, '256')).toEqual({ ok: true, value: '256' });
-    expect(readOutputLength(NS, ' 048 ')).toEqual({ ok: true, value: '48' });
+    expect(readOutputLength(NS, '0048')).toEqual({ ok: true, value: '48' });
   });
 
-  it.each(['0', '257', '999', '1000', '-1', '4.5', '1e2', '', 'abc', 48])('rejects %j', (length) => {
+  it.each(['0', '257', '999', '1000', '-1', '4.5', '1e2', '', 'abc', ' 048 ', '48 ', 48])('rejects %j', (length) => {
     expect(readOutputLength(NS, length)).toEqual(err('length'));
   });
 });

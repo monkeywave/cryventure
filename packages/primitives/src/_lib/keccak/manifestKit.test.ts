@@ -26,8 +26,8 @@ describe('validateSha3Params', () => {
     [{ ...VALID, encoding: 'b64' }, 'encoding'],
     [{ ...VALID, detail: 'bit' }, 'detail'],
     [{ ...VALID, outputLength: '17' }, 'outputLength'],
-    [{ ...VALID, input: 'x'.repeat(201) }, 'inputLength'],
-    [{ ...VALID, encoding: 'hex', input: 'a3'.repeat(201) }, 'inputLength'],
+    [{ ...VALID, input: 'x'.repeat(401) }, 'inputLength'],
+    [{ ...VALID, encoding: 'hex', input: 'a3'.repeat(401) }, 'inputLength'],
     [{ ...VALID, input: 7 }, 'invalidParams'],
     [{ ...VALID, algorithm: 'cshake128', functionName: 'n'.repeat(65) }, 'functionNameLength'],
     [{ ...VALID, algorithm: 'cshake256', customization: 's'.repeat(65) }, 'customizationLength'],
@@ -38,8 +38,8 @@ describe('validateSha3Params', () => {
     expect(errorKey(params)).toBe(`${NS}.error.${name}`);
   });
 
-  it('accepts 200-byte input and N/S for cSHAKE', () => {
-    expect(errorKey({ ...VALID, encoding: 'hex', input: 'a3'.repeat(200) })).toBeUndefined();
+  it('accepts 400-byte input (SHA3-224 HMAC inner call: rate 144 + 256) and N/S for cSHAKE', () => {
+    expect(errorKey({ ...VALID, encoding: 'hex', input: 'a3'.repeat(400) })).toBeUndefined();
     expect(errorKey({ ...VALID, algorithm: 'cshake128', functionName: 'KMAC', customization: 'x'.repeat(64) })).toBeUndefined();
   });
 });

@@ -22,7 +22,7 @@ export function zeroHiLoState(): KeccakHiLoState {
   return new Uint32Array(HILO_STATE_WORDS);
 }
 
-/** `bigint` lanes as a hi/lo state (low half first). */
+/** `bigint` lanes as a hi/lo state (low half first). Test reference: only the tests use it, to compare with `keccakF1600`. */
 export function toHiLoState(lanes: readonly bigint[]): KeccakHiLoState {
   const state = new Uint32Array(lanes.length * 2);
   lanes.forEach((lane, index) => {
@@ -32,7 +32,7 @@ export function toHiLoState(lanes: readonly bigint[]): KeccakHiLoState {
   return state;
 }
 
-/** The `bigint` lanes of a hi/lo state. */
+/** The `bigint` lanes of a hi/lo state. Test reference: only the tests use it, to compare with `keccakF1600`. */
 export function fromHiLoState(state: KeccakHiLoState): bigint[] {
   return Array.from({ length: state.length / 2 }, (_, index) => (BigInt(state[2 * index + 1]!) << 32n) | BigInt(state[2 * index]!));
 }

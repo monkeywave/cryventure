@@ -148,7 +148,7 @@ describe('sha1 validate', () => {
   });
 
   it.each([
-    [{ ...ABC, encoding: 'hex', input: '00'.repeat(129) }, 'plugin.sha1.error.inputLength'],
+    [{ ...ABC, encoding: 'hex', input: '00'.repeat(321) }, 'plugin.sha1.error.inputLength'],
     [{ ...ABC, detail: 'op' }, 'plugin.sha1.error.detail'],
     [null, 'plugin.sha1.error.invalidParams'],
   ])('rejects %j with %s', (params, key) => {

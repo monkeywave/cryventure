@@ -64,11 +64,11 @@ class DerivationBuilder {
 /** The valueRef of `name` when the values facet holds it (empty values are omitted). */
 const refIf = (name: string, bytes: readonly number[]) => (bytes.length > 0 ? name : undefined);
 
-/** K → K0: as is, K ‖ 0…, or H(K) ‖ 0… (the hashed key's node first). */
-function addK0(builder: DerivationBuilder, computation: HmacComputation, steps: HmacSteps): string {
+/** K → K0: as is, K ‖ 0…, or H(K) ‖ 0… (the hashed key's node first, linked to the hash lab). */
+function addK0(builder: DerivationBuilder, computation: HmacComputation, steps: HmacSteps, zoom: HashZoomOf): string {
   const { key, k0, branch, keyDigest } = computation;
   const keyId = builder.add('key', 'input', key, [], { result: true, valueRef: refIf('key', key), step: INITIAL_STEP_INDEX });
-  const source = keyDigest === undefined ? keyId : builder.add('keyDigest', 'hash', keyDigest, [keyId], { step: steps.keyPrep });
+  const source = keyDigest === undefined ? keyId : builder.add('keyDigest', 'hash', keyDigest, [keyId], { step: steps.keyPrep, zoom: zoom(key) });
   if (branch === 'exact') return builder.add('k0', 'input', k0, [source], { result: true, valueRef: 'k0', step: steps.keyPrep });
   const sourceLength = keyDigest?.length ?? key.length;
   const zeros = builder.add('zeros', 'input', k0.slice(sourceLength), []);
@@ -96,10 +96,10 @@ function addHalf(builder: DerivationBuilder, computation: HmacComputation, steps
   return builder.add(isTag ? 'tag' : half, 'hash', digest, [inputId], { result: true, valueRef: valueName, step: inner ? steps.innerMessage : steps.outer, zoom: zoom(hashInput) });
 }
 
-/** key → K0 → ipad/opad keys → inner → (outer →) tag; the two hash nodes link to the hash lab. */
+/** key → K0 → ipad/opad keys → inner → (outer →) tag; every hash node (key hash, inner, outer) links to the hash lab. */
 export function hmacDerivation(computation: HmacComputation, steps: HmacSteps, zoom: HashZoomOf): DerivationFacet {
   const builder = new DerivationBuilder();
-  const k0 = addK0(builder, computation, steps);
+  const k0 = addK0(builder, computation, steps, zoom);
   const { message, inner, tag } = computation;
   const messageId = builder.add('message', 'input', message, [], { result: true, valueRef: refIf('message', message), step: INITIAL_STEP_INDEX });
   const truncated = steps.truncate !== undefined;

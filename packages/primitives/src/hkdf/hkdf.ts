@@ -1,4 +1,4 @@
-import { toHex, utf8Bytes, type LabZoom, type MacFunction } from '@cryventure/core';
+import { blockCount, utf8Bytes, type MacFunction } from '@cryventure/core';
 import { TLS13_LABEL_PREFIX } from './manifest.ts';
 
 /** HKDF (RFC 5869) and the TLS 1.3 HkdfLabel (RFC 8446 §7.1) as plain functions over a `MacFunction`. */
@@ -23,11 +23,6 @@ export function hkdfExtract(
   return macOf(mac, extractSalt(salt, mac.outputSize), ikm);
 }
 
-/** N = ⌈L / HashLen⌉, the number of HMAC calls Expand needs. */
-export function blockCount(length: number, hashLen: number): number {
-  return Math.ceil(length / hashLen);
-}
-
 /** The largest L Expand can produce: 255 · HashLen (the counter is one byte). */
 export function maxOutputLength(hashLen: number): number {
   return MAX_BLOCKS * hashLen;
@@ -49,7 +44,7 @@ export interface ExpandBlock {
   t: number[];
 }
 
-/** HKDF-Expand block by block: T(i) = HMAC-Hash(PRK, T(i−1) ‖ info ‖ i) for i = 1 … N. */
+/** HKDF-Expand block by block: T(i) = HMAC-Hash(PRK, T(i−1) ‖ info ‖ i) for i = 1 … N = ⌈L / HashLen⌉. */
 export function hkdfExpandBlocks(
   mac: MacFunction,
   prk: readonly number[],
@@ -110,36 +105,5 @@ export function hkdfLabel(
     fullLabel,
     context: [...context],
     offsets: { labelLength: 2, label: 3, contextLength, context: contextLength + 1 },
-  };
-}
-
-/** The `hmac` lab's limits for key and message (docs/M7.md §2b). */
-export const HMAC_LAB_MAX_BYTES = 256;
-
-/**
- * A zoom into the `hmac` lab computing HMAC(key, message) with the MAC's hash, or `undefined`
- * when key or message exceed the lab's limits or the MAC is not an HMAC.
- */
-export function hmacZoom(
-  mac: MacFunction,
-  key: readonly number[],
-  message: readonly number[],
-): LabZoom | undefined {
-  if (
-    mac.construction.kind !== 'hmac' ||
-    key.length > HMAC_LAB_MAX_BYTES ||
-    message.length > HMAC_LAB_MAX_BYTES
-  )
-    return undefined;
-  return {
-    producerId: 'hmac',
-    params: {
-      hash: mac.construction.hash,
-      key: toHex(key),
-      encoding: 'hex',
-      input: toHex(message),
-      tagLength: 'full',
-      expected: '',
-    },
   };
 }

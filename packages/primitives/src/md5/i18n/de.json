@@ -8,7 +8,7 @@
   "plugin.md5.param.encodingOption.utf8": "Text (UTF-8)",
   "plugin.md5.param.encodingOption.hex": "Hex",
   "plugin.md5.param.input": "Nachricht",
-  "plugin.md5.param.inputHint": "0 bis 128 Byte; mit Padding werden daraus höchstens drei 64-Byte-Blöcke. Die Nachricht darf leer sein.",
+  "plugin.md5.param.inputHint": "0 bis 320 Byte; mit Padding werden daraus höchstens sechs 64-Byte-Blöcke. Die Nachricht darf leer sein.",
   "plugin.md5.param.detail": "Detailstufe",
   "plugin.md5.param.detailHint": "„Pro Operation“ zeigt jede der 64 Operationen eines Blocks. „Pro Block“ führt die ganze Kompressionsfunktion eines Blocks in einem Schritt aus.",
   "plugin.md5.param.detailOption.round": "Pro Operation",
@@ -68,6 +68,6 @@
   "plugin.md5.error.invalidParams": "Die Parameter für MD5 sind ungültig.",
   "plugin.md5.error.encoding": "Unbekanntes Eingabeformat „{{encoding}}“: Wähle Text oder Hex.",
   "plugin.md5.error.detail": "Unbekannte Detailstufe „{{detail}}“.",
-  "plugin.md5.error.inputLength": "Die Nachricht hat {{length}} Byte; erlaubt sind höchstens 128 Byte.",
+  "plugin.md5.error.inputLength": "Die Nachricht hat {{length}} Byte; erlaubt sind höchstens 320 Byte.",
   "plugin.md5.mac.hmac-md5": "HMAC-MD5"
 }

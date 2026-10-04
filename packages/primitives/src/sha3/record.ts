@@ -1,4 +1,4 @@
-import { allIndices, assertMatchesReference, concatBlocks, highlight, i18nRef, INITIAL_STEP_INDEX, narrationFromState, toHex, utf8Bytes, valueRef, type I18nRef, type PrimitiveRecording, type ValuesFacet } from '@cryventure/core';
+import { allIndices, assertMatchesReference, concatBlocks, highlight, i18nRef, INITIAL_STEP_INDEX, narrationFromState, utf8Bytes, valueRef, type I18nRef, type PrimitiveRecording, type ValuesFacet } from '@cryventure/core';
 import { isXof, KECCAK_ALGORITHMS, type KeccakAlgorithm } from '../_lib/keccak/algorithms.ts';
 import { hashMessageBytes } from '../_lib/hashKit/manifestKit.ts';
 import { keccakOutput, spongeSetup } from '../_lib/keccak/hash.ts';
@@ -7,7 +7,7 @@ import type { Sha3OpName, Sha3Params } from '../_lib/keccak/manifestKit.ts';
 import { spongePad, type KeccakDomain, type SpongePadding } from '../_lib/keccak/padding.ts';
 import { rateLanes } from '../_lib/keccak/sponge.ts';
 import { SpongeRecorder } from '../_lib/keccak/spongeRecorder.ts';
-import { recordSpongeBlocks, spongeScopeLevels } from '../_lib/keccak/spongeRecording.ts';
+import { recordSpongeBlocks, spongeOutputNarration, spongeScopeLevels } from '../_lib/keccak/spongeRecording.ts';
 import { padShapeParams, recordPad, type SpongeTrace } from '../_lib/keccak/spongeSteps.ts';
 import { initialSnapshot } from '../_lib/sha2/regions.ts';
 import { sha3Regions, type Sha3Region } from './regions.ts';
@@ -50,8 +50,7 @@ function createTrace(params: Sha3Params, input: Sha3Input, paddedBytes: number, 
 }
 
 function outputNarration(input: Sha3Input, output: readonly number[]): I18nRef {
-  const params = { algorithm: input.algorithm.name, digest: toHex(output) };
-  return isXof(input.algorithm) ? i18nRef(`${NS}.step.outputXof`, { ...params, bytes: output.length }) : i18nRef(`${NS}.step.output`, { ...params, bits: output.length * 8 });
+  return spongeOutputNarration(NS, input.algorithm.name, isXof(input.algorithm), 'digest', output);
 }
 
 const PAD_KEYS: Readonly<Record<KeccakDomain, string>> = { sha3: 'padSha3', shake: 'padShake', cshake: 'padCshake', keccak: 'padKeccak' };

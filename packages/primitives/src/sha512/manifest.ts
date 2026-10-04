@@ -1,5 +1,5 @@
 import { definePrimitive, type Preset, type ValidationResult } from '@cryventure/core';
-import { readSha2Input, sha2HashLabParams, sha2Ops, sha2ParamFields, sha2Preset, validateSha2Params, type Sha2Detail, type Sha2Encoding, type Sha2HashParams } from '../_lib/sha2/manifestKit.ts';
+import { readSha2Input, SHA512_MAX_MESSAGE_BYTES, sha2HashLabParams, sha2Ops, sha2ParamFields, sha2Preset, validateSha2Params, type Sha2Detail, type Sha2Encoding, type Sha2HashParams } from '../_lib/sha2/manifestKit.ts';
 import { hashPortMembers, hmacPortMembers } from '../_lib/hmac/manifestKit.ts';
 
 /**
@@ -38,19 +38,19 @@ export const SHA512_PRESETS: Preset<Sha512Params>[] = [
   preset('sha-512-224-iv', 'sha-512/t-iv', 'SHA-512/224'),
 ];
 
-export const SHA512_PARAM_FIELDS = sha2ParamFields(NS, SHA512_ALGORITHM_IDS);
+export const SHA512_PARAM_FIELDS = sha2ParamFields(NS, SHA512_ALGORITHM_IDS, SHA512_MAX_MESSAGE_BYTES);
 
 /** Every op the module records (`StateStep.op`): `SHA2_OP_NAMES` of `_lib/sha2/manifestKit.ts`. */
 export const SHA512_OPS = sha2Ops(NS);
 
-/** The message text: UTF-8 of at most 128 bytes, or hex of 0 … 128 bytes (normalised to lowercase). */
+/** The message text: UTF-8 of at most 384 bytes, or hex of 0 … 384 bytes (normalised to lowercase). */
 export function readSha512Input(input: unknown, encoding: Sha512Encoding): ValidationResult<string> {
-  return readSha2Input(NS, input, encoding);
+  return readSha2Input(NS, input, encoding, SHA512_MAX_MESSAGE_BYTES);
 }
 
 /** Validates and normalises params (hex lowercased with separators stripped; every select checked). */
 export function validateSha512Params(params: unknown): ValidationResult<Sha512Params> {
-  return validateSha2Params(NS, SHA512_ALGORITHM_IDS, params);
+  return validateSha2Params(NS, SHA512_ALGORITHM_IDS, SHA512_MAX_MESSAGE_BYTES, params);
 }
 
 export const sha512Manifest = definePrimitive<Sha512Params>({
@@ -75,7 +75,7 @@ export const sha512Manifest = definePrimitive<Sha512Params>({
   ops: SHA512_OPS,
   outputs: { digest: { labelKey: `${NS}.value.digest` } },
   validate: validateSha512Params,
-  hashLabParams: sha2HashLabParams(SHA512_HASH_IDS),
+  hashLabParams: sha2HashLabParams(SHA512_HASH_IDS, SHA512_MAX_MESSAGE_BYTES),
   load: () => import('./module.ts'),
 });
 

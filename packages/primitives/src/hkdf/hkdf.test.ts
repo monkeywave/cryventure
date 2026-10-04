@@ -1,15 +1,12 @@
-import { toHex, type MacFunction } from '@cryventure/core';
+import { blockCount, toHex, type MacFunction } from '@cryventure/core';
 import { beforeAll, describe, expect, it } from 'vitest';
 import {
-  blockCount,
   expandMessage,
   extractSalt,
   hkdfExpand,
   hkdfExpandBlocks,
   hkdfExtract,
   hkdfLabel,
-  hmacZoom,
-  HMAC_LAB_MAX_BYTES,
   MAX_BLOCKS,
   maxOutputLength,
   okmOf,
@@ -34,14 +31,9 @@ const C_HS = {
 
 let sha256: MacFunction;
 let sha1: MacFunction;
-let blake2s: MacFunction;
 
 beforeAll(async () => {
-  [sha256, sha1, blake2s] = await Promise.all([
-    realMac('sha256:hmac-sha-256'),
-    realMac('sha1:hmac-sha-1'),
-    realMac('blake2:blake2s-256'),
-  ]);
+  [sha256, sha1] = await Promise.all([realMac('sha256:hmac-sha-256'), realMac('sha1:hmac-sha-1')]);
 });
 
 describe('extractSalt', () => {
@@ -185,31 +177,3 @@ describe('hkdfLabel (RFC 8446 §7.1)', () => {
   });
 });
 
-describe('hmacZoom', () => {
-  it('links to the hmac lab with the hash member, hex key and message', () => {
-    expect(hmacZoom(sha256, [0xab], [1, 2])).toEqual({
-      producerId: 'hmac',
-      params: {
-        hash: 'sha256:sha-256',
-        key: 'ab',
-        encoding: 'hex',
-        input: '0102',
-        tagLength: 'full',
-        expected: '',
-      },
-    });
-    expect(hmacZoom(sha1, [], [])?.params['hash']).toBe('sha1:sha-1');
-  });
-
-  it('stops at the lab limits (256 bytes of key and of message)', () => {
-    const max = new Array<number>(HMAC_LAB_MAX_BYTES).fill(0);
-    expect(hmacZoom(sha256, max, max)).toBeDefined();
-    expect(hmacZoom(sha256, [...max, 0], [])).toBeUndefined();
-    expect(hmacZoom(sha256, [], [...max, 0])).toBeUndefined();
-  });
-
-  it('has no link for a MAC that is not an HMAC', () => {
-    expect(blake2s.construction.kind).toBe('keyed-hash');
-    expect(hmacZoom(blake2s, [1], [1])).toBeUndefined();
-  });
-});

@@ -72,7 +72,11 @@ class Blake2Context<S extends Blake2State> implements HashContext {
     return engine.bytes(state).slice(0, this.outputBytes);
   }
 
-  /** h after the blocks compressed so far, little-endian (docs/M7.md §1a); a buffered block is not in it yet. */
+  /**
+   * h after the blocks compressed so far, little-endian (docs/M7.md §1a); a buffered block is not in it yet.
+   * BLAKE2 keeps the last full block buffered until it knows whether it is final (the final flag), so
+   * after a key block alone this is still h0: why the hmac lab shows no midstate for BLAKE2.
+   */
   chainingState(): Uint8Array {
     return this.engine.bytes(this.running.state);
   }

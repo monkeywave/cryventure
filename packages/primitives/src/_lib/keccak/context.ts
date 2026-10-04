@@ -31,7 +31,7 @@ class AbsorbingSponge {
     });
   }
 
-  /** The state after the padded last block (this sponge stays unchanged). */
+  /** The state after the padded last block, in a fresh array the caller owns (this sponge stays unchanged). */
   finish(): KeccakHiLoState {
     const { tail } = this.buffer;
     const last = new Uint8Array(this.rateBytes);

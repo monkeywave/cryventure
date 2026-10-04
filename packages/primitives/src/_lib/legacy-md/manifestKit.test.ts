@@ -23,11 +23,12 @@ describe('legacy-md manifestKit', () => {
     expect(legacyPreset(NS, 'q', '', 'block').params.detail).toBe('block');
   });
 
-  it('reads at most 128 bytes in either encoding, reporting errors under the namespace', () => {
+  it('reads at most 320 bytes (HMAC inner call: B + 256) in either encoding, reporting errors under the namespace', () => {
+    expect(LEGACY_MAX_MESSAGE_BYTES).toBe(64 + 256);
     expect(readLegacyInput(NS, 'AB cd', 'hex')).toEqual({ ok: true, value: 'abcd' });
-    expect(readLegacyInput(NS, 'ä'.repeat(64), 'utf8')).toEqual({ ok: true, value: 'ä'.repeat(64) });
-    expect(readLegacyInput(NS, 'ä'.repeat(65), 'utf8')).toEqual({ ok: false, error: { key: `${NS}.error.inputLength`, params: { length: 130 } } });
-    expect(readLegacyInput(NS, '00'.repeat(129), 'hex')).toMatchObject({ ok: false, error: { key: `${NS}.error.inputLength` } });
+    expect(readLegacyInput(NS, 'ä'.repeat(160), 'utf8')).toEqual({ ok: true, value: 'ä'.repeat(160) });
+    expect(readLegacyInput(NS, 'ä'.repeat(161), 'utf8')).toEqual({ ok: false, error: { key: `${NS}.error.inputLength`, params: { length: 322 } } });
+    expect(readLegacyInput(NS, '00'.repeat(321), 'hex')).toMatchObject({ ok: false, error: { key: `${NS}.error.inputLength` } });
     expect(readLegacyInput(NS, 1, 'utf8')).toEqual({ ok: false, error: { key: `${NS}.error.invalidParams` } });
   });
 

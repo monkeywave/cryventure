@@ -1,4 +1,4 @@
-import { allIndices, INITIAL_STEP_INDEX, scopeLevels, type I18nRef, type RegionSpec, type ScopeLevel } from '@cryventure/core';
+import { allIndices, i18nRef, INITIAL_STEP_INDEX, scopeLevels, toHex, type I18nRef, type RegionSpec, type ScopeLevel } from '@cryventure/core';
 import { KECCAK_LANE_BYTES, KECCAK_STATE_BYTES, KECCAK_WIDTH } from './constants.ts';
 import { zeroState, type KeccakState } from './lanes.ts';
 import type { Sha3Detail } from './manifestKit.ts';
@@ -7,13 +7,18 @@ import { recordAbsorb, recordOutput, recordPermutation, recordSqueeze, type Spon
 
 /**
  * The block structure of a recorded sponge run, shared by `sha3` and `kmac` (docs/M6.md §2b,
- * docs/M7.md §2c): the regions `padded`, `A`, `output`, the scope levels, and the loop over blocks
- * and squeezes.
+ * docs/M7.md §2c): the regions `padded`, `A`, `output`, the scope levels, the loop over blocks
+ * and squeezes, and the `output` step's narration.
  */
+
+/** A byte region `id` of `size` bytes labelled `<ns>.region.<id>`, the shape of every sponge producer's region. */
+export function byteRegion<R extends string>(ns: string, id: R, size: number, extra: Partial<RegionSpec<R>> = {}): RegionSpec<R> {
+  return { id, labelKey: `${ns}.region.${id}`, elem: 'u8', shape: [size], ...extra };
+}
 
 /** The sponge regions of a run (namespace `ns`): the `padded` input, the state `A` (25 little-endian lanes, five per row y) and the `output` (blank until squeezed). */
 export function spongeRegions(ns: string, paddedBytes: number, outputBytes: number): RegionSpec<SpongeRegion>[] {
-  const region = (id: SpongeRegion, size: number, extra: Partial<RegionSpec<SpongeRegion>> = {}): RegionSpec<SpongeRegion> => ({ id, labelKey: `${ns}.region.${id}`, elem: 'u8', shape: [size], ...extra });
+  const region = (id: SpongeRegion, size: number, extra: Partial<RegionSpec<SpongeRegion>> = {}) => byteRegion(ns, id, size, extra);
   return [
     region('padded', paddedBytes, { initial: 'blank' }),
     region('A', KECCAK_STATE_BYTES, { layout: { kind: 'words', wordBytes: KECCAK_LANE_BYTES, labelPrefix: 'A', wordsPerGroup: KECCAK_WIDTH, byteOrder: 'little' } }),
@@ -29,6 +34,15 @@ export function spongeScopeLevels(ns: string, detail: Sha3Detail): ScopeLevel[] 
 /** The byte counts of the successive squeezes: whole rate blocks, then the rest. */
 export function squeezeSizes(rateBytes: number, outputLength: number): number[] {
   return allIndices(Math.ceil(outputLength / rateBytes)).map((n) => Math.min(rateBytes, outputLength - n * rateBytes));
+}
+
+/**
+ * The `output` step's narration: `<ns>.step.outputXof` with the byte count for an XOF, `<ns>.step.output`
+ * with the bit count otherwise; the output as hex under `valueName` (`digest`, `tag`).
+ */
+export function spongeOutputNarration(ns: string, algorithmName: string, xof: boolean, valueName: string, output: readonly number[]): I18nRef {
+  const params = { algorithm: algorithmName, [valueName]: toHex(output) };
+  return xof ? i18nRef(`${ns}.step.outputXof`, { ...params, bytes: output.length }) : i18nRef(`${ns}.step.output`, { ...params, bits: output.length * 8 });
 }
 
 /** How the recorded blocks start and end. */
