@@ -12,7 +12,8 @@ export type KnownFacetKind =
   | 'math'
   | 'table'
   | 'chain'
-  | 'wire';
+  | 'wire'
+  | 'wordops';
 
 /** Open union: known kinds autocomplete, new kinds need no core change. */
 export type FacetKind = KnownFacetKind | (string & {});

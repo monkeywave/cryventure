@@ -41,6 +41,7 @@ export * from './facets/instructions.ts';
 export * from './facets/registers.ts';
 export * from './facets/memory.ts';
 export * from './facets/field.ts';
+export * from './facets/wordops.ts';
 export * from './facets/modeFacetBuilders.ts';
 export * from './padding/pkcs7.ts';
 export * from './modes/blocks.ts';
