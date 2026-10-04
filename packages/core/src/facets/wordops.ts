@@ -1,6 +1,6 @@
 import type { I18nRef } from '../i18n.ts';
 import type { MathTermRole } from './math.ts';
-import { describeValue, i18nRefProblems, INITIAL_STEP_INDEX, isIndex, isLowerHex, isPlainRecord, isStepIndex } from './validation.ts';
+import { describeValue, i18nRefProblems, INITIAL_STEP_INDEX, isIndex, isLowerHex, isPlainRecord, isStepIndex, kindProblems, stepCountProblems } from './validation.ts';
 
 /**
  * Wordops facet: per-step 32/64-bit word equations (SHA-2, SHA-1, MD5, BLAKE2; later ChaCha),
@@ -200,6 +200,7 @@ function touchedProblems(touched: unknown, where: string, count: number): string
 type SourceValue = { problems: string[]; hex?: unknown };
 
 function sourceValue(from: unknown, at: string, step: Record<string, unknown>, before: unknown, count: number): SourceValue {
+  if (isPlainRecord(from) && 'register' in from && 'term' in from) return { problems: [`${at}: from has both register and term`] };
   if (isPlainRecord(from) && 'register' in from) {
     const { register } = from;
     if (typeof register !== 'number' || !isIndex(register, count)) return { problems: [`${at}: from.register ${describeValue(register)} is not a register index`] };
@@ -294,6 +295,8 @@ function registerLayoutProblems(facet: Record<string, unknown>, version: Wordops
  */
 export function validateWordopsFacet(facet: unknown, stepCount?: number): string[] {
   if (!isPlainRecord(facet)) return ['wordops: facet is not an object'];
+  const precondition = [...kindProblems(facet, 'wordops'), ...stepCountProblems(stepCount, 'wordops')];
+  if (precondition.length > 0) return precondition;
   const { schemaVersion, wordBits, steps } = facet;
   if (!SCHEMA_VERSIONS.includes(schemaVersion)) return [`wordops: schemaVersion ${describeValue(schemaVersion)} is not 1 or 2`];
   if (!WORD_BITS.includes(wordBits)) return [`wordops: wordBits ${describeValue(wordBits)} is not 32 or 64`];

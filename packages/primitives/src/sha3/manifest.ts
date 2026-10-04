@@ -1,5 +1,5 @@
 import { definePrimitive, type Preset } from '@cryventure/core';
-import { sha3Ops, sha3ParamFields, validateSha3Params, type KeccakAlgorithmId, type Sha3Detail, type Sha3Encoding, type Sha3OutputLength, type Sha3Params } from '../_lib/keccak/manifestKit.ts';
+import { sha3HashLabParams, sha3Ops, sha3ParamFields, validateSha3Params, type KeccakAlgorithmId, type Sha3Detail, type Sha3Encoding, type Sha3OutputLength, type Sha3Params } from '../_lib/keccak/manifestKit.ts';
 
 /**
  * Manifest for SHA-3 and its relatives on Keccak-f[1600] (FIPS 202, SP 800-185 cSHAKE, the original
@@ -63,6 +63,7 @@ export const sha3Manifest = definePrimitive<Sha3Params>({
   ops: sha3Ops(NS),
   outputs: { digest: { labelKey: `${NS}.value.digest` } },
   validate: (params) => validateSha3Params(NS, params),
+  hashLabParams: sha3HashLabParams,
   load: () => import('./module.ts'),
 });
 

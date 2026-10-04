@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { describeValue, i18nRefProblems, INITIAL_STEP_INDEX, isIndex, isLowerHex, isPlainRecord, isStepIndex, isWellFormedI18nRef } from './validation.ts';
+import { describeValue, i18nRefProblems, INITIAL_STEP_INDEX, isIndex, isLowerHex, isPlainRecord, isStepIndex, isWellFormedI18nRef, kindProblems, stepCountProblems } from './validation.ts';
 
 describe('isIndex', () => {
   it('accepts integers in 0..length-1 only', () => {
@@ -50,5 +50,29 @@ describe('describeValue', () => {
     expect([[], {}, Symbol('s'), () => 1].map(describeValue)).toEqual(['<array>', '<object>', '<symbol>', '<function>']);
     const hostile = { toString: () => { throw new Error('no'); } };
     expect(describeValue(hostile)).toBe('<object>');
+  });
+});
+
+describe('validator gaps (M6 reviews)', () => {
+  it('rejects NaN and ±Infinity I18nRef params', () => {
+    expect([Number.NaN, Number.POSITIVE_INFINITY, Number.NEGATIVE_INFINITY].map((n) => isWellFormedI18nRef({ key: 'k', params: { n } }))).toEqual([false, false, false]);
+  });
+
+  it('kindProblems names a wrong or missing kind', () => {
+    expect(kindProblems({ kind: 'math' }, 'math')).toEqual([]);
+    expect(kindProblems({ kind: 'field' }, 'math')).toEqual(['math: kind field is not "math"']);
+    expect(kindProblems({}, 'math')).toEqual(['math: kind undefined is not "math"']);
+  });
+
+  it('stepCountProblems rejects NaN, ±Infinity, negative and fractional step counts', () => {
+    expect(stepCountProblems(undefined, 'x')).toEqual([]);
+    expect(stepCountProblems(0, 'x')).toEqual([]);
+    expect([Number.NaN, Number.POSITIVE_INFINITY, Number.NEGATIVE_INFINITY, -1, 1.5].flatMap((n) => stepCountProblems(n, 'x'))).toEqual([
+      'x: stepCount NaN is not a non-negative integer',
+      'x: stepCount Infinity is not a non-negative integer',
+      'x: stepCount -Infinity is not a non-negative integer',
+      'x: stepCount -1 is not a non-negative integer',
+      'x: stepCount 1.5 is not a non-negative integer',
+    ]);
   });
 });

@@ -1,6 +1,7 @@
 import type { I18nRef } from '../i18n.ts';
 import type { MathOp, MathTermRole } from './math.ts';
-import { INITIAL_STEP_INDEX, isIndex, isStepIndex } from './validation.ts';
+import { latestStepAt } from '../latestStepAt.ts';
+import { INITIAL_STEP_INDEX, isIndex, isStepIndex, kindProblems } from './validation.ts';
 
 /**
  * Field facet: per-step GF(2^128) equations for GHASH (docs/M4.md §3e). The math facet's terms
@@ -37,20 +38,9 @@ export interface FieldFacet {
   steps: FieldStep[];
 }
 
-/** The latest field step whose `step ≤ step` (binary search), or `undefined` before the first. */
+/** The latest field step whose `step ≤ step`, or `undefined` before the first: `latestStepAt` over `facet.steps`. */
 export function fieldStepAt(facet: FieldFacet, step: number): FieldStep | undefined {
-  let low = 0;
-  let high = facet.steps.length - 1;
-  let found: FieldStep | undefined;
-  while (low <= high) {
-    const mid = (low + high) >> 1;
-    const candidate = facet.steps[mid]!;
-    if (candidate.step <= step) {
-      found = candidate;
-      low = mid + 1;
-    } else high = mid - 1;
-  }
-  return found;
+  return latestStepAt(facet.steps, step);
 }
 
 function fieldTermProblems(term: FieldTerm, where: string): string[] {
@@ -77,5 +67,7 @@ function fieldStepProblems(step: FieldStep, previous: number | undefined): strin
 
 /** Schema problems of a field facet (empty = valid): increasing steps, unique term ids, 16-byte terms, bits in 0..127. */
 export function validateFieldFacet(facet: FieldFacet): string[] {
+  const wrongKind = kindProblems(facet, 'field');
+  if (wrongKind.length > 0) return wrongKind;
   return facet.steps.flatMap((step, index) => fieldStepProblems(step, facet.steps[index - 1]?.step));
 }

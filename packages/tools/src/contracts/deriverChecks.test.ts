@@ -65,7 +65,7 @@ describe('derivedSchemaProblems', () => {
   });
 
   it('reports a validator that throws on a malformed facet', () => {
-    expect(derivedSchemaProblems({ 'instructions@x': {} })).toEqual([expect.stringMatching(/^instructions@x: validator threw .*malformed facet$/)]);
+    expect(derivedSchemaProblems({ 'instructions@x': { kind: 'instructions' } })).toEqual([expect.stringMatching(/^instructions@x: validator threw .*malformed facet$/)]);
   });
 
   it('validates derived derivation facets (lab zooms) and their title ref', () => {
@@ -127,7 +127,7 @@ describe('wordops in derived facets', () => {
   });
 
   it('reports a malformed wordops facet as problems, not as a throwing validator', () => {
-    expect(derivedSchemaProblems({ 'wordops@x': null, 'wordops@y': { schemaVersion: 2, wordBits: 64, steps: [null] } })).toEqual([
+    expect(derivedSchemaProblems({ 'wordops@x': null, 'wordops@y': { kind: 'wordops', schemaVersion: 2, wordBits: 64, steps: [null] } })).toEqual([
       'wordops@x: wordops: facet is not an object',
       'wordops@y: wordops steps[0]: not an object',
     ]);

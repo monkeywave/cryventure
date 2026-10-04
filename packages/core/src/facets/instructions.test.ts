@@ -60,3 +60,10 @@ describe('validateInstructionsFacet', () => {
     ]);
   });
 });
+
+describe('validateInstructionsFacet: kind (M6 review gap)', () => {
+  it('rejects a facet of another kind', () => {
+    const wrong = { ...facet([load]), kind: 'registers' } as unknown as Parameters<typeof validateInstructionsFacet>[0];
+    expect(validateInstructionsFacet(wrong)).toEqual(['instructions: kind registers is not "instructions"']);
+  });
+});

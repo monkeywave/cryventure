@@ -22,12 +22,22 @@ export function isPlainRecord(value: unknown): value is Record<string, unknown> 
 export function isWellFormedI18nRef(ref: unknown): boolean {
   if (!isPlainRecord(ref) || typeof ref.key !== 'string' || ref.key === '') return false;
   if (ref.params === undefined) return true;
-  return isPlainRecord(ref.params) && Object.values(ref.params).every((value) => typeof value === 'string' || typeof value === 'number');
+  return isPlainRecord(ref.params) && Object.values(ref.params).every((value) => typeof value === 'string' || Number.isFinite(value));
 }
 
 /** `where: not a well-formed I18nRef` unless `ref` is one. */
 export function i18nRefProblems(ref: unknown, where: string): string[] {
   return isWellFormedI18nRef(ref) ? [] : [`${where}: not a well-formed I18nRef`];
+}
+
+/** `<kind>: kind … is not "<kind>"` unless `facet.kind` is `kind` (validators check it first). */
+export function kindProblems(facet: { readonly kind?: unknown }, kind: string): string[] {
+  return facet.kind === kind ? [] : [`${kind}: kind ${describeValue(facet.kind)} is not "${kind}"`];
+}
+
+/** `where: stepCount … is not a non-negative integer` unless `stepCount` is absent or one (NaN would accept every step). */
+export function stepCountProblems(stepCount: number | undefined, where: string): string[] {
+  return stepCount === undefined || (Number.isInteger(stepCount) && stepCount >= 0) ? [] : [`${where}: stepCount ${describeValue(stepCount)} is not a non-negative integer`];
 }
 
 /** Whether `hex` is a string of exactly `digits` lowercase hex digits. */

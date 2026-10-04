@@ -1,5 +1,5 @@
 import type { I18nRef } from '../i18n.ts';
-import { describeValue, i18nRefProblems, INITIAL_STEP_INDEX, isIndex, isLowerHex, isPlainRecord, isStepIndex } from './validation.ts';
+import { describeValue, i18nRefProblems, INITIAL_STEP_INDEX, isIndex, isLowerHex, isPlainRecord, isStepIndex, kindProblems, stepCountProblems } from './validation.ts';
 
 /**
  * Sponge facet (docs/M6.md §3a): the lanes of a permutation state after each sponge step — Keccak-f
@@ -156,6 +156,8 @@ function shapeOf(facet: Record<string, unknown>): SpongeShape | string[] {
  */
 export function validateSpongeFacet(facet: unknown, stepCount?: number): string[] {
   if (!isPlainRecord(facet)) return ['sponge: facet is not an object'];
+  const precondition = [...kindProblems(facet, 'sponge'), ...stepCountProblems(stepCount, 'sponge')];
+  if (precondition.length > 0) return precondition;
   if (facet.schemaVersion !== 1) return [`sponge: schemaVersion ${describeValue(facet.schemaVersion)} is not 1`];
   const shape = shapeOf(facet);
   if (Array.isArray(shape)) return shape;

@@ -1,5 +1,5 @@
 import type { I18nRef } from '../i18n.ts';
-import { isIndex } from './validation.ts';
+import { isIndex, kindProblems, stepCountProblems } from './validation.ts';
 
 /** Wire facet: bytes as they travel (docs/M3.md §6). */
 
@@ -71,6 +71,8 @@ function availableAtIssues(facet: WireFacet, stepCount: number): string[] {
 
 /** Structural problems of a wire facet (empty = valid): ids, flip mask, step order and range, offsets, availability. */
 export function wireIssues(facet: WireFacet, stepCount: number): string[] {
+  const precondition = [...kindProblems(facet, 'wire'), ...stepCountProblems(stepCount, 'wire')];
+  if (precondition.length > 0) return precondition;
   const total = wireTotalLength(facet);
   return [...duplicateIdIssues(facet), ...flipIssues(facet, total), ...activeAtIssues(facet, stepCount, total), ...availableAtIssues(facet, stepCount)];
 }

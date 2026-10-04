@@ -58,3 +58,9 @@ describe('appliedThrough', () => {
     expect(appliedThrough([], 5)).toBe(-1);
   });
 });
+
+describe('alignIssues: stepCount (M6 review gap)', () => {
+  it('rejects stepCount NaN instead of accepting every span', () => {
+    expect(alignIssues(spans, Number.NaN)).toEqual(['align: stepCount NaN is not a non-negative integer']);
+  });
+});

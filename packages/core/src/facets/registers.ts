@@ -1,6 +1,6 @@
 import type { I18nRef } from '../i18n.ts';
 import { alignShapeIssues, type AlignSpan } from './align.ts';
-import { isIndex } from './validation.ts';
+import { isIndex, kindProblems } from './validation.ts';
 
 /**
  * Registers facet: the register file a listing uses and the writes to it, each aligned to the
@@ -71,6 +71,8 @@ function writeIssues(write: RegisterWrite, specByName: Map<string, RegisterSpec>
 
 /** Schema problems of a registers facet (empty = valid): register file, writes to known registers at full width, monotonic spans. */
 export function validateRegistersFacet(facet: RegistersFacet): string[] {
+  const wrongKind = kindProblems(facet, 'registers');
+  if (wrongKind.length > 0) return wrongKind;
   const specByName = new Map(facet.file.registers.map((spec) => [spec.name, spec]));
   const stepIssues = facet.steps.flatMap((step, index) => step.writes.flatMap((write) => writeIssues(write, specByName, `registers: step ${index}`)));
   return [

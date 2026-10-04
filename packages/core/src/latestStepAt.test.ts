@@ -36,3 +36,17 @@ describe('latestStepAt', () => {
     expect(latestStepAt(steps, 2.5)?.step).toBe(-1);
   });
 });
+
+describe('latestStepAt: sorted input (M6 review gap)', () => {
+  it('throws a RangeError for steps that are not strictly increasing', () => {
+    expect(() => latestStepAt([{ step: 3 }, { step: 1 }, { step: 7 }], 5)).toThrow(RangeError);
+    expect(() => latestStepAt([{ step: 1 }, { step: 1 }], 5)).toThrow(/not strictly increasing at index 1/);
+  });
+
+  it('rechecks a list that grew since its last call', () => {
+    const steps = [{ step: 0 }, { step: 2 }];
+    expect(latestStepAt(steps, 1)).toBe(steps[0]);
+    steps.push({ step: 1 });
+    expect(() => latestStepAt(steps, 1)).toThrow(RangeError);
+  });
+});

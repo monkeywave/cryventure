@@ -1,5 +1,5 @@
 import { definePrimitive, type Preset, type ValidationResult } from '@cryventure/core';
-import { legacyOps, legacyParamFields, legacyPreset, SHA1_OP_NAMES, validateLegacyParams, type LegacyHashParams } from '../_lib/legacy-md/manifestKit.ts';
+import { legacyHashLabParams, legacyOps, legacyParamFields, legacyPreset, SHA1_OP_NAMES, validateLegacyParams, type LegacyHashParams } from '../_lib/legacy-md/manifestKit.ts';
 
 /**
  * Manifest for SHA-1 (FIPS 180-4 §6.1), traced per round or per block (docs/M6.md §2e). Imports
@@ -44,6 +44,7 @@ export const sha1Manifest = definePrimitive<Sha1Params>({
   ops: SHA1_OPS,
   outputs: { digest: { labelKey: `${NS}.value.digest` } },
   validate: validateSha1Params,
+  hashLabParams: legacyHashLabParams('sha-1'),
   load: () => import('./module.ts'),
 });
 

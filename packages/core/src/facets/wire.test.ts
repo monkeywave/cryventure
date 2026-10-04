@@ -89,3 +89,14 @@ describe('wireTotalLength / wireLabelRefs', () => {
     expect(wireLabelRefs(wire()).map((ref) => ref.key)).toEqual(['wire.iv', 'wire.ciphertext']);
   });
 });
+
+describe('wireIssues: kind and stepCount (M6 review gaps)', () => {
+  it('rejects a facet of another kind', () => {
+    expect(wireIssues({ ...wire(), kind: 'chain' } as unknown as Parameters<typeof wireIssues>[0], 3)).toEqual(['wire: kind chain is not "wire"']);
+  });
+
+  it('rejects a NaN or infinite stepCount', () => {
+    expect(wireIssues(wire(), Number.NaN)).toEqual(['wire: stepCount NaN is not a non-negative integer']);
+    expect(wireIssues(wire(), Number.POSITIVE_INFINITY)).toEqual(['wire: stepCount Infinity is not a non-negative integer']);
+  });
+});

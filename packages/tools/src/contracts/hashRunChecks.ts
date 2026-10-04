@@ -16,7 +16,16 @@ import { isRecord } from './jsonValues.ts';
  * value. Empty values are omitted (SHA-2 publishes no `message` for the empty message), so a case
  * without one hashes the empty message — unless no case publishes a `message` at all, in which
  * case the producer does not expose its message and the check is skipped.
+ *
+ * Producers with `PrimitiveManifest.hashLabParams` are cross-checked by `hashLabProblems` instead,
+ * which needs no param names; for them this check runs with `xofOnly` (XOFs have no lab hook).
  */
+
+/** Options of `hashRunProblems`. */
+export interface HashRunOptions {
+  /** Check only XOF cases: the producer's fixed-length functions are cross-checked by `hashLabProblems`. */
+  xofOnly?: boolean;
+}
 
 export type HashRunManifest = Pick<PrimitiveManifest, 'implements' | 'outputs' | 'paramFields' | 'defaults' | 'i18nNamespace'>;
 
@@ -53,14 +62,14 @@ type PortOutput = { label: string; compute: (message: Uint8Array, runLength: num
 
 const hashOutput = (fn: HashFamily['functions'][number]): PortOutput => ({ label: `"${fn.id}"`, compute: (message) => fn.hash(message) });
 
-function portOutputFor(family: HashFamily, caseParams: unknown): PortOutput | undefined {
+function portOutputFor(family: HashFamily, caseParams: unknown, options: HashRunOptions): PortOutput | undefined {
   const params = isRecord(caseParams) ? caseParams : {};
   if (textParam(params, KEY_PARAM) !== '') return undefined;
   const algorithm = params[ALGORITHM_PARAM];
-  if (algorithm === undefined) return family.functions.length === 1 ? hashOutput(family.functions[0]!) : undefined;
+  if (algorithm === undefined) return family.functions.length === 1 && options.xofOnly !== true ? hashOutput(family.functions[0]!) : undefined;
   if (typeof algorithm !== 'string') return undefined;
   const fn = hashFunction(family, algorithm);
-  if (fn !== undefined) return hashOutput(fn);
+  if (fn !== undefined) return options.xofOnly === true ? undefined : hashOutput(fn);
   const xof = xofFunction(family, algorithm);
   if (xof === undefined) return undefined;
   const custom = { functionName: utf8Bytes(textParam(params, 'functionName')), customization: utf8Bytes(textParam(params, 'customization')) };
@@ -68,8 +77,8 @@ function portOutputFor(family: HashFamily, caseParams: unknown): PortOutput | un
   return { label: `XOF "${xof.id}"`, compute: (message, runLength) => xof.xof(message, Number.isInteger(length) && length > 0 ? length : runLength, custom) };
 }
 
-function caseProblems(family: HashFamily, testCase: HashRunCase): string[] {
-  const port = portOutputFor(family, testCase.params);
+function caseProblems(family: HashFamily, testCase: HashRunCase, options: HashRunOptions): string[] {
+  const port = portOutputFor(family, testCase.params, options);
   if (port === undefined) return [];
   const digest = testCase.output[DIGEST_OUTPUT];
   if (digest === undefined) return [`run has no "${DIGEST_OUTPUT}" output`];
@@ -79,9 +88,50 @@ function caseProblems(family: HashFamily, testCase: HashRunCase): string[] {
 
 /**
  * Cases whose run digest differs from the family's function (or XOF) over the published message;
- * other algorithms and keyed cases are skipped, and so is everything when no case publishes a `message` value.
+ * other algorithms and keyed cases are skipped (with `xofOnly`, every non-XOF case), and so is
+ * everything when no case publishes a `message` value.
  */
-export function hashRunProblems(family: HashFamily, cases: readonly HashRunCase[]): string[] {
+export function hashRunProblems(family: HashFamily, cases: readonly HashRunCase[], options: HashRunOptions = {}): string[] {
   if (cases.every((testCase) => testCase.message === undefined)) return [];
-  return cases.flatMap((testCase) => caseProblems(family, testCase).map((problem) => `${testCase.name}: ${problem}`));
+  return cases.flatMap((testCase) => caseProblems(family, testCase, options).map((problem) => `${testCase.name}: ${problem}`));
+}
+
+/**
+ * Message lengths the lab cross-check hashes: empty, "abc", 56 bytes (SHA-2 padding needs a second
+ * block), 128 (the SHA-2/BLAKE2/MD5 limit) and 200 (the SHA-3 limit). Lengths past a lab's limit are
+ * skipped (its `hashLabParams` returns `undefined`).
+ */
+export const HASH_LAB_MESSAGE_LENGTHS: readonly number[] = [0, 3, 56, 128, 200];
+
+/** The fixed message of `length` bytes: "abc" for 3, else bytes `(37·i + 11) mod 256`. */
+export function hashLabMessage(length: number): Uint8Array {
+  return length === 3 ? utf8Bytes('abc') : Uint8Array.from({ length }, (_, i) => (37 * i + 11) & 0xff);
+}
+
+/** Validates and runs lab params: the run's output, or why it was rejected. */
+export type HashLabRunner = (params: Record<string, string>) => Record<string, number[]> | string;
+
+/** `PrimitiveManifest.hashLabParams`. */
+type HashLabParamsHook = NonNullable<PrimitiveManifest['hashLabParams']>;
+
+function labCaseProblems(fn: HashFamily['functions'][number], hashLabParams: HashLabParamsHook, runLab: HashLabRunner, length: number): string[] {
+  const message = hashLabMessage(length);
+  const params = hashLabParams(fn.id, toHex(message));
+  if (params === undefined) return length === 0 ? [`"${fn.id}": hashLabParams offers no lab run for the empty message`] : [];
+  const where = `"${fn.id}" over ${length} bytes`;
+  const output = runLab(params);
+  if (typeof output === 'string') return [`${where}: ${output}`];
+  const digest = output[DIGEST_OUTPUT];
+  if (digest === undefined) return [`${where}: run has no "${DIGEST_OUTPUT}" output`];
+  const expected = fn.hash(message);
+  return bytesEqual(expected, digest) ? [] : [`${where}: lab digest ${toHex(digest)}, but the Hash port gives ${toHex(expected)}`];
+}
+
+/**
+ * The port-call cross-check (docs/M7.md §1e): for every fixed-length function of the family and
+ * every message length, the lab run `hashLabParams(fn.id, messageHex)` must publish `fn.hash(message)`
+ * as its digest. Needs no param names; every port function must at least hash the empty message.
+ */
+export function hashLabProblems(family: HashFamily, hashLabParams: HashLabParamsHook, runLab: HashLabRunner, lengths: readonly number[] = HASH_LAB_MESSAGE_LENGTHS): string[] {
+  return family.functions.flatMap((fn) => lengths.flatMap((length) => labCaseProblems(fn, hashLabParams, runLab, length)));
 }

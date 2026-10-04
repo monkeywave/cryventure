@@ -1,4 +1,5 @@
 import type { I18nRef } from '../i18n.ts';
+import { kindProblems, stepCountProblems } from './validation.ts';
 
 /** Chain facet: block-mode dataflow, one lane per block (docs/M3.md §6). */
 
@@ -97,6 +98,8 @@ function orderingIssues(facet: ChainFacet, nodeById: Map<string, ChainNode>): st
 
 /** Structural problems of a chain facet (empty = valid): ids, endpoints, step ranges, causal order. */
 export function chainIssues(facet: ChainFacet, stepCount: number): string[] {
+  const precondition = [...kindProblems(facet, 'chain'), ...stepCountProblems(stepCount, 'chain')];
+  if (precondition.length > 0) return precondition;
   const nodeById = new Map(facet.nodes.map((node) => [node.id, node]));
   return [...duplicateIdIssues(facet), ...endpointIssues(facet, nodeById), ...rangeIssues(facet, stepCount), ...orderingIssues(facet, nodeById)];
 }

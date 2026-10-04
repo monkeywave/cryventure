@@ -1,5 +1,5 @@
 import { opLabels, readOption, readText, utf8Bytes, type ParamField, type ValidationResult } from '@cryventure/core';
-import { HASH_ENCODINGS, paramError, readMessageInput, selectField, type HashEncoding } from '../hashKit/manifestKit.ts';
+import { HASH_ENCODINGS, hashLabParamsFor, messageField, paramError, readMessageInput, selectField, type HashEncoding, type HashLabParams } from '../hashKit/manifestKit.ts';
 
 /**
  * The eager manifest parts of the `sha3` producer (docs/M6.md §2b): algorithm ids, param fields and
@@ -59,7 +59,7 @@ export function sha3ParamFields(ns: string): ParamField[] {
   return [
     selectField(ns, 'algorithm', KECCAK_ALGORITHM_IDS),
     selectField(ns, 'encoding', SHA3_ENCODINGS),
-    textField(ns, 'input', SHA3_MAX_MESSAGE_BYTES),
+    messageField(ns, SHA3_MAX_MESSAGE_BYTES),
     selectField(ns, 'outputLength', SHA3_OUTPUT_LENGTHS),
     textField(ns, 'functionName', SHA3_MAX_CUSTOM_BYTES),
     textField(ns, 'customization', SHA3_MAX_CUSTOM_BYTES),
@@ -103,3 +103,17 @@ export function validateSha3Params(ns: string, params: unknown): ValidationResul
   if (!customization.ok) return customization;
   return { ok: true, value: { algorithm, encoding, input: input.value, outputLength, functionName: functionName.value, customization: customization.value, detail } };
 }
+
+/**
+ * `hashLabParams` of the SHA-3 lab: the fixed-length functions (`KECCAK_HASH_IDS`, not the XOFs)
+ * at `mapping` detail, hex messages of at most 200 bytes.
+ */
+export const sha3HashLabParams: HashLabParams = hashLabParamsFor(KECCAK_HASH_IDS, SHA3_MAX_MESSAGE_BYTES, (algorithm, input) => ({
+  algorithm,
+  encoding: 'hex',
+  input,
+  outputLength: '32',
+  functionName: '',
+  customization: '',
+  detail: 'mapping',
+}));

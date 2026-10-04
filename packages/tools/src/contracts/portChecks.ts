@@ -586,8 +586,22 @@ function textFitProblem(field: ParamField, params: Record<string, unknown> | nul
   return unit === 'hex' ? `is not hex of at most ${maxLength} bytes` : `is not a string of at most ${maxLength} UTF-8 bytes`;
 }
 
-/** `text` fields have a positive integer `maxLength`, and every case's value fits it. */
+/** A declared `encodingParam` sits on a `text` field and names a sibling `select` offering `'hex'`. */
+function encodingParamProblems(field: ParamField, fields: readonly ParamField[]): string[] {
+  const { encodingParam } = field;
+  if (encodingParam === undefined) return [];
+  if (field.kind !== 'text') return [`param "${field.name}": encodingParam on a ${field.kind} field (text fields only)`];
+  const sibling = fields.find((candidate) => candidate.name === encodingParam);
+  const offersHex = sibling?.kind === 'select' && (sibling.options ?? []).some((option) => option.value === 'hex');
+  return offersHex ? [] : [`param "${field.name}": encodingParam "${encodingParam}" is not a sibling select with a "hex" option`];
+}
+
+/** `text` fields have a positive integer `maxLength`, every case's value fits it, and a declared `encodingParam` is sound. */
 export function textFieldProblems(fields: readonly ParamField[], cases: readonly ParamCase[]): string[] {
+  return [...fields.flatMap((field) => encodingParamProblems(field, fields)), ...textFitProblems(fields, cases)];
+}
+
+function textFitProblems(fields: readonly ParamField[], cases: readonly ParamCase[]): string[] {
   return fields
     .filter((field) => field.kind === 'text')
     .flatMap((field) => {

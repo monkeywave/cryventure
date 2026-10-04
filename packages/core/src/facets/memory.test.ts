@@ -151,3 +151,10 @@ describe('memoryAt', () => {
     expect([...at.keys()]).toEqual(['key', 'buf']);
   });
 });
+
+describe('validateMemoryFacet: kind (M6 review gap)', () => {
+  it('rejects a facet of another kind', () => {
+    const wrong = { ...facet([]), kind: 'registers' } as unknown as Parameters<typeof validateMemoryFacet>[0];
+    expect(validateMemoryFacet(wrong)).toEqual(['memory: kind registers is not "memory"']);
+  });
+});

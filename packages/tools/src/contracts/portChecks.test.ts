@@ -577,11 +577,12 @@ describe('textFieldProblems', () => {
     ]);
   });
 
-  it('measures the `input` field in hex-decoded bytes while the `encoding` param is hex (docs/EXTENDING.md "Text params")', () => {
-    const input: ParamField = { ...message, name: 'input' };
+  it('measures a field in hex-decoded bytes while its declared encodingParam is hex (docs/EXTENDING.md "Text params")', () => {
+    const input: ParamField = { ...message, name: 'input', encodingParam: 'encoding' };
+    const encoding: ParamField = { name: 'encoding', labelKey: 'k', kind: 'select', options: [{ value: 'utf8', labelKey: 'u' }, { value: 'hex', labelKey: 'h' }] };
     const hex = (text: string) => ({ name: 'hex', params: { input: text, encoding: 'hex' } });
-    expect(textFieldProblems([input], [hex('a3'.repeat(4)), hex('a3 a3:a3-A3'), { name: 'utf8', params: { input: 'abcd', encoding: 'utf8' } }])).toEqual([]);
-    expect(textFieldProblems([input], [hex('a3'.repeat(5)), hex('zz'), hex('a3a'), { name: 'utf8', params: { input: 'a3a3a3', encoding: 'utf8' } }])).toEqual([
+    expect(textFieldProblems([encoding, input], [hex('a3'.repeat(4)), hex('a3 a3:a3-A3'), { name: 'utf8', params: { input: 'abcd', encoding: 'utf8' } }])).toEqual([]);
+    expect(textFieldProblems([encoding, input], [hex('a3'.repeat(5)), hex('zz'), hex('a3a'), { name: 'utf8', params: { input: 'a3a3a3', encoding: 'utf8' } }])).toEqual([
       'hex: param "input" is not hex of at most 4 bytes',
       'hex: param "input" is not hex of at most 4 bytes',
       'hex: param "input" is not hex of at most 4 bytes',
@@ -593,6 +594,15 @@ describe('textFieldProblems', () => {
     const customization: ParamField = { ...message, name: 'customization' };
     expect(textFieldProblems([customization], [{ name: 'S', params: { customization: 'abcd', encoding: 'hex' } }])).toEqual([]);
     expect(textFieldProblems([customization], [{ name: 'S', params: { customization: 'abcdef', encoding: 'hex' } }])).toEqual(['S: param "customization" is not a string of at most 4 UTF-8 bytes']);
+  });
+
+  it('requires encodingParam to name a sibling select with a hex option, on text fields only', () => {
+    const encoding: ParamField = { name: 'encoding', labelKey: 'k', kind: 'select', options: [{ value: 'utf8', labelKey: 'u' }, { value: 'hex', labelKey: 'h' }] };
+    const input: ParamField = { ...message, name: 'input', encodingParam: 'encoding' };
+    expect(textFieldProblems([encoding, input], [])).toEqual([]);
+    expect(textFieldProblems([input], [])).toEqual(['param "input": encodingParam "encoding" is not a sibling select with a "hex" option']);
+    expect(textFieldProblems([{ ...encoding, options: [{ value: 'utf8', labelKey: 'u' }] }, input], [])).toEqual(['param "input": encodingParam "encoding" is not a sibling select with a "hex" option']);
+    expect(textFieldProblems([encoding, { name: 'keyHex', labelKey: 'k', kind: 'hex', encodingParam: 'encoding' }], [])).toEqual(['param "keyHex": encodingParam on a hex field (text fields only)']);
   });
 });
 

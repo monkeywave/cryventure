@@ -97,13 +97,17 @@ text input. `maxLength` counts UTF-8 bytes, not characters. In `validate()`, use
 converts the text to bytes. The contract kit checks that `maxLength`
 is a positive integer and that `defaults` and every preset fit it.
 
-- **Hex text:** when the producer also has a sibling param named `encoding` whose value is `'hex'`,
-  the lab's param panel and the contract kit measure the text field named **`input`** (the message)
-  in **hex-decoded bytes** instead of UTF-8 bytes (one helper,
-  `textFieldByteLength` in `packages/primitives/src/textParams.ts`, used by both); every other text
-  field (e.g. cSHAKE's `functionName`/`customization`) always counts UTF-8 bytes. So name the message
-  field `input`, set `maxLength` to the message limit in bytes, the same for both encodings (e.g.
-  `sha256`/`sha512`: 128), and decode/check the hex in `validate()` yourself.
+- **Hex text:** a text field that declares `encodingParam: '<name>'` names a sibling `select` param;
+  while that param's value is `'hex'`, the lab's param panel and the contract kit measure the field
+  in **hex-decoded bytes** instead of UTF-8 bytes (one helper, `textFieldByteLength` in
+  `packages/primitives/src/textParams.ts`, used by both). Text fields without the declaration
+  (e.g. cSHAKE's `functionName`/`customization`) always count UTF-8 bytes; the field's name no
+  longer matters (this replaces the old "`input` + `encoding`" name convention). The hash producers
+  declare `encodingParam: 'encoding'` on their message field `input` (`messageField` in
+  `_lib/hashKit/manifestKit.ts`); a KDF can declare e.g. `password` + `passwordEncoding`. Set
+  `maxLength` to the limit in bytes, the same for both encodings (e.g. `sha256`/`sha512`: 128), and
+  decode/check the hex in `validate()` yourself. The contract kit checks that `encodingParam` sits on
+  a `text` field and names a sibling `select` with a `'hex'` option.
 - **Shared manifest parts (`manifestKit`):** manifests may import only `@cryventure/core`, plus their
   package's `_lib/applicability.ts` and `_lib/<group>/manifestKit.ts`. A `manifestKit.ts` is loaded
   eagerly with the manifests, so it may import **only** `@cryventure/core` (ESLint enforces both).
@@ -126,6 +130,15 @@ another producer through a **port**, an interface in `@cryventure/core` (`ports.
   (aes: `{ keyHex, plaintextHex: blockHex, detail: 'op' }`). The mode producers put
   `zoom: { producerId, keyHex, blockHex }` on their cipher chain nodes, and the web host turns it into
   a link via `useLabActions().blockLabHref`; without the hook there is no link.
+- **Zooming into a hash call:** a `Hash` producer adds the optional manifest hook
+  `hashLabParams(functionId, messageHex)` returning its own lab's params hashing that message with one
+  of its port's fixed-length functions, or `undefined` when its lab cannot (message past the lab's
+  limit, invalid hex, a function it does not offer such as an XOF). The SHA-2, MD5 and SHA-1 kits
+  build it with `hashLabParamsFor` (`_lib/hashKit/manifestKit.ts`); `sha3` (fixed-length functions
+  only) and `blake2` (unkeyed) have their own. Composites put a `LabZoom { producerId, params }` from
+  it on their derivation nodes (`DerivationNode.zoom`, e.g. `hmac`'s inner and outer hash), and the
+  contract kit uses it to run every port function in the producer's own lab and compare digests,
+  without knowing any param name.
 - **Using a port:** declare a `port` param,
   `{ name: 'cipher', kind: 'port', port: 'BlockCipher', labelKey }`. Its value is a producer id;
   `validate()` only checks that it is a kebab-case string. The panel's options are
@@ -211,7 +224,12 @@ Mark the nodes that views should list with `result: true`; intermediates (RotWor
 leave it unset. Producers that only set `group` still work: `isResultNode(node)` is
 `node.result ?? node.group !== undefined`. The optional `DerivationFacet.groups`
 (`{ id, label: I18nRef }[]`) names each `group` value, for example "Round key 3"; the key-schedule
-view lists results under these labels (generic "Group n" otherwise). The contract kit checks the
+view lists results under these labels (generic "Group n" otherwise). The optional
+`DerivationFacet.title` (an `I18nRef`, e.g. "HKDF", "Key schedule") is the view's heading. A node may
+carry `zoom: LabZoom` (`{ producerId, params }`, every param a string): a link to another
+producer's lab computing that node, e.g. the hash call inside an HMAC via that producer's
+`hashLabParams`. `validateDerivationFacet` (core) checks `kind`, labels, `title` and every `zoom`
+(kebab-case `producerId`, string params); the contract kit runs it and checks the `title` and group
 label keys and `{{params}}` in EN and DE.
 
 ### Sponge facet
@@ -427,8 +445,9 @@ pieces without new facets:
   replays consistently (keyframes and `stateAt` equal a
   sequential replay), and is JSON-serializable
 - with `loadChoreography`: every step's choreography targets existing cells, ends neutral and
-  narrates with existing keys; with a `derivation` facet: topological order and `groups` labels
-  with existing keys and matching `{{params}}`
+  narrates with existing keys; with a `derivation` facet: `validateDerivationFacet` (well-formed
+  labels and `title`, `zoom` with a kebab-case `producerId` and string params), topological order,
+  and `title` and `groups` labels with existing keys and matching `{{params}}`
 - with port params: runs (including conformance cases) get `resolve` from `preparePorts` over the
   `producers` the caller passes (`all.contract.test.ts`: `primitiveProducerSet`, every primitive); `port` fields name a port some producer implements, `text` fields have a
   positive `maxLength` that `defaults` and presets fit, and `runIn` is `main` or `worker`
@@ -437,7 +456,11 @@ pieces without new facets:
   unique function ids, `blockSize` 64 or 128, and every function is deterministic, leaves its
   input unchanged and returns `outputSize` bytes for inputs of 0, 1 and `blockSize` bytes, those
   three digests pairwise distinct)
-- a `Hash` producer with a `digest` output and an `algorithm` select param: for `defaults` and
+- a `Hash` producer with a `digest` output and `hashLabParams`: for every fixed-length function of
+  its port and messages of 0, 3, 56, 128 and 200 bytes (those its lab accepts; the empty one is
+  required), the params from `hashLabParams` validate, run, and publish `hash(message)` as the
+  digest; XOF presets are still compared by their params (below)
+- a `Hash` producer with a `digest` output and no `hashLabParams` (and its XOF presets): for `defaults` and
   every preset whose `algorithm` is a function id of its family, the port's `hash(message)` equals
   `run(params).output.digest` (algorithms outside the family, e.g. an IV-generation mode, are
   skipped). The message is the one the run publishes: the bytes of its `values` facet's `message`
@@ -478,7 +501,8 @@ pieces without new facets:
   deterministically, with JSON-serializable facets
 - returns exactly its `provides` kinds (every one, keyed `kind@variant`)
 - each facet passes its core validator when its kind has one (`instructions`, `registers`,
-  `memory`, `field`, `math`, `table`, `wordops`; for `wordops` the primitive's shape checks run
+  `memory`, `field`, `math`, `table`, `wordops`, `sponge`, `derivation`; every validator checks
+  `kind` first; for `wordops` the primitive's shape checks run
   first), a validator that throws being a reported problem; memory writes lie in their
   allocation's lifetime
 - every array of steps with `align` spans is monotonic and within the bundle's state steps

@@ -107,3 +107,14 @@ describe('chainLabelRefs / chainLanes', () => {
     expect(chainLanes(chain({ nodes: [] }))).toEqual([]);
   });
 });
+
+describe('chainIssues: kind and stepCount (M6 review gaps)', () => {
+  it('rejects a facet of another kind', () => {
+    expect(chainIssues({ ...chain(), kind: 'wire' } as unknown as Parameters<typeof chainIssues>[0], 3)).toEqual(['chain: kind wire is not "chain"']);
+  });
+
+  it('rejects a NaN or infinite stepCount', () => {
+    expect(chainIssues(chain(), Number.NaN)).toEqual(['chain: stepCount NaN is not a non-negative integer']);
+    expect(chainIssues(chain(), Number.POSITIVE_INFINITY)).toEqual(['chain: stepCount Infinity is not a non-negative integer']);
+  });
+});

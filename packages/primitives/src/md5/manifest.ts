@@ -1,5 +1,5 @@
 import { definePrimitive, type Preset, type ValidationResult } from '@cryventure/core';
-import { legacyOps, legacyParamFields, legacyPreset, MD5_OP_NAMES, validateLegacyParams, type LegacyHashParams } from '../_lib/legacy-md/manifestKit.ts';
+import { legacyHashLabParams, legacyOps, legacyParamFields, legacyPreset, MD5_OP_NAMES, validateLegacyParams, type LegacyHashParams } from '../_lib/legacy-md/manifestKit.ts';
 
 /**
  * Manifest for MD5 (RFC 1321), traced per operation or per block (docs/M6.md §2e). Imports core and
@@ -44,6 +44,7 @@ export const md5Manifest = definePrimitive<Md5Params>({
   ops: MD5_OPS,
   outputs: { digest: { labelKey: `${NS}.value.digest` } },
   validate: validateMd5Params,
+  hashLabParams: legacyHashLabParams('md5'),
   load: () => import('./module.ts'),
 });
 

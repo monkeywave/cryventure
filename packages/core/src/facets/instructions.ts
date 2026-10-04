@@ -1,6 +1,7 @@
 import type { I18nRef } from '../i18n.ts';
 import { alignShapeIssues, type AlignSpan } from './align.ts';
 import { isHexAddress } from './memory.ts';
+import { kindProblems } from './validation.ts';
 
 /**
  * Instructions facet: an assembly listing of one ISA extension, each instruction aligned to the
@@ -57,6 +58,8 @@ function instructionIssues(instruction: Instruction, index: number): string[] {
 
 /** Schema problems of an instructions facet (empty = valid): hex addresses, mnemonics, operand refs, monotonic spans. */
 export function validateInstructionsFacet(facet: InstructionsFacet): string[] {
+  const wrongKind = kindProblems(facet, 'instructions');
+  if (wrongKind.length > 0) return wrongKind;
   return [
     ...facet.instructions.flatMap(instructionIssues),
     ...alignShapeIssues(

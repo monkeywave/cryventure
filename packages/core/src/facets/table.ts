@@ -1,5 +1,5 @@
 import type { I18nRef } from '../i18n.ts';
-import { isIndex } from './validation.ts';
+import { isIndex, kindProblems } from './validation.ts';
 
 /** Table facet: a lookup table (e.g. the AES S-box) with an optional selection (docs/M2.md §2). */
 
@@ -37,6 +37,8 @@ function indexProblems(facet: TableFacet): string[] {
 
 /** Schema problems of a table facet (empty = valid): shape, u8 entries, in-range selection. */
 export function validateTableFacet(facet: TableFacet): string[] {
+  const wrongKind = kindProblems(facet, 'table');
+  if (wrongKind.length > 0) return wrongKind;
   const entries = facet.entries.flatMap((entry, index) => (isIndex(entry, 256) ? [] : [`table: entry ${index} = ${entry} is not a u8`]));
   return [...shapeProblems(facet), ...entries, ...indexProblems(facet)];
 }

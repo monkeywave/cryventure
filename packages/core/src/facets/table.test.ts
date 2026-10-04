@@ -35,3 +35,10 @@ describe('validateTableFacet / assertValidTableFacet', () => {
     expect(() => assertValidTableFacet(bad)).toThrow('table: selected 4 outside 0..3');
   });
 });
+
+describe('validateTableFacet: kind (M6 review gap)', () => {
+  it('rejects a facet of another kind', () => {
+    const wrong = { ...table(), kind: 'math' } as unknown as Parameters<typeof validateTableFacet>[0];
+    expect(validateTableFacet(wrong)).toEqual(['table: kind math is not "table"']);
+  });
+});

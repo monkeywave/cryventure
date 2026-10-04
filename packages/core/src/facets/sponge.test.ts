@@ -136,3 +136,14 @@ describe('validateSpongeFacet on malformed input (never throws)', () => {
     expect(validateSpongeFacet({ ...base, steps: [null] })).toEqual(['sponge steps[0]: not an object']);
   });
 });
+
+describe('validateSpongeFacet: kind and stepCount (M6 review gaps)', () => {
+  it('rejects a facet of another kind', () => {
+    expect(validateSpongeFacet({ ...validFacet(), kind: 'wordops' })).toEqual(['sponge: kind wordops is not "sponge"']);
+  });
+
+  it('rejects stepCount NaN instead of accepting every step', () => {
+    expect(validateSpongeFacet(validFacet(), Number.NaN)).toEqual(['sponge: stepCount NaN is not a non-negative integer']);
+    expect(validateSpongeFacet(validFacet(), Number.POSITIVE_INFINITY)).toEqual(['sponge: stepCount Infinity is not a non-negative integer']);
+  });
+});

@@ -31,8 +31,14 @@ export interface ParamField {
   member?: true;
   /** `Mac` member fields: the constructions offered; absent = all. */
   constructions?: readonly MacConstruction['kind'][];
-  /** Maximum length of a `text` field in UTF-8 bytes. */
+  /** Maximum length of a `text` field in UTF-8 bytes (in decoded bytes while `encodingParam` is `'hex'`). */
   maxLength?: number;
+  /**
+   * `text` fields: the name of a sibling `select` param whose value `'hex'` makes this field hex
+   * (measured in decoded bytes by the param panel and the contract kit), e.g. a hash message
+   * `input` with `encodingParam: 'encoding'`; absent = always UTF-8 (docs/EXTENDING.md "Text params").
+   */
+  encodingParam?: string;
 }
 
 /** A `port` field with its port name. */

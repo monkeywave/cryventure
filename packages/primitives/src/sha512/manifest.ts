@@ -1,5 +1,5 @@
 import { definePrimitive, type Preset, type ValidationResult } from '@cryventure/core';
-import { readSha2Input, sha2Ops, sha2ParamFields, sha2Preset, validateSha2Params, type Sha2Detail, type Sha2Encoding, type Sha2HashParams } from '../_lib/sha2/manifestKit.ts';
+import { readSha2Input, sha2HashLabParams, sha2Ops, sha2ParamFields, sha2Preset, validateSha2Params, type Sha2Detail, type Sha2Encoding, type Sha2HashParams } from '../_lib/sha2/manifestKit.ts';
 
 /**
  * Manifest for SHA-384, SHA-512, SHA-512/224 and SHA-512/256 (FIPS 180-4 §6.4–6.7) plus the
@@ -73,6 +73,7 @@ export const sha512Manifest = definePrimitive<Sha512Params>({
   ops: SHA512_OPS,
   outputs: { digest: { labelKey: `${NS}.value.digest` } },
   validate: validateSha512Params,
+  hashLabParams: sha2HashLabParams(SHA512_HASH_IDS),
   load: () => import('./module.ts'),
 });
 

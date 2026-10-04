@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { hashMessageBytes, messageLengths, paramError, readMessageInput, selectField } from './manifestKit.ts';
+import { hashLabParamsFor, hashMessageBytes, messageField, messageLengths, paramError, readMessageInput, selectField } from './manifestKit.ts';
 
 const NS = 'plugin.test';
 
@@ -37,5 +37,28 @@ describe('hashManifestKit', () => {
     expect(hashMessageBytes('utf8', 'aä')).toEqual([0x61, 0xc3, 0xa4]);
     expect(hashMessageBytes('hex', '616263')).toEqual([0x61, 0x62, 0x63]);
     expect(hashMessageBytes('hex', '')).toEqual([]);
+  });
+});
+
+describe('messageField', () => {
+  it('is the hex-switchable message text field `input`, measured by the `encoding` select', () => {
+    expect(messageField(NS, 64)).toEqual({ name: 'input', kind: 'text', labelKey: `${NS}.param.input`, hintKey: `${NS}.param.inputHint`, maxLength: 64, encodingParam: 'encoding' });
+  });
+});
+
+describe('hashLabParamsFor', () => {
+  const labParams = hashLabParamsFor(['h-1', 'h-2'], 4, (functionId, input) => ({ algorithm: functionId, input }));
+
+  it('passes offered functions and normalised hex messages of at most maxBytes to the builder', () => {
+    expect(labParams('h-2', 'A1 b2')).toEqual({ algorithm: 'h-2', input: 'a1b2' });
+    expect(labParams('h-1', '')).toEqual({ algorithm: 'h-1', input: '' });
+    expect(labParams('h-1', '01020304')).toEqual({ algorithm: 'h-1', input: '01020304' });
+  });
+
+  it('returns undefined for other functions, longer messages and invalid hex', () => {
+    expect(labParams('h-3', '01')).toBeUndefined();
+    expect(labParams('h-1', '0102030405')).toBeUndefined();
+    expect(labParams('h-1', '0')).toBeUndefined();
+    expect(labParams('h-1', 'xy')).toBeUndefined();
   });
 });

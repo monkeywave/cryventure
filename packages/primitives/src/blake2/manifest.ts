@@ -1,5 +1,5 @@
 import { definePrimitive, type Preset, type ValidationResult } from '@cryventure/core';
-import { blake2Ops, blake2ParamFields, validateBlake2Params, type Blake2Detail, type Blake2Encoding, type Blake2HashParams, type Blake2Id } from '../_lib/blake2/manifestKit.ts';
+import { blake2HashLabParams, blake2Ops, blake2ParamFields, validateBlake2Params, type Blake2Detail, type Blake2Encoding, type Blake2HashParams, type Blake2Id } from '../_lib/blake2/manifestKit.ts';
 
 /**
  * Manifest for BLAKE2s and BLAKE2b (RFC 7693), traced per G call, per round or per block, with an
@@ -51,6 +51,7 @@ export const blake2Manifest = definePrimitive<Blake2Params>({
   ops: blake2Ops(NS),
   outputs: { digest: { labelKey: `${NS}.value.digest` } },
   validate: validateBlake2,
+  hashLabParams: blake2HashLabParams,
   load: () => import('./module.ts'),
 });
 

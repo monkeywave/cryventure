@@ -1,4 +1,4 @@
-import { INITIAL_STEP_INDEX, isStepIndex } from './validation.ts';
+import { INITIAL_STEP_INDEX, isStepIndex, stepCountProblems } from './validation.ts';
 
 /**
  * Alignment of a derived facet's own steps (instructions, register writes, memory writes) to the
@@ -46,6 +46,8 @@ function spanRangeIssues(spans: AlignSpan[], stepCount: number): string[] {
 
 /** Problems of a span sequence against `stepCount` state steps (empty = valid): shape, plus both ends in `[-1, stepCount − 1]`. */
 export function alignIssues(spans: AlignSpan[], stepCount: number): string[] {
+  const badStepCount = stepCountProblems(stepCount, 'align');
+  if (badStepCount.length > 0) return badStepCount;
   return [...alignShapeIssues(spans, 'align'), ...spanRangeIssues(spans, stepCount)];
 }
 

@@ -49,7 +49,7 @@ import {
   type AnyStateFacet,
   type TermFacet,
 } from './checks.ts';
-import { checksHashRuns, hashRunProblems, publishedMessage, type HashRunCase } from './hashRunChecks.ts';
+import { checksHashRuns, hashLabProblems, hashRunProblems, publishedMessage, type HashLabRunner, type HashRunCase, type HashRunOptions } from './hashRunChecks.ts';
 import { modeFacetIssues, modeFacetRefs } from './modeFacetChecks.ts';
 import { implementedPortProblems, portFieldProblems, portMemberProblems, runInProblems, textFieldProblems } from './portChecks.ts';
 import { runOptionsFor, type ProducerSet } from './runWithPorts.ts';
@@ -116,11 +116,7 @@ function manifestSuite<P>(manifest: PrimitiveManifest<P>, catalogs: LocaleCatalo
   });
 
   portSuite(manifest, producers);
-  if (checksHashRuns(manifest)) {
-    it('reproduces every default/preset digest with its own Hash port (algorithms outside the family skipped)', async () => {
-      expect(await hashPortRunProblems(manifest, producers)).toEqual([]);
-    });
-  }
+  if (checksHashRuns(manifest)) hashSuite(manifest, producers);
 }
 
 /** Port and text params, `runIn`, the exposed ports and their declared members. */
@@ -137,8 +133,42 @@ function portSuite<P>(manifest: PrimitiveManifest<P>, producers: ProducerSet): v
   }
 }
 
+/**
+ * The `Hash` cross-checks: with `hashLabParams`, every port function in the producer's own lab
+ * (`hashLabProblems`) and the XOF presets by their params; without it, every default/preset by its params.
+ */
+function hashSuite<P>(manifest: PrimitiveManifest<P>, producers: ProducerSet): void {
+  if (manifest.hashLabParams === undefined) {
+    it('reproduces every default/preset digest with its own Hash port (algorithms outside the family skipped)', async () => {
+      expect(await hashPortRunProblems(manifest, producers)).toEqual([]);
+    });
+    return;
+  }
+  it('reproduces every Hash port function in its own lab via hashLabParams', async () => {
+    expect(await hashLabRunProblems(manifest, manifest.hashLabParams!, producers)).toEqual([]);
+  });
+  it('reproduces every default/preset XOF digest with its own Hash port', async () => {
+    expect(await hashPortRunProblems(manifest, producers, { xofOnly: true })).toEqual([]);
+  });
+}
+
+/** `hashLabProblems` with the producer's own module: params validated by the manifest, then run. */
+async function hashLabRunProblems<P>(manifest: PrimitiveManifest<P>, hashLabParams: NonNullable<PrimitiveManifest['hashLabParams']>, producers: ProducerSet): Promise<string[]> {
+  const module = await manifest.load();
+  const family = module.ports?.Hash;
+  if (family === undefined) return ['no Hash port to cross-check'];
+  const options = await runOptionsFor(manifest, manifest.defaults, producers.lookup);
+  const runLab: HashLabRunner = (params) => {
+    const valid = manifest.validate(params);
+    if (!valid.ok) return `validate() rejects the hashLabParams params: ${JSON.stringify(valid.error)}`;
+    const result = module.run(valid.value, options);
+    return result.ok ? result.trace.output : `run() rejected params: ${JSON.stringify(result.error)}`;
+  };
+  return hashLabProblems(family, hashLabParams, runLab);
+}
+
 /** `hashRunProblems` over defaults and presets, each run with its port options and its published message. */
-async function hashPortRunProblems<P>(manifest: PrimitiveManifest<P>, producers: ProducerSet): Promise<string[]> {
+async function hashPortRunProblems<P>(manifest: PrimitiveManifest<P>, producers: ProducerSet, runOptions: HashRunOptions = {}): Promise<string[]> {
   const module = await manifest.load();
   const family = module.ports?.Hash;
   if (family === undefined) return ['no Hash port to cross-check'];
@@ -148,7 +178,7 @@ async function hashPortRunProblems<P>(manifest: PrimitiveManifest<P>, producers:
       return { name, params, output: bundle.output, message: publishedMessage(bundle) };
     }),
   );
-  return hashRunProblems(family, cases);
+  return hashRunProblems(family, cases, runOptions);
 }
 
 function runSuite<P>(manifest: PrimitiveManifest<P>, catalogs: LocaleCatalogs, producers: ProducerSet, testCase: RunCase<P>): void {

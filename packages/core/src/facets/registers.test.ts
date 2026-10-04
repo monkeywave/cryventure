@@ -74,3 +74,10 @@ describe('registersAt', () => {
     expect(registersAt(listing, 6).get('xmm0')).toEqual(bytes(2));
   });
 });
+
+describe('validateRegistersFacet: kind (M6 review gap)', () => {
+  it('rejects a facet of another kind', () => {
+    const wrong = { ...listing, kind: 'memory' } as unknown as Parameters<typeof validateRegistersFacet>[0];
+    expect(validateRegistersFacet(wrong)).toEqual(['registers: kind memory is not "registers"']);
+  });
+});

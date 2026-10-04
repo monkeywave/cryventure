@@ -1,5 +1,6 @@
 import type { I18nRef } from '../i18n.ts';
-import { INITIAL_STEP_INDEX, isIndex, isStepIndex } from './validation.ts';
+import { latestStepAt } from '../latestStepAt.ts';
+import { INITIAL_STEP_INDEX, isIndex, isStepIndex, kindProblems } from './validation.ts';
 
 /**
  * Math facet: per-step equations (GF(2^8) multiplication, inversion, the affine map …) as plain
@@ -50,20 +51,9 @@ export interface MathFacet {
 
 export const MAX_MATH_TERM_WIDTH = 32;
 
-/** The latest math step whose `step ≤ step` (binary search), or `undefined` before the first. */
+/** The latest math step whose `step ≤ step`, or `undefined` before the first: `latestStepAt` over `facet.steps`. */
 export function mathStepAt(facet: MathFacet, step: number): MathStep | undefined {
-  let low = 0;
-  let high = facet.steps.length - 1;
-  let found: MathStep | undefined;
-  while (low <= high) {
-    const mid = (low + high) >> 1;
-    const candidate = facet.steps[mid]!;
-    if (candidate.step <= step) {
-      found = candidate;
-      low = mid + 1;
-    } else high = mid - 1;
-  }
-  return found;
+  return latestStepAt(facet.steps, step);
 }
 
 /** Problems of one term (`where` prefixes each message). */
@@ -93,6 +83,8 @@ function mathStepProblems(step: MathStep, previous: number | undefined): string[
 
 /** Schema problems of a math facet (empty = valid): increasing steps, unique term ids, values fit widths. */
 export function validateMathFacet(facet: MathFacet): string[] {
+  const wrongKind = kindProblems(facet, 'math');
+  if (wrongKind.length > 0) return wrongKind;
   const modulusOk = Number.isInteger(facet.notation.modulus) && facet.notation.modulus > 0;
   const problems = modulusOk ? [] : [`math: modulus ${facet.notation.modulus} is not a positive integer`];
   facet.steps.forEach((step, index) => problems.push(...mathStepProblems(step, facet.steps[index - 1]?.step)));

@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { i18nRef } from '../i18n.ts';
+import { latestStepAt } from '../latestStepAt.ts';
 import { FIELD_ELEMENT_BYTES, fieldStepAt, validateFieldFacet, type FieldFacet, type FieldStep, type FieldTerm } from './field.ts';
 
 const element = (fill = 0): number[] => Array.from({ length: FIELD_ELEMENT_BYTES }, () => fill);
@@ -47,5 +48,19 @@ describe('validateFieldFacet', () => {
       'field step 0 term "b": bit 128 outside 0..127',
       'field step 0 term "b": bit -1 outside 0..127',
     ]);
+  });
+});
+
+describe('validateFieldFacet: kind (M6 review gap)', () => {
+  it('rejects a facet of another kind', () => {
+    const wrong = { ...facet([fieldStep(0)]), kind: 'math' } as unknown as Parameters<typeof validateFieldFacet>[0];
+    expect(validateFieldFacet(wrong)).toEqual(['field: kind math is not "field"']);
+  });
+});
+
+describe('fieldStepAt is latestStepAt over the steps', () => {
+  it('agrees with latestStepAt for every playhead', () => {
+    const sparse = facet([fieldStep(-1), fieldStep(2), fieldStep(5)]);
+    for (let playhead = -3; playhead <= 7; playhead++) expect(fieldStepAt(sparse, playhead)).toBe(latestStepAt(sparse.steps, playhead));
   });
 });

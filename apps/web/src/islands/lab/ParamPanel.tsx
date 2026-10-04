@@ -147,8 +147,8 @@ function HexField(props: FieldProps) {
 }
 
 /**
- * A text param with a live byte counter against `maxLength`: UTF-8 bytes, or decoded bytes for the
- * `input` field while the producer's `encoding` param is `'hex'` (`textFieldByteLength`, docs/EXTENDING.md "Text params").
+ * A text param with a live byte counter against `maxLength`: UTF-8 bytes, or decoded bytes while the
+ * field's declared `encodingParam` is `'hex'` (`textFieldByteLength`, docs/EXTENDING.md "Text params").
  */
 function TextField(props: FieldProps) {
   const t = useT();

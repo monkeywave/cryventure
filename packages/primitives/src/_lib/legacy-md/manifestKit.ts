@@ -1,5 +1,5 @@
 import { opLabels, readOption, type ParamField, type Preset, type ValidationResult } from '@cryventure/core';
-import { paramError, selectField } from '../hashKit/manifestKit.ts';
+import { hashLabParamsFor, messageField, paramError, selectField, type HashLabParams } from '../hashKit/manifestKit.ts';
 import { readSha2Input, SHA2_DETAILS, SHA2_ENCODINGS, SHA2_MAX_MESSAGE_BYTES, SHA2_OP_NAMES, type Sha2Detail, type Sha2Encoding, type Sha2OpName } from '../sha2/manifestKit.ts';
 
 /**
@@ -54,7 +54,7 @@ export function validateLegacyParams(ns: string, params: unknown): ValidationRes
 export function legacyParamFields(ns: string): ParamField[] {
   return [
     selectField(ns, 'encoding', LEGACY_ENCODINGS),
-    { name: 'input', kind: 'text', labelKey: `${ns}.param.input`, hintKey: `${ns}.param.inputHint`, maxLength: LEGACY_MAX_MESSAGE_BYTES },
+    messageField(ns, LEGACY_MAX_MESSAGE_BYTES),
     selectField(ns, 'detail', LEGACY_DETAILS),
   ];
 }
@@ -65,4 +65,9 @@ export const legacyOps = <Op extends LegacyOpName>(ns: string, names: readonly O
 /** A UTF-8 preset labelled `<ns>.preset.<id>`. */
 export function legacyPreset(ns: string, id: string, input: string, detail: LegacyDetail = 'round'): Preset<LegacyHashParams> {
   return { id, labelKey: `${ns}.preset.${id}`, params: { encoding: 'utf8', input, detail } };
+}
+
+/** `hashLabParams` of an MD5 or SHA-1 lab, whose one function is `functionId` (`md5`, `sha-1`): `round` detail, hex messages of at most 128 bytes. */
+export function legacyHashLabParams(functionId: string): HashLabParams {
+  return hashLabParamsFor([functionId], LEGACY_MAX_MESSAGE_BYTES, (_, input) => ({ encoding: 'hex', input, detail: 'round' }));
 }

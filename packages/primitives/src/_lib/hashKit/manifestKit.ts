@@ -28,6 +28,14 @@ export function selectField(ns: string, name: string, options: readonly string[]
   };
 }
 
+/** The param that switches the message field between UTF-8 and hex. */
+const ENCODING_PARAM = 'encoding';
+
+/** The message text field `input` (at most `maxBytes` bytes), hex while the `encoding` select is `'hex'` (`encodingParam`). */
+export function messageField(ns: string, maxBytes: number): ParamField {
+  return { name: 'input', kind: 'text', labelKey: `${ns}.param.input`, hintKey: `${ns}.param.inputHint`, maxLength: maxBytes, encodingParam: ENCODING_PARAM };
+}
+
 /** The admissible byte lengths 0 … maxBytes. */
 export const messageLengths = (maxBytes: number): number[] => Array.from({ length: maxBytes + 1 }, (_, length) => length);
 
@@ -40,4 +48,20 @@ export function readMessageInput(ns: string, input: unknown, encoding: HashEncod
   }
   const length = utf8Bytes(input).length;
   return length <= maxBytes ? { ok: true, value: input } : paramError(ns, 'inputLength', { length });
+}
+
+/** A `PrimitiveManifest.hashLabParams` hook: lab params hashing a hex message with one of the lab's functions. */
+export type HashLabParams = (functionId: string, messageHex: string) => Record<string, string> | undefined;
+
+/**
+ * `hashLabParams` of a hash lab offering `functionIds` for messages of at most `maxBytes` bytes:
+ * `labParams(functionId, input)` with `input` the normalised hex (lowercase, no separators), or
+ * `undefined` for another function, a longer message or invalid hex.
+ */
+export function hashLabParamsFor(functionIds: readonly string[], maxBytes: number, labParams: (functionId: string, input: string) => Record<string, string>): HashLabParams {
+  return (functionId, messageHex) => {
+    if (!functionIds.includes(functionId)) return undefined;
+    const input = readMessageInput('', messageHex, 'hex', maxBytes);
+    return input.ok ? labParams(functionId, input.value) : undefined;
+  };
 }

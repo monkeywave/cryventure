@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { i18nRef } from '../i18n.ts';
+import { latestStepAt } from '../latestStepAt.ts';
 import { assertValidMathFacet, mathStepAt, mathTermProblems, validateMathFacet, type MathFacet, type MathStep, type MathTerm } from './math.ts';
 
 const term = (id: string, value: number, width = 8, extra: Partial<MathTerm> = {}): MathTerm => ({ id, label: i18nRef(`l.${id}`), value, width, role: 'operand', ...extra });
@@ -58,5 +59,19 @@ describe('validateMathFacet / assertValidMathFacet', () => {
       'math step 0 term "a": value 256 is not an unsigned 8-bit integer',
     ]);
     expect(() => assertValidMathFacet(bad)).toThrow('math: modulus 0 is not a positive integer');
+  });
+});
+
+describe('validateMathFacet: kind (M6 review gap)', () => {
+  it('rejects a facet of another kind', () => {
+    const wrong = { ...facet([mathStep(0)]), kind: 'field' } as unknown as Parameters<typeof validateMathFacet>[0];
+    expect(validateMathFacet(wrong)).toEqual(['math: kind field is not "math"']);
+  });
+});
+
+describe('mathStepAt is latestStepAt over the steps', () => {
+  it('agrees with latestStepAt for every playhead', () => {
+    const sparse = facet([mathStep(-1), mathStep(2), mathStep(5)]);
+    for (let playhead = -3; playhead <= 7; playhead++) expect(mathStepAt(sparse, playhead)).toBe(latestStepAt(sparse.steps, playhead));
   });
 });

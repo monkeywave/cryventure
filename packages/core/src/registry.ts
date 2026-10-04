@@ -95,6 +95,14 @@ export interface PrimitiveManifest<P = unknown> {
    * `{ keyHex, plaintextHex: blockHex, detail: 'op' }`). The mode views "zoom" into that lab; without it, they don't.
    */
   blockLabParams?(keyHex: string, blockHex: string): Record<string, string>;
+  /**
+   * Optional (additive, `Hash` producers): params of this producer's own lab hashing `messageHex`
+   * (the message bytes as hex) with `functionId`, one of its `Hash` port's fixed-length function
+   * ids, or `undefined` when the lab cannot (message longer than the lab's limit, function not
+   * offered there, e.g. an XOF). Composites link their hash calls with it (e.g. `hmac`'s zooms) and the
+   * contract kit cross-checks the port against the lab through it, without knowing the param names.
+   */
+  hashLabParams?(functionId: string, messageHex: string): Record<string, string> | undefined;
 }
 
 export type Lens = 'story' | 'engineer' | 'cryptographer';

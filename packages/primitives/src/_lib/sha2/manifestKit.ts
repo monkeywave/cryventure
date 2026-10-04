@@ -1,5 +1,5 @@
 import { opLabels, readOption, type ParamField, type Preset, type ValidationResult } from '@cryventure/core';
-import { HASH_ENCODINGS, paramError, readMessageInput, selectField, type HashEncoding } from '../hashKit/manifestKit.ts';
+import { HASH_ENCODINGS, hashLabParamsFor, messageField, paramError, readMessageInput, selectField, type HashEncoding, type HashLabParams } from '../hashKit/manifestKit.ts';
 
 /**
  * The manifest parts the SHA-2 producers (`sha256`, `sha512`) share: message encodings, detail
@@ -61,7 +61,7 @@ export function sha2ParamFields(ns: string, algorithmIds: readonly string[]): Pa
   return [
     selectField(ns, 'algorithm', algorithmIds),
     selectField(ns, 'encoding', SHA2_ENCODINGS),
-    { name: 'input', kind: 'text', labelKey: `${ns}.param.input`, hintKey: `${ns}.param.inputHint`, maxLength: SHA2_MAX_MESSAGE_BYTES },
+    messageField(ns, SHA2_MAX_MESSAGE_BYTES),
     selectField(ns, 'detail', SHA2_DETAILS),
   ];
 }
@@ -72,4 +72,9 @@ export const sha2Ops = (ns: string) => opLabels(ns, SHA2_OP_NAMES);
 /** A UTF-8 preset labelled `<ns>.preset.<id>`. */
 export function sha2Preset<A extends string>(ns: string, id: string, algorithm: A, input: string, detail: Sha2Detail = 'round'): Preset<Sha2HashParams<A>> {
   return { id, labelKey: `${ns}.preset.${id}`, params: { algorithm, encoding: 'utf8', input, detail } };
+}
+
+/** `hashLabParams` of a SHA-2 lab: `functionIds` (its `Hash` port functions) at `round` detail, hex messages of at most 128 bytes. */
+export function sha2HashLabParams(functionIds: readonly string[]): HashLabParams {
+  return hashLabParamsFor(functionIds, SHA2_MAX_MESSAGE_BYTES, (algorithm, input) => ({ algorithm, encoding: 'hex', input, detail: 'round' }));
 }

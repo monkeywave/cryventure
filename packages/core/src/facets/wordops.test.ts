@@ -314,3 +314,20 @@ describe('validateWordopsFacet: schema v2', () => {
     expect(validateWordopsFacet(facet)).toEqual([]);
   });
 });
+
+describe('validateWordopsFacet: M6 review gaps', () => {
+  it('rejects a facet of another kind', () => {
+    expect(validateWordopsFacet({ ...validFacet(), kind: 'sponge' })).toEqual(['wordops: kind sponge is not "wordops"']);
+  });
+
+  it('rejects stepCount NaN instead of accepting every step', () => {
+    expect(validateWordopsFacet(validFacet(), Number.NaN)).toEqual(['wordops: stepCount NaN is not a non-negative integer']);
+  });
+
+  it('rejects a transfer source with both register and term', () => {
+    const facet = withV2Step((step) => {
+      step.registers!.transfers![1] = { to: 2, from: { register: 3, term: 'a1' } as unknown as { register: number } };
+    });
+    expect(validateWordopsFacet(facet)).toEqual(['wordops step 0: registers.transfers[1]: from has both register and term']);
+  });
+});

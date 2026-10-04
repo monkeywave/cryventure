@@ -1,6 +1,6 @@
 import type { I18nRef } from '../i18n.ts';
 import { alignShapeIssues, type AlignSpan } from './align.ts';
-import { isIndex, isStepIndex } from './validation.ts';
+import { isIndex, isStepIndex, kindProblems } from './validation.ts';
 
 /**
  * Memory facet: allocations of one target + implementation, with their C layouts and the writes
@@ -215,6 +215,8 @@ function writeIssues(facet: MemoryFacet, ranges: AddressRange[]): string[] {
  * their allocation, writes inside one allocation, monotonic write spans.
  */
 export function validateMemoryFacet(facet: MemoryFacet): string[] {
+  const wrongKind = kindProblems(facet, 'memory');
+  if (wrongKind.length > 0) return wrongKind;
   const ranges = allocationRanges(facet);
   return [
     ...targetIssues(facet.target),

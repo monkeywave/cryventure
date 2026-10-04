@@ -1,5 +1,5 @@
 import { opLabels, parseHexOfLength, readOption, type ParamField, type ValidationResult } from '@cryventure/core';
-import { HASH_ENCODINGS, messageLengths, paramError, readMessageInput, selectField, type HashEncoding } from '../hashKit/manifestKit.ts';
+import { HASH_ENCODINGS, hashLabParamsFor, messageField, messageLengths, paramError, readMessageInput, selectField, type HashEncoding, type HashLabParams } from '../hashKit/manifestKit.ts';
 
 /**
  * The eagerly loaded manifest parts of the `blake2` producer (docs/M6.md §2d): the eight RFC 7693 §4
@@ -90,7 +90,7 @@ export function blake2ParamFields(ns: string): ParamField[] {
   return [
     selectField(ns, 'algorithm', BLAKE2_IDS),
     selectField(ns, 'encoding', BLAKE2_ENCODINGS),
-    { name: 'input', kind: 'text', labelKey: `${ns}.param.input`, hintKey: `${ns}.param.inputHint`, maxLength: BLAKE2_MAX_MESSAGE_BYTES },
+    messageField(ns, BLAKE2_MAX_MESSAGE_BYTES),
     { name: 'key', kind: 'hex', labelKey: `${ns}.param.key`, hintKey: `${ns}.param.keyHint` },
     selectField(ns, 'detail', BLAKE2_DETAILS),
   ];
@@ -98,3 +98,6 @@ export function blake2ParamFields(ns: string): ParamField[] {
 
 /** `<ns>.op.<name>` / `<ns>.opShort.<name>` for every recorded op. */
 export const blake2Ops = (ns: string) => opLabels(ns, BLAKE2_OP_NAMES);
+
+/** `hashLabParams` of the BLAKE2 lab: the eight unkeyed functions at `g` detail, hex messages of at most 128 bytes. */
+export const blake2HashLabParams: HashLabParams = hashLabParamsFor(BLAKE2_IDS, BLAKE2_MAX_MESSAGE_BYTES, (algorithm, input) => ({ algorithm, encoding: 'hex', input, key: '', detail: 'g' }));
