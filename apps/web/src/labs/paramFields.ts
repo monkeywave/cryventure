@@ -1,4 +1,4 @@
-import { optionLabelKey, parseHex, portOptions, utf8Bytes, type ParamField, type PrimitiveManifest, type ValidationResult } from '@cryventure/core';
+import { optionLabelKey, portOptions, type ParamField, type PrimitiveManifest, type ValidationResult } from '@cryventure/core';
 import type { LabParams } from './labSession.ts';
 
 /** Generic hint for hex fields whose producer declares none. */
@@ -32,32 +32,4 @@ export function choiceLabelKey(field: ParamField, value: unknown, producers: rea
   if (field.kind === 'select') return optionLabelKey(field, value);
   if (field.kind !== 'port' || field.port === undefined) return undefined;
   return portOptions(producers, field.port).find((option) => option.value === value)?.labelKey;
-}
-
-/**
- * The param that switches a producer's message field between UTF-8 and hex (docs/EXTENDING.md "Text
- * params"): while it is `'hex'`, the `input` field's `maxLength` counts the decoded bytes, as the producer validates them.
- */
-export const TEXT_ENCODING_PARAM = 'encoding';
-
-/** The one text field (the message) that `encoding` switches to hex; every other text field stays UTF-8 (e.g. cSHAKE N and S). */
-export const HEX_TEXT_FIELD = 'input';
-
-/** How a `text` field's draft measures against `maxLength`; `bytes` is `undefined` for text that is not hex. */
-export interface TextLength {
-  unit: 'utf8' | 'hex';
-  bytes: number | undefined;
-}
-
-/**
- * The bytes the text of field `name` stands for: hex-decoded (complete bytes only) when the field is
- * `input` and `params.encoding` is `'hex'`, else UTF-8. The contract kit mirrors this rule
- * (`textFieldProblems` in packages/tools/src/contracts/portChecks.ts).
- */
-export function textFieldLength(name: string, text: string, params: Readonly<Record<string, unknown>>): TextLength {
-  if (name !== HEX_TEXT_FIELD || params[TEXT_ENCODING_PARAM] !== 'hex') return { unit: 'utf8', bytes: utf8Bytes(text).length };
-  const parsed = parseHex(text);
-  if (parsed.ok) return { unit: 'hex', bytes: parsed.bytes.length };
-  const digits = parsed.error.key === 'core.error.hexOddLength' ? parsed.error.params?.['length'] : undefined;
-  return { unit: 'hex', bytes: typeof digits === 'number' ? Math.floor(digits / 2) : undefined };
 }

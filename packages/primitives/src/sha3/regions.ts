@@ -1,4 +1,4 @@
-import { zeroSnapshot, type RegionSpec, type Snapshot } from '@cryventure/core';
+import type { RegionSpec } from '@cryventure/core';
 import { KECCAK_LANE_BYTES, KECCAK_STATE_BYTES, KECCAK_WIDTH } from '../_lib/keccak/constants.ts';
 
 /**
@@ -24,9 +24,3 @@ export function sha3Regions(messageBytes: number, paddedBytes: number, outputByt
   ];
 }
 
-/** The initial snapshot: the message, the all-zero state (S = 0^b), the rest blank. */
-export function sha3InitialSnapshot(regions: readonly RegionSpec<Sha3Region>[], message: readonly number[]): Snapshot<Sha3Region> {
-  const initial: Record<string, readonly number[]> = { ...zeroSnapshot(regions) };
-  if (message.length > 0) initial['message'] = [...message];
-  return initial as unknown as Snapshot<Sha3Region>;
-}

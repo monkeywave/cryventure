@@ -158,6 +158,25 @@ export function parseMemOperand(operand: string): MemOperand | undefined {
     : { base: match[1], offset: signedOffset(match[2], match[3]) };
 }
 
+/** `d8`, `q8`, `v8.16b` and `v8.2d` name the same 128-bit register `v8`. */
+const ARM_SIMD = /^[dqv](\d+)(?:\.\w+)?$/;
+
+/**
+ * Canonical name `v<n>` of an AArch64 SIMD operand (`d`, `q` or `v` view), or `undefined`. The one
+ * AArch64 register canonicaliser: the listing generator (`@cryventure/tools`) uses it too.
+ */
+export function armSimdRegister(operand: string): string | undefined {
+  const match = ARM_SIMD.exec(operand);
+  return match === null ? undefined : `v${match[1]}`;
+}
+
+/** An AArch64 immediate operand, `#8` or `# 8` → 8; throws for anything else. */
+export function armImmediate(text: string): number {
+  const match = /^#\s*(\d+)$/.exec(text.trim());
+  if (match === null) throw new Error(`"${text}" is not an immediate`);
+  return Number(match[1]);
+}
+
 /** The listing for Nr rounds; throws when the deriver ships none. */
 export function listingForRounds(
   listings: Readonly<Record<number, Listing>>,

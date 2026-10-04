@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { MD5_ALGORITHM } from './md5Detail.ts';
-import { legacyInitialSnapshot, legacyRegions, legacyWordsLayout } from './regions.ts';
+import { initialSnapshot } from '../sha2/regions.ts';
+import { legacyRegions, legacyWordsLayout } from './regions.ts';
 import { SHA1_ALGORITHM } from './sha1Detail.ts';
 
 const NS = 'plugin.test';
@@ -31,7 +32,7 @@ describe('legacy-md regions', () => {
 
   it('starts with the message and every other region zero', () => {
     const regions = legacyRegions(NS, MD5_ALGORITHM, 2, 64);
-    const initial = legacyInitialSnapshot(regions, [0x61, 0x62]);
+    const initial = initialSnapshot(regions, { message: [0x61, 0x62] });
     expect(initial.message).toEqual([0x61, 0x62]);
     expect(initial.padded).toEqual(new Array(64).fill(0));
   });

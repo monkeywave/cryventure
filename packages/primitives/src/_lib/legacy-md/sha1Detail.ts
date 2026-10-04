@@ -1,6 +1,6 @@
 import type { LegacyAlgorithm, LegacyBlock, LegacyEvent, LegacyRound, LegacySchedule } from './algorithm.ts';
 import { SHA1_FUNCTIONS, SHA1_IV, SHA1_OUTPUT_BYTES, SHA1_ROUNDS, sha1Digest, sha1Padding, sha1RoundConstants, sha1Schedule, type Sha1FunctionName } from './sha1.ts';
-import { add32, hex32, rotl32 } from './words.ts';
+import { WORD32 } from '../sha2/words.ts';
 
 /**
  * The SHA-1 compression function with every intermediate value kept (FIPS 180-4 §6.1.2), for the
@@ -32,7 +32,7 @@ export function sha1ScheduleEvent(t: number, w: readonly number[]): LegacySchedu
       { id: 'xor', label: 'xor', word: xor, role: 'intermediate', op: 'xor', params: { t3: t - 3, t8: t - 8, t14: t - 14, t16: t - 16 } },
       { id: 'w', label: 'w', word: w[t]!, role: 'result', op: 'rotl', params: { t } },
     ],
-    narration: { ...indices, w3: hex32(w3), w8: hex32(w8), w14: hex32(w14), w16: hex32(w16), xor: hex32(xor), w: hex32(w[t]!) },
+    narration: { ...indices, w3: WORD32.toHex(w3), w8: WORD32.toHex(w8), w14: WORD32.toHex(w14), w16: WORD32.toHex(w16), xor: WORD32.toHex(xor), w: WORD32.toHex(w[t]!) },
     formula: indices,
   };
 }
@@ -41,10 +41,10 @@ export function sha1ScheduleEvent(t: number, w: readonly number[]): LegacySchedu
 export function sha1Round(t: number, before: readonly number[], wt: number): LegacyRound {
   const { fn, k } = sha1RoundConstants(t);
   const [a, b, c, d, e] = before as [number, number, number, number, number];
-  const rotl5 = rotl32(a, 5);
+  const rotl5 = WORD32.rotl(a, 5);
   const f = SHA1_FUNCTIONS[fn](b, c, d);
-  const T = add32(rotl5, f, e, k, wt);
-  const rotl30 = rotl32(b, 30);
+  const T = WORD32.add(rotl5, f, e, k, wt);
+  const rotl30 = WORD32.rotl(b, 30);
   return {
     kind: 'round',
     t,
@@ -67,7 +67,7 @@ export function sha1Round(t: number, before: readonly number[], wt: number): Leg
       { to: D, from: { register: C } },
       { to: E, from: { register: D } },
     ],
-    narration: { t, fn: FUNCTION_NAMES[fn], rotl5: hex32(rotl5), f: hex32(f), e: hex32(e), k: hex32(k), w: hex32(wt), T: hex32(T), c: hex32(rotl30) },
+    narration: { t, fn: FUNCTION_NAMES[fn], rotl5: WORD32.toHex(rotl5), f: WORD32.toHex(f), e: WORD32.toHex(e), k: WORD32.toHex(k), w: WORD32.toHex(wt), T: WORD32.toHex(T), c: WORD32.toHex(rotl30) },
     formula: { t, fn: FUNCTION_NAMES[fn] },
   };
 }
@@ -83,7 +83,7 @@ export function sha1CompressDetailed(h: readonly number[], block: Uint8Array): L
     events.push(round);
     vars = round.after;
   }
-  return { hIn: [...h], words: w, events, vars, hOut: h.map((word, j) => add32(word, vars[j]!)) };
+  return { hIn: [...h], words: w, events, vars, hOut: h.map((word, j) => WORD32.add(word, vars[j]!)) };
 }
 
 export const SHA1_ALGORITHM: LegacyAlgorithm = {

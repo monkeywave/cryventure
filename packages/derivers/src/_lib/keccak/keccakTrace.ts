@@ -34,12 +34,13 @@ export interface KeccakPermutation {
 
 export interface KeccakTrace {
   sponge: SpongeFacet;
-  stepCount: number;
   rhoOffsets: readonly number[];
   piSource: readonly number[];
   permutations: KeccakPermutation[];
   /** The sponge step recorded at a state step. */
   byStep: ReadonlyMap<number, SpongeStep>;
+  /** Bytes of the values the walk has read so far, by `describeValue` (filled by `valueBytes`). */
+  valueBytes: Map<string, readonly number[]>;
 }
 
 const fail = (message: string): Error => traceContractError(KECCAK_CONTRACT, message);
@@ -139,10 +140,10 @@ function readKeccakTrace(bundle: TraceBundle): KeccakTrace {
   if (lastStep >= stepCount) throw fail(`sponge step ${lastStep} beyond ${stepCount} state steps`);
   return {
     sponge,
-    stepCount,
     ...checkShape(sponge),
     permutations: readPermutations(sponge),
     byStep: new Map(sponge.steps.map((step) => [step.step, step])),
+    valueBytes: new Map(),
   };
 }
 
@@ -156,9 +157,11 @@ export function spongeStepAt(trace: Pick<KeccakTrace, 'byStep'>, step: number): 
   return found;
 }
 
+/** Column `x` taken mod 5 into 0 … 4 (x − 1 and x + 1 wrap around). */
+export const wrapColumn = (x: number): number => ((x % KECCAK_WIDTH) + KECCAK_WIDTH) % KECCAK_WIDTH;
+
 /** Lane (x, y) → index x + 5y. */
-export const laneIndex = (x: number, y: number): number =>
-  (((x % KECCAK_WIDTH) + KECCAK_WIDTH) % KECCAK_WIDTH) + KECCAK_WIDTH * y;
+export const laneIndex = (x: number, y: number): number => wrapColumn(x) + KECCAK_WIDTH * y;
 
 /** Index → lane (x, y). */
 export const laneXY = (lane: number): { x: number; y: number } => ({

@@ -8,12 +8,14 @@ import {
 } from '@cryventure/core';
 import {
   buildInstruction,
-  isaFacetPair,
-  listingError,
+  listingFacetPair,
+  namingErrors,
+  recordInstruction,
   registerWrite,
-  vectorRegisterSpecs,
-  type IsaVariant,
-  type IsaWalk,
+  semanticsOf,
+  VECTOR_128_LE,
+  type RunningIsaWalk,
+  type VectorIsa,
 } from '../isaFacets.ts';
 import { INITIAL_SPAN } from '../isaSpans.ts';
 import type { ShaListing, ShaListingInstruction } from '../listing.ts';
@@ -40,6 +42,8 @@ export interface ShaEffects {
   reads: OperandRef[];
   writes: OperandRef[];
   written: { reg: string; lanes: Lanes; valueRef?: string }[];
+  /** A note the dataflow decides (e.g. an untraced partial sum), in place of the listing's note. */
+  note?: I18nRef;
 }
 
 /** What an ISA profile's semantics see while the listing runs over one block. */
@@ -65,7 +69,7 @@ export interface ShaMachine {
 export type ShaSemantics = (instruction: ShaListingInstruction, machine: ShaMachine) => ShaEffects;
 
 /** A SHA ISA deriver: its names, its listing, and the semantics of its instructions on lane words. */
-export interface ShaIsaProfile extends IsaVariant {
+export interface ShaIsaProfile extends VectorIsa {
   /** Lane widths the vector registers offer, e.g. [8, 16, 32, 64]. */
   lanes: number[];
   registerBits: number;
@@ -79,8 +83,6 @@ export interface ShaIsaProfile extends IsaVariant {
   listing: ShaListing;
   /** Rounds per round instruction: 2 (`sha256rnds2`, `sha512h`/`sha512h2`), 4 (`sha256h`/`sha256h2`). */
   roundsPerInstruction: number;
-  /** Canonical vector register name of an operand (`q1`, `v1.4s` → `v1`), or `undefined`. */
-  vectorRegister(operand: string): string | undefined;
   /** The semantics of each mnemonic the listing uses. */
   semantics: Readonly<Record<string, ShaSemantics>>;
   /** An optional note on the instruction at `index`, given where the listing's rounds sit. */
@@ -95,12 +97,7 @@ export interface ShaIsaProfile extends IsaVariant {
 export const SHA256_VECTOR_DEFAULTS: Pick<
   ShaIsaProfile,
   'byteOrder' | 'lanes' | 'registerBits' | 'wordBits'
-> = {
-  byteOrder: 'little',
-  lanes: [8, 16, 32, 64],
-  registerBits: 128,
-  wordBits: 32,
-};
+> = { ...VECTOR_128_LE, wordBits: 32 };
 
 /** SHA-2 words per vector register: 4 (SHA-256 on 128 bits) or 2 (SHA-512). */
 export function wordsPerRegister(
@@ -159,9 +156,7 @@ export function shaExecute(
   instruction: ShaListingInstruction,
   machine: ShaMachine,
 ): ShaEffects {
-  const semantics = profile.semantics[instruction.mnemonic];
-  if (semantics === undefined) throw new Error('no semantics for this mnemonic');
-  return semantics(instruction, machine);
+  return semanticsOf(profile.semantics, instruction.mnemonic)(instruction, machine);
 }
 
 /** Static per-listing data, shared by every block. */
@@ -179,19 +174,6 @@ function planListing(profile: ShaIsaProfile): ListingPlan {
     covers: instructions.map((instruction) => shaCovers(profile, instruction)),
     notes: instructions.map((_, index) => profile.note?.(instructions, index, shape)),
   };
-}
-
-/** Runs the profile's semantics, naming the instruction in any error they throw. */
-function execute(
-  profile: ShaIsaProfile,
-  listed: ShaListingInstruction,
-  machine: ShaMachine,
-): ShaEffects {
-  try {
-    return shaExecute(profile, listed, machine);
-  } catch (error) {
-    throw listingError(listed, error);
-  }
 }
 
 /** The spans of block `blockIndex` after the span before it (§5c). */
@@ -225,26 +207,27 @@ function walkBlock(
   profile: ShaIsaProfile,
   plan: ListingPlan,
   blockIndex: number,
-  walk: IsaWalk & { previous: AlignSpan },
+  walk: RunningIsaWalk,
 ): void {
   const context: ShaBlockContext = { trace, block: trace.blocks[blockIndex]! };
   const spans = spansOfBlock(trace, profile, plan.shape, blockIndex, walk.previous);
   const registers = new ShaRegisterFile();
-  const chainIn = chainingValueId(trace, blockIndex);
-  const chainOut = chainingValueId(trace, blockIndex + 1);
-  const listing = profile.listing.instructions;
-  listing.forEach((listed, index) => {
-    const align = spans[index]!;
-    const nextRound = plan.shape.nextRound[index];
-    const { wordBytes, rounds } = trace;
-    const machine = { registers, nextRound, chainIn, chainOut, listing, index, wordBytes, rounds };
-    const effects = execute(profile, listed, machine);
+  const block = {
+    registers,
+    chainIn: chainingValueId(trace, blockIndex),
+    chainOut: chainingValueId(trace, blockIndex + 1),
+    listing: profile.listing.instructions,
+    wordBytes: trace.wordBytes,
+    rounds: trace.rounds,
+  };
+  block.listing.forEach((listed, index) => {
+    const machine: ShaMachine = { ...block, nextRound: plan.shape.nextRound[index], index };
+    const effects = namingErrors(listed, () => shaExecute(profile, listed, machine));
     effects.written.forEach(({ reg, lanes }) => registers.write(reg, lanes));
-    walk.instructions.push(
-      buildInstruction(listed, align, effects, plan.covers[index]!, plan.notes[index]),
-    );
-    if (effects.written.length > 0)
-      walk.steps.push({ align, writes: tracedWrites(context, effects) });
+    const note = effects.note ?? plan.notes[index];
+    const instruction = buildInstruction(listed, spans[index]!, effects, plan.covers[index]!, note);
+    const wrote = effects.written.length > 0;
+    recordInstruction(walk, instruction, wrote ? tracedWrites(context, effects) : undefined);
   });
   walk.previous = spans.at(-1) ?? walk.previous;
 }
@@ -282,16 +265,7 @@ export function deriveShaIsaFacets(
   const trace = shaTrace(bundle);
   checkWordSize(trace, profile);
   const plan = planListing(profile);
-  const walk = { instructions: [], steps: [], previous: INITIAL_SPAN };
+  const walk: RunningIsaWalk = { instructions: [], steps: [], previous: INITIAL_SPAN };
   trace.blocks.forEach((_, blockIndex) => walkBlock(trace, profile, plan, blockIndex, walk));
-  const names = profile.listing.instructions.flatMap((instruction) =>
-    instruction.operands.flatMap((operand) => profile.vectorRegister(operand) ?? []),
-  );
-  const facets = isaFacetPair(
-    profile,
-    profile.listing,
-    { instructions: walk.instructions, steps: walk.steps },
-    vectorRegisterSpecs(names, profile.registerBits, profile.lanes),
-  );
-  return relabelled(facets, profile);
+  return relabelled(listingFacetPair(profile, profile.listing, walk), profile);
 }

@@ -297,6 +297,7 @@
   border-radius: 0.125rem;
 }
 
+/* 30rem = 5 × --cv-sponge-lane (5rem) + the 2.5rem row heads + gaps, rounded up: change them together. */
 @container (max-width: 30rem) {
   .cv-sponge__arrows {
     display: none;

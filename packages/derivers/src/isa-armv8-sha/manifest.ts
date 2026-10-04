@@ -1,6 +1,5 @@
 import { defineDeriver } from '@cryventure/core';
-import { isSha256RoundBundle } from '../_lib/applicability.ts';
-import { isSha512RoundBundle } from '../_lib/sha/manifestKit.ts';
+import { isSha256RoundBundle, isSha512RoundBundle } from '../_lib/applicability.ts';
 
 /**
  * AArch64 ARMv8 SHA2 (FEAT_SHA256) listing of the SHA-256 compression function (docs/M5.md §5):

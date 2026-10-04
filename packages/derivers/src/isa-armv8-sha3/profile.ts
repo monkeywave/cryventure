@@ -1,14 +1,15 @@
 import type { I18nRef } from '@cryventure/core';
-import { memoryOperand, registerOperand } from '../_lib/isaFacets.ts';
+import { memoryOperand, registerOperand, VECTOR_128_LE } from '../_lib/isaFacets.ts';
 import {
   NO_EFFECTS,
   requiredRound,
+  roundSteps,
   type KeccakEffects,
   type KeccakIsaProfile,
   type KeccakMachine,
   type KeccakSemantics,
 } from '../_lib/keccak/keccakDerivation.ts';
-import { KECCAK_LANE_BYTES, KECCAK_WIDTH, laneIndex, laneXY } from '../_lib/keccak/keccakTrace.ts';
+import { KECCAK_LANE_BYTES, laneIndex, laneXY, wrapColumn } from '../_lib/keccak/keccakTrace.ts';
 import {
   expectValue,
   expectValueSet,
@@ -19,10 +20,12 @@ import {
   type KeccakValue,
 } from '../_lib/keccak/keccakValues.ts';
 import {
-  parseMemOperand,
+  armImmediate,
+  armSimdRegister,
   type KeccakListing,
   type KeccakListingInstruction,
 } from '../_lib/listing.ts';
+import { operand, requiredMemOperand, vectorOperandReader } from '../_lib/sha/shaOperands.ts';
 import keccak from './data/keccak.json';
 
 /**
@@ -43,26 +46,7 @@ const DERIVER_ID = 'isa-armv8-sha3';
 const NS = `deriver.${DERIVER_ID}`;
 const Q_BYTES = 16;
 
-/** `d8`, `q8`, `v8.16b` and `v8.2d` name the same 128-bit register `v8`. */
-const ARM_SIMD = /^[dqv](\d+)(?:\.\w+)?$/;
-
-/** Canonical name `v<n>` of an AArch64 SIMD operand (`d`, `q` or `v`), or `undefined`. */
-export function armSimdRegister(operand: string): string | undefined {
-  const match = ARM_SIMD.exec(operand);
-  return match === null ? undefined : `v${match[1]}`;
-}
-
-function operand(instruction: KeccakListingInstruction, index: number): string {
-  const text = instruction.operands[index];
-  if (text === undefined) throw new Error(`no operand ${index}`);
-  return text;
-}
-
-function register(instruction: KeccakListingInstruction, index: number): string {
-  const name = armSimdRegister(operand(instruction, index));
-  if (name === undefined) throw new Error(`operand ${index} is not a vector register`);
-  return name;
-}
+const register = vectorOperandReader(armSimdRegister, 'a vector register');
 
 /** Bytes a `d` (8) or `q` (16) register operand moves. */
 function accessBytes(instruction: KeccakListingInstruction, index: number): number {
@@ -72,15 +56,9 @@ function accessBytes(instruction: KeccakListingInstruction, index: number): numb
   throw new Error(`operand ${index} is neither a d nor a q register`);
 }
 
-function memOperand(instruction: KeccakListingInstruction, index: number) {
-  const parsed = parseMemOperand(operand(instruction, index));
-  if (parsed === undefined) throw new Error(`operand ${index} is not a memory operand`);
-  return parsed;
-}
-
 /** The registers and memory accesses of a load/store of `count` registers (`ldr`/`str` 1, `ldp`/`stp` 2). */
 function accesses(instruction: KeccakListingInstruction, count: number) {
-  const address = memOperand(instruction, count);
+  const address = requiredMemOperand(operand(instruction, count));
   const size = accessBytes(instruction, 0);
   return Array.from({ length: count }, (_, index) => {
     const offset = address.offset + index * size;
@@ -204,7 +182,7 @@ function loadRoundConstant(
   const base = RC_OPERAND.exec(operand(instruction, 1))?.[1];
   if (base === undefined) throw new Error('the RC load is not [table, offset]');
   const target = register(instruction, 0);
-  const iota = machine.permutation.rounds[round]!.iota;
+  const { iota } = roundSteps(machine);
   return {
     reads: [memoryOperand({ base, offset: round * KECCAK_LANE_BYTES }, KECCAK_LANE_BYTES)],
     writes: [registerOperand(target)],
@@ -288,9 +266,9 @@ const thetaValue = (
   x: number,
 ): KeccakValue => ({
   kind: 'theta',
-  step: machine.permutation.rounds[requiredRound(machine)]!.theta.step,
+  step: roundSteps(machine).theta.step,
   part,
-  x: ((x % KECCAK_WIDTH) + KECCAK_WIDTH) % KECCAK_WIDTH,
+  x: wrapColumn(x),
 });
 
 /** Lane `lane` at the start of this round. */
@@ -321,17 +299,13 @@ function thetaD(instruction: KeccakListingInstruction, machine: KeccakMachine): 
 
 /** The ρ-step value of the lane π moves to `lane` (FIPS 202: π's B[x, y] is the rotated A[x + 3y, x]). */
 function rhoOf(machine: KeccakMachine, lane: number): KeccakValue {
-  const rho = machine.permutation.rounds[requiredRound(machine)]!.rho;
+  const { rho } = roundSteps(machine);
   return { kind: 'lane', step: rho.step, lane: machine.trace.piSource[lane]! };
 }
 
 /** The `#imm` of `xar`. */
-function immediate(instruction: KeccakListingInstruction): number {
-  const text = operand(instruction, 3);
-  const match = /^#(\d+)$/.exec(text);
-  if (match === null) throw new Error(`no rotation immediate in operand "${text}"`);
-  return Number(match[1]);
-}
+const immediate = (instruction: KeccakListingInstruction): number =>
+  armImmediate(operand(instruction, 3));
 
 /**
  * `xar Vd, Vn, Vm, #imm` (thetaRhoPi): ROR(lane ⊕ D[x], imm) with imm = (64 − ρ offset) mod 64, the
@@ -361,14 +335,14 @@ function chi(instruction: KeccakListingInstruction, machine: KeccakMachine): Kec
       `${register(instruction, index + 1)}`,
     ),
   );
-  const step = machine.permutation.rounds[requiredRound(machine)]!.chi.step;
+  const { step } = roundSteps(machine).chi;
   return laneResult(lanes, { kind: 'lane', step, lane });
 }
 
 /** `eor vD, vN, vM` (iota): lane (0, 0) after χ ⊕ RC → the ι-step lane 0. */
 function iota(instruction: KeccakListingInstruction, machine: KeccakMachine): KeccakEffects {
   if (instruction.role !== 'iota') throw new Error('only ι uses a plain eor');
-  const { chi: chiStep, iota: iotaStep } = machine.permutation.rounds[requiredRound(machine)]!;
+  const { chi: chiStep, iota: iotaStep } = roundSteps(machine);
   const lanes = laneOperands(instruction, machine, 3);
   const expected: KeccakValue[] = [
     { kind: 'lane', step: chiStep.step, lane: 0 },
@@ -460,9 +434,7 @@ export const ARMV8_SHA3_PROFILE: KeccakIsaProfile = {
   isa: 'aarch64',
   extension: 'armv8.2-sha3',
   syntax: 'arm',
-  byteOrder: 'little',
-  lanes: [8, 16, 32, 64],
-  registerBits: 128,
+  ...VECTOR_128_LE,
   listing: keccak as KeccakListing,
   vectorRegister: armSimdRegister,
   semantics: SEMANTICS,

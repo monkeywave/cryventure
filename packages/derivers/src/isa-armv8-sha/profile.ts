@@ -113,12 +113,18 @@ export function storePair(instruction: ShaListingInstruction, machine: ShaMachin
   };
 }
 
+/** The vector register operand `index` of an instruction names, or `undefined`. */
+export const operandRegister = (
+  instruction: ShaListingInstruction | undefined,
+  index: number,
+): string | undefined => armVectorRegister(instruction?.operands[index] ?? '');
+
 /** The first instruction after `index` that names the register instruction `index` writes, and where. */
 function nextUseOfResult(
   instructions: readonly ShaListingInstruction[],
   index: number,
 ): { at: number; instruction: ShaListingInstruction } | undefined {
-  const reg = armVectorRegister(instructions[index]?.operands[0] ?? '');
+  const reg = operandRegister(instructions[index], 0);
   const at = instructions.findIndex(
     (next, position) =>
       position > index && next.operands.some((text) => armVectorRegister(text) === reg),
@@ -138,11 +144,9 @@ function literalRound(
   const add = nextUseOfResult(instructions, index);
   if (add?.instruction.mnemonic !== 'add') return undefined;
   const consumer = nextUseOfResult(instructions, add.at)?.instruction;
-  const sum = armVectorRegister(add.instruction.operands[0] ?? '');
+  const sum = operandRegister(add.instruction, 0);
   const feedsRound =
-    consumer !== undefined &&
-    isRoundInstruction(consumer) &&
-    armVectorRegister(consumer.operands[2] ?? '') === sum;
+    consumer !== undefined && isRoundInstruction(consumer) && operandRegister(consumer, 2) === sum;
   return feedsRound ? consumer.round : undefined;
 }
 
@@ -197,21 +201,24 @@ export function byteSwap(instruction: ShaListingInstruction, machine: ShaMachine
   };
 }
 
-/** `add vD.4s, vN.4s, vM.4s`: lane sums the trace records (K+W, the feed-forward). */
-export function addWords(instruction: ShaListingInstruction, machine: ShaMachine): ShaEffects {
-  const target = register(instruction, 0);
-  const [left, right] = [register(instruction, 1), register(instruction, 2)];
-  const lanes = sumLanes(
-    machine.registers.read(left),
-    machine.registers.read(right),
-    machine.rounds,
-  );
-  return {
-    reads: [registerOperand(left), registerOperand(right)],
-    writes: [registerOperand(target)],
-    written: written(target, lanes),
+/** `add vD, vN, vM` whose lanes are `sum` of vN's and vM's lanes. */
+export function laneAddition(
+  sum: (left: Lanes, right: Lanes, rounds: number) => Lanes,
+): ShaSemantics {
+  return (instruction, machine) => {
+    const target = register(instruction, 0);
+    const [left, right] = [register(instruction, 1), register(instruction, 2)];
+    const lanes = sum(machine.registers.read(left), machine.registers.read(right), machine.rounds);
+    return {
+      reads: [registerOperand(left), registerOperand(right)],
+      writes: [registerOperand(target)],
+      written: written(target, lanes),
+    };
   };
 }
+
+/** `add vD.4s, vN.4s, vM.4s`: lane sums the trace records (K+W, the feed-forward). */
+export const addWords = laneAddition(sumLanes);
 
 /** K+W of rounds t … t+3 in `Vm` (operand 2) of a round instruction. */
 function expectRoundInput(instruction: ShaListingInstruction, wk: Lanes, t: number): void {
@@ -304,16 +311,14 @@ const SEMANTICS: Readonly<Record<string, ShaSemantics>> = {
 };
 
 /** The next round instruction after `index` that writes register `target`, if any. */
-function nextRoundWriting(
+export function nextRoundWriting(
   instructions: readonly ShaListingInstruction[],
   index: number,
   target: string,
 ): ShaListingInstruction | undefined {
   return instructions
     .slice(index + 1)
-    .find(
-      (next) => isRoundInstruction(next) && armVectorRegister(next.operands[0] ?? '') === target,
-    );
+    .find((next) => isRoundInstruction(next) && operandRegister(next, 0) === target);
 }
 
 /** A `mov` that sets up the destination of the next `sha256h` (the ABCD copy) or `sha256h2` (the EFGH copy). */
@@ -321,7 +326,7 @@ function copyNote(
   instructions: readonly ShaListingInstruction[],
   index: number,
 ): I18nRef | undefined {
-  const target = armVectorRegister(instructions[index]!.operands[0] ?? '');
+  const target = operandRegister(instructions[index], 0);
   if (target === undefined) return undefined;
   const consumer = nextRoundWriting(instructions, index, target);
   if (consumer?.mnemonic === 'sha256h') return { key: `${NS}.note.copyAbcd` };

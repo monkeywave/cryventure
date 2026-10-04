@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest';
 import type { LegacyAlgorithm } from './algorithm.ts';
 import type { LegacyDetail } from './manifestKit.ts';
 import { MD5_ALGORITHM } from './md5Detail.ts';
-import { legacyMessageBytes, recordLegacy } from './record.ts';
+import { recordLegacy } from './record.ts';
 import { SHA1_ALGORITHM } from './sha1Detail.ts';
 
 const NS = 'plugin.test';
@@ -14,14 +14,6 @@ function record(algorithm: LegacyAlgorithm, text: string, detail: LegacyDetail =
   const { state, values, wordops } = recording.facets as { state: AnyStateFacet; values: ValuesFacet; wordops: WordopsFacet };
   return { recording, state, values, wordops };
 }
-
-describe('legacyMessageBytes', () => {
-  it('reads UTF-8 text or normalised hex', () => {
-    expect(legacyMessageBytes('utf8', 'aä')).toEqual([0x61, 0xc3, 0xa4]);
-    expect(legacyMessageBytes('hex', '616263')).toEqual([0x61, 0x62, 0x63]);
-    expect(legacyMessageBytes('hex', '')).toEqual([]);
-  });
-});
 
 describe('recordLegacy', () => {
   it('outputs the digest and the state, values, narration and wordops facets', () => {

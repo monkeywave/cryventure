@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
+  armImmediate,
+  armSimdRegister,
   listingForRounds,
   listingSource,
   parseMemOperand,
@@ -80,5 +82,28 @@ describe('requiredRound', () => {
   it('returns the round, and throws when the listing has none', () => {
     expect(requiredRound({ ...instruction, round: 3 })).toBe(3);
     expect(() => requiredRound(instruction)).toThrow('listing 0x4 aesenc: no round');
+  });
+});
+
+describe('armSimdRegister', () => {
+  it('names d, q and v views by their v register, and nothing else', () => {
+    expect(['d8', 'q8', 'v8.2d', 'v8.16b', 'x8', 'xzr', '#0'].map(armSimdRegister)).toEqual([
+      'v8',
+      'v8',
+      'v8',
+      'v8',
+      undefined,
+      undefined,
+      undefined,
+    ]);
+  });
+});
+
+describe('armImmediate', () => {
+  it('reads #n and # n, and throws for anything else', () => {
+    expect(armImmediate('#8')).toBe(8);
+    expect(armImmediate(' # 62 ')).toBe(62);
+    expect(() => armImmediate('x9')).toThrow('"x9" is not an immediate');
+    expect(() => armImmediate('')).toThrow('"" is not an immediate');
   });
 });

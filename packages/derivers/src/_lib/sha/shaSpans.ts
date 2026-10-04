@@ -84,13 +84,13 @@ function roundSpan(instruction: ShaListingInstruction, timeline: ShaBlockTimelin
   };
 }
 
-/** A round instruction's span; throws (naming the instruction) when it starts before the running span `last` (a reordered listing). */
+/** A round instruction's `span`; throws (naming the instruction) when it starts before the running span `last` (a reordered listing). */
 function orderedRoundSpan(
   instruction: ShaListingInstruction,
+  span: AlignSpan,
   timeline: ShaBlockTimeline,
   last: AlignSpan,
 ): AlignSpan {
-  const span = roundSpan(instruction, timeline);
   if (span.first >= last.first && span.last >= last.last) return span;
   const t = requiredShaRound(instruction);
   const rounds = `rounds ${t} … ${t + timeline.roundsPerInstruction - 1}`;
@@ -98,6 +98,20 @@ function orderedRoundSpan(
     instruction,
     `${rounds} (steps ${span.first} … ${span.last}) start before the span before it (steps ${last.first} … ${last.last})`,
   );
+}
+
+/** The zero-width target of the non-round instruction at `index`, before the monotonic guard; `undefined` for a copy. */
+function targetStep(
+  instruction: ShaListingInstruction,
+  index: number,
+  shape: ShaListingShape,
+  timeline: ShaBlockTimeline,
+): number | undefined {
+  if (instruction.role === 'other') return undefined;
+  const phase = index < shape.firstRound ? 'before' : index > shape.lastRound ? 'after' : 'between';
+  const nextRound = shape.nextRound[index];
+  const nextRoundFirst = nextRound === undefined ? undefined : roundStep(timeline.block, nextRound);
+  return homeStep(instruction, phase, nextRoundFirst, timeline);
 }
 
 /** The zero-width target of a non-round, non-copy instruction, before the monotonic guard. */
@@ -138,22 +152,20 @@ export function blockSpans(
   timeline: ShaBlockTimeline,
   previous: AlignSpan,
 ): AlignSpan[] {
-  const { isRound, firstRound, lastRound } = shape;
+  const roundSpans = instructions.map((instruction, index) =>
+    shape.isRound[index] ? roundSpan(instruction, timeline) : undefined,
+  );
   const targets = resolveCopies(
-    instructions.map((instruction, index) => {
-      if (isRound[index]) return roundSpan(instruction, timeline).first;
-      if (instruction.role === 'other') return undefined;
-      const phase = index < firstRound ? 'before' : index > lastRound ? 'after' : 'between';
-      const nextRound = shape.nextRound[index];
-      const nextRoundFirst =
-        nextRound === undefined ? undefined : roundStep(timeline.block, nextRound);
-      return homeStep(instruction, phase, nextRoundFirst, timeline);
-    }),
+    instructions.map(
+      (instruction, index) =>
+        roundSpans[index]?.first ?? targetStep(instruction, index, shape, timeline),
+    ),
   );
   let last = previous;
   return instructions.map((instruction, index) => {
+    const round = roundSpans[index];
     const target = targets[index]!;
-    if (isRound[index]) last = orderedRoundSpan(instruction, timeline, last);
+    if (round !== undefined) last = orderedRoundSpan(instruction, round, timeline, last);
     else if (target >= last.last) last = pointSpan(target);
     return last;
   });

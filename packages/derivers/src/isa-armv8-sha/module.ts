@@ -1,5 +1,5 @@
 import type { FacetKey, TraceBundle } from '@cryventure/core';
-import { SHA512_PRODUCER_ID } from '../_lib/sha/manifestKit.ts';
+import { SHA512_PRODUCER_ID } from '../_lib/applicability.ts';
 import { deriveShaIsaFacets } from '../_lib/sha/shaDerivation.ts';
 import { ARMV8_SHA_PROFILE } from './profile.ts';
 import { ARMV8_SHA512_PROFILE } from './sha512Profile.ts';

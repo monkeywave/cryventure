@@ -5,8 +5,11 @@ import {
   isaFacetPair,
   listingError,
   memoryOperand,
+  namingErrors,
+  recordInstruction,
   registerOperand,
   registerWrite,
+  semanticsOf,
   vectorRegisterSpecs,
   x86VectorRegister,
 } from './isaFacets.ts';
@@ -94,5 +97,39 @@ describe('isaFacets', () => {
     expect(
       buildInstruction(listed, { first: 1, last: 1 }, effects, covers, { key: 'n' }),
     ).toMatchObject({ covers, note: { key: 'n' } });
+  });
+});
+
+describe('walk helpers', () => {
+  const listed = { address: '0x8', mnemonic: 'ldr', operands: ['q0'] };
+
+  it('semanticsOf finds a mnemonic and throws for a missing one', () => {
+    const semantics = { ldr: 1 };
+    expect(semanticsOf(semantics, 'ldr')).toBe(1);
+    expect(() => semanticsOf(semantics, 'str')).toThrow('no semantics for this mnemonic');
+  });
+
+  it('namingErrors passes results through and names the instruction in errors', () => {
+    expect(namingErrors(listed, () => 7)).toBe(7);
+    expect(() =>
+      namingErrors(listed, () => {
+        throw new Error('boom');
+      }),
+    ).toThrow('listing 0x8 ldr: boom');
+  });
+
+  it('recordInstruction adds a register step only when writes are given', () => {
+    const walk = { instructions: [], steps: [] };
+    const instruction = buildInstruction(
+      listed,
+      { first: 2, last: 3 },
+      { reads: [], writes: [] },
+      [],
+      undefined,
+    );
+    recordInstruction(walk, instruction, undefined);
+    recordInstruction(walk, instruction, []);
+    expect(walk.instructions).toHaveLength(2);
+    expect(walk.steps).toEqual([{ align: { first: 2, last: 3 }, writes: [] }]);
   });
 });

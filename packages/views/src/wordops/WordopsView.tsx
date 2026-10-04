@@ -1,9 +1,10 @@
 import { Fragment, memo, useId, useMemo, type CSSProperties } from 'react';
-import type { Lens, WordBits, WordopsFacet, WordopsStep, WordTerm } from '@cryventure/core';
+import { latestStepAt, type Lens, type WordBits, type WordopsFacet, type WordTerm } from '@cryventure/core';
 import { MathText, ViewStatus, useFacet, useLab, useT, type ViewProps } from '@cryventure/viz';
 import { chunk } from '../_lib/chunk.ts';
 import { ScrollRegion } from '../_lib/ScrollRegion.tsx';
 import { useSelectionPreviewHandlers } from '../_lib/useSelectionPreview.ts';
+import { hexChunks } from '../_lib/hex.ts';
 import { useValueLabel } from '../_lib/useValueLabel.ts';
 import {
   NIBBLE,
@@ -11,15 +12,15 @@ import {
   opGlyphKey,
   opNameKey,
   TERM_ROLE_GLYPHS,
-  hexChunks,
   lensParts,
   nibbleGroups,
-  registerArrows,
   registerChunksPerLine,
   showsBitStrip,
   storyTerms,
+  upgradeWordops,
   wordBitsOf,
-  wordopsStepAt,
+  type DrawnWordopsFacet,
+  type DrawnWordopsStep,
   type LensParts,
   type ShiftArrow,
 } from './wordopsModel.ts';
@@ -32,13 +33,13 @@ import './wordops.css';
  * computed yet). With `registerNames`: the registers before and after the
  * step, with arrows for how each after-register comes about (dashed + bold for the computed ones,
  * listed in words for screen readers): schema v2 draws the step's `transfers` (a term arrow carries
- * the right-hand side of the term's label); v1 keeps the structural SHA-2 shift b ← a, …,
- * e ← d + T1, a ← T1 + T2 (docs/M6.md §3b). With `registerColumns` the registers form a grid (the
+ * the right-hand side of the term's label); a v1 facet is upgraded on read (`upgradeWordops`) to the
+ * structural SHA-2 shift b ← a, …, e ← d + T1, a ← T1 + T2 (docs/M6.md §3b). With `registerColumns` the registers form a grid (the
  * BLAKE2 4 × 4 matrix) whose `touched` cells (the G column or diagonal) are highlighted with a ◆ in
  * both grids; the transfers are then listed in words only. Without arrows, changed registers get a •.
  * Then the terms in dataflow order: label, operator glyph (√ / ∛ for a root's `degree`), hex in
- * 4-digit chunks. Lenses: story = registers + the story terms (`storyTerms`: v2 `emphasis`, v1
- * results and T1/T2; a hint when a step has none); engineer = all terms, 32-bit rotation/shift terms
+ * 4-digit chunks. Lenses: story = registers + the story terms (`emphasis`; v1 upgraded: results
+ * and T1/T2; a hint when a step has none); engineer = all terms, 32-bit rotation/shift terms
  * also as bit strips (64-bit stays hex); cryptographer = the formula + all terms.
  * Terms with a ValueRef publish it as the lab selection on hover/focus. Each term shows its role as a
  * glyph and in words, not by colour only. Both blocks scroll horizontally inside the panel on a phone,
@@ -52,11 +53,12 @@ export default function WordopsView({ lens }: ViewProps) {
   return <WordopsPanel facet={facet.data} lens={lens} />;
 }
 
-function WordopsPanel({ facet, lens }: { facet: WordopsFacet; lens: Lens }) {
+function WordopsPanel({ facet: read, lens }: { facet: WordopsFacet; lens: Lens }) {
   const t = useT();
+  const facet = useMemo(() => upgradeWordops(read), [read]);
   const parts = lensParts(lens);
   const step = useLab((state) => state.step);
-  const current = wordopsStepAt(facet, step);
+  const current = latestStepAt(facet.steps, step);
   const upcoming = current === undefined ? facet.steps[0] : undefined;
   return (
     <section className="cv-view cv-wordops" aria-label={t('view.wordops.title')} data-lens={lens} data-bits={facet.wordBits}>
@@ -75,8 +77,8 @@ function WordopsPanel({ facet, lens }: { facet: WordopsFacet; lens: Lens }) {
 }
 
 interface WordStepProps {
-  facet: WordopsFacet;
-  wordStep: WordopsStep;
+  facet: DrawnWordopsFacet;
+  wordStep: DrawnWordopsStep;
   parts: LensParts;
   /** Whether terms publish their ValueRef (false for the not-yet-computed preview). */
   linked: boolean;
@@ -84,7 +86,7 @@ interface WordStepProps {
 
 function WordStep({ facet, wordStep, parts, linked }: WordStepProps) {
   const t = useT();
-  const terms = parts.storyTermsOnly ? storyTerms(facet.schemaVersion, wordStep.terms) : wordStep.terms;
+  const terms = parts.storyTermsOnly ? storyTerms(wordStep.terms) : wordStep.terms;
   const nothingToTell = parts.storyTermsOnly && terms.length === 0 && wordStep.terms.length > 0;
   return (
     <>
@@ -141,83 +143,59 @@ function HexWord({ hex, chunksPerLine }: { hex: string; chunksPerLine?: number }
 
 /* ---------- registers and their arrows ---------- */
 
-function Registers({ facet, names, wordStep }: { facet: WordopsFacet; names: string[]; wordStep: WordopsStep }) {
+function Registers({ facet, names, wordStep }: { facet: DrawnWordopsFacet; names: string[]; wordStep: DrawnWordopsStep }) {
   const t = useT();
+  const { arrows, terms } = wordStep;
   const registers = wordStep.registers!;
-  const arrows = useMemo(() => registerArrows(facet.schemaVersion, wordStep), [facet.schemaVersion, wordStep]);
-  const rowProps = { names, touched: new Set(registers.touched), chunksPerLine: registerChunksPerLine(facet.wordBits) };
-  const before = arrows === undefined ? registers.before : undefined;
-  if (facet.registerColumns !== undefined) {
-    return (
-      <ScrollRegion className={SCROLL_CLASS} label={t('view.wordops.registers')}>
-        <div className="cv-wordops__grids" style={{ '--cv-wordops-cols': facet.registerColumns } as CSSProperties}>
-          <RegisterGrid side="before" words={registers.before} columns={facet.registerColumns} {...rowProps} />
-          <RegisterGrid side="after" words={registers.after} before={before} columns={facet.registerColumns} {...rowProps} />
-        </div>
-        {rowProps.touched.size > 0 && <p className="cv-wordops__legend">{t('view.wordops.touchedLegend')}</p>}
-        {arrows !== undefined && <ArrowList names={names} arrows={arrows} terms={wordStep.terms} />}
-      </ScrollRegion>
-    );
-  }
+  const columns = facet.registerColumns;
+  const sideProps = { names, before: registers.before, touched: new Set(registers.touched), chunksPerLine: registerChunksPerLine(facet.wordBits), columns };
+  const markChanged = arrows === undefined;
+  const layout =
+    columns === undefined
+      ? { className: 'cv-wordops__registers', style: { '--cv-wordops-regs': names.length } as CSSProperties, 'data-shift': !markChanged || undefined }
+      : { className: 'cv-wordops__grids', style: { '--cv-wordops-cols': columns } as CSSProperties };
   return (
     <ScrollRegion className={SCROLL_CLASS} label={t('view.wordops.registers')}>
-      <div className="cv-wordops__registers" style={{ '--cv-wordops-regs': names.length } as CSSProperties} data-shift={arrows !== undefined || undefined}>
-        <RegisterRow side="before" words={registers.before} {...rowProps} />
-        {arrows !== undefined && <ShiftArrows names={names} arrows={arrows} terms={wordStep.terms} />}
-        <RegisterRow side="after" words={registers.after} before={before} {...rowProps} />
+      <div {...layout}>
+        <RegisterSide {...sideProps} side="before" words={registers.before} markChanged={false} />
+        {columns === undefined && arrows !== undefined && <ShiftArrows names={names} arrows={arrows} terms={terms} />}
+        <RegisterSide {...sideProps} side="after" words={registers.after} markChanged={markChanged} />
       </div>
-      {rowProps.touched.size > 0 && <p className="cv-wordops__legend">{t('view.wordops.touchedLegend')}</p>}
+      {sideProps.touched.size > 0 && <p className="cv-wordops__legend">{t('view.wordops.touchedLegend')}</p>}
+      {columns !== undefined && arrows !== undefined && <ArrowList names={names} arrows={arrows} terms={terms} />}
     </ScrollRegion>
   );
 }
 
-interface RegisterRowProps {
+interface RegisterSideProps {
   side: 'before' | 'after';
   names: string[];
   words: string[];
-  /** The words before the step, to mark changed registers (only without arrows). */
-  before?: string[] | undefined;
+  /** The words before the step. */
+  before: string[];
+  /** Whether to mark registers that differ from `before` (only without arrows, on the after side). */
+  markChanged: boolean;
   /** Register indices the step reads and writes (v2), marked ◆ on both sides. */
   touched: ReadonlySet<number>;
   chunksPerLine: number | undefined;
+  /** Lay the registers out as a grid of this many columns (the BLAKE2 matrix); a row without. */
+  columns: number | undefined;
 }
 
-/** The registers of one side as a grid of `columns` columns (the BLAKE2 matrix), its label above. */
-function RegisterGrid({ columns, ...row }: RegisterRowProps & { columns: number }) {
+/** The registers of one side, its label first: a row, or a grid of `columns` columns. */
+function RegisterSide({ side, names, words, before, markChanged, touched, chunksPerLine, columns }: RegisterSideProps) {
   const t = useT();
+  const grid = columns !== undefined;
   return (
-    <div className="cv-wordops__grid" role="group" aria-label={t(`view.wordops.${row.side}`)} data-side={row.side} data-columns={columns}>
-      <span className="cv-wordops__gridside" aria-hidden="true">
-        {t(`view.wordops.${row.side}`)}
+    <div className={grid ? 'cv-wordops__grid' : 'cv-wordops__regrow'} role="group" aria-label={t(`view.wordops.${side}`)} data-side={side} data-columns={columns}>
+      <span className={grid ? 'cv-wordops__gridside' : 'cv-wordops__regside'} aria-hidden="true">
+        {t(`view.wordops.${side}`)}
       </span>
-      <RegisterCells {...row} />
+      {names.map((name, index) => (
+        <RegisterCell key={name} name={name} hex={words[index] ?? ''} changed={markChanged && before[index] !== words[index]} touched={touched.has(index)} chunksPerLine={chunksPerLine} />
+      ))}
     </div>
   );
-}
-
-function RegisterRow(row: RegisterRowProps) {
-  const t = useT();
-  return (
-    <div className="cv-wordops__regrow" role="group" aria-label={t(`view.wordops.${row.side}`)} data-side={row.side}>
-      <span className="cv-wordops__regside" aria-hidden="true">
-        {t(`view.wordops.${row.side}`)}
-      </span>
-      <RegisterCells {...row} />
-    </div>
-  );
-}
-
-function RegisterCells({ names, words, before, touched, chunksPerLine }: RegisterRowProps) {
-  return names.map((name, index) => (
-    <RegisterCell
-      key={name}
-      name={name}
-      hex={words[index] ?? ''}
-      changed={before !== undefined && before[index] !== words[index]}
-      touched={touched.has(index)}
-      chunksPerLine={chunksPerLine}
-    />
-  ));
 }
 
 interface RegisterCellProps {

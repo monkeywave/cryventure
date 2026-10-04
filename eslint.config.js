@@ -147,7 +147,12 @@ const manifestPolicies = [
   {
     from: { element: { type: 'plugin-lib' }, file: { path: '**/_lib/*/manifestKit.ts' } },
     disallow: { dependency: { relationship: { to: 'internal' } } },
-    message: 'manifestKit.ts is loaded eagerly by manifests: it may import only @cryventure/core (got {{dependency.source}}).',
+    message: 'manifestKit.ts is loaded eagerly by manifests: it may import only @cryventure/core and other _lib/*/manifestKit.ts files (got {{dependency.source}}).',
+  },
+  // …except another manifest kit (itself core-only), e.g. the shared `_lib/hashKit/manifestKit.ts`.
+  {
+    from: { element: { type: 'plugin-lib' }, file: { path: '**/_lib/*/manifestKit.ts' } },
+    allow: { to: { element: { type: 'plugin-lib' }, file: { path: '**/_lib/*/manifestKit.ts' } } },
   },
   // View manifests type their component with `ViewComponent` from viz. A type-only import is erased
   // at compile time, so it adds nothing to the eager bundle and keeps the manifest contract typed.

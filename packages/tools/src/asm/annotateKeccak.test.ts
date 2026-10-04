@@ -146,6 +146,14 @@ describe('annotateKeccakListing', () => {
     expect(() => annotateKeccakListing(instructions, loop)).toThrow(/wrong rho offset/);
   });
 
+  it('throws on an xar without a rotation immediate', () => {
+    const body = round().map((line) =>
+      line.startsWith('xar v74.2d, v21.2d') ? 'xar v74.2d, v21.2d, v41.2d, x9' : line,
+    );
+    const { instructions, loop } = program(body);
+    expect(() => annotateKeccakListing(instructions, loop)).toThrow(/"x9" is not an immediate/);
+  });
+
   it('throws when the body does not hand the lanes back in the same registers', () => {
     const { instructions, loop } = program([...round(), 'mov v1.16b, v2.16b']);
     expect(() => annotateKeccakListing(instructions, loop)).toThrow(/register-lane mapping/);

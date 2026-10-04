@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { sha3InitialSnapshot, sha3Regions } from './regions.ts';
+import { initialSnapshot } from '../_lib/sha2/regions.ts';
+import { sha3Regions } from './regions.ts';
 
 describe('sha3Regions', () => {
   it('lists message, padded, A and output; A as 25 little-endian 8-byte lanes, five per row', () => {
@@ -18,9 +19,9 @@ describe('sha3Regions', () => {
   });
 });
 
-describe('sha3InitialSnapshot', () => {
+describe('initialSnapshot (sha3 regions)', () => {
   it('holds the message and zeros elsewhere', () => {
-    const snapshot = sha3InitialSnapshot(sha3Regions(2, 136, 16), [0x61, 0x62]);
+    const snapshot = initialSnapshot(sha3Regions(2, 136, 16), { message: [0x61, 0x62] });
     expect(snapshot.message).toEqual([0x61, 0x62]);
     expect(snapshot.A).toEqual(new Array(200).fill(0));
     expect(snapshot.output.length).toBe(16);

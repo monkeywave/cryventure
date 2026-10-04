@@ -1,11 +1,14 @@
-import { allIndices, highlight, i18nRef, toHex, valueId, type Highlight, type I18nRef } from '@cryventure/core';
+import { allIndices, highlight, i18nRef, toHex, type Highlight, type I18nRef } from '@cryventure/core';
 import type { Blake2BlockPlan } from '../_lib/blake2/blocks.ts';
 import type { Blake2BlockDetail, Blake2RoundDetail, GDetail } from '../_lib/blake2/compress.ts';
-import { wordsToLittleEndian, type Blake2Algorithm } from '../_lib/blake2/variants.ts';
-import { wordsHex, type Word } from '../_lib/sha2/words.ts';
+import type { Blake2Algorithm } from '../_lib/blake2/variants.ts';
+import { wordsHex, wordsToBytes, type Word } from '../_lib/sha2/words.ts';
 import type { Blake2Recorder } from './recorder.ts';
-import { wordIndices, type Blake2Region } from './regions.ts';
-import { blake2TermFactory, feedForwardTerms, gTerms, gTransfers, initTerms, loadTerms, type TermFactory } from './terms.ts';
+import { wordIndices } from '../_lib/sha2/regions.ts';
+import { chainingValueId } from '../_lib/sha2/steps.ts';
+import { termFactory, type TermFactory } from '../_lib/sha2/wordTerms.ts';
+import type { Blake2Region } from './regions.ts';
+import { feedForwardTerms, gTerms, gTransfers, initTerms, loadTerms } from './terms.ts';
 
 /**
  * The recorded BLAKE2 steps (docs/M6.md §2d): `init`, per block `load`, then `g` / `round` /
@@ -20,14 +23,11 @@ export interface Blake2Trace<W extends Word> {
 }
 
 export function blake2Trace<W extends Word>(ns: string, algorithm: Blake2Algorithm<W>, recorder: Blake2Recorder): Blake2Trace<W> {
-  return { ns, algorithm, recorder, term: blake2TermFactory(ns, algorithm.variant) };
+  return { ns, algorithm, recorder, term: termFactory(ns, algorithm.variant.arith) };
 }
 
-/** The value id of the chaining value h after block n (`h/<n>`, n ≥ 1). */
-export const chainingValueId = (n: number): string => valueId(['h'], String(n));
-
 const wordBytesOf = <W extends Word>(trace: Blake2Trace<W>) => trace.algorithm.variant.arith.bytes;
-const le = <W extends Word>(trace: Blake2Trace<W>, words: readonly W[]) => wordsToLittleEndian(trace.algorithm.variant.arith, words);
+const le = <W extends Word>(trace: Blake2Trace<W>, words: readonly W[]) => wordsToBytes(trace.algorithm.variant.arith, words, 'little');
 const hexWords = <W extends Word>(trace: Blake2Trace<W>, words: readonly W[]) => wordsHex(trace.algorithm.variant.arith, words);
 const hex = <W extends Word>(trace: Blake2Trace<W>, word: W) => trace.algorithm.variant.arith.toHex(word);
 

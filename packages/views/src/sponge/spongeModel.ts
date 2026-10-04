@@ -1,5 +1,6 @@
 import { latestStepAt, type Lens, type SpongeFacet, type SpongePhase, type SpongeStep } from '@cryventure/core';
 import { chunk } from '../_lib/chunk.ts';
+import { hexChunks } from '../_lib/hex.ts';
 
 /**
  * Pure helpers of the sponge view (docs/M6.md §4): lane coordinates, the step at the playhead and the
@@ -38,11 +39,23 @@ export interface SpongeMoment {
   before: string[] | undefined;
 }
 
+/** Each steps list's step → its position, built once per facet (so a playhead move is no linear scan). */
+const stepPositions = new WeakMap<readonly SpongeStep[], ReadonlyMap<number, number>>();
+
+function positionOf(steps: readonly SpongeStep[], step: SpongeStep): number {
+  let positions = stepPositions.get(steps);
+  if (positions === undefined) {
+    positions = new Map(steps.map((each, index) => [each.step, index]));
+    stepPositions.set(steps, positions);
+  }
+  return positions.get(step.step)!;
+}
+
 /** The latest sponge step with `step ≤ playhead` (core `latestStepAt`) and the lanes before it. */
 export function spongeMomentAt(facet: SpongeFacet, playhead: number): SpongeMoment | undefined {
   const current = latestStepAt(facet.steps, playhead);
   if (current === undefined) return undefined;
-  const index = facet.steps.indexOf(current);
+  const index = positionOf(facet.steps, current);
   return { current, before: index > 0 ? facet.steps[index - 1]!.lanes : undefined };
 }
 
@@ -52,9 +65,11 @@ export function changedLanes(before: readonly string[] | undefined, after: reado
   return new Set(after.flatMap((lane, index) => (lane === before[index] ? [] : [index])));
 }
 
+const LANE_LINE_DIGITS = 8;
+
 /** A lane's hex digits on lines of 8 (64-bit lanes: two lines, high half first). */
 export function laneLines(hex: string): string[] {
-  return chunk([...hex], 8).map((line) => line.join(''));
+  return hexChunks(hex, LANE_LINE_DIGITS);
 }
 
 /**
@@ -102,11 +117,6 @@ export function chiTerms(before: readonly string[], position: LanePosition, widt
   return { a, b, c, notBAndC: toHex(notBAndC, digits), result: toHex(toBig(a) ^ notBAndC, digits), lanes };
 }
 
-/** The bytes of a lane in memory order (lanes are little-endian integers: the low byte comes first). */
-export function laneBytes(hex: string): string[] {
-  return (hex.match(/../g) ?? []).reverse();
-}
-
 /** One lane's worth of output bytes and the rate lane they were read from. */
 export interface OutputGroup {
   lane: number;
@@ -148,28 +158,4 @@ export interface LensParts {
 
 export function lensParts(lens: Lens): LensParts {
   return { hex: lens !== 'story', formula: lens === 'cryptographer' };
-}
-
-/**
- * Roving focus in the lane grid: the lane an arrow key, Home or End moves to (clamped at the edges),
- * or null for any other key.
- */
-export function moveLane(position: LanePosition, key: string, width: number, height: number): LanePosition | null {
-  const clamp = (value: number, max: number) => Math.min(Math.max(value, 0), max - 1);
-  switch (key) {
-    case 'ArrowLeft':
-      return { ...position, x: clamp(position.x - 1, width) };
-    case 'ArrowRight':
-      return { ...position, x: clamp(position.x + 1, width) };
-    case 'ArrowUp':
-      return { ...position, y: clamp(position.y - 1, height) };
-    case 'ArrowDown':
-      return { ...position, y: clamp(position.y + 1, height) };
-    case 'Home':
-      return { ...position, x: 0 };
-    case 'End':
-      return { ...position, x: width - 1 };
-    default:
-      return null;
-  }
 }

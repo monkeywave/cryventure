@@ -1,4 +1,5 @@
-import { bytesEqual, getFacet, hashFunction, toHex, utf8Bytes, xofFunction, type HashFamily, type PrimitiveManifest, type TraceBundle, type ValuesFacet } from '@cryventure/core';
+import { bytesEqual, getFacet, hashFunction, readText, toHex, utf8Bytes, xofFunction, type HashFamily, type PrimitiveManifest, type TraceBundle, type ValuesFacet } from '@cryventure/core';
+import { isRecord } from './jsonValues.ts';
 
 /**
  * Cross-check of a `Hash` producer's traced `run()` against its own untraced port (docs/M5.md §1):
@@ -44,23 +45,18 @@ export function publishedMessage(bundle: TraceBundle): number[] | undefined {
   return getFacet<ValuesFacet>(bundle, 'values')?.values.find((value) => value.id === MESSAGE_VALUE)?.bytes;
 }
 
-function paramOf(params: unknown, name: string): unknown {
-  return typeof params === 'object' && params !== null ? (params as Record<string, unknown>)[name] : undefined;
-}
-
-const textParam = (params: unknown, name: string): string => {
-  const value = paramOf(params, name);
-  return typeof value === 'string' ? value : '';
-};
+/** A string param's value; '' when absent or not a string. */
+const textParam = (params: Readonly<Record<string, unknown>>, name: string): string => readText(params[name], Number.POSITIVE_INFINITY) ?? '';
 
 /** What the port computes for a case's message (`label` names the port function), or undefined to skip the case. */
 type PortOutput = { label: string; compute: (message: Uint8Array, runLength: number) => Uint8Array };
 
 const hashOutput = (fn: HashFamily['functions'][number]): PortOutput => ({ label: `"${fn.id}"`, compute: (message) => fn.hash(message) });
 
-function portOutputFor(family: HashFamily, params: unknown): PortOutput | undefined {
+function portOutputFor(family: HashFamily, caseParams: unknown): PortOutput | undefined {
+  const params = isRecord(caseParams) ? caseParams : {};
   if (textParam(params, KEY_PARAM) !== '') return undefined;
-  const algorithm = paramOf(params, ALGORITHM_PARAM);
+  const algorithm = params[ALGORITHM_PARAM];
   if (algorithm === undefined) return family.functions.length === 1 ? hashOutput(family.functions[0]!) : undefined;
   if (typeof algorithm !== 'string') return undefined;
   const fn = hashFunction(family, algorithm);
@@ -68,7 +64,7 @@ function portOutputFor(family: HashFamily, params: unknown): PortOutput | undefi
   const xof = xofFunction(family, algorithm);
   if (xof === undefined) return undefined;
   const custom = { functionName: utf8Bytes(textParam(params, 'functionName')), customization: utf8Bytes(textParam(params, 'customization')) };
-  const length = Number(paramOf(params, OUTPUT_LENGTH_PARAM));
+  const length = Number(params[OUTPUT_LENGTH_PARAM]);
   return { label: `XOF "${xof.id}"`, compute: (message, runLength) => xof.xof(message, Number.isInteger(length) && length > 0 ? length : runLength, custom) };
 }
 

@@ -1,5 +1,6 @@
+import { compressBlocks } from '../sha2/context.ts';
 import { sha2Padding, sha2PadTail, type Sha2Padding } from '../sha2/padding.ts';
-import { add32, rotl32, wordsFromBytes, wordsToBytes } from './words.ts';
+import { WORD32, wordsFromBytes, wordsToBytes } from '../sha2/words.ts';
 
 /**
  * MD5 (RFC 1321), untraced: the constants, the four auxiliary functions, the padding with its
@@ -86,15 +87,15 @@ export function md5PadTail(tail: ArrayLike<number>, messageBytes: number): Uint8
 
 /** MD5 compression of one 64-byte block into `h` (4 words, updated in place and returned). */
 export function md5Compress(h: Uint32Array, block: Uint8Array): Uint32Array {
-  const x = wordsFromBytes(block.subarray(0, MD5_BLOCK_BYTES), 'little');
+  const x = wordsFromBytes(WORD32, block.subarray(0, MD5_BLOCK_BYTES), 'little');
   let a = h[0]!, b = h[1]!, c = h[2]!, d = h[3]!;
   for (let i = 0; i < MD5_ROUNDS; i++) {
     const { fn, k, s } = md5Operation(i);
-    const rotated = rotl32(add32(a, MD5_FUNCTIONS[fn](b, c, d), x[k]!, MD5_T[i]!), s);
+    const rotated = WORD32.rotl(WORD32.add(a, MD5_FUNCTIONS[fn](b, c, d), x[k]!, MD5_T[i]!), s);
     a = d;
     d = c;
     c = b;
-    b = add32(b, rotated);
+    b = WORD32.add(b, rotated);
   }
   h[0]! += a;
   h[1]! += b;
@@ -105,13 +106,10 @@ export function md5Compress(h: Uint32Array, block: Uint8Array): Uint32Array {
 
 /** The 16 digest bytes of the state: A, B, C, D little-endian (RFC 1321 §3.5). */
 export function md5StateBytes(h: Uint32Array): Uint8Array {
-  return Uint8Array.from(wordsToBytes([...h], 'little'));
+  return Uint8Array.from(wordsToBytes(WORD32, [...h], 'little'));
 }
 
 /** The MD5 digest of `data`. */
 export function md5Digest(data: Uint8Array): Uint8Array {
-  const h = Uint32Array.from(MD5_IV);
-  const padded = md5Padding(data).padded;
-  for (let offset = 0; offset < padded.length; offset += MD5_BLOCK_BYTES) md5Compress(h, padded.subarray(offset, offset + MD5_BLOCK_BYTES));
-  return md5StateBytes(h);
+  return md5StateBytes(compressBlocks(Uint32Array.from(MD5_IV), md5Padding(data).padded, MD5_BLOCK_BYTES, md5Compress));
 }

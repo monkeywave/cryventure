@@ -1,22 +1,10 @@
-import { latestStepAt, type Lens, type WordBits, type WordOp, type WordopsFacet, type WordopsSchemaVersion, type WordopsStep, type WordTerm } from '@cryventure/core';
+import type { Lens, WordBits, WordOp, WordopsFacet, WordopsStep, WordTerm } from '@cryventure/core';
 import { chunk } from '../_lib/chunk.ts';
 
 /**
- * Pure helpers of the wordops view: step lookup at the playhead, hex chunking, bit strips, the
- * story-lens term filter and the SHA-2 register shift. No React, no i18n: the component translates.
+ * Pure helpers of the wordops view: the v1 → v2 upgrade on read, bit strips, the story-lens terms
+ * and the register arrows. No React, no i18n: the component translates.
  */
-
-/** The latest wordops step whose `step ≤ step`, or `undefined` before the first (core `latestStepAt`). */
-export function wordopsStepAt(facet: WordopsFacet, step: number): WordopsStep | undefined {
-  return latestStepAt(facet.steps, step);
-}
-
-const HEX_CHUNK = 4;
-
-/** A hex word in 4-digit chunks, lowercase: "6a09e667" → ["6a09", "e667"]. */
-export function hexChunks(hex: string): string[] {
-  return chunk([...hex.toLowerCase()], HEX_CHUNK).map((digits) => digits.join(''));
-}
 
 /**
  * Hex chunks per line of a register word: a 64-bit word wraps onto two lines of two chunks, so the
@@ -87,23 +75,20 @@ export function nibbleGroups(bits: readonly boolean[]): string {
     .join(' ');
 }
 
-/** Term ids the story lens keeps besides the results: SHA-2's two temporaries. */
+/** Term ids a v1 facet's story lens keeps besides the results: SHA-2's two temporaries. */
 export const STORY_TERM_IDS: ReadonlySet<string> = new Set(['T1', 'T2']);
 
 /**
- * Story-lens filter (data-driven): a term stays when its role is `result` or its id is one of
+ * The v1 story-lens filter (structural): a term stays when its role is `result` or its id is one of
  * `STORY_TERM_IDS` (T1, T2). So a round shows T1, T2 (and any result), a schedule step only W_t.
  */
 export function isStoryTerm(term: Pick<WordTerm, 'id' | 'role'>): boolean {
   return term.role === 'result' || STORY_TERM_IDS.has(term.id);
 }
 
-/**
- * The terms the story lens shows: for a v2 facet exactly those marked `emphasis: 'story'` (none when
- * none is, docs/M6.md §3b); for a v1 facet the structural `isStoryTerm` filter.
- */
-export function storyTerms(schemaVersion: WordopsSchemaVersion, terms: readonly WordTerm[]): WordTerm[] {
-  return schemaVersion === 1 ? terms.filter(isStoryTerm) : terms.filter((term) => term.emphasis === 'story');
+/** The terms the story lens shows: exactly those marked `emphasis: 'story'` (none when none is, docs/M6.md §3b). */
+export function storyTerms(terms: readonly WordTerm[]): WordTerm[] {
+  return terms.filter((term) => term.emphasis === 'story');
 }
 
 /** What each lens shows. */
@@ -156,13 +141,37 @@ export function sha2RegisterShift(wordopsStep: WordopsStep): readonly ShiftArrow
   return hasTerm('T1') && hasTerm('T2') ? SHA2_SHIFT : undefined;
 }
 
-/**
- * The register arrows of a step: a v2 facet draws its `transfers` (none without them); a v1 facet
- * keeps the structural SHA-2 detection (`sha2RegisterShift`) as the fallback.
- */
-export function registerArrows(schemaVersion: WordopsSchemaVersion, wordopsStep: WordopsStep): readonly ShiftArrow[] | undefined {
-  if (schemaVersion === 1) return sha2RegisterShift(wordopsStep);
+/** v2 `transfers` → arrows (none without them): a register copy, or a term's value. */
+function transferArrows(wordopsStep: WordopsStep): readonly ShiftArrow[] | undefined {
   return wordopsStep.registers?.transfers?.map(({ to, from }): ShiftArrow => ('register' in from ? { to, from: from.register, source: 'copy' } : { to, term: from.term, source: 'term' }));
+}
+
+/** A wordops step as the view draws it: its register arrows resolved on read. */
+export interface DrawnWordopsStep extends WordopsStep {
+  arrows: readonly ShiftArrow[] | undefined;
+}
+
+/** A wordops facet in the v2 shape the view draws (`upgradeWordops`). */
+export interface DrawnWordopsFacet extends Omit<WordopsFacet, 'schemaVersion' | 'steps'> {
+  schemaVersion: 2;
+  steps: DrawnWordopsStep[];
+}
+
+/** v1 → v2 for one step: the structural SHA-2 shift becomes its arrows, the story filter `emphasis`. */
+function upgradeV1Step(wordopsStep: WordopsStep): DrawnWordopsStep {
+  const terms = wordopsStep.terms.map((term): WordTerm => (isStoryTerm(term) ? { ...term, emphasis: 'story' } : term));
+  return { ...wordopsStep, terms, arrows: sha2RegisterShift(wordopsStep) };
+}
+
+/**
+ * Upgrades a facet on read, so the view has one code path (docs/M6.md §3b): a v2 facet draws its
+ * `transfers` and `emphasis`; a v1 facet gets the structural SHA-2 shift as its arrows (v1 ignores
+ * `transfers`; its e ← d + T1 and a ← T1 + T2 have no v2 transfer, hence arrows, not transfers) and
+ * `emphasis: 'story'` on its results and T1/T2.
+ */
+export function upgradeWordops(facet: WordopsFacet): DrawnWordopsFacet {
+  const steps = facet.schemaVersion === 1 ? facet.steps.map(upgradeV1Step) : facet.steps.map((wordopsStep) => ({ ...wordopsStep, arrows: transferArrows(wordopsStep) }));
+  return { ...facet, schemaVersion: 2, steps };
 }
 
 const DEFINITION = ' = ';

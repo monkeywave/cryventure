@@ -63,10 +63,9 @@ export function chainingValueId(n: number): string {
   return n === 0 ? 'iv' : valueId(['h'], String(n));
 }
 
-/** §5.1: the padded message, written once before block 0. */
-export function recordPad<W extends Word>(trace: Sha2Trace<W>, messageBytes: number, padding: Sha2Padding): number {
+/** §5.1: the padded message (in `blockBytes`-byte blocks), written once before block 0. Shared with MD5 and SHA-1. */
+export function recordPad(trace: Pick<Sha2Trace<Word>, 'ns' | 'recorder'>, messageBytes: number, padding: Sha2Padding, blockBytes: number): number {
   const { padded, zeroBytes, lengthBytes, messageBits } = padding;
-  const blockBytes = trace.algorithm.params.blockBytes;
   return trace.recorder.op({
     op: 'pad',
     writes: [{ region: 'padded', offset: 0, values: Array.from(padded) }],

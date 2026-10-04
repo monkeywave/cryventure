@@ -1,17 +1,25 @@
-import type { AlignSpan, FacetKey, I18nRef, OperandRef, TraceBundle } from '@cryventure/core';
+import type { FacetKey, I18nRef, OperandRef, TraceBundle } from '@cryventure/core';
 import {
   buildInstruction,
-  isaFacetPair,
   listingError,
+  listingFacetPair,
+  namingErrors,
+  recordInstruction,
   registerWrite,
-  vectorRegisterSpecs,
-  type IsaVariant,
-  type IsaWalk,
+  semanticsOf,
+  type RunningIsaWalk,
+  type VectorIsa,
 } from '../isaFacets.ts';
 import { INITIAL_SPAN } from '../isaSpans.ts';
 import type { KeccakListing, KeccakListingInstruction } from '../listing.ts';
 import { naturalSpan, resolveSpans } from './keccakSpans.ts';
-import { keccakTrace, laneXY, type KeccakPermutation, type KeccakTrace } from './keccakTrace.ts';
+import {
+  keccakTrace,
+  laneXY,
+  type KeccakPermutation,
+  type KeccakRoundSteps,
+  type KeccakTrace,
+} from './keccakTrace.ts';
 import { KeccakRegisterFile, registerBytes, type KeccakRegister } from './keccakValues.ts';
 
 /**
@@ -52,12 +60,9 @@ export type KeccakSemantics = (
 ) => KeccakEffects;
 
 /** A Keccak ISA deriver: its names, its listing, and the semantics of its instructions. */
-export interface KeccakIsaProfile extends IsaVariant {
+export interface KeccakIsaProfile extends VectorIsa {
   lanes: number[];
-  registerBits: number;
   listing: KeccakListing;
-  /** Canonical vector register name of an operand (`d8`, `q8`, `v8.2d` → `v8`), or `undefined`. */
-  vectorRegister(operand: string): string | undefined;
   semantics: Readonly<Record<string, KeccakSemantics>>;
   /** An optional note on the instruction at `index` of the listing. */
   note?(instructions: readonly KeccakListingInstruction[], index: number): I18nRef | undefined;
@@ -67,6 +72,13 @@ export interface KeccakIsaProfile extends IsaVariant {
 export function requiredRound(machine: Pick<KeccakMachine, 'round'>): number {
   if (machine.round === undefined) throw new Error('a round instruction outside the loop body');
   return machine.round;
+}
+
+/** The sponge steps of the round a body instruction runs in; throws outside the loop. */
+export function roundSteps(
+  machine: Pick<KeccakMachine, 'round' | 'permutation'>,
+): KeccakRoundSteps {
+  return machine.permutation.rounds[requiredRound(machine)]!;
 }
 
 /** The listing's three parts, by the loop's addresses. */
@@ -141,21 +153,6 @@ function permutationRun(parts: KeccakListingParts, rounds: number): RunItem[] {
   ];
 }
 
-/** Runs the profile's semantics, naming the instruction in any error they throw. */
-function execute(
-  profile: KeccakIsaProfile,
-  listed: KeccakListingInstruction,
-  machine: KeccakMachine,
-): KeccakEffects {
-  try {
-    const semantics = profile.semantics[listed.mnemonic];
-    if (semantics === undefined) throw new Error('no semantics for this mnemonic');
-    return semantics(listed, machine);
-  } catch (error) {
-    throw listingError(listed, error);
-  }
-}
-
 function applyEffects(registers: KeccakRegisterFile, effects: KeccakEffects): void {
   effects.written.forEach(({ reg, content }) => registers.write(reg, content));
   effects.spilled?.forEach(({ offset, content }) => registers.writeStack(offset, content));
@@ -173,7 +170,7 @@ interface WalkContext {
 function walkPermutation(
   context: WalkContext,
   permutation: KeccakPermutation,
-  walk: IsaWalk & { previous: AlignSpan },
+  walk: RunningIsaWalk,
 ): void {
   const { trace, profile, parts, notes } = context;
   const run = permutationRun(parts, trace.sponge.rounds);
@@ -189,19 +186,17 @@ function walkPermutation(
   );
   const registers = new KeccakRegisterFile();
   run.forEach(({ listed, index, round }, position) => {
-    const align = spans[position]!;
     const machine: KeccakMachine = { registers, trace, permutation, round };
-    const effects = execute(profile, listed, machine);
+    const effects = namingErrors(listed, () =>
+      semanticsOf(profile.semantics, listed.mnemonic)(listed, machine),
+    );
     applyEffects(registers, effects);
     const covers = keccakCovers(profile.deriverId, listed, machine);
-    walk.instructions.push(buildInstruction(listed, align, effects, covers, notes[index]));
-    if (effects.written.length > 0)
-      walk.steps.push({
-        align,
-        writes: effects.written.map(({ reg, content }) =>
-          registerWrite(reg, registerBytes(trace, content)),
-        ),
-      });
+    const instruction = buildInstruction(listed, spans[position]!, effects, covers, notes[index]);
+    const writes = effects.written.map(({ reg, content }) =>
+      registerWrite(reg, registerBytes(trace, content)),
+    );
+    recordInstruction(walk, instruction, writes.length > 0 ? writes : undefined);
   });
   walk.previous = spans.at(-1) ?? walk.previous;
 }
@@ -235,15 +230,7 @@ export function deriveKeccakIsaFacets(
     noteOf(profile, listing.instructions, index),
   );
   const context = { trace, profile, parts: listingParts(listing), notes };
-  const walk = { instructions: [], steps: [], previous: INITIAL_SPAN };
+  const walk: RunningIsaWalk = { instructions: [], steps: [], previous: INITIAL_SPAN };
   trace.permutations.forEach((permutation) => walkPermutation(context, permutation, walk));
-  const names = listing.instructions.flatMap((instruction) =>
-    instruction.operands.flatMap((operand) => profile.vectorRegister(operand) ?? []),
-  );
-  return isaFacetPair(
-    profile,
-    listing,
-    { instructions: walk.instructions, steps: walk.steps },
-    vectorRegisterSpecs(names, profile.registerBits, profile.lanes),
-  );
+  return listingFacetPair(profile, listing, walk);
 }

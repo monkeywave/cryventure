@@ -7,9 +7,14 @@
  * its π destination) or the round constant. Roles and `x`/`half`/`lane` follow from that, never
  * from instruction order, and the structure is checked as it goes (ρ offsets, column/row
  * neighbours, the lane mapping restored at the loop's back edge): a compiler output the annotator
- * does not understand throws instead of shipping a wrong listing.
+ * does not understand throws instead of shipping a wrong listing. Its ρ/π tables stay independent of
+ * the derivers on purpose: the annotator re-derives the structure the deriver then checks.
  */
-import type { KeccakListingInstruction } from '@cryventure/derivers/listing';
+import {
+  armImmediate,
+  armSimdRegister,
+  type KeccakListingInstruction,
+} from '@cryventure/derivers/listing';
 import { isArmLoad, isArmStore, isMemory, parseMemoryOperand } from './annotate.ts';
 import type { LoopRange, ParsedInstruction } from './parse.ts';
 
@@ -48,10 +53,9 @@ type Content =
   | { kind: 'rho'; lane: number }
   | { kind: 'rc' };
 
-/** `q3`, `d3`, `v3.2d`, `v3.16b` → `v3`; anything else (x/w registers) unchanged. */
+/** `q3`, `d3`, `v3.2d`, `v3.16b` → `v3`; anything else (x/w registers) `undefined`. */
 export function vectorRegister(operand: string): string | undefined {
-  const match = /^[qdv](\d+)(?:\.\w+)?$/.exec(operand.trim());
-  return match === null ? undefined : `v${match[1]}`;
+  return armSimdRegister(operand.trim());
 }
 
 /** Bytes a load/store register moves: 16 for q, 8 for d. */
@@ -234,11 +238,6 @@ function annotateZip(instruction: ParsedInstruction, tracker: KeccakTracker): An
   return low?.kind === 'lane' ? { role: 'storeState', lane: low.lane } : { role: 'other' };
 }
 
-/** `#192` → 192. */
-function immediate(operand: string | undefined): number {
-  return Number(operand?.replace('#', '') ?? Number.NaN);
-}
-
 /** Integer registers the loop compares (its round counter). */
 function counterRegisters(
   instructions: readonly ParsedInstruction[],
@@ -268,7 +267,7 @@ function annotateVector(instruction: ParsedInstruction, tracker: KeccakTracker):
     case 'rax1':
       return annotateD(instruction, tracker);
     case 'xar':
-      return annotateThetaRhoPi(instruction, tracker, immediate(operands[3]));
+      return annotateThetaRhoPi(instruction, tracker, armImmediate(operands[3] ?? ''));
     case 'bcax':
       return annotateChi(instruction, tracker);
     case 'eor':

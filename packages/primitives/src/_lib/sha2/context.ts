@@ -1,110 +1,81 @@
 import type { HashContext } from '@cryventure/core';
+import { BlockBuffer } from '../hashKit/blockBuffer.ts';
 import { isWord32, type AnySha2Algorithm } from './algorithms.ts';
-import { sha2PadTail, type Sha2BlockBytes } from './padding.ts';
+import { sha2PadTail } from './padding.ts';
 import { sha256Compress, sha512Compress } from './reference.ts';
+import { WORD32, WORD64, wordsToBytes } from './words.ts';
 
 /**
- * Incremental SHA-2 (docs/M6.md §1): a context compresses every whole block as data arrives and
- * keeps only the partial block after it, so a clone after a block is a true midstate (what HMAC
- * and PBKDF2 reuse). `digest()` pads and compresses a copy of the state.
+ * Incremental SHA-2, MD5 and SHA-1 (docs/M6.md §1): a context compresses every whole block as data
+ * arrives and keeps only the partial block after it, so a clone after a block is a true midstate
+ * (what HMAC and PBKDF2 reuse). `digest()` pads and compresses a copy of the state.
  */
 
-type Sha2State = Uint32Array | BigUint64Array;
+type BlockState = Uint32Array | BigUint64Array;
 
-/** What a context needs to know about one word size. */
-interface Sha2Engine<S extends Sha2State> {
-  readonly blockBytes: Sha2BlockBytes;
-  readonly copy: (state: S) => S;
+/** What a context needs to know about one hash: block size, compression, final padding and output bytes. */
+export interface BlockEngine<S extends BlockState> {
+  readonly blockBytes: number;
   readonly compress: (state: S, block: Uint8Array) => S;
-  /** H as bytes, big-endian (FIPS 180-4 §3.1). */
+  /** The final block(s): the tail after the last whole block, padded with the whole message's length. */
+  readonly padTail: (tail: Uint8Array, messageBytes: number) => Uint8Array;
+  /** The state as bytes (big-endian for SHA-2, FIPS 180-4 §3.1). */
   readonly bytes: (state: S) => Uint8Array;
 }
 
-const ENGINE32: Sha2Engine<Uint32Array> = {
+const ENGINE32: BlockEngine<Uint32Array> = {
   blockBytes: 64,
-  copy: (state) => state.slice(),
   compress: sha256Compress,
-  bytes(state) {
-    const bytes = new Uint8Array(state.length * 4);
-    const view = new DataView(bytes.buffer);
-    state.forEach((word, index) => view.setUint32(index * 4, word));
-    return bytes;
-  },
+  padTail: (tail, messageBytes) => sha2PadTail(tail, messageBytes, 64),
+  bytes: (state) => Uint8Array.from(wordsToBytes(WORD32, [...state])),
 };
 
-const ENGINE64: Sha2Engine<BigUint64Array> = {
+const ENGINE64: BlockEngine<BigUint64Array> = {
   blockBytes: 128,
-  copy: (state) => state.slice(),
   compress: sha512Compress,
-  bytes(state) {
-    const bytes = new Uint8Array(state.length * 8);
-    const view = new DataView(bytes.buffer);
-    state.forEach((word, index) => view.setBigUint64(index * 8, word));
-    return bytes;
-  },
+  padTail: (tail, messageBytes) => sha2PadTail(tail, messageBytes, 128),
+  bytes: (state) => Uint8Array.from(wordsToBytes(WORD64, [...state])),
 };
 
-/** The running state: H, the partial block and the message length so far. */
-interface Sha2Running<S extends Sha2State> {
-  state: S;
-  partial: Uint8Array;
-  partialLength: number;
-  messageBytes: number;
+/** Compresses every `blockBytes`-byte block of `padded` into `state` (in place) and returns it. */
+export function compressBlocks<S>(state: S, padded: Uint8Array, blockBytes: number, compress: (state: S, block: Uint8Array) => S): S {
+  for (let offset = 0; offset < padded.length; offset += blockBytes) compress(state, padded.subarray(offset, offset + blockBytes));
+  return state;
 }
 
-class Sha2Context<S extends Sha2State> implements HashContext {
+class BlockContext<S extends BlockState> implements HashContext {
   constructor(
-    private readonly engine: Sha2Engine<S>,
+    private readonly engine: BlockEngine<S>,
     private readonly outputSize: number,
-    private readonly running: Sha2Running<S>,
+    private readonly state: S,
+    private readonly buffer: BlockBuffer,
+    private messageBytes: number,
   ) {}
 
   update(data: Uint8Array): void {
-    const { engine, running } = this;
-    const size = engine.blockBytes;
-    running.messageBytes += data.length;
-    let offset = this.fillPartial(data);
-    if (running.partialLength === size) {
-      engine.compress(running.state, running.partial);
-      running.partialLength = 0;
-    }
-    if (running.partialLength > 0) return;
-    for (; offset + size <= data.length; offset += size) engine.compress(running.state, data.subarray(offset, offset + size));
-    running.partial.set(data.subarray(offset));
-    running.partialLength = data.length - offset;
-  }
-
-  /** Tops up a non-empty partial block from `data`; returns how many bytes of `data` it took. */
-  private fillPartial(data: Uint8Array): number {
-    const { running } = this;
-    if (running.partialLength === 0) return 0;
-    const taken = Math.min(this.engine.blockBytes - running.partialLength, data.length);
-    running.partial.set(data.subarray(0, taken), running.partialLength);
-    running.partialLength += taken;
-    return taken;
+    this.messageBytes += data.length;
+    this.buffer.feed(data, (block) => this.engine.compress(this.state, block));
   }
 
   digest(): Uint8Array {
-    const { engine, running } = this;
-    const state = engine.copy(running.state);
-    const tail = sha2PadTail(running.partial.subarray(0, running.partialLength), running.messageBytes, engine.blockBytes);
-    for (let offset = 0; offset < tail.length; offset += engine.blockBytes) engine.compress(state, tail.subarray(offset, offset + engine.blockBytes));
-    return engine.bytes(state).slice(0, this.outputSize);
+    const { engine } = this;
+    const tail = engine.padTail(this.buffer.tail, this.messageBytes);
+    return engine.bytes(compressBlocks(this.state.slice() as S, tail, engine.blockBytes, engine.compress)).slice(0, this.outputSize);
   }
 
   clone(): HashContext {
-    const { engine, running } = this;
-    return new Sha2Context(engine, this.outputSize, { ...running, state: engine.copy(running.state), partial: running.partial.slice() });
+    return new BlockContext(this.engine, this.outputSize, this.state.slice() as S, this.buffer.clone(), this.messageBytes);
   }
 }
 
-function newContext<S extends Sha2State>(engine: Sha2Engine<S>, iv: S, outputSize: number): HashContext {
-  return new Sha2Context(engine, outputSize, { state: iv, partial: new Uint8Array(engine.blockBytes), partialLength: 0, messageBytes: 0 });
+/** A fresh incremental context for `engine` from `iv` (nothing absorbed), its digest the first `outputSize` state bytes. */
+export function createBlockContext<S extends BlockState>(engine: BlockEngine<S>, iv: S, outputSize: number): HashContext {
+  return new BlockContext(engine, outputSize, iv, BlockBuffer.empty(engine.blockBytes), 0);
 }
 
 /** A fresh incremental context for `algorithm` (H = its IV, nothing absorbed). */
 export function createSha2Context(algorithm: AnySha2Algorithm): HashContext {
   return isWord32(algorithm)
-    ? newContext(ENGINE32, Uint32Array.from(algorithm.iv), algorithm.outputSize)
-    : newContext(ENGINE64, BigUint64Array.from(algorithm.iv), algorithm.outputSize);
+    ? createBlockContext(ENGINE32, Uint32Array.from(algorithm.iv), algorithm.outputSize)
+    : createBlockContext(ENGINE64, BigUint64Array.from(algorithm.iv), algorithm.outputSize);
 }

@@ -12,8 +12,11 @@ import { laneRun, word, type Lanes } from './shaWords.ts';
 /** An instruction without effects on the vector registers (`ret`, a scalar address computation). */
 export const NO_EFFECTS: ShaEffects = { reads: [], writes: [], written: [] };
 
+/** A listed instruction's operands (any family: SHA, Keccak). */
+type Operands = Pick<ShaListingInstruction, 'operands'>;
+
 /** Operand `index` of the listed instruction; throws when it has none. */
-export function operand(instruction: ShaListingInstruction, index: number): string {
+export function operand(instruction: Operands, index: number): string {
   const text = instruction.operands[index];
   if (text === undefined) throw new Error(`no operand ${index}`);
   return text;
@@ -26,7 +29,7 @@ export function operand(instruction: ShaListingInstruction, index: number): stri
 export function vectorOperandReader(
   vectorRegister: (operand: string) => string | undefined,
   what: string,
-): (instruction: ShaListingInstruction, index: number) => string {
+): (instruction: Operands, index: number) => string {
   return (instruction, index) => {
     const name = vectorRegister(operand(instruction, index));
     if (name === undefined) throw new Error(`operand ${index} is not ${what}`);

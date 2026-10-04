@@ -3,14 +3,15 @@ import { describe, expect, it } from 'vitest';
 import { blake2Blocks } from './blocks.ts';
 import { compressDetailed, counterWords, gDetail } from './compress.ts';
 import { blake2sCompress, BLAKE2S_ENGINE } from './reference.ts';
-import { BLAKE2B, BLAKE2S, wordsFromLittleEndian, wordsToLittleEndian } from './variants.ts';
+import { wordsFromBytes, wordsToBytes } from '../sha2/words.ts';
+import { BLAKE2B, BLAKE2S } from './variants.ts';
 
 const hex32 = (words: readonly number[]) => words.map((word) => BLAKE2S.arith.toHex(word));
 const H0_S256 = [...BLAKE2S.iv.slice(0, 1).map((word) => (word ^ 0x01010020) >>> 0), ...BLAKE2S.iv.slice(1)];
 const ABC_BLOCK = blake2Blocks(Array.from(utf8Bytes('abc')), [], 64)[0]!;
 
 describe('compressDetailed', () => {
-  const detail = compressDetailed(BLAKE2S, H0_S256, wordsFromLittleEndian(BLAKE2S.arith, ABC_BLOCK.bytes), ABC_BLOCK.t, true);
+  const detail = compressDetailed(BLAKE2S, H0_S256, wordsFromBytes(BLAKE2S.arith, ABC_BLOCK.bytes, 'little'), ABC_BLOCK.t, true);
 
   it('loads v as RFC 7693 Appendix B prints it at i = 0 (t0 = 3, final flag set)', () => {
     expect(hex32(detail.vLoaded)).toEqual(['6b08e647', 'bb67ae85', '3c6ef372', 'a54ff53a', '510e527f', '9b05688c', '1f83d9ab', '5be0cd19', '6a09e667', 'bb67ae85', '3c6ef372', 'a54ff53a', '510e527c', '9b05688c', 'e07c2654', '5be0cd19']);
@@ -60,9 +61,9 @@ describe('counterWords', () => {
 
 describe('variants', () => {
   it('read and write words little-endian (RFC 7693 §2.4)', () => {
-    expect(wordsFromLittleEndian(BLAKE2S.arith, [0x61, 0x62, 0x63, 0x00])).toEqual([0x00636261]);
-    expect(wordsToLittleEndian(BLAKE2S.arith, [0x00636261])).toEqual([0x61, 0x62, 0x63, 0x00]);
-    expect(wordsToLittleEndian(BLAKE2B.arith, [0x0102030405060708n])).toEqual([8, 7, 6, 5, 4, 3, 2, 1]);
-    expect(wordsFromLittleEndian(BLAKE2B.arith, [8, 7, 6, 5, 4, 3, 2, 1])).toEqual([0x0102030405060708n]);
+    expect(wordsFromBytes(BLAKE2S.arith, [0x61, 0x62, 0x63, 0x00], 'little')).toEqual([0x00636261]);
+    expect(wordsToBytes(BLAKE2S.arith, [0x00636261], 'little')).toEqual([0x61, 0x62, 0x63, 0x00]);
+    expect(wordsToBytes(BLAKE2B.arith, [0x0102030405060708n], 'little')).toEqual([8, 7, 6, 5, 4, 3, 2, 1]);
+    expect(wordsFromBytes(BLAKE2B.arith, [8, 7, 6, 5, 4, 3, 2, 1], 'little')).toEqual([0x0102030405060708n]);
   });
 });

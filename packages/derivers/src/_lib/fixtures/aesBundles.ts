@@ -1,7 +1,7 @@
-import type { TraceBundle } from '@cryventure/core';
 import c1 from './aes-fips197-c1.bundle.json';
 import c2 from './aes-fips197-c2.bundle.json';
 import c3 from './aes-fips197-c3.bundle.json';
+import { fixtureLoader } from './fixtureLoader.ts';
 
 /**
  * Test-only: real AES producer bundles (state + values facets, op detail) of the FIPS 197 App. C
@@ -12,19 +12,11 @@ import c3 from './aes-fips197-c3.bundle.json';
 export const AES_FIXTURE_PRESETS = ['fips197-c1', 'fips197-c2', 'fips197-c3'] as const;
 export type AesFixturePreset = (typeof AES_FIXTURE_PRESETS)[number];
 
-interface BundleFixture {
-  producerId: string;
-  presetId: string;
-  bundle: unknown;
-}
-
-const FIXTURES: Record<AesFixturePreset, BundleFixture> = {
+const LOADER = fixtureLoader<AesFixturePreset>({
   'fips197-c1': c1,
   'fips197-c2': c2,
   'fips197-c3': c3,
-};
+});
 
 /** A fresh deep copy of the preset's bundle (tests may mutate it). */
-export function aesFixtureBundle(preset: AesFixturePreset): TraceBundle {
-  return JSON.parse(JSON.stringify(FIXTURES[preset].bundle)) as TraceBundle;
-}
+export const aesFixtureBundle = LOADER.fresh;

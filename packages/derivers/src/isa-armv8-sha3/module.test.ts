@@ -22,10 +22,10 @@ import {
 } from '../_lib/keccak/fixtures/keccakBundles.ts';
 import { registersAfterEach } from '../_lib/keccak/fixtures/keccakChecks.ts';
 import { keccakTrace, laneBytes } from '../_lib/keccak/keccakTrace.ts';
+import { armSimdRegister } from '../_lib/listing.ts';
 import de from './i18n/de.json';
 import en from './i18n/en.json';
 import { derive } from './module.ts';
-import { armSimdRegister } from './profile.ts';
 
 const VARIANT = 'aarch64-armv8-sha3';
 /** 21 prologue + 86 body (one round) + 25 epilogue instructions. */

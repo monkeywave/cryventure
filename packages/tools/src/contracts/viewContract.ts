@@ -39,6 +39,9 @@ function defaultFixtures(): Promise<NamedBundle[]> {
  * Renders the view against every fixture bundle that serves it, in each locale, lens and at the
  * first/middle/last step: no render may throw or show a raw message key. Needs a DOM environment.
  */
+/** Renders every bundle × locale × lens × 3 steps; the SHA3 listings (4220 instructions) take ~13 s alone. */
+const RENDER_TIMEOUT_MS = 120_000;
+
 function renderSuite<C>(manifest: ViewManifest<C>, options: ViewContractOptions): void {
   let View: ViewComponent;
   let sources: NamedBundle[];
@@ -57,7 +60,7 @@ function renderSuite<C>(manifest: ViewManifest<C>, options: ViewContractOptions)
       return viewRenderCases(bundle, lenses).flatMap((renderCase) => renderViewProblems(View, bundle, renderCase, messages[renderCase.locale]).map((problem) => `${name}: ${problem}`));
     });
     expect(problems).toEqual([]);
-  });
+  }, RENDER_TIMEOUT_MS);
 }
 
 /** Registers the generic contract suite for one view plugin (call at test-file top level, in a DOM environment). */

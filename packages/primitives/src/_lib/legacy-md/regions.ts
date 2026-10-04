@@ -1,7 +1,6 @@
-import { zeroSnapshot, type RegionLayout, type RegionSpec, type Snapshot } from '@cryventure/core';
+import type { RegionLayout, RegionSpec, WordByteOrder } from '@cryventure/core';
 import { u8Region, wordsLayout } from '../sha2/regions.ts';
 import type { LegacyAlgorithm } from './algorithm.ts';
-import type { WordByteOrder } from './words.ts';
 
 /**
  * The MD5/SHA-1 state regions (docs/M6.md §2e), as SHA-2's: `message` (omitted when empty),
@@ -11,6 +10,7 @@ import type { WordByteOrder } from './words.ts';
 export type LegacyRegion = 'message' | 'padded' | 'w' | 'vars' | 'h' | 'digest';
 
 export const LEGACY_WORD_BYTES = 4;
+export const LEGACY_BLOCK_BYTES = 64;
 
 /** A 4-byte `words` layout in `order` (big-endian is the default and stays implicit). */
 export function legacyWordsLayout(order: WordByteOrder, labelPrefix?: string): RegionLayout {
@@ -32,11 +32,4 @@ export function legacyRegions(ns: string, algorithm: LegacyAlgorithm, messageByt
     region(ns, 'h', registerBytes, words('H')),
     region(ns, 'digest', algorithm.outputSize, words()),
   ];
-}
-
-/** The initial snapshot: the message; every other region blank. */
-export function legacyInitialSnapshot(regions: readonly RegionSpec<LegacyRegion>[], message: readonly number[]): Snapshot<LegacyRegion> {
-  const initial: Record<string, readonly number[]> = { ...zeroSnapshot(regions) };
-  if (message.length > 0) initial['message'] = [...message];
-  return initial as unknown as Snapshot<LegacyRegion>;
 }

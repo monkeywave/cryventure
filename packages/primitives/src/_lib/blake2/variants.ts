@@ -4,8 +4,8 @@ import { BLAKE2_IDS, blake2Flavour, blake2OutputBytes, type Blake2Flavour, type 
 
 /**
  * The traced side's view of BLAKE2s and BLAKE2b (RFC 7693 §2.1): word arithmetic (shared with SHA-2:
- * add mod 2^w, XOR, rotate right), rounds, block size, IV and the G rotations, plus the
- * little-endian byte order of BLAKE2 words (§2.4). Words print as big-endian hex of their value.
+ * add mod 2^w, XOR, rotate right), rounds, block size, IV and the G rotations. BLAKE2 words are
+ * little-endian (§2.4: `wordsFromBytes`/`wordsToBytes` with `'little'`); they print as big-endian hex of their value.
  */
 export interface Blake2Variant<W extends Word> {
   readonly flavour: Blake2Flavour;
@@ -63,19 +63,3 @@ function algorithm(id: Blake2Id): AnyBlake2Algorithm {
 
 /** Every function id with its algorithm. */
 export const BLAKE2_ALGORITHMS: Readonly<Record<Blake2Id, AnyBlake2Algorithm>> = Object.fromEntries(BLAKE2_IDS.map((id) => [id, algorithm(id)])) as Record<Blake2Id, AnyBlake2Algorithm>;
-
-/** The word stored little-endian at `bytes[offset …]`. */
-export function wordFromLittleEndian<W extends Word>(arith: WordArith<W>, bytes: ArrayLike<number>, offset: number): W {
-  const reversed = Array.from({ length: arith.bytes }, (_, index) => bytes[offset + arith.bytes - 1 - index] ?? 0);
-  return arith.fromBytes(reversed, 0);
-}
-
-/** The little-endian words of `bytes` (its length a multiple of the word size). */
-export function wordsFromLittleEndian<W extends Word>(arith: WordArith<W>, bytes: ArrayLike<number>): W[] {
-  return Array.from({ length: Math.floor(bytes.length / arith.bytes) }, (_, index) => wordFromLittleEndian(arith, bytes, index * arith.bytes));
-}
-
-/** The little-endian bytes of `words`, concatenated. */
-export function wordsToLittleEndian<W extends Word>(arith: WordArith<W>, words: readonly W[]): number[] {
-  return words.flatMap((word) => arith.toBytes(word).reverse());
-}

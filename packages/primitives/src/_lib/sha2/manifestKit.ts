@@ -1,14 +1,15 @@
-import { i18nRef, opLabels, parseHexOfLength, readOption, utf8Bytes, type ParamField, type Preset, type ValidationResult } from '@cryventure/core';
+import { opLabels, readOption, type ParamField, type Preset, type ValidationResult } from '@cryventure/core';
+import { HASH_ENCODINGS, paramError, readMessageInput, selectField, type HashEncoding } from '../hashKit/manifestKit.ts';
 
 /**
  * The manifest parts the SHA-2 producers (`sha256`, `sha512`) share: message encodings, detail
  * levels, the recorded op names, param fields, presets and param validation (docs/M5.md §2b–2e).
- * Manifests load eagerly, so this module stays tiny and imports `@cryventure/core` only (eslint
- * allows manifests exactly this file of `_lib/sha2`; the recorder stays behind `load()`).
+ * Manifests load eagerly, so this module stays tiny and imports `@cryventure/core` only (and the
+ * shared `_lib/hashKit/manifestKit.ts`; the recorder stays behind `load()`).
  */
 
-export const SHA2_ENCODINGS = ['utf8', 'hex'] as const;
-export type Sha2Encoding = (typeof SHA2_ENCODINGS)[number];
+export const SHA2_ENCODINGS = HASH_ENCODINGS;
+export type Sha2Encoding = HashEncoding;
 export const SHA2_DETAILS = ['round', 'block'] as const;
 export type Sha2Detail = (typeof SHA2_DETAILS)[number];
 
@@ -25,7 +26,6 @@ export type Sha2OpName = (typeof SHA2_OP_NAMES)[number];
  * also the text field's `maxLength`: the lab counts hex input as decoded bytes (`encoding: 'hex'`).
  */
 export const SHA2_MAX_MESSAGE_BYTES = 128;
-const MESSAGE_LENGTHS = Array.from({ length: SHA2_MAX_MESSAGE_BYTES + 1 }, (_, length) => length);
 
 /** A SHA-2 producer's params over its own algorithm ids. */
 export interface Sha2HashParams<A extends string> {
@@ -36,39 +36,21 @@ export interface Sha2HashParams<A extends string> {
   detail: Sha2Detail;
 }
 
-const sha2Error = (ns: string, name: string, params?: Record<string, string | number>) => ({ ok: false as const, error: i18nRef(`${ns}.error.${name}`, params) });
-
-function selectField(ns: string, name: string, options: readonly string[]): ParamField {
-  return {
-    name,
-    kind: 'select',
-    labelKey: `${ns}.param.${name}`,
-    hintKey: `${ns}.param.${name}Hint`,
-    options: options.map((value) => ({ value, labelKey: `${ns}.param.${name}Option.${value}` })),
-  };
-}
-
 /** The message text: UTF-8 of at most 128 bytes, or hex of 0 … 128 bytes (normalised to lowercase). */
 export function readSha2Input(ns: string, input: unknown, encoding: Sha2Encoding): ValidationResult<string> {
-  if (typeof input !== 'string') return sha2Error(ns, 'invalidParams');
-  if (encoding === 'hex') {
-    const hex = parseHexOfLength(input, MESSAGE_LENGTHS, { invalidType: `${ns}.error.invalidParams`, wrongLength: `${ns}.error.inputLength` });
-    return hex.ok ? { ok: true, value: hex.hex } : hex;
-  }
-  const length = utf8Bytes(input).length;
-  return length <= SHA2_MAX_MESSAGE_BYTES ? { ok: true, value: input } : sha2Error(ns, 'inputLength', { length });
+  return readMessageInput(ns, input, encoding, SHA2_MAX_MESSAGE_BYTES);
 }
 
 /** Validates and normalises params (hex lowercased with separators stripped; every select checked). */
 export function validateSha2Params<A extends string>(ns: string, algorithmIds: readonly A[], params: unknown): ValidationResult<Sha2HashParams<A>> {
-  if (typeof params !== 'object' || params === null) return sha2Error(ns, 'invalidParams');
+  if (typeof params !== 'object' || params === null) return paramError(ns, 'invalidParams');
   const record = params as Record<string, unknown>;
   const algorithm = readOption(record['algorithm'], algorithmIds);
-  if (algorithm === undefined) return sha2Error(ns, 'algorithm', { algorithm: String(record['algorithm']) });
+  if (algorithm === undefined) return paramError(ns, 'algorithm', { algorithm: String(record['algorithm']) });
   const encoding = readOption(record['encoding'], SHA2_ENCODINGS);
-  if (encoding === undefined) return sha2Error(ns, 'encoding', { encoding: String(record['encoding']) });
+  if (encoding === undefined) return paramError(ns, 'encoding', { encoding: String(record['encoding']) });
   const detail = readOption(record['detail'], SHA2_DETAILS);
-  if (detail === undefined) return sha2Error(ns, 'detail', { detail: String(record['detail']) });
+  if (detail === undefined) return paramError(ns, 'detail', { detail: String(record['detail']) });
   const input = readSha2Input(ns, record['input'], encoding);
   if (!input.ok) return input;
   return { ok: true, value: { algorithm, encoding, input: input.value, detail } };

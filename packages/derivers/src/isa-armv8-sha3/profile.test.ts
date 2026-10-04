@@ -10,8 +10,8 @@ import {
 } from '../_lib/keccak/fixtures/keccakBundles.ts';
 import { keccakMachine, listedKeccak } from '../_lib/keccak/fixtures/keccakChecks.ts';
 import { lowHalf, ZERO, type KeccakValue } from '../_lib/keccak/keccakValues.ts';
-import type { KeccakListing } from '../_lib/listing.ts';
-import { armSha3Note, armSimdRegister, ARMV8_SHA3_PROFILE } from './profile.ts';
+import { armSimdRegister, type KeccakListing } from '../_lib/listing.ts';
+import { armSha3Note, ARMV8_SHA3_PROFILE } from './profile.ts';
 
 const { semantics, listing } = ARMV8_SHA3_PROFILE;
 const run = (
@@ -275,8 +275,6 @@ describe('deriveKeccakIsaFacets with this profile', () => {
         ...ARMV8_SHA3_PROFILE,
         listing,
       }),
-    ).toThrow(
-      `listing 0xbc xar: note of instruction ${index}: no rotation immediate in operand "x9"`,
-    );
+    ).toThrow(`listing 0xbc xar: note of instruction ${index}: "x9" is not an immediate`);
   });
 });

@@ -1,25 +1,27 @@
 import { i18nRef, scopeLevels } from '@cryventure/core';
 import { describe, expect, it } from 'vitest';
-import { sha3InitialSnapshot, sha3Regions } from './regions.ts';
+import { initialSnapshot } from '../_lib/sha2/regions.ts';
+import { sha3Regions } from './regions.ts';
 import { SpongeRecorder } from './spongeRecorder.ts';
 
 const NARRATION = i18nRef('plugin.sha3.step.output');
 const LANES = new Array<string>(25).fill('0000000000000000');
+const LEVELS = scopeLevels('plugin.sha3', 'block', 'round', 'op');
 
 function recorder(): SpongeRecorder {
   const regions = sha3Regions(1, 136, 32);
-  return new SpongeRecorder(regions, sha3InitialSnapshot(regions, [1]), scopeLevels('plugin.sha3', 'block', 'round', 'op'), i18nRef('plugin.sha3.step.initial'));
+  return new SpongeRecorder(regions, initialSnapshot(regions, { message: [1] }), i18nRef('plugin.sha3.step.initial'));
 }
 
 describe('SpongeRecorder', () => {
   it('records flat steps in the current scope and scoped steps one level deeper, each with its sponge step', () => {
     const rec = recorder();
-    rec.block(0, () => {
-      rec.flatOp({ op: 'pad', writes: [], highlights: [], narration: NARRATION }, { phase: 'pad', lanes: LANES });
-      rec.round(7, () => rec.scopedOp({ op: 'theta', writes: [], highlights: [], narration: NARRATION }, { phase: 'theta', round: 7, lanes: LANES }));
+    rec.scope(0, () => {
+      rec.step({ op: 'pad', writes: [], highlights: [], narration: NARRATION }, { phase: 'pad', lanes: LANES });
+      rec.scope(7, () => rec.scopedOp({ op: 'theta', writes: [], highlights: [], narration: NARRATION }, { phase: 'theta', round: 7, lanes: LANES }));
       rec.scopedOp({ op: 'squeeze', writes: [], highlights: [], narration: NARRATION }, { phase: 'squeeze', lanes: LANES });
     });
-    const state = rec.stateFacet();
+    const state = rec.stateFacet(LEVELS);
     expect(state.steps.map((step) => step.scope)).toEqual([[0], [0, 7, 0], [0, 8]]);
     expect(state.scopeLevels?.length).toBe(3);
     const sponge = rec.spongeFacet(i18nRef('plugin.sha3.sponge.label'), 17);
@@ -35,8 +37,8 @@ describe('SpongeRecorder', () => {
 
   it('closes a scope when its body throws', () => {
     const rec = recorder();
-    expect(() => rec.block(0, () => { throw new Error('boom'); })).toThrow('boom');
-    rec.flatOp({ op: 'output', writes: [], highlights: [], narration: NARRATION }, { phase: 'output', lanes: LANES });
-    expect(rec.stateFacet().steps[0]!.scope).toEqual([]);
+    expect(() => rec.scope(0, () => { throw new Error('boom'); })).toThrow('boom');
+    rec.step({ op: 'output', writes: [], highlights: [], narration: NARRATION }, { phase: 'output', lanes: LANES });
+    expect(rec.stateFacet(LEVELS).steps[0]!.scope).toEqual([]);
   });
 });

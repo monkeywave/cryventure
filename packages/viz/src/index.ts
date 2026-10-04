@@ -31,7 +31,7 @@ export type { OpLabelMap } from './player/opLabel.ts';
 export { useScopeLabel } from './player/useScopeLabel.ts';
 // cells
 export { ByteGrid, type ByteGridProps, type GridLayoutMode, type GridMotion, type GridRowHeader } from './cells/ByteGrid.tsx';
-export { cellIndex, type GridHighlight, type GridOrder, type GridShape } from './cells/gridLayout.ts';
+export { cellIndex, moveGridFocus, type GridHighlight, type GridOrder, type GridPosition, type GridShape } from './cells/gridLayout.ts';
 export { formatHex, toHex } from './cells/hex.ts';
 export { useGridNavigation } from './cells/useGridNavigation.ts';
 export { revealInScroller, revealScrollTop } from './cells/useRevealCurrentRow.ts';

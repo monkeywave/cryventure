@@ -2,7 +2,7 @@ import { allIndices, highlight, i18nRef, scopeLevels, valueId, zeroSnapshot, typ
 import { laneBytes, laneHex } from '../_lib/keccak/lanes.ts';
 import { u8Region, wordIndices } from '../_lib/sha2/regions.ts';
 import { WordopsRecorder } from '../_lib/sha2/wordopsRecorder.ts';
-import { mismatchedIndices } from './compare.ts';
+import { mismatchedIndices } from '../_lib/compare.ts';
 import { bitWord, deriveRoundConstant, fipsRegisterBits, LFSR_START, type DerivedRoundConstant } from './lfsr.ts';
 import type { KeccakConstantsOpName } from './manifest.ts';
 

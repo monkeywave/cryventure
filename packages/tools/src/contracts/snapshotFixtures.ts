@@ -3,20 +3,14 @@ import { join } from 'node:path';
 import { isDeepStrictEqual } from 'node:util';
 import { REPO_ROOT } from '../fs/repoRoot.ts';
 import {
-  AES_FIXTURE_PRESETS,
-  aesBundleFixturePath,
-  buildAesBundleFixture,
+  BUNDLE_FIXTURE_SETS,
+  bundleFixturePath,
+  buildBundleFixture,
   buildIsaViewFixture,
   buildMemoryViewFixture,
   INSTRUCTIONS_VIEW_FIXTURE,
   MEMORY_VIEW_FIXTURE,
   REGISTERS_VIEW_FIXTURE,
-  SHA_FIXTURE_PRESETS,
-  shaBundleFixturePath,
-  buildShaBundleFixture,
-  SHA3_FIXTURE_PRESETS,
-  sha3BundleFixturePath,
-  buildSha3BundleFixture,
 } from './deriverViewFixtures.ts';
 import {
   buildFieldViewFixture,
@@ -44,9 +38,7 @@ export interface SnapshotFixture {
 }
 
 export const SNAPSHOT_FIXTURES: readonly SnapshotFixture[] = [
-  ...AES_FIXTURE_PRESETS.map((preset) => ({ path: aesBundleFixturePath(preset), build: () => buildAesBundleFixture(preset) })),
-  ...SHA_FIXTURE_PRESETS.map((preset) => ({ path: shaBundleFixturePath(preset), build: () => buildShaBundleFixture(preset) })),
-  ...SHA3_FIXTURE_PRESETS.map((preset) => ({ path: sha3BundleFixturePath(preset), build: () => buildSha3BundleFixture(preset) })),
+  ...BUNDLE_FIXTURE_SETS.flatMap((set) => set.presets.map((preset) => ({ path: bundleFixturePath(set, preset), build: () => buildBundleFixture(set, preset) }))),
   { path: INSTRUCTIONS_VIEW_FIXTURE, build: () => buildIsaViewFixture('instructions') },
   { path: REGISTERS_VIEW_FIXTURE, build: () => buildIsaViewFixture('registers') },
   { path: MEMORY_VIEW_FIXTURE, build: buildMemoryViewFixture },

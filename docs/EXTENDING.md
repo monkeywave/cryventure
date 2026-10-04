@@ -99,8 +99,8 @@ is a positive integer and that `defaults` and every preset fit it.
 
 - **Hex text:** when the producer also has a sibling param named `encoding` whose value is `'hex'`,
   the lab's param panel and the contract kit measure the text field named **`input`** (the message)
-  in **hex-decoded bytes** instead of UTF-8 bytes (`textFieldLength` in
-  `apps/web/src/labs/paramFields.ts`, mirrored by the kit's `textFieldProblems`); every other text
+  in **hex-decoded bytes** instead of UTF-8 bytes (one helper,
+  `textFieldByteLength` in `packages/primitives/src/textParams.ts`, used by both); every other text
   field (e.g. cSHAKE's `functionName`/`customization`) always counts UTF-8 bytes. So name the message
   field `input`, set `maxLength` to the message limit in bytes, the same for both encodings (e.g.
   `sha256`/`sha512`: 128), and decode/check the hex in `validate()` yourself.

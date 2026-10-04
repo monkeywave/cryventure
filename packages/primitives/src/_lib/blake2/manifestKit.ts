@@ -1,9 +1,10 @@
-import { i18nRef, opLabels, parseHexOfLength, readOption, utf8Bytes, type ParamField, type ValidationResult } from '@cryventure/core';
+import { opLabels, parseHexOfLength, readOption, type ParamField, type ValidationResult } from '@cryventure/core';
+import { HASH_ENCODINGS, messageLengths, paramError, readMessageInput, selectField, type HashEncoding } from '../hashKit/manifestKit.ts';
 
 /**
  * The eagerly loaded manifest parts of the `blake2` producer (docs/M6.md §2d): the eight RFC 7693 §4
  * function ids, encodings, detail levels, the recorded op names, param fields and validation.
- * Manifests load eagerly, so this module imports `@cryventure/core` only.
+ * Manifests load eagerly, so this module imports `@cryventure/core` and the shared hash manifest kit only.
  */
 
 /** The eight standard BLAKE2 functions of RFC 7693 §4, `blake2<s|b>-<digest bits>`. */
@@ -13,8 +14,8 @@ export type Blake2Id = (typeof BLAKE2_IDS)[number];
 /** BLAKE2s (32-bit words) or BLAKE2b (64-bit words). */
 export type Blake2Flavour = 'blake2s' | 'blake2b';
 
-export const BLAKE2_ENCODINGS = ['utf8', 'hex'] as const;
-export type Blake2Encoding = (typeof BLAKE2_ENCODINGS)[number];
+export const BLAKE2_ENCODINGS = HASH_ENCODINGS;
+export type Blake2Encoding = HashEncoding;
 
 /** `g`: one step per G call; `round`: one step per round; `block`: one step per compression. */
 export const BLAKE2_DETAILS = ['g', 'round', 'block'] as const;
@@ -30,11 +31,10 @@ export type Blake2OpName = (typeof BLAKE2_OP_NAMES)[number];
 
 /** At most 128 message bytes in either encoding; also the text field's `maxLength` (hex counts decoded bytes). */
 export const BLAKE2_MAX_MESSAGE_BYTES = 128;
-const MESSAGE_LENGTHS = Array.from({ length: BLAKE2_MAX_MESSAGE_BYTES + 1 }, (_, length) => length);
 
 /** The longest key of either flavour (BLAKE2b); BLAKE2s allows 32 bytes (RFC 7693 §2.1). */
 const MAX_KEY_BYTES: Readonly<Record<Blake2Flavour, number>> = { blake2s: 32, blake2b: 64 };
-const KEY_LENGTHS = Array.from({ length: MAX_KEY_BYTES.blake2b + 1 }, (_, length) => length);
+const KEY_LENGTHS = messageLengths(MAX_KEY_BYTES.blake2b);
 
 /** The flavour of a function id. */
 export const blake2Flavour = (id: Blake2Id): Blake2Flavour => (id.startsWith('blake2s') ? 'blake2s' : 'blake2b');
@@ -55,53 +55,34 @@ export interface Blake2HashParams {
   detail: Blake2Detail;
 }
 
-type Failure = { ok: false; error: ReturnType<typeof i18nRef> };
-const failure = (ns: string, name: string, params?: Record<string, string | number>): Failure => ({ ok: false, error: i18nRef(`${ns}.error.${name}`, params) });
-
 /** The message text: UTF-8 of at most 128 bytes, or hex of 0 … 128 bytes (normalised to lowercase). */
 export function readBlake2Input(ns: string, input: unknown, encoding: Blake2Encoding): ValidationResult<string> {
-  if (typeof input !== 'string') return failure(ns, 'invalidParams');
-  if (encoding === 'hex') {
-    const hex = parseHexOfLength(input, MESSAGE_LENGTHS, { invalidType: `${ns}.error.invalidParams`, wrongLength: `${ns}.error.inputLength` });
-    return hex.ok ? { ok: true, value: hex.hex } : hex;
-  }
-  const length = utf8Bytes(input).length;
-  return length <= BLAKE2_MAX_MESSAGE_BYTES ? { ok: true, value: input } : failure(ns, 'inputLength', { length });
+  return readMessageInput(ns, input, encoding, BLAKE2_MAX_MESSAGE_BYTES);
 }
 
 /** The key as hex: 0 … 32 bytes for BLAKE2s, 0 … 64 for BLAKE2b (normalised to lowercase). */
 export function readBlake2Key(ns: string, key: unknown, algorithm: Blake2Id): ValidationResult<string> {
   const max = blake2MaxKeyBytes(algorithm);
   const hex = parseHexOfLength(key, KEY_LENGTHS, { invalidType: `${ns}.error.invalidParams`, wrongLength: `${ns}.error.keyLength` });
-  if (!hex.ok) return hex.error.key === `${ns}.error.keyLength` ? failure(ns, 'keyLength', { length: Number(hex.error.params?.['length']), max }) : hex;
-  return hex.bytes.length <= max ? { ok: true, value: hex.hex } : failure(ns, 'keyLength', { length: hex.bytes.length, max });
+  if (!hex.ok) return hex.error.key === `${ns}.error.keyLength` ? paramError(ns, 'keyLength', { length: Number(hex.error.params?.['length']), max }) : hex;
+  return hex.bytes.length <= max ? { ok: true, value: hex.hex } : paramError(ns, 'keyLength', { length: hex.bytes.length, max });
 }
 
 /** Validates and normalises params (hex lowercased with separators stripped; every select checked). */
 export function validateBlake2Params(ns: string, params: unknown): ValidationResult<Blake2HashParams> {
-  if (typeof params !== 'object' || params === null) return failure(ns, 'invalidParams');
+  if (typeof params !== 'object' || params === null) return paramError(ns, 'invalidParams');
   const record = params as Record<string, unknown>;
   const algorithm = readOption(record['algorithm'], BLAKE2_IDS);
-  if (algorithm === undefined) return failure(ns, 'algorithm', { algorithm: String(record['algorithm']) });
+  if (algorithm === undefined) return paramError(ns, 'algorithm', { algorithm: String(record['algorithm']) });
   const encoding = readOption(record['encoding'], BLAKE2_ENCODINGS);
-  if (encoding === undefined) return failure(ns, 'encoding', { encoding: String(record['encoding']) });
+  if (encoding === undefined) return paramError(ns, 'encoding', { encoding: String(record['encoding']) });
   const detail = readOption(record['detail'], BLAKE2_DETAILS);
-  if (detail === undefined) return failure(ns, 'detail', { detail: String(record['detail']) });
+  if (detail === undefined) return paramError(ns, 'detail', { detail: String(record['detail']) });
   const input = readBlake2Input(ns, record['input'], encoding);
   if (!input.ok) return input;
   const key = readBlake2Key(ns, record['key'], algorithm);
   if (!key.ok) return key;
   return { ok: true, value: { algorithm, encoding, input: input.value, key: key.value, detail } };
-}
-
-function selectField(ns: string, name: string, options: readonly string[]): ParamField {
-  return {
-    name,
-    kind: 'select',
-    labelKey: `${ns}.param.${name}`,
-    hintKey: `${ns}.param.${name}Hint`,
-    options: options.map((value) => ({ value, labelKey: `${ns}.param.${name}Option.${value}` })),
-  };
 }
 
 /** algorithm, encoding, the message text, the key (hex) and the detail level. */

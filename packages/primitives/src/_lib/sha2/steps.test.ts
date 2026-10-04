@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest';
 import { SHA256_ALGORITHMS, SHA512_ALGORITHMS, type Sha2Algorithm } from './algorithms.ts';
 import { compressDetailed, type BlockDetail, type RoundDetail, type ScheduleDetail } from './compress.ts';
 import { sha2Padding } from './padding.ts';
-import { SHA2_REGISTER_NAMES, sha2InitialSnapshot, sha2Regions, type Sha2Region } from './regions.ts';
+import { initialSnapshot, SHA2_REGISTER_NAMES, sha2Regions, type Sha2Region } from './regions.ts';
 import { chainingValueId, recordCompress, recordFeedForward, recordInit, recordOutput, recordPad, recordRound, recordSchedule, sha2Trace, type Sha2OpName, type Sha2Trace, type Sha2TraceOptions } from './steps.ts';
 import { WordopsRecorder } from './wordopsRecorder.ts';
 import { wordsToBytes, type Word } from './words.ts';
@@ -14,7 +14,7 @@ const TWO_BLOCK = Array.from('abcdbcdecdefdefgefghfghighijhijkijkljklmklmnlmnomn
 function setup<W extends Word>(algorithm: Sha2Algorithm<W>, message: number[], options: Sha2TraceOptions = {}) {
   const padding = sha2Padding(message, algorithm.params.blockBytes);
   const regions = sha2Regions(NS, algorithm, message.length, padding.padded.length);
-  const recorder = new WordopsRecorder<Sha2Region, { op: Sha2OpName }>(regions, sha2InitialSnapshot(regions, message), scopeLevels(NS, 'block', 'op'), i18nRef(`${NS}.step.initial`));
+  const recorder = new WordopsRecorder<Sha2Region, { op: Sha2OpName }>(regions, initialSnapshot(regions, { message }), scopeLevels(NS, 'block', 'op'), i18nRef(`${NS}.step.initial`));
   const trace: Sha2Trace<W> = sha2Trace(NS, algorithm, recorder, options);
   const { blockBytes } = algorithm.params;
   const blocks: BlockDetail<W>[] = [];
@@ -38,7 +38,7 @@ describe('chainingValueId', () => {
 describe('recordPad', () => {
   it('writes the padded message and narrates the padding sizes', () => {
     const run = setup(SHA256_ALGORITHMS['sha-256'], [0x61, 0x62, 0x63]);
-    expect(recordPad(run.trace, 3, run.padding)).toBe(0);
+    expect(recordPad(run.trace, 3, run.padding, run.trace.algorithm.params.blockBytes)).toBe(0);
     const step = run.state().steps[0]!;
     expect(step.op).toBe('pad');
     expect(step.narration).toEqual({ key: `${NS}.step.pad`, params: { bytes: 3, zeros: 52, lengthBits: 64, bits: 24, count: 1, blockBytes: 64 } });
@@ -48,7 +48,7 @@ describe('recordPad', () => {
 
   it('reads no message bytes for the empty message', () => {
     const run = setup(SHA512_ALGORITHMS['sha-512'], []);
-    recordPad(run.trace, 0, run.padding);
+    recordPad(run.trace, 0, run.padding, run.trace.algorithm.params.blockBytes);
     expect(run.state().steps[0]!.highlights.map((highlight) => highlight.region)).toEqual(['padded']);
     expect(run.state().steps[0]!.narration.params).toMatchObject({ zeros: 111, lengthBits: 128 });
   });

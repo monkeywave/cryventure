@@ -43,11 +43,11 @@ export function sha2Regions<W extends Word>(ns: string, algorithm: Sha2Algorithm
   ];
 }
 
-/** The initial snapshot: the message; every other region blank. */
-export function sha2InitialSnapshot(regions: readonly RegionSpec<Sha2Region>[], message: readonly number[]): Snapshot<Sha2Region> {
+/** The initial snapshot: every non-empty seed (the message, a key, …) in its region, the other regions zero/blank. */
+export function initialSnapshot<R extends string>(regions: readonly RegionSpec<R>[], seeds: Partial<Record<R, readonly number[]>>): Snapshot<R> {
   const initial: Record<string, readonly number[]> = { ...zeroSnapshot(regions) };
-  if (message.length > 0) initial['message'] = [...message];
-  return initial as unknown as Snapshot<Sha2Region>;
+  for (const [id, values] of Object.entries<readonly number[] | undefined>(seeds)) if (values !== undefined && values.length > 0) initial[id] = [...values];
+  return initial as unknown as Snapshot<R>;
 }
 
 /** Byte indices of words `first` … `first + count − 1` in a words region. */

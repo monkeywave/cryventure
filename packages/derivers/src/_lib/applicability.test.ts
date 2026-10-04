@@ -1,6 +1,6 @@
 import type { TraceBundle } from '@cryventure/core';
 import { describe, expect, it } from 'vitest';
-import { isAesOpBundle, isSha256RoundBundle } from './applicability.ts';
+import { isAesOpBundle, isSha256RoundBundle, isSha512RoundBundle } from './applicability.ts';
 import { aesFixtureBundle } from './fixtures/aesBundles.ts';
 import { shaFixtureBundle } from './sha/fixtures/shaBundles.ts';
 
@@ -46,5 +46,14 @@ describe('isSha256RoundBundle', () => {
       }),
       isSha256RoundBundle(c1()),
     ]).toEqual([false, false, false]);
+  });
+});
+
+describe('isSha512RoundBundle', () => {
+  it('accepts a sha512 bundle at round detail only', () => {
+    const bundle = shaFixtureBundle('sha-512-abc');
+    expect(isSha512RoundBundle(bundle)).toBe(true);
+    expect(isSha512RoundBundle({ ...bundle, params: { detail: 'op' } })).toBe(false);
+    expect(isSha512RoundBundle(shaFixtureBundle('sha-256-abc'))).toBe(false);
   });
 });

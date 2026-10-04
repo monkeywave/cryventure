@@ -2,7 +2,7 @@ import { toHex, utf8Bytes } from '@cryventure/core';
 import { describe, expect, it } from 'vitest';
 import { MD5_IV, md5Padding } from './md5.ts';
 import { MD5_ALGORITHM, md5CompressDetailed, md5Round } from './md5Detail.ts';
-import { wordsToBytes } from './words.ts';
+import { WORD32, wordsToBytes } from '../sha2/words.ts';
 
 const ABC_BLOCK = md5Padding(utf8Bytes('abc')).padded;
 
@@ -34,7 +34,7 @@ describe('md5CompressDetailed', () => {
     const rounds = block.events.filter((event) => event.kind === 'round');
     rounds.slice(1).forEach((round, index) => expect(round.before).toEqual(rounds[index]!.after));
     expect(block.vars).toEqual(rounds.at(-1)!.after);
-    expect(toHex(wordsToBytes(block.hOut, 'little'))).toBe('900150983cd24fb0d6963f7d28e17f72');
+    expect(toHex(wordsToBytes(WORD32, block.hOut, 'little'))).toBe('900150983cd24fb0d6963f7d28e17f72');
     expect(block.words[0]).toBe(0x80636261);
   });
 

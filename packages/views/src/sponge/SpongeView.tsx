@@ -1,6 +1,6 @@
-import { useId, useMemo, useRef, useState, type CSSProperties, type KeyboardEvent, type ReactNode } from 'react';
+import { memo, useCallback, useId, useMemo, useRef, useState, type CSSProperties, type KeyboardEvent, type ReactNode } from 'react';
 import type { Lens, SpongeFacet, SpongeStep } from '@cryventure/core';
-import { MathText, ViewStatus, useFacet, useLab, useT } from '@cryventure/viz';
+import { MathText, ViewStatus, moveGridFocus, useFacet, useLab, useT } from '@cryventure/viz';
 import type { ViewProps } from '@cryventure/viz';
 import { ScrollRegion } from '../_lib/ScrollRegion.tsx';
 import {
@@ -13,7 +13,6 @@ import {
   lanePosition,
   lensParts,
   mod,
-  moveLane,
   outputGroups,
   piSourceOf,
   selectionUse,
@@ -122,17 +121,19 @@ interface LaneSelection {
   position: LanePosition;
   /** The roving-focus lane (the one in the tab order). */
   active: LanePosition;
+  /** Stable across renders (the memoised lanes take it as a prop). */
   setActive: (position: LanePosition) => void;
+  /** Stable across renders. */
   hover: (index: number | undefined) => void;
 }
 
 function useLaneSelection(width: number): LaneSelection {
   const [active, setActive] = useState<LanePosition>({ x: 0, y: 0 });
   const [hovered, setHovered] = useState<number | undefined>(undefined);
-  const setActiveAndDropHover = (position: LanePosition) => {
+  const setActiveAndDropHover = useCallback((position: LanePosition) => {
     setHovered(undefined);
     setActive(position);
-  };
+  }, []);
   return { position: hovered === undefined ? active : lanePosition(hovered, width), active, setActive: setActiveAndDropHover, hover: setHovered };
 }
 
@@ -150,15 +151,16 @@ interface LaneGridProps {
 
 function LaneGrid({ facet, step, lanes, before, parts, selection }: LaneGridProps) {
   const t = useT();
-  const changed = useMemo(() => (step === undefined ? new Set<number>() : changedLanes(before, lanes)), [step, before, lanes]);
+  const changed = useMemo(() => changedLanes(before, lanes), [before, lanes]);
   const { width, height } = facet;
+  const { active, position, setActive, hover } = selection;
   const gridRef = useRef<HTMLDivElement>(null);
   const onKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
-    const next = moveLane(selection.active, event.key, width, height);
+    const next = moveGridFocus({ row: active.y, col: active.x }, event.key, [height, width]);
     if (next === null) return;
     event.preventDefault();
-    selection.setActive(next);
-    gridRef.current?.querySelector<HTMLElement>(`[data-row="${next.y}"][data-col="${next.x}"]`)?.focus();
+    setActive({ x: next.col, y: next.row });
+    gridRef.current?.querySelector<HTMLElement>(`[data-row="${next.row}"][data-col="${next.col}"]`)?.focus();
   };
   return (
     <div
@@ -168,57 +170,76 @@ function LaneGrid({ facet, step, lanes, before, parts, selection }: LaneGridProp
       aria-label={t('view.sponge.grid')}
       style={{ '--cv-sponge-cols': width, '--cv-sponge-rows': height } as CSSProperties}
       onKeyDown={onKeyDown}
-      onMouseLeave={() => selection.hover(undefined)}
+      onMouseLeave={() => hover(undefined)}
     >
       <div className="cv-sponge__gridrow" role="row">
         <span className="cv-sponge__corner" role="columnheader" style={gridArea(0, 0)}>
           <span className="cv-visually-hidden">{t('view.sponge.corner')}</span>
         </span>
         {range(width).map((x) => (
-          <span key={x} className="cv-sponge__colhead" role="columnheader" style={gridArea(0, x + 1)} data-selected-col={x === selection.position.x || undefined}>
+          <span key={x} className="cv-sponge__colhead" role="columnheader" style={gridArea(0, x + 1)} data-selected-col={x === position.x || undefined}>
             {t('view.sponge.x', { x })}
           </span>
         ))}
       </div>
       {range(height).map((y) => (
         <div key={y} className="cv-sponge__gridrow" role="row">
-          <span className="cv-sponge__rowhead" role="rowheader" style={gridArea(y + 1, 0)} data-selected-row={y === selection.position.y || undefined}>
+          <span className="cv-sponge__rowhead" role="rowheader" style={gridArea(y + 1, 0)} data-selected-row={y === position.y || undefined}>
             {t('view.sponge.y', { y })}
           </span>
-          {range(width).map((x) => (
-            <Lane key={x} facet={facet} step={step} index={laneIndex(x, y, width)} hex={lanes[laneIndex(x, y, width)] ?? ''} changed={changed.has(laneIndex(x, y, width))} parts={parts} selection={selection} />
-          ))}
+          {range(width).map((x) => {
+            const index = laneIndex(x, y, width);
+            return (
+              <Lane
+                key={x}
+                facet={facet}
+                step={step}
+                index={index}
+                hex={lanes[index] ?? ''}
+                changed={changed.has(index)}
+                showHex={parts.hex}
+                tabbable={active.x === x && active.y === y}
+                {...laneMarks(facet, step, index, position)}
+                onHover={hover}
+                onFocusLane={setActive}
+              />
+            );
+          })}
         </div>
       ))}
-      {step?.phase === 'pi' && facet.piSource !== undefined && <PiArrows facet={facet} selected={laneIndex(selection.position.x, selection.position.y, width)} />}
+      {step?.phase === 'pi' && facet.piSource !== undefined && <PiArrows facet={facet} selected={laneIndex(position.x, position.y, width)} />}
     </div>
   );
 }
 
-interface LaneProps {
+interface LaneProps extends LaneMarks {
   facet: SpongeFacet;
   step: SpongeStep | undefined;
   index: number;
   hex: string;
   changed: boolean;
-  parts: LensParts;
-  selection: LaneSelection;
+  showHex: boolean;
+  /** The roving-focus lane (in the tab order). */
+  tabbable: boolean;
+  onHover: LaneSelection['hover'];
+  onFocusLane: LaneSelection['setActive'];
 }
 
-function Lane({ facet, step, index, hex, changed, parts, selection }: LaneProps) {
+/** Memoised with primitive props: a hover or key press re-renders only the lanes whose marks change. */
+const Lane = memo(function Lane({ facet, step, index, hex, changed, showHex, tabbable, selected, inColumn, inRow, chiLetter, onHover, onFocusLane }: LaneProps) {
   const t = useT();
   const { x, y } = lanePosition(index, facet.width);
   const rate = isRateLane(index, facet.rateLanes);
-  const marks = laneMarks(facet, step, index, selection.position);
-  const badges = laneBadges(facet, step, index, marks.chiLetter);
+  const badges = laneBadges(facet, step, index, chiLetter);
+  const lines = laneLines(hex);
   const name = [
     t('view.sponge.lane', { x, y }),
     t(rate ? 'view.sponge.part.rate' : 'view.sponge.part.capacity'),
     ...(changed ? [t('view.sponge.changed')] : []),
-    ...(marks.inColumn ? [t('view.sponge.spoken.inColumn')] : []),
-    ...(marks.inRow ? [t('view.sponge.spoken.inRow')] : []),
+    ...(inColumn ? [t('view.sponge.spoken.inColumn')] : []),
+    ...(inRow ? [t('view.sponge.spoken.inRow')] : []),
     ...badges.map((badge) => t(badge.spoken, badge.params)),
-    ...(parts.hex ? [laneLines(hex).join(' ')] : []),
+    ...(showHex ? [lines.join(' ')] : []),
   ].join(', ');
   return (
     <span
@@ -229,15 +250,15 @@ function Lane({ facet, step, index, hex, changed, parts, selection }: LaneProps)
       data-lane={index}
       data-part={rate ? 'rate' : 'capacity'}
       data-changed={changed || undefined}
-      data-selected={marks.selected || undefined}
-      data-in-column={marks.inColumn || undefined}
-      data-in-row={marks.inRow || undefined}
-      tabIndex={selection.active.x === x && selection.active.y === y ? 0 : -1}
+      data-selected={selected || undefined}
+      data-in-column={inColumn || undefined}
+      data-in-row={inRow || undefined}
+      tabIndex={tabbable ? 0 : -1}
       aria-label={name}
-      aria-selected={marks.selected}
+      aria-selected={selected}
       style={{ ...gridArea(y + 1, x + 1), '--cv-sponge-level': laneLevel(hex) } as CSSProperties}
-      onMouseEnter={() => selection.hover(index)}
-      onFocus={() => selection.setActive({ x, y })}
+      onMouseEnter={() => onHover(index)}
+      onFocus={() => onFocusLane({ x, y })}
     >
       {changed && <span key={step?.step} className="cv-sponge__flash" aria-hidden="true" />}
       <span className="cv-sponge__lanehead" aria-hidden="true">
@@ -249,16 +270,21 @@ function Lane({ facet, step, index, hex, changed, parts, selection }: LaneProps)
         ))}
         {changed && <span className="cv-sponge__dot">{'•'}</span>}
       </span>
-      {parts.hex && (
-        <code className="cv-sponge__hex" aria-hidden="true">
-          {laneLines(hex).map((line, lineIndex) => (
-            <span key={lineIndex} className="cv-sponge__hexline">
-              {line}
-            </span>
-          ))}
-        </code>
-      )}
+      {showHex && <LaneHex lines={lines} />}
     </span>
+  );
+});
+
+/** A lane's (or parity's) hex on its lines; decorative (the hex is in the accessible name). */
+function LaneHex({ lines }: { lines: readonly string[] }) {
+  return (
+    <code className="cv-sponge__hex" aria-hidden="true">
+      {lines.map((line, index) => (
+        <span key={index} className="cv-sponge__hexline">
+          {line}
+        </span>
+      ))}
+    </code>
   );
 }
 
@@ -342,36 +368,38 @@ function ThetaRows({ facet, step, parts, selectedX }: { facet: SpongeFacet; step
   const t = useT();
   const { left, right } = thetaNeighbours(selectedX, facet.width);
   const theta = step.theta!;
-  const role = (x: number) => (x === selectedX ? 'selected' : x === left ? 'left' : x === right ? 'right' : undefined);
+  /** C row: the selected column and its two neighbours; D row: the selected column only. */
+  const markOf = (row: 'c' | 'd', x: number) => (x === selectedX ? 'selected' : row === 'd' ? undefined : x === left ? 'left' : x === right ? 'right' : undefined);
   return (
     <div className="cv-sponge__theta" role="group" aria-label={t('view.sponge.theta.rows')} style={{ '--cv-sponge-cols': facet.width } as CSSProperties}>
       {(['c', 'd'] as const).map((row) => (
         <div key={row} className="cv-sponge__thetarow" data-row={row}>
           <span className="cv-sponge__rowhead">{t(`view.sponge.theta.${row}Row`)}</span>
-          {theta[row].map((hex, x) => (
-            <span
-              key={x}
-              className="cv-sponge__parity"
-              data-mark={row === 'c' ? role(x) : x === selectedX ? 'selected' : undefined}
-              style={{ '--cv-sponge-level': laneLevel(hex) } as CSSProperties}
-              aria-label={[t(`view.sponge.theta.${row}`, { x }), ...(row === 'c' && role(x) !== undefined && role(x) !== 'selected' ? [t(`view.sponge.theta.${role(x)!}`)] : []), ...(parts.hex ? [laneLines(hex).join(' ')] : [])].join(', ')}
-              role="img"
-            >
-              <span className="cv-sponge__coord" aria-hidden="true">
-                {t(`view.sponge.theta.${row}`, { x })}
-                {row === 'c' && (role(x) === 'left' || role(x) === 'right') && <span className="cv-sponge__badge" data-badge="neighbour">{t(`view.sponge.theta.${role(x)!}`)}</span>}
-              </span>
-              {parts.hex && (
-                <code className="cv-sponge__hex" aria-hidden="true">
-                  {laneLines(hex).map((line, index) => (
-                    <span key={index} className="cv-sponge__hexline">
-                      {line}
+          {theta[row].map((hex, x) => {
+            const mark = markOf(row, x);
+            const neighbour = mark === 'left' || mark === 'right' ? mark : undefined;
+            const lines = laneLines(hex);
+            return (
+              <span
+                key={x}
+                className="cv-sponge__parity"
+                data-mark={mark}
+                style={{ '--cv-sponge-level': laneLevel(hex) } as CSSProperties}
+                aria-label={[t(`view.sponge.theta.${row}`, { x }), ...(neighbour === undefined ? [] : [t(`view.sponge.theta.${neighbour}`)]), ...(parts.hex ? [lines.join(' ')] : [])].join(', ')}
+                role="img"
+              >
+                <span className="cv-sponge__coord" aria-hidden="true">
+                  {t(`view.sponge.theta.${row}`, { x })}
+                  {neighbour !== undefined && (
+                    <span className="cv-sponge__badge" data-badge="neighbour">
+                      {t(`view.sponge.theta.${neighbour}`)}
                     </span>
-                  ))}
-                </code>
-              )}
-            </span>
-          ))}
+                  )}
+                </span>
+                {parts.hex && <LaneHex lines={lines} />}
+              </span>
+            );
+          })}
         </div>
       ))}
     </div>

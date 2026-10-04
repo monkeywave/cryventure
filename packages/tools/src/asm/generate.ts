@@ -177,7 +177,7 @@ const KERNELS: readonly Kernel[] = [
         sourceFile: 'keccak_armv8.c',
         flags: ['-O2', '-march=armv8.2-a+sha3', '-ffreestanding'],
         annotate: (instructions, loop) => {
-          if (loop === undefined) throw new Error('keccak_f1600: no loop found');
+          if (loop === undefined) throw new Error('keccak: kernel must declare loopIterations');
           return annotateKeccakListing(instructions, loop);
         },
       },
@@ -249,7 +249,10 @@ function buildListing(
   const loop =
     kernel.loopIterations === undefined
       ? undefined
-      : findLoop(listing, parseAsmLabels(compiled.asm, functionName, isa.syntax));
+      : {
+          range: findLoop(listing, parseAsmLabels(compiled.asm, functionName, isa.syntax)),
+          iterations: kernel.loopIterations,
+        };
   return {
     compiler,
     flags,
@@ -261,10 +264,8 @@ function buildListing(
       isa.compilerExplorerId,
       target.flags.join(' '),
     ),
-    ...(loop === undefined || kernel.loopIterations === undefined
-      ? {}
-      : { loop: listingLoop(addressed, loop, kernel.loopIterations) }),
-    instructions: target.annotate(addressed, loop),
+    ...(loop === undefined ? {} : { loop: listingLoop(addressed, loop.range, loop.iterations) }),
+    instructions: target.annotate(addressed, loop?.range),
   };
 }
 

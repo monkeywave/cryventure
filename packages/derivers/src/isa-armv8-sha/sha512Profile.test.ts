@@ -118,15 +118,14 @@ describe('ARMv8.2 SHA512 semantics on 64-bit lane words', () => {
 
   it('keeps the folded feed-forward partial until T1 completes H (e, f)', () => {
     const first = listedSha('add', ['v2.2d', 'v6.2d', 'v2.2d'], 'feedForward');
-    const partial = lanesOf(
-      run(first, { v6: varLanes(['c', 'd'], 77), v2: varLanes(['e', 'f'], -1) }),
-    );
+    const folded = run(first, { v6: varLanes(['c', 'd'], 77), v2: varLanes(['e', 'f'], -1) });
+    const partial = lanesOf(folded);
     expect(partial.every((lane) => lane.kind === 'partial')).toBe(true);
+    expect(folded.note).toEqual({ key: 'deriver.isa-armv8-sha.note.partialFeedForward' });
     const second = listedSha('add', ['v2.2d', 'v2.2d', 'v7.2d'], 'feedForward');
-    expect(lanesOf(run(second, { v2: partial, v7: [word.T1(79), word.T1(78)] }))).toEqual([
-      word.h('e'),
-      word.h('f'),
-    ]);
+    const completed = run(second, { v2: partial, v7: [word.T1(79), word.T1(78)] });
+    expect(lanesOf(completed)).toEqual([word.h('e'), word.h('f')]);
+    expect(completed.note).toBeUndefined();
     const plain = listedSha('add', ['v4.2d', 'v5.2d', 'v4.2d'], 'feedForward');
     expect(
       lanesOf(run(plain, { v5: varLanes(['a', 'b'], 79), v4: varLanes(['a', 'b'], -1) })),
@@ -157,12 +156,10 @@ describe('ARMv8.2 SHA512 notes', () => {
     expect(keysOf((i) => i.mnemonic === 'ext' && i.role === 'msg2')).toEqual(['pairSchedule']);
   });
 
-  it('mark the one partial feed-forward and the T1 copy', () => {
-    const feedForward = listing.flatMap((instruction, index) =>
-      instruction.role === 'feedForward' ? [note(index)] : [],
-    );
-    expect(feedForward.filter((key) => key === 'partialFeedForward')).toHaveLength(1);
-    expect(feedForward.filter((key) => key === 'feedForward512')).toHaveLength(4);
+  it('mark the feed-forward (its partial sum is noted by the semantics) and the T1 copy', () => {
+    expect(keysOf((i) => i.mnemonic === 'add' && i.role === 'feedForward')).toEqual([
+      'feedForward512',
+    ]);
     expect(note(indexOf((i) => i.mnemonic === 'mov'))).toBe('copyT1');
   });
 

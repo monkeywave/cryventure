@@ -19,7 +19,6 @@ describe('keccakTrace', () => {
       round.chi.step,
       round.iota.step,
     ]).toEqual([117, 118, 119, 120, 121]);
-    expect(trace.stepCount).toBe(124);
     expect(trace.piSource[7]).toBe(10);
     expect(spongeStepAt(trace, 122).phase).toBe('squeeze');
   });

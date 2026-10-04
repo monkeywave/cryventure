@@ -1,6 +1,6 @@
 import type { I18nRef } from '@cryventure/core';
-import { armVectorRegister, registerOperand } from '../_lib/isaFacets.ts';
-import type { ShaListing, ShaListingInstruction } from '../_lib/listing.ts';
+import { armVectorRegister, registerOperand, VECTOR_128_LE } from '../_lib/isaFacets.ts';
+import { armImmediate, type ShaListing, type ShaListingInstruction } from '../_lib/listing.ts';
 import {
   scheduleAheadNote,
   type ShaEffects,
@@ -10,10 +10,11 @@ import {
 } from '../_lib/sha/shaDerivation.ts';
 import { NO_EFFECTS, operand, scheduleWord, written } from '../_lib/sha/shaOperands.ts';
 import { expectLanes } from '../_lib/sha/shaRegisters.ts';
-import { isRoundInstruction, requiredShaRound } from '../_lib/sha/shaSpans.ts';
+import { requiredShaRound } from '../_lib/sha/shaSpans.ts';
 import type { ShaVarName } from '../_lib/sha/shaTrace.ts';
 import {
   blockInputLanes,
+  isTraced,
   laneAt,
   partialSumLanes,
   varLanes,
@@ -26,11 +27,14 @@ import {
   addWords,
   byteSwap,
   DERIVER_ID,
+  laneAddition,
   LITERAL,
   loadPair,
   memoryAccess,
   move,
+  nextRoundWriting,
   NS,
+  operandRegister,
   register,
   storePair,
   VECTOR_BYTES,
@@ -60,13 +64,6 @@ const roundPair = (make: (t: number) => ShaWord, t: number): Lanes => [make(t + 
 
 /** Working variables `names` (lane 0 first) before round t. */
 const before = (names: readonly ShaVarName[], t: number): Lanes => varLanes(names, t - 1);
-
-/** `#8` → 8. */
-function immediate(text: string): number {
-  const match = /^#\s*(\d+)$/.exec(text.trim());
-  if (match === null) throw new Error(`"${text}" is not an immediate`);
-  return Number(match[1]);
-}
 
 /**
  * Per listing, the first round t of the round constants K_t, K_{t+1} each literal load brings in: the
@@ -127,7 +124,7 @@ function load(instruction: ShaListingInstruction, machine: ShaMachine): ShaEffec
 function extract(instruction: ShaListingInstruction, machine: ShaMachine): ShaEffects {
   const target = register(instruction, 0);
   const [low, high] = [register(instruction, 1), register(instruction, 2)];
-  const bytes = immediate(operand(instruction, 3));
+  const bytes = armImmediate(operand(instruction, 3));
   if (bytes % machine.wordBytes !== 0 || bytes > VECTOR_BYTES)
     throw new Error(`ext by ${bytes} bytes splits a word`);
   const joined = [...machine.registers.read(low), ...machine.registers.read(high)];
@@ -142,25 +139,24 @@ function extract(instruction: ShaListingInstruction, machine: ShaMachine): ShaEf
   };
 }
 
+const addPartialSums = laneAddition(partialSumLanes);
+
 /**
- * `add vD.2d, vN.2d, vM.2d`: K + W, h + (K + W), d + T1 (the new e) and the feed-forward. The
- * compiler folds the new (e, f) of rounds 78, 79 into the feed-forward ((e, f) + (c, d), then + T1),
- * so that first sum is no value of the trace: it stays `partial` (no register bytes) until T1 joins it.
+ * A feed-forward `add`. The compiler folds the new (e, f) of rounds 78, 79 into the feed-forward
+ * ((e, f) + (c, d), then + T1), so that first sum is no value of the trace: it stays `partial` (no
+ * register bytes, and the note says so) until T1 joins it.
  */
+function feedForward(instruction: ShaListingInstruction, machine: ShaMachine): ShaEffects {
+  const effects = addPartialSums(instruction, machine);
+  const traced = effects.written.every(({ lanes }) => isTraced(lanes));
+  return traced ? effects : { ...effects, note: { key: `${NS}.note.partialFeedForward` } };
+}
+
+/** `add vD.2d, vN.2d, vM.2d`: K + W, h + (K + W), d + T1 (the new e) and the feed-forward. */
 function add(instruction: ShaListingInstruction, machine: ShaMachine): ShaEffects {
-  if (instruction.role !== 'feedForward') return addWords(instruction, machine);
-  const target = register(instruction, 0);
-  const [left, right] = [register(instruction, 1), register(instruction, 2)];
-  const lanes = partialSumLanes(
-    machine.registers.read(left),
-    machine.registers.read(right),
-    machine.rounds,
-  );
-  return {
-    reads: [registerOperand(left), registerOperand(right)],
-    writes: [registerOperand(target)],
-    written: written(target, lanes),
-  };
+  return instruction.role === 'feedForward'
+    ? feedForward(instruction, machine)
+    : addWords(instruction, machine);
 }
 
 /** `sha512h Qd, Qn, Vm.2D`: (hKW_{t+1}, hKW_t), (f, g), (d, e) before round t → (T1_{t+1}, T1_t). */
@@ -227,10 +223,6 @@ const SEMANTICS: Readonly<Record<string, ShaSemantics>> = {
   ret: () => NO_EFFECTS,
 };
 
-/** The vector register operand `index` of an instruction names, or `undefined`. */
-const operandRegister = (instruction: ShaListingInstruction | undefined, index: number) =>
-  armVectorRegister(instruction?.operands[index] ?? '');
-
 /** The last instruction before `index` that writes `reg` (operand 0), if any. */
 function lastWriter(
   instructions: readonly ShaListingInstruction[],
@@ -240,17 +232,6 @@ function lastWriter(
   return instructions
     .slice(0, index)
     .findLast((instruction) => operandRegister(instruction, 0) === reg);
-}
-
-/** The first instruction after `index` that names `reg` in any operand, if any. */
-function nextUse(
-  instructions: readonly ShaListingInstruction[],
-  index: number,
-  reg: string | undefined,
-): ShaListingInstruction | undefined {
-  return instructions
-    .slice(index + 1)
-    .find((instruction) => instruction.operands.some((text) => armVectorRegister(text) === reg));
 }
 
 /** An `add` of the K+W chain: K+W itself (one source straight from the literal pool), else h + K + W. */
@@ -263,22 +244,14 @@ function addKNote(instructions: readonly ShaListingInstruction[], index: number)
   return { key: `${NS}.note.${fromLiteral ? 'addKw512' : 'addHkw'}` };
 }
 
-/** A feed-forward `add` whose sum only a later feed-forward `add` completes (the folded rounds 78, 79). */
-function feedForwardNote(instructions: readonly ShaListingInstruction[], index: number): I18nRef {
-  const next = nextUse(instructions, index, operandRegister(instructions[index], 0));
-  const partial = next?.role === 'feedForward' && next.mnemonic === 'add';
-  return { key: `${NS}.note.${partial ? 'partialFeedForward' : 'feedForward512'}` };
-}
-
 /** A `mov` that keeps the T1 pair which the next sha512h2 overwrites. */
 function copyNote(
   instructions: readonly ShaListingInstruction[],
   index: number,
 ): I18nRef | undefined {
   const target = operandRegister(instructions[index], 0);
-  const consumer = instructions
-    .slice(index + 1)
-    .find((next) => isRoundInstruction(next) && operandRegister(next, 0) === target);
+  if (target === undefined) return undefined;
+  const consumer = nextRoundWriting(instructions, index, target);
   return consumer?.mnemonic === 'sha512h2' ? { key: `${NS}.note.copyT1` } : undefined;
 }
 
@@ -293,7 +266,7 @@ function helperNote(
   if (mnemonic === 'ext' && role === 'msg2') return { key: `${NS}.note.pairSchedule` };
   if (mnemonic === 'add' && role === 'rounds') return { key: `${NS}.note.newE` };
   if (mnemonic === 'add' && role === 'addK') return addKNote(instructions, index);
-  if (mnemonic === 'add' && role === 'feedForward') return feedForwardNote(instructions, index);
+  if (mnemonic === 'add' && role === 'feedForward') return { key: `${NS}.note.feedForward512` };
   if (mnemonic === 'mov') return copyNote(instructions, index);
   const t = literalRounds(instructions).get(index);
   return t === undefined
@@ -327,9 +300,7 @@ export const ARMV8_SHA512_PROFILE: ShaIsaProfile = {
   isa: 'aarch64',
   extension: 'armv8.2-sha512',
   syntax: 'arm',
-  byteOrder: 'little',
-  lanes: [8, 16, 32, 64],
-  registerBits: 128,
+  ...VECTOR_128_LE,
   wordBits: 64,
   labelNamespace: `${NS}.sha512`,
   listing: sha512 as ShaListing,

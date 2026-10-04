@@ -1,4 +1,5 @@
-import { bytesEqual, isPortName, parseHex, readText, type BlockCipher, type HashFamily, type HashFunction, type ParamField, type PortMap, type PortName, type PrimitiveManifest, type PrimitiveModule, type XofContext, type XofCustomization, type XofFunction } from '@cryventure/core';
+import { bytesEqual, isPortName, type BlockCipher, type HashFamily, type HashFunction, type ParamField, type PortMap, type PortName, type PrimitiveManifest, type PrimitiveModule, type XofContext, type XofCustomization, type XofFunction } from '@cryventure/core';
+import { textFieldByteLength } from '@cryventure/primitives';
 
 /**
  * Contract checks for ports, port and text params and the `runIn` flag (docs/M3.md §1, §2, §8).
@@ -361,22 +362,11 @@ interface ParamCase {
   params: unknown;
 }
 
-/** The text field measured in hex-decoded bytes while the producer's `encoding` param is `'hex'`; every other text field is UTF-8. */
-const HEX_TEXT_FIELD = 'input';
-const TEXT_ENCODING_PARAM = 'encoding';
-
-/**
- * Why one case's value does not fit `maxLength`, or undefined when it fits. The convention
- * (docs/EXTENDING.md "Text params") is mirrored by `textFieldLength` in apps/web/src/labs/paramFields.ts:
- * only the field named `input` counts hex-decoded bytes, and only while `encoding` is `'hex'`.
- */
+/** Why one case's value does not fit `maxLength` (docs/EXTENDING.md "Text params"), or undefined when it fits. */
 function textFitProblem(field: ParamField, params: Record<string, unknown> | null, maxLength: number): string | undefined {
-  const value = params?.[field.name];
-  if (field.name === HEX_TEXT_FIELD && params?.[TEXT_ENCODING_PARAM] === 'hex') {
-    const parsed = typeof value === 'string' ? parseHex(value) : undefined;
-    return parsed?.ok === true && parsed.bytes.length <= maxLength ? undefined : `is not hex of at most ${maxLength} bytes`;
-  }
-  return readText(value, maxLength) === undefined ? `is not a string of at most ${maxLength} UTF-8 bytes` : undefined;
+  const { unit, bytes, valid } = textFieldByteLength(field, params ?? {});
+  if (valid && bytes !== undefined && bytes <= maxLength) return undefined;
+  return unit === 'hex' ? `is not hex of at most ${maxLength} bytes` : `is not a string of at most ${maxLength} UTF-8 bytes`;
 }
 
 /** `text` fields have a positive integer `maxLength`, and every case's value fits it. */

@@ -1,7 +1,8 @@
 import { getFacet, toHex, validateWordopsFacet, type AnyStateFacet, type NarrationFacet, type TraceBundle, type ValuesFacet, type WordopsFacet } from '@cryventure/core';
 import { describe, expect, it } from 'vitest';
 import { CONSTANT_SPECS } from './constantSpecs.ts';
-import { mismatchedWords, recordConstants, wordValueId } from './constantsTrace.ts';
+import { mismatchedIndices } from '../_lib/compare.ts';
+import { recordConstants, wordValueId } from './constantsTrace.ts';
 import { FIPS_TABLES } from './fipsTables.ts';
 import { SHA2_CONSTANT_IDS, SHA2_CONSTANTS_PRESETS, validateSha2ConstantsParams, type Sha2ConstantId } from './manifest.ts';
 import { run } from './module.ts';
@@ -38,7 +39,7 @@ describe('sha2-constants derivation', () => {
     expect(recording.state.steps.at(-1)?.narration).toEqual({ key: `${NS}.step.compareMismatch`, params: { count: 8, section: '§5.3.3', mismatches: 1 } });
   });
 
-  it('reports mismatching rows by index',() => expect(mismatchedWords(['aa', 'bb', 'cc'], ['aa', 'bx', 'cc', 'dd'])).toEqual([1, 3]));
+  it('reports mismatching rows by index',() => expect(mismatchedIndices(['aa', 'bb', 'cc'], ['aa', 'bx', 'cc', 'dd'])).toEqual([1, 3]));
 });
 
 describe('sha2-constants run', () => {

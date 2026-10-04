@@ -3,6 +3,7 @@ import { domainSuffix, effectiveDomain, isCustomizable, KECCAK_ALGORITHMS, type 
 import { createKeccakHashContext, createKeccakXofContext } from './context.ts';
 import { concatBytes, cshakePrefix } from './encoding.ts';
 import { KECCAK_HASH_IDS, KECCAK_XOF_IDS, type KeccakAlgorithmId } from './manifestKit.ts';
+import type { DomainSuffix, KeccakDomain } from './padding.ts';
 import { sponge } from './sponge.ts';
 
 /**
@@ -32,11 +33,17 @@ export function absorbedPrefix(algorithm: KeccakAlgorithm, custom: XofCustomizat
   return cshakePrefix(functionName, customization, algorithm.rateBytes);
 }
 
+/** How a run of `algorithm` starts: the bytes absorbed before the message, the effective domain and its padding suffix. */
+export function spongeSetup(algorithm: KeccakAlgorithm, custom: XofCustomization | undefined): { prefix: Uint8Array; domain: KeccakDomain; suffix: DomainSuffix } {
+  const prefix = absorbedPrefix(algorithm, custom);
+  const domain = effectiveDomain(algorithm, prefix.length > 0);
+  return { prefix, domain, suffix: domainSuffix(domain) };
+}
+
 /** The first `outputLength` output bytes of `algorithm` over `data` (any of the nine, untraced). */
 export function keccakOutput(algorithm: KeccakAlgorithm, data: Uint8Array, outputLength: number, custom?: XofCustomization): Uint8Array {
   if (!Number.isInteger(outputLength) || outputLength < 0) throw new RangeError(`${algorithm.id}: output length ${outputLength} is not a non-negative integer`);
-  const prefix = absorbedPrefix(algorithm, custom);
-  const suffix = domainSuffix(effectiveDomain(algorithm, prefix.length > 0));
+  const { prefix, suffix } = spongeSetup(algorithm, custom);
   return sponge(prefix.length > 0 ? concatBytes(prefix, data) : data, algorithm.rateBytes, suffix, outputLength);
 }
 
@@ -58,8 +65,8 @@ function xofFunctionOf(algorithm: KeccakAlgorithm): XofFunction {
     customizable: isCustomizable(algorithm),
     xof: (data, outputLength, custom) => keccakOutput(algorithm, data, outputLength, custom),
     create(custom) {
-      const prefix = absorbedPrefix(algorithm, custom);
-      return createKeccakXofContext(algorithm.rateBytes, domainSuffix(effectiveDomain(algorithm, prefix.length > 0)), prefix);
+      const { prefix, suffix } = spongeSetup(algorithm, custom);
+      return createKeccakXofContext(algorithm.rateBytes, suffix, prefix);
     },
   };
 }

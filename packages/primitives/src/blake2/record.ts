@@ -3,9 +3,7 @@ import {
   i18nRef,
   INITIAL_STEP_INDEX,
   narrationFromState,
-  parseHexToArray,
   scopeLevels,
-  utf8Bytes,
   valueRef,
   type I18nRef,
   type PrimitiveRecording,
@@ -16,12 +14,14 @@ import { blake2Blocks, type Blake2BlockPlan } from '../_lib/blake2/blocks.ts';
 import { compressDetailed, type Blake2BlockDetail } from '../_lib/blake2/compress.ts';
 import { parameterWord0 } from '../_lib/blake2/constants.ts';
 import { blake2Hash } from '../_lib/blake2/hash.ts';
-import type { Blake2Detail, Blake2Encoding } from '../_lib/blake2/manifestKit.ts';
-import { wordsFromLittleEndian, wordsToLittleEndian, type AnyBlake2Algorithm, type Blake2Algorithm } from '../_lib/blake2/variants.ts';
-import type { Word } from '../_lib/sha2/words.ts';
+import type { Blake2Detail } from '../_lib/blake2/manifestKit.ts';
+import type { AnyBlake2Algorithm, Blake2Algorithm } from '../_lib/blake2/variants.ts';
+import { initialSnapshot } from '../_lib/sha2/regions.ts';
+import { chainingValueId } from '../_lib/sha2/steps.ts';
+import { wordsFromBytes, wordsToBytes, type Word } from '../_lib/sha2/words.ts';
 import { Blake2Recorder } from './recorder.ts';
-import { blake2InitialSnapshot, blake2Regions } from './regions.ts';
-import { blake2Trace, chainingValueId, recordCompress, recordFeedForward, recordG, recordInit, recordLoad, recordOutput, recordRound, type Blake2Trace } from './steps.ts';
+import { blake2Regions } from './regions.ts';
+import { blake2Trace, recordCompress, recordFeedForward, recordG, recordInit, recordLoad, recordOutput, recordRound, type Blake2Trace } from './steps.ts';
 
 /**
  * Records one BLAKE2 run into the `state`, `values`, `narration` and `wordops` (v2) facets and the
@@ -36,11 +36,6 @@ export interface Blake2Run<W extends Word> {
   /** Empty = unkeyed. */
   key: readonly number[];
   detail: Blake2Detail;
-}
-
-/** The message bytes of a validated `input` (UTF-8 text, or hex already normalised by `validate`). */
-export function blake2MessageBytes(encoding: Blake2Encoding, input: string): number[] {
-  return encoding === 'utf8' ? Array.from(utf8Bytes(input)) : parseHexToArray(input);
 }
 
 const SCOPE_LEVELS: Readonly<Record<Blake2Detail, readonly string[]>> = { g: ['block', 'round', 'op'], round: ['block', 'round'], block: ['block'] };
@@ -58,7 +53,7 @@ function initialNarration<W extends Word>({ ns, algorithm, message, key }: Blake
 function createTrace<W extends Word>(run: Blake2Run<W>): Blake2Trace<W> {
   const { ns, algorithm, message, key } = run;
   const regions = blake2Regions(ns, { messageBytes: message.length, keyBytes: key.length, wordBytes: algorithm.variant.arith.bytes, outputBytes: algorithm.outputSize });
-  return blake2Trace(ns, algorithm, new Blake2Recorder(regions, blake2InitialSnapshot(regions, message, key), initialNarration(run)));
+  return blake2Trace(ns, algorithm, new Blake2Recorder(regions, initialSnapshot(regions, { message, key }), initialNarration(run)));
 }
 
 function recordBody<W extends Word>(trace: Blake2Trace<W>, blockIndex: number, block: Blake2BlockDetail<W>, detail: Blake2Detail): void {
@@ -93,11 +88,11 @@ function recordBlocks<W extends Word>(trace: Blake2Trace<W>, run: Blake2Run<W>, 
   plans.forEach((plan, index) =>
     trace.recorder.scope(index, () => {
       if (index === 0) recordInit(trace, p0, h, run.key.length);
-      const block = compressDetailed(variant, h, wordsFromLittleEndian(variant.arith, plan.bytes), plan.t, plan.last);
+      const block = compressDetailed(variant, h, wordsFromBytes(variant.arith, plan.bytes, 'little'), plan.t, plan.last);
       recordLoad(trace, index, plan, block, run.key.length);
       recordBody(trace, index, block, run.detail);
       h = block.hOut;
-      const bytes = wordsToLittleEndian(variant.arith, h);
+      const bytes = wordsToBytes(variant.arith, h, 'little');
       chain.push({ step: recordFeedForward(trace, index, block), bytes });
       if (plan.last) {
         const digest = bytes.slice(0, outputSize);
@@ -117,7 +112,7 @@ function blake2Values<W extends Word>(run: Blake2Run<W>, { chain, digest, output
     values: [
       ...(message.length > 0 ? [valueRef(ns, 'message', 'public', [...message], INITIAL_STEP_INDEX)] : []),
       ...(key.length > 0 ? [valueRef(ns, 'key', 'key', [...key], INITIAL_STEP_INDEX)] : []),
-      valueRef(ns, 'iv', 'constant', wordsToLittleEndian(arith, iv), INITIAL_STEP_INDEX),
+      valueRef(ns, 'iv', 'constant', wordsToBytes(arith, iv, 'little'), INITIAL_STEP_INDEX),
       ...chain.map(({ step, bytes }, index) => ({ id: chainingValueId(index + 1), labelKey: `${ns}.value.h`, role: 'public' as const, bytes, createdAt: step })),
       valueRef(ns, 'digest', 'public', digest, outputStep),
     ],

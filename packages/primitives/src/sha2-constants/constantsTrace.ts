@@ -1,4 +1,5 @@
-import { allIndices, highlight, i18nRef, scopeLevels, valueId, zeroSnapshot, type I18nRef, type RegionSpec, type StateFacet, type WordopsFacet, type WordTerm } from '@cryventure/core';
+import { highlight, i18nRef, scopeLevels, valueId, zeroSnapshot, type I18nRef, type RegionSpec, type StateFacet, type WordopsFacet, type WordTerm } from '@cryventure/core';
+import { mismatchedIndices } from '../_lib/compare.ts';
 import { u8Region, wordIndices, wordsLayout } from '../_lib/sha2/regions.ts';
 import { WordopsRecorder } from '../_lib/sha2/wordopsRecorder.ts';
 import type { ConstantSpec } from './constantSpecs.ts';
@@ -94,12 +95,6 @@ function recordWord(recorder: ConstantsRecorder, spec: ConstantSpec, derived: De
   );
 }
 
-/** Indices of the words that differ from the FIPS table (empty when the derivation reproduces it). */
-export function mismatchedWords(derived: readonly string[], fips: readonly string[]): number[] {
-  const length = Math.max(derived.length, fips.length);
-  return allIndices(length).filter((index) => derived[index] !== fips[index]);
-}
-
 function recordCompare(recorder: ConstantsRecorder, spec: ConstantSpec, mismatches: number[]): void {
   const matches = mismatches.length === 0;
   const params = { count: spec.count, section: spec.section, ...(matches ? {} : { mismatches: mismatches.length }) };
@@ -132,7 +127,7 @@ export function recordConstants(id: Sha2ConstantId, spec: ConstantSpec, fips: re
   const words = deriveWords(spec);
   words.forEach((derived) => recordWord(recorder, spec, derived));
   const hexWords = words.map((derived) => wordHex(derived.word, spec.bits));
-  const mismatches = mismatchedWords(hexWords, fips);
+  const mismatches = mismatchedIndices(hexWords, fips);
   recordCompare(recorder, spec, mismatches);
   return { state: recorder.stateFacet(), wordops: recorder.wordopsFacet(spec.bits), words, hexWords, mismatches };
 }

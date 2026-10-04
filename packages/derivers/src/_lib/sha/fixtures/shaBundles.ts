@@ -1,4 +1,4 @@
-import type { TraceBundle } from '@cryventure/core';
+import { fixtureLoader } from '../../fixtures/fixtureLoader.ts';
 import sha224Abc from './sha256-sha-224-abc.bundle.json';
 import sha256Abc from './sha256-sha-256-abc.bundle.json';
 import sha256ThreeBlock from './sha256-sha-256-three-block.bundle.json';
@@ -24,34 +24,20 @@ export type ShaFixturePreset = (typeof SHA_FIXTURE_PRESETS)[number];
 export const SHA512_FIXTURE_PRESETS = ['sha-512-abc', 'sha-512-two-block'] as const;
 export type Sha512FixturePreset = (typeof SHA512_FIXTURE_PRESETS)[number];
 
-const FIXTURES: Record<ShaFixturePreset | Sha512FixturePreset, { bundle: unknown }> = {
+const LOADER = fixtureLoader<ShaFixturePreset | Sha512FixturePreset>({
   'sha-256-abc': sha256Abc,
   'sha-256-two-block': sha256TwoBlock,
   'sha-256-three-block': sha256ThreeBlock,
   'sha-224-abc': sha224Abc,
   'sha-512-abc': sha512Abc,
   'sha-512-two-block': sha512TwoBlock,
-};
+});
 
 /** A fresh deep copy of the preset's bundle (tests may mutate it). */
-export function shaFixtureBundle(preset: ShaFixturePreset | Sha512FixturePreset): TraceBundle {
-  return JSON.parse(JSON.stringify(FIXTURES[preset].bundle)) as TraceBundle;
-}
-
-function deepFreeze<T>(value: T): T {
-  if (typeof value === 'object' && value !== null && !Object.isFrozen(value)) {
-    Object.freeze(value);
-    Object.values(value).forEach(deepFreeze);
-  }
-  return value;
-}
+export const shaFixtureBundle = LOADER.fresh;
 
 /**
  * The preset's bundle itself, deep-frozen, for tests that only read it: no copy per call, and the
  * per-bundle trace caches hit across tests. Use `shaFixtureBundle` to tamper with a bundle.
  */
-export function sharedShaFixtureBundle(
-  preset: ShaFixturePreset | Sha512FixturePreset,
-): TraceBundle {
-  return deepFreeze(FIXTURES[preset].bundle) as TraceBundle;
-}
+export const sharedShaFixtureBundle = LOADER.shared;

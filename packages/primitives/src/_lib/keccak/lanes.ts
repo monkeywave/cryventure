@@ -49,7 +49,10 @@ export function laneBytes(lane: bigint): number[] {
 
 /** The state (or any lanes) as bytes in FIPS 202 order: lane 0's bytes first, each little-endian. */
 export function stateBytes(lanes: readonly bigint[]): number[] {
-  return lanes.flatMap(laneBytes);
+  const bytes = new Uint8Array(lanes.length * KECCAK_LANE_BYTES);
+  const view = new DataView(bytes.buffer);
+  lanes.forEach((lane, index) => view.setBigUint64(index * KECCAK_LANE_BYTES, lane, true));
+  return Array.from(bytes);
 }
 
 /** A lane as 16 lowercase hex digits, most significant first (the `sponge` facet's lane format). */

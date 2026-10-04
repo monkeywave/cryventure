@@ -17,7 +17,7 @@ import { compressDetailed, type BlockDetail } from './compress.ts';
 import type { Sha2Detail, Sha2Encoding } from './manifestKit.ts';
 import { sha2Digest } from './hash.ts';
 import { sha2Padding, type Sha2Padding } from './padding.ts';
-import { SHA2_REGISTER_NAMES, sha2InitialSnapshot, sha2Regions, type Sha2Region } from './regions.ts';
+import { initialSnapshot, SHA2_REGISTER_NAMES, sha2Regions, type Sha2Region } from './regions.ts';
 import {
   chainingValueId,
   recordCompress,
@@ -65,7 +65,7 @@ function createTrace<W extends Word>(run: Sha2Run<W>, paddedBytes: number): Sha2
   const { ns, algorithm, message } = run;
   const regions = sha2Regions(ns, algorithm, message.length, paddedBytes);
   const initialNarration = sha2InitialNarration(ns, algorithm, message.length);
-  const recorder = new WordopsRecorder<Sha2Region, { op: Sha2OpName }>(regions, sha2InitialSnapshot(regions, message), scopeLevels(ns, 'block', 'op'), initialNarration);
+  const recorder = new WordopsRecorder<Sha2Region, { op: Sha2OpName }>(regions, initialSnapshot(regions, { message }), scopeLevels(ns, 'block', 'op'), initialNarration);
   return sha2Trace(ns, algorithm, recorder, run.options);
 }
 
@@ -104,7 +104,7 @@ function recordBlocks<W extends Word>(trace: Sha2Trace<W>, run: Sha2Run<W>, padd
   const chainBlock = (index: number): ChainingValue => {
     const block = compressDetailed(params, h, blocks[index]!);
     h = block.hOut;
-    if (index === 0) recordPad(trace, run.message.length, padding);
+    if (index === 0) recordPad(trace, run.message.length, padding, params.blockBytes);
     return recordBlock(trace, run, index, block);
   };
   const lastIndex = blocks.length - 1;

@@ -2,10 +2,11 @@ import { i18nRef } from '@cryventure/core';
 import { describe, expect, it } from 'vitest';
 import { compressDetailed, gDetail } from '../_lib/blake2/compress.ts';
 import { BLAKE2B, BLAKE2S } from '../_lib/blake2/variants.ts';
-import { blake2MessageBytes } from './record.ts';
 import { Blake2Recorder, V_REGISTER_NAMES } from './recorder.ts';
-import { blake2InitialSnapshot, blake2Regions, wordIndices } from './regions.ts';
-import { blake2TermFactory, feedForwardTerms, gTerms, gTransfers, initTerms, loadTerms } from './terms.ts';
+import { initialSnapshot } from '../_lib/sha2/regions.ts';
+import { termFactory } from '../_lib/sha2/wordTerms.ts';
+import { blake2Regions } from './regions.ts';
+import { feedForwardTerms, gTerms, gTransfers, initTerms, loadTerms } from './terms.ts';
 
 const NS = 'plugin.blake2';
 
@@ -22,12 +23,8 @@ describe('blake2Regions', () => {
 
   it('starts from the message and the key; everything else zero', () => {
     const regions = blake2Regions(NS, { messageBytes: 2, keyBytes: 1, wordBytes: 4, outputBytes: 32 });
-    const initial = blake2InitialSnapshot(regions, [1, 2], [9]);
+    const initial = initialSnapshot(regions, { message: [1, 2], key: [9] });
     expect([initial.message, initial.key, initial.h.length, initial.h.every((byte) => byte === 0)]).toEqual([[1, 2], [9], 32, true]);
-  });
-
-  it('wordIndices lists the bytes of consecutive words', () => {
-    expect(wordIndices(4, 2, 2)).toEqual([8, 9, 10, 11, 12, 13, 14, 15]);
   });
 });
 
@@ -36,7 +33,7 @@ describe('Blake2Recorder', () => {
   const step = (op: 'init' | 'g') => ({ op, writes: [], highlights: [], narration: i18nRef(`${NS}.step.x`) });
 
   it('records steps in explicit nested scopes and pairs wordops steps by index', () => {
-    const recorder = new Blake2Recorder(regions, blake2InitialSnapshot(regions, [], []), i18nRef(`${NS}.step.initial`));
+    const recorder = new Blake2Recorder(regions, initialSnapshot(regions, {}), i18nRef(`${NS}.step.initial`));
     recorder.scope(0, () => {
       recorder.step(step('init'));
       recorder.scope(3, () => recorder.scope(5, () => recorder.step(step('g'), { formula: i18nRef(`${NS}.formula.g`), terms: [] })));
@@ -48,7 +45,7 @@ describe('Blake2Recorder', () => {
 });
 
 describe('blake2 terms', () => {
-  const term = blake2TermFactory(NS, BLAKE2S);
+  const term = termFactory(NS, BLAKE2S.arith);
   const block = compressDetailed(BLAKE2S, BLAKE2S.iv, Array.from({ length: 16 }, (_, j) => j), 64, true);
 
   it('G: the transfers name a″ … d″ for the positions a, b, c, d', () => {
@@ -81,18 +78,11 @@ describe('blake2 terms', () => {
   });
 
   it('feed-forward: eight XOR results linked to the chaining value', () => {
-    const b64 = blake2TermFactory(NS, BLAKE2B);
+    const b64 = termFactory(NS, BLAKE2B.arith);
     const terms = feedForwardTerms(b64, [1n, 2n], 'h/1');
     expect(terms.map((entry) => [entry.id, entry.valueRef, entry.hex])).toEqual([
       ['h0', 'h/1', '0000000000000001'],
       ['h1', 'h/1', '0000000000000002'],
     ]);
-  });
-});
-
-describe('blake2MessageBytes', () => {
-  it('decodes UTF-8 text or normalised hex', () => {
-    expect(blake2MessageBytes('utf8', 'ab')).toEqual([0x61, 0x62]);
-    expect(blake2MessageBytes('hex', '00ff')).toEqual([0, 255]);
   });
 });

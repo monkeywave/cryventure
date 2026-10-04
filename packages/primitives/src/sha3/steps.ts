@@ -36,7 +36,7 @@ const laneBytesOf = (lanes: readonly number[]) => lanes.flatMap((lane) => allInd
  * (that level has rounds below it), otherwise in its own `op` scope.
  */
 function blockStep(trace: Sha3Trace, input: StepInput<Sha3Region, Op>, sponge: SpongeContent): number {
-  return trace.detail === 'mapping' ? trace.recorder.flatOp(input, sponge) : trace.recorder.scopedOp(input, sponge);
+  return trace.detail === 'mapping' ? trace.recorder.step(input, sponge) : trace.recorder.scopedOp(input, sponge);
 }
 
 /** The padding bytes in short form: `86` (one byte), `06 80`, or `06 00 … 00 80`. */
@@ -112,7 +112,7 @@ export function recordPermutation(trace: Sha3Trace, state: KeccakState, n: numbe
   for (let round = 0; round < KECCAK_ROUNDS; round++) {
     const detail = roundDetailed(current, round);
     if (trace.detail === 'round') recordRound(trace, detail);
-    else trace.recorder.round(round, () => recordMappings(trace, detail));
+    else trace.recorder.scope(round, () => recordMappings(trace, detail));
     current = detail.iota;
   }
   return current;

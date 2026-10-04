@@ -1,6 +1,6 @@
 import type { LegacyAlgorithm, LegacyBlock, LegacyRound } from './algorithm.ts';
 import { MD5_FUNCTIONS, MD5_IV, MD5_OUTPUT_BYTES, MD5_ROUNDS, MD5_T, md5Digest, md5Operation, md5Padding, type Md5FunctionName } from './md5.ts';
-import { add32, hex32, rotl32, wordsFromBytes } from './words.ts';
+import { WORD32, wordsFromBytes } from '../sha2/words.ts';
 
 /**
  * The MD5 compression function with every intermediate value kept (RFC 1321 §3.4), for the traced
@@ -19,9 +19,9 @@ export function md5Round(i: number, before: readonly number[], x: readonly numbe
   const [a, b, c, d] = before as [number, number, number, number];
   const f = MD5_FUNCTIONS[fn](b, c, d);
   const t = MD5_T[i]!;
-  const sum = add32(a, f, x[k]!, t);
-  const rotated = rotl32(sum, s);
-  const newB = add32(b, rotated);
+  const sum = WORD32.add(a, f, x[k]!, t);
+  const rotated = WORD32.rotl(sum, s);
+  const newB = WORD32.add(b, rotated);
   const labels = { fn, k, i: i + 1, s };
   return {
     kind: 'round',
@@ -43,14 +43,14 @@ export function md5Round(i: number, before: readonly number[], x: readonly numbe
       { to: C, from: { register: B } },
       { to: D, from: { register: C } },
     ],
-    narration: { ...labels, round: round + 1, f: hex32(f), x: hex32(x[k]!), T: hex32(t), sum: hex32(sum), rotl: hex32(rotated), b: hex32(newB) },
+    narration: { ...labels, round: round + 1, f: WORD32.toHex(f), x: WORD32.toHex(x[k]!), T: WORD32.toHex(t), sum: WORD32.toHex(sum), rotl: WORD32.toHex(rotated), b: WORD32.toHex(newB) },
     formula: labels,
   };
 }
 
 /** One block's 64 operations and the feed-forward. */
 export function md5CompressDetailed(h: readonly number[], block: Uint8Array): LegacyBlock {
-  const x = wordsFromBytes(block, 'little');
+  const x = wordsFromBytes(WORD32, block, 'little');
   const events: LegacyRound[] = [];
   let vars = [...h];
   for (let i = 0; i < MD5_ROUNDS; i++) {
@@ -58,7 +58,7 @@ export function md5CompressDetailed(h: readonly number[], block: Uint8Array): Le
     events.push(round);
     vars = round.after;
   }
-  return { hIn: [...h], words: x, events, vars, hOut: h.map((word, j) => add32(word, vars[j]!)) };
+  return { hIn: [...h], words: x, events, vars, hOut: h.map((word, j) => WORD32.add(word, vars[j]!)) };
 }
 
 export const MD5_ALGORITHM: LegacyAlgorithm = {

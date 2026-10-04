@@ -27,3 +27,5 @@ function isPrimitiveManifest(value: unknown): value is PrimitiveManifest {
 }
 
 export const primitiveManifests: PrimitiveManifest[] = collectManifests(manifestModules);
+
+export { textFieldByteLength, type TextByteLength } from './textParams.ts';

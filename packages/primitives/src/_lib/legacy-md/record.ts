@@ -4,9 +4,7 @@ import {
   blocksOf,
   INITIAL_STEP_INDEX,
   narrationFromState,
-  parseHexToArray,
   scopeLevels,
-  utf8Bytes,
   valueRef,
   type PrimitiveRecording,
   type ValueRef,
@@ -14,12 +12,14 @@ import {
   type WordopsFacet,
 } from '@cryventure/core';
 import type { Sha2Padding } from '../sha2/padding.ts';
+import { initialSnapshot } from '../sha2/regions.ts';
+import { chainingValueId, recordPad } from '../sha2/steps.ts';
 import { WordopsRecorder } from '../sha2/wordopsRecorder.ts';
 import type { LegacyAlgorithm, LegacyBlock } from './algorithm.ts';
-import type { LegacyDetail, LegacyEncoding, LegacyOpName } from './manifestKit.ts';
-import { legacyInitialSnapshot, legacyRegions, type LegacyRegion } from './regions.ts';
-import { chainingValueId, legacyInitialNarration, recordCompress, recordFeedForward, recordInit, recordOutput, recordPad, recordRound, recordSchedule, type LegacyTrace } from './steps.ts';
-import { wordsToBytes } from './words.ts';
+import type { LegacyDetail, LegacyOpName } from './manifestKit.ts';
+import { LEGACY_BLOCK_BYTES, legacyRegions, type LegacyRegion } from './regions.ts';
+import { legacyInitialNarration, legacyTrace, recordCompress, recordFeedForward, recordInit, recordOutput, recordRound, recordSchedule, type LegacyTrace } from './steps.ts';
+import { WORD32, wordsToBytes } from '../sha2/words.ts';
 
 /**
  * Records one MD5 or SHA-1 run into the `state`, `values`, `narration` and `wordops` (schema v2)
@@ -33,11 +33,6 @@ export interface LegacyRun {
   detail: LegacyDetail;
 }
 
-/** The message bytes of a validated `input` (UTF-8 text, or hex already normalised by `validate`). */
-export function legacyMessageBytes(encoding: LegacyEncoding, input: string): number[] {
-  return encoding === 'utf8' ? Array.from(utf8Bytes(input)) : parseHexToArray(input);
-}
-
 interface ChainingValue {
   step: number;
   bytes: number[];
@@ -46,8 +41,8 @@ interface ChainingValue {
 function createTrace(run: LegacyRun, paddedBytes: number): LegacyTrace {
   const { ns, algorithm, message } = run;
   const regions = legacyRegions(ns, algorithm, message.length, paddedBytes);
-  const recorder = new WordopsRecorder<LegacyRegion, { op: LegacyOpName }>(regions, legacyInitialSnapshot(regions, message), scopeLevels(ns, 'block', 'op'), legacyInitialNarration(run, message.length));
-  return { ns, algorithm, recorder };
+  const recorder = new WordopsRecorder<LegacyRegion, { op: LegacyOpName }>(regions, initialSnapshot(regions, { message }), scopeLevels(ns, 'block', 'op'), legacyInitialNarration(run, message.length));
+  return legacyTrace(ns, algorithm, recorder);
 }
 
 function recordBlockBody(trace: LegacyTrace, blockIndex: number, block: LegacyBlock, detail: LegacyDetail): void {
@@ -62,7 +57,7 @@ function recordBlockBody(trace: LegacyTrace, blockIndex: number, block: LegacyBl
 function recordBlock(trace: LegacyTrace, detail: LegacyDetail, index: number, block: LegacyBlock): ChainingValue {
   recordInit(trace, index, block);
   recordBlockBody(trace, index, block, detail);
-  return { step: recordFeedForward(trace, index, block), bytes: wordsToBytes(block.hOut, trace.algorithm.byteOrder) };
+  return { step: recordFeedForward(trace, index, block), bytes: wordsToBytes(WORD32, block.hOut, trace.algorithm.byteOrder) };
 }
 
 interface LegacyResult {
@@ -74,12 +69,12 @@ interface LegacyResult {
 /** Records every block in its own scope: `pad` opens block 1, `output` closes the last block. */
 function recordBlocks(trace: LegacyTrace, run: LegacyRun, padding: Sha2Padding): LegacyResult {
   const { algorithm } = run;
-  const blocks = blocksOf(padding.padded, 64);
+  const blocks = blocksOf(padding.padded, LEGACY_BLOCK_BYTES);
   let h = [...algorithm.iv];
   const chainBlock = (index: number): ChainingValue => {
     const block = algorithm.compressDetailed(h, blocks[index]!);
     h = block.hOut;
-    if (index === 0) recordPad(trace, run.message.length, padding);
+    if (index === 0) recordPad(trace, run.message.length, padding, LEGACY_BLOCK_BYTES);
     return recordBlock(trace, run.detail, index, block);
   };
   const lastIndex = blocks.length - 1;
@@ -99,7 +94,7 @@ function legacyValues(run: LegacyRun, { chain, digest, outputStep }: LegacyResul
     schemaVersion: 1,
     values: [
       ...(message.length > 0 ? [valueRef(ns, 'message', 'public', [...message], INITIAL_STEP_INDEX)] : []),
-      valueRef(ns, 'iv', 'constant', wordsToBytes(algorithm.iv, algorithm.byteOrder), INITIAL_STEP_INDEX),
+      valueRef(ns, 'iv', 'constant', wordsToBytes(WORD32, algorithm.iv, algorithm.byteOrder), INITIAL_STEP_INDEX),
       ...chaining,
       valueRef(ns, 'digest', 'public', digest, outputStep),
     ],

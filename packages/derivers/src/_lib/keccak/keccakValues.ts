@@ -1,3 +1,4 @@
+import { RegisterFile } from '../registerFile.ts';
 import {
   KECCAK_LANE_BYTES,
   laneBytes,
@@ -32,8 +33,18 @@ export const ZERO: KeccakValue = { kind: 'zero' };
 /** A register holding `value` in its low half and zero above (a `d`-register load, a lane op). */
 export const lowHalf = (value: KeccakValue): KeccakRegister => ({ low: value, high: ZERO });
 
-export const sameValue = (a: KeccakValue, b: KeccakValue): boolean =>
-  JSON.stringify(a) === JSON.stringify(b);
+function sameValue(a: KeccakValue, b: KeccakValue): boolean {
+  switch (a.kind) {
+    case 'zero':
+      return b.kind === 'zero';
+    case 'lane':
+      return b.kind === 'lane' && a.step === b.step && a.lane === b.lane;
+    case 'theta':
+      return b.kind === 'theta' && a.step === b.step && a.part === b.part && a.x === b.x;
+    case 'rc':
+      return b.kind === 'rc' && a.step === b.step;
+  }
+}
 
 export function describeValue(value: KeccakValue): string {
   switch (value.kind) {
@@ -81,8 +92,21 @@ export function roundInput(
   return { kind: 'lane', step, lane };
 }
 
-/** The 8 bytes (little-endian, memory order) the trace records for `value`. */
-export function valueBytes(trace: Pick<KeccakTrace, 'byStep'>, value: KeccakValue): number[] {
+/** The 8 bytes (little-endian, memory order) the trace records for `value`, parsed once per trace and value. */
+export function valueBytes(
+  trace: Pick<KeccakTrace, 'byStep' | 'valueBytes'>,
+  value: KeccakValue,
+): readonly number[] {
+  const key = describeValue(value);
+  let bytes = trace.valueBytes.get(key);
+  if (bytes === undefined) {
+    bytes = readValueBytes(trace, value);
+    trace.valueBytes.set(key, bytes);
+  }
+  return bytes;
+}
+
+function readValueBytes(trace: Pick<KeccakTrace, 'byStep'>, value: KeccakValue): number[] {
   switch (value.kind) {
     case 'zero':
       return new Array<number>(KECCAK_LANE_BYTES).fill(0);
@@ -104,7 +128,7 @@ function requiredHex(hex: string | undefined, value: KeccakValue): string {
 
 /** The 16 register bytes in memory order: the low half first. */
 export function registerBytes(
-  trace: Pick<KeccakTrace, 'byStep'>,
+  trace: Pick<KeccakTrace, 'byStep' | 'valueBytes'>,
   register: KeccakRegister,
 ): number[] {
   return [...valueBytes(trace, register.low), ...valueBytes(trace, register.high)];
@@ -114,23 +138,8 @@ export function registerBytes(
  * The symbolic vector registers and stack slots of one listing walk. A register restored from the
  * caller's save area holds a value the trace does not know, so it is forgotten and may not be read.
  */
-export class KeccakRegisterFile {
-  private readonly registers = new Map<string, KeccakRegister>();
+export class KeccakRegisterFile extends RegisterFile<KeccakRegister> {
   private readonly stack = new Map<number, KeccakRegister>();
-
-  read(register: string): KeccakRegister {
-    const content = this.registers.get(register);
-    if (content === undefined) throw new Error(`${register} is read before it is written`);
-    return content;
-  }
-
-  write(register: string, content: KeccakRegister): void {
-    this.registers.set(register, content);
-  }
-
-  forget(register: string): void {
-    this.registers.delete(register);
-  }
 
   /** The register spilled to stack offset `offset`. */
   readStack(offset: number): KeccakRegister {

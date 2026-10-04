@@ -1,5 +1,6 @@
+import { compressBlocks } from '../sha2/context.ts';
 import { sha2Padding, sha2PadTail, type Sha2Padding } from '../sha2/padding.ts';
-import { add32, rotl32, wordsFromBytes, wordsToBytes } from './words.ts';
+import { WORD32, wordsFromBytes, wordsToBytes } from '../sha2/words.ts';
 
 /**
  * SHA-1 (FIPS 180-4 §6.1), untraced: the constants, f_t, the message schedule and the reference
@@ -36,12 +37,12 @@ export function sha1RoundConstants(t: number): { fn: Sha1FunctionName; k: number
 
 /** W_t = ROTL^1(W_{t−3} ⊕ W_{t−8} ⊕ W_{t−14} ⊕ W_{t−16}) for t ≥ 16, given W_0 … W_{t−1}. */
 export function sha1ScheduleWord(w: readonly number[], t: number): number {
-  return rotl32((w[t - 3]! ^ w[t - 8]! ^ w[t - 14]! ^ w[t - 16]!) >>> 0, 1);
+  return WORD32.rotl((w[t - 3]! ^ w[t - 8]! ^ w[t - 14]! ^ w[t - 16]!) >>> 0, 1);
 }
 
 /** The 80 schedule words of one 64-byte block (§6.1.2 step 1). */
 export function sha1Schedule(block: Uint8Array): number[] {
-  const w = wordsFromBytes(block.subarray(0, SHA1_BLOCK_BYTES), 'big');
+  const w = wordsFromBytes(WORD32, block.subarray(0, SHA1_BLOCK_BYTES), 'big');
   for (let t = 16; t < SHA1_ROUNDS; t++) w.push(sha1ScheduleWord(w, t));
   return w;
 }
@@ -52,10 +53,10 @@ export function sha1Compress(h: Uint32Array, block: Uint8Array): Uint32Array {
   let a = h[0]!, b = h[1]!, c = h[2]!, d = h[3]!, e = h[4]!;
   for (let t = 0; t < SHA1_ROUNDS; t++) {
     const { fn, k } = sha1RoundConstants(t);
-    const T = add32(rotl32(a, 5), SHA1_FUNCTIONS[fn](b, c, d), e, k, w[t]!);
+    const T = WORD32.add(WORD32.rotl(a, 5), SHA1_FUNCTIONS[fn](b, c, d), e, k, w[t]!);
     e = d;
     d = c;
-    c = rotl32(b, 30);
+    c = WORD32.rotl(b, 30);
     b = a;
     a = T;
   }
@@ -79,13 +80,10 @@ export function sha1PadTail(tail: ArrayLike<number>, messageBytes: number): Uint
 
 /** The 20 digest bytes of the state, big-endian (§6.1.2). */
 export function sha1StateBytes(h: Uint32Array): Uint8Array {
-  return Uint8Array.from(wordsToBytes([...h], 'big'));
+  return Uint8Array.from(wordsToBytes(WORD32, [...h], 'big'));
 }
 
 /** The SHA-1 digest of `data`. */
 export function sha1Digest(data: Uint8Array): Uint8Array {
-  const h = Uint32Array.from(SHA1_IV);
-  const padded = sha1Padding(data).padded;
-  for (let offset = 0; offset < padded.length; offset += SHA1_BLOCK_BYTES) sha1Compress(h, padded.subarray(offset, offset + SHA1_BLOCK_BYTES));
-  return sha1StateBytes(h);
+  return sha1StateBytes(compressBlocks(Uint32Array.from(SHA1_IV), sha1Padding(data).padded, SHA1_BLOCK_BYTES, sha1Compress));
 }

@@ -1,3 +1,4 @@
+import { RegisterFile } from '../registerFile.ts';
 import { describeLanes, describeWord, sameWord, type Lanes, type ShaWord } from './shaWords.ts';
 import {
   regionWord,
@@ -13,20 +14,7 @@ import {
  * The symbolic register file of a SHA listing walk (what each vector register holds, as lane words)
  * and the one place that turns lane words into bytes, read from the trace (docs/M5.md §5c).
  */
-export class ShaRegisterFile {
-  private readonly contents = new Map<string, Lanes>();
-
-  /** What `register` holds; throws when nothing was written to it in this block. */
-  read(register: string): Lanes {
-    const lanes = this.contents.get(register);
-    if (lanes === undefined) throw new Error(`${register} is read before it is written`);
-    return lanes;
-  }
-
-  write(register: string, lanes: Lanes): void {
-    this.contents.set(register, lanes);
-  }
-}
+export class ShaRegisterFile extends RegisterFile<Lanes> {}
 
 /** One block of the trace: where its ops sit. */
 export interface ShaBlockContext {

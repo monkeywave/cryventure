@@ -1,6 +1,5 @@
-import type { MathTermRole, RegisterTransfer, TranslateParams, WordOp } from '@cryventure/core';
+import type { MathTermRole, RegisterTransfer, TranslateParams, WordByteOrder, WordOp } from '@cryventure/core';
 import type { Sha2Padding } from '../sha2/padding.ts';
-import type { WordByteOrder } from './words.ts';
 
 /**
  * What the shared MD5/SHA-1 recorder (`steps.ts`, `record.ts`) needs from one algorithm

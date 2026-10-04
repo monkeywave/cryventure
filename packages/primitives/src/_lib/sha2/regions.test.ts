@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { SHA256_ALGORITHMS, SHA512_ALGORITHMS } from './algorithms.ts';
-import { SHA2_REGISTER_NAMES, sha2InitialSnapshot, sha2Regions, wordIndices } from './regions.ts';
+import { initialSnapshot, SHA2_REGISTER_NAMES, sha2Regions, wordIndices } from './regions.ts';
 
 const NS = 'plugin.test';
 
@@ -39,10 +39,10 @@ describe('sha2Regions', () => {
   });
 });
 
-describe('sha2InitialSnapshot', () => {
+describe('initialSnapshot', () => {
   it('holds the message and zeroes everything else', () => {
     const regions = sha2Regions(NS, SHA256_ALGORITHMS['sha-256'], 3, 64);
-    const snapshot = sha2InitialSnapshot(regions, [0x61, 0x62, 0x63]);
+    const snapshot = initialSnapshot(regions, { message: [0x61, 0x62, 0x63] });
     expect(snapshot.message).toEqual([0x61, 0x62, 0x63]);
     expect(snapshot.padded).toHaveLength(64);
     expect([...snapshot.padded, ...snapshot.w, ...snapshot.vars, ...snapshot.h, ...snapshot.digest].every((byte) => byte === 0)).toBe(true);
@@ -50,7 +50,13 @@ describe('sha2InitialSnapshot', () => {
 
   it('has no message region for the empty message', () => {
     const regions = sha2Regions(NS, SHA256_ALGORITHMS['sha-256'], 0, 64);
-    expect(Object.keys(sha2InitialSnapshot(regions, [])).sort()).toEqual(['digest', 'h', 'padded', 'vars', 'w']);
+    expect(Object.keys(initialSnapshot(regions, { message: [] })).sort()).toEqual(['digest', 'h', 'padded', 'vars', 'w']);
+  });
+
+  it('seeds several regions, skipping empty seeds', () => {
+    const regions = sha2Regions(NS, SHA256_ALGORITHMS['sha-256'], 2, 64);
+    const snapshot = initialSnapshot(regions, { message: [1, 2], h: [], vars: [7] });
+    expect([snapshot.message, snapshot.vars.slice(0, 2), snapshot.h.length]).toEqual([[1, 2], [7], 32]);
   });
 });
 

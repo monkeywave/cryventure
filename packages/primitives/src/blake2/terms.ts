@@ -2,19 +2,13 @@ import type { RegisterTransfer, WordTerm } from '@cryventure/core';
 import type { Blake2BlockDetail, GDetail } from '../_lib/blake2/compress.ts';
 import type { Blake2Variant } from '../_lib/blake2/variants.ts';
 import type { Word } from '../_lib/sha2/words.ts';
-import { termFactory, type TermFactory } from '../_lib/sha2/wordTerms.ts';
+import type { TermFactory } from '../_lib/sha2/wordTerms.ts';
 
 /**
  * The `wordops` terms of the BLAKE2 steps (docs/M6.md §2d), labelled `<ns>.term.<label>`. A G step
  * lists x and y, then a′, d′, c′, b′ and a″, d″, c″, b″ in the order G computes them; the four
  * results carry `emphasis: 'story'` and are the sources of the step's register `transfers`.
  */
-export type { TermFactory };
-
-export function blake2TermFactory<W extends Word>(ns: string, variant: Blake2Variant<W>): TermFactory<W> {
-  return termFactory(ns, variant.arith);
-}
-
 const story = (term: WordTerm): WordTerm => ({ ...term, emphasis: 'story' });
 
 /** The G results in register order a, b, c, d: the terms that become v[a], v[b], v[c], v[d]. */

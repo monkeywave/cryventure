@@ -1,4 +1,5 @@
 import type { HashContext, XofContext } from '@cryventure/core';
+import { BlockBuffer } from '../hashKit/blockBuffer.ts';
 import { zeroState, type KeccakState } from './lanes.ts';
 import { padTail, type DomainSuffix } from './padding.ts';
 import { absorbBlock, squeezeBlock, squeezeFrom } from './sponge.ts';
@@ -17,44 +18,30 @@ class AbsorbingSponge {
     private readonly rateBytes: number,
     private readonly suffix: DomainSuffix,
     private state: KeccakState,
-    private readonly partial: Uint8Array,
-    private partialLength: number,
+    private readonly buffer: BlockBuffer,
   ) {}
 
   static fresh(rateBytes: number, suffix: DomainSuffix): AbsorbingSponge {
-    return new AbsorbingSponge(rateBytes, suffix, zeroState(), new Uint8Array(rateBytes), 0);
+    return new AbsorbingSponge(rateBytes, suffix, zeroState(), BlockBuffer.empty(rateBytes));
   }
 
   absorb(data: Uint8Array): void {
-    const rate = this.rateBytes;
-    let offset = 0;
-    if (this.partialLength > 0) {
-      offset = Math.min(rate - this.partialLength, data.length);
-      this.partial.set(data.subarray(0, offset), this.partialLength);
-      this.partialLength += offset;
-      if (this.partialLength < rate) return;
-      this.permuteBlock(this.partial);
-      this.partialLength = 0;
-    }
-    for (; offset + rate <= data.length; offset += rate) this.permuteBlock(data.subarray(offset, offset + rate));
-    this.partial.set(data.subarray(offset));
-    this.partialLength = data.length - offset;
+    this.buffer.feed(data, (block) => {
+      this.state = keccakF1600(absorbBlock(this.state, block));
+    });
   }
 
   /** The state after the padded last block (this sponge stays unchanged). */
   finish(): KeccakState {
+    const { tail } = this.buffer;
     const last = new Uint8Array(this.rateBytes);
-    last.set(this.partial.subarray(0, this.partialLength));
-    last.set(padTail(this.partialLength, this.rateBytes, this.suffix), this.partialLength);
+    last.set(tail);
+    last.set(padTail(tail.length, this.rateBytes, this.suffix), tail.length);
     return keccakF1600(absorbBlock(this.state, last));
   }
 
   clone(): AbsorbingSponge {
-    return new AbsorbingSponge(this.rateBytes, this.suffix, [...this.state], this.partial.slice(), this.partialLength);
-  }
-
-  private permuteBlock(block: Uint8Array): void {
-    this.state = keccakF1600(absorbBlock(this.state, block));
+    return new AbsorbingSponge(this.rateBytes, this.suffix, [...this.state], this.buffer.clone());
   }
 }
 

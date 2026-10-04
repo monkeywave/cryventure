@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { PrimitiveManifest } from '@cryventure/core';
 import { producerRegistry } from './registry.ts';
-import { choiceLabelKey, editField, HEX_HINT_KEY, hintKeyOf, mergeParams, outputLabelKey, textFieldLength } from './paramFields.ts';
+import { choiceLabelKey, editField, HEX_HINT_KEY, hintKeyOf, mergeParams, outputLabelKey } from './paramFields.ts';
 import type { LabParams } from './labSession.ts';
 
 const aes = producerRegistry.require('aes') as PrimitiveManifest<LabParams>;
@@ -74,26 +74,5 @@ describe('choiceLabelKey', () => {
   it('is undefined for unknown values, non-implementers and other kinds', () => {
     expect(choiceLabelKey({ name: 'cipher', kind: 'port', port: 'BlockCipher', labelKey: 'l' }, 'xor', producers)).toBeUndefined();
     expect(choiceLabelKey({ name: 'keyHex', kind: 'hex', labelKey: 'l' }, '00', producers)).toBeUndefined();
-  });
-});
-
-describe('textFieldLength', () => {
-  it('counts UTF-8 bytes unless the producer\'s `encoding` param is hex', () => {
-    expect(textFieldLength('input', 'äö', {})).toEqual({ unit: 'utf8', bytes: 4 });
-    expect(textFieldLength('input', 'äö', { encoding: 'utf8' })).toEqual({ unit: 'utf8', bytes: 4 });
-  });
-
-  it('counts the decoded bytes of hex text, ignoring separators', () => {
-    expect(textFieldLength('input', '00 '.repeat(100).trim(), { encoding: 'hex' })).toEqual({ unit: 'hex', bytes: 100 });
-    expect(textFieldLength('input', '', { encoding: 'hex' })).toEqual({ unit: 'hex', bytes: 0 });
-  });
-
-  it('counts the complete bytes of odd-length hex and leaves invalid hex uncounted', () => {
-    expect(textFieldLength('input', '616', { encoding: 'hex' })).toEqual({ unit: 'hex', bytes: 1 });
-    expect(textFieldLength('input', 'zz', { encoding: 'hex' })).toEqual({ unit: 'hex', bytes: undefined });
-  });
-
-  it('measures only the `input` field in hex; other text fields stay UTF-8 (e.g. cSHAKE S)', () => {
-    expect(textFieldLength('customization', 'Email Signature', { encoding: 'hex' })).toEqual({ unit: 'utf8', bytes: 15 });
   });
 });

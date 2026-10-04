@@ -1,6 +1,6 @@
 import { highlight, i18nRef, scopeLevels, zeroSnapshot, type RegionSpec, type StateFacet, type WordopsFacet } from '@cryventure/core';
 import { WordopsRecorder } from '../_lib/sha2/wordopsRecorder.ts';
-import { mismatchedIndices } from './compare.ts';
+import { mismatchedIndices } from '../_lib/compare.ts';
 import type { KeccakConstantsOpName } from './manifest.ts';
 import { cellIndex, distinctCount, offsetsTable, RHO_STEPS, rhoWalk, type RhoStep } from './rhoWalk.ts';
 

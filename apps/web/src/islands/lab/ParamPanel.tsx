@@ -1,8 +1,9 @@
 import { useId, useState, type ChangeEvent, type ReactNode } from 'react';
 import { paramFieldsOf, portOptions, type I18nRef, type ParamField, type ParamFieldOption, type PrimitiveManifest } from '@cryventure/core';
+import { textFieldByteLength } from '@cryventure/primitives';
 import { useT } from '@cryventure/viz';
 import type { LabParams } from '../../labs/labSession.ts';
-import { editField, hintKeyOf, textFieldLength } from '../../labs/paramFields.ts';
+import { editField, hintKeyOf } from '../../labs/paramFields.ts';
 import { producerRegistry } from '../../labs/producers.ts';
 import { matchingPresetId } from '../../labs/startParams.ts';
 import { useDebouncedCallback } from '../shared/useDebouncedCallback.ts';
@@ -147,7 +148,7 @@ function HexField(props: FieldProps) {
 
 /**
  * A text param with a live byte counter against `maxLength`: UTF-8 bytes, or decoded bytes for the
- * `input` field while the producer's `encoding` param is `'hex'` (`textFieldLength`, docs/EXTENDING.md "Text params").
+ * `input` field while the producer's `encoding` param is `'hex'` (`textFieldByteLength`, docs/EXTENDING.md "Text params").
  */
 function TextField(props: FieldProps) {
   const t = useT();
@@ -156,7 +157,7 @@ function TextField(props: FieldProps) {
   const { text, error, change: changeText } = useDraft(props);
   const change = (event: ChangeEvent<HTMLInputElement>) => changeText(event.target.value);
   const max = field.maxLength;
-  const { unit, bytes } = textFieldLength(field.name, text, props.params);
+  const { unit, bytes } = textFieldByteLength(field, { ...props.params, [field.name]: text });
   const counterId = `${id}-count`;
   return (
     <div className="cv-params__field cv-params__field--text">

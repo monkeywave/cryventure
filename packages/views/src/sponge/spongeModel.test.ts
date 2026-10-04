@@ -4,14 +4,12 @@ import {
   changedLanes,
   chiTerms,
   isRateLane,
-  laneBytes,
   laneIndex,
   laneLevel,
   laneLines,
   lanePosition,
   lensParts,
   mod,
-  moveLane,
   outputGroups,
   piSourceOf,
   selectionUse,
@@ -100,10 +98,6 @@ describe('lane formatting', () => {
     expect(laneLevel('ff00000000000000')).toBe(1);
     expect(laneLevel('8000000000000000')).toBeCloseTo(0.6, 2);
   });
-
-  it('reads lane bytes in memory order (little-endian)', () => {
-    expect(laneBytes('0000000006636261')).toEqual(['61', '62', '63', '06', '00', '00', '00', '00']);
-  });
 });
 
 describe('phase overlays', () => {
@@ -147,18 +141,6 @@ describe('phase overlays', () => {
     expect(selectionUse('chi')).toBe('row');
     for (const phase of ['absorb', 'rho', 'pi', 'squeeze', 'output'] as const) expect(selectionUse(phase)).toBe('lane');
     for (const phase of ['pad', 'iota', 'round', 'permute'] as const) expect(selectionUse(phase)).toBe('none');
-  });
-});
-
-describe('moveLane', () => {
-  it('moves with the arrow keys, Home and End, clamped at the edges', () => {
-    expect(moveLane({ x: 0, y: 0 }, 'ArrowRight', 5, 5)).toEqual({ x: 1, y: 0 });
-    expect(moveLane({ x: 0, y: 0 }, 'ArrowLeft', 5, 5)).toEqual({ x: 0, y: 0 });
-    expect(moveLane({ x: 2, y: 4 }, 'ArrowDown', 5, 5)).toEqual({ x: 2, y: 4 });
-    expect(moveLane({ x: 2, y: 4 }, 'ArrowUp', 5, 5)).toEqual({ x: 2, y: 3 });
-    expect(moveLane({ x: 2, y: 1 }, 'Home', 5, 5)).toEqual({ x: 0, y: 1 });
-    expect(moveLane({ x: 2, y: 1 }, 'End', 5, 5)).toEqual({ x: 4, y: 1 });
-    expect(moveLane({ x: 2, y: 1 }, 'Enter', 5, 5)).toBeNull();
   });
 });
 

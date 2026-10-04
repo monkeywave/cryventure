@@ -94,8 +94,11 @@ interface OpenBlock {
   init: number;
   rounds: number[];
   schedule: (number | undefined)[];
-  scheduled: number;
 }
+
+/** Schedule steps seen so far: W_16 on are scheduled, W_0 … W_15 come from the block. */
+const scheduledCount = (block: OpenBlock): number =>
+  Math.max(block.schedule.length - SHA256_FIRST_SCHEDULED, 0);
 
 function closeBlock(
   block: OpenBlock,
@@ -105,8 +108,9 @@ function closeBlock(
 ): ShaBlockSteps {
   if (block.rounds.length !== rounds)
     throw contractError(`block ${index} has ${block.rounds.length} round steps, not ${rounds}`);
-  if (block.scheduled !== rounds - SHA256_FIRST_SCHEDULED)
-    throw contractError(`block ${index} has ${block.scheduled} schedule steps`);
+  const scheduled = scheduledCount(block);
+  if (scheduled !== rounds - SHA256_FIRST_SCHEDULED)
+    throw contractError(`block ${index} has ${scheduled} schedule steps`);
   return { index, init: block.init, rounds: block.rounds, schedule: block.schedule, feedForward };
 }
 
@@ -122,14 +126,25 @@ function locateBlocks(
   facet.steps.forEach(({ op }, step) => {
     if (op === 'init') {
       if (open !== undefined) throw noFeedForward();
-      open = { init: step, rounds: [], schedule: [], scheduled: 0 };
-    } else if (op === 'output') output = step;
-    else if (open === undefined) return;
-    else if (op === 'round') open.rounds.push(step);
-    else if (op === 'schedule') open.schedule[SHA256_FIRST_SCHEDULED + open.scheduled++] = step;
-    else if (op === 'feedForward') {
-      blocks.push(closeBlock(open, blocks.length, step, rounds));
-      open = undefined;
+      open = { init: step, rounds: [], schedule: [] };
+      return;
+    }
+    if (op === 'output') {
+      output = step;
+      return;
+    }
+    if (open === undefined) return;
+    switch (op) {
+      case 'round':
+        open.rounds.push(step);
+        break;
+      case 'schedule':
+        open.schedule[SHA256_FIRST_SCHEDULED + scheduledCount(open)] = step;
+        break;
+      case 'feedForward':
+        blocks.push(closeBlock(open, blocks.length, step, rounds));
+        open = undefined;
+        break;
     }
   });
   if (open !== undefined) throw noFeedForward();

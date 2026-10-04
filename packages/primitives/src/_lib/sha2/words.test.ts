@@ -43,3 +43,24 @@ describe('word lists', () => {
     expect(wordsToBytes(WORD64, [])).toEqual([]);
   });
 });
+
+describe('byte order and rotl (MD5, SHA-1)', () => {
+  it('rotates left', () => {
+    expect(WORD32.rotl(0x80000001, 1)).toBe(0x00000003);
+    expect(WORD32.rotl(0x12345678, 8)).toBe(0x34567812);
+    expect(WORD32.rotl(0x12345678, 0)).toBe(0x12345678);
+    expect(WORD64.rotl(0x8000000000000001n, 4)).toBe(0x18n);
+  });
+
+  it('writes eight hex digits of the unsigned value', () => {
+    expect(WORD32.toHex(-1)).toBe('ffffffff');
+  });
+
+  it('maps words to bytes and back in both byte orders', () => {
+    expect(wordsToBytes(WORD32, [0x67452301], 'little')).toEqual([0x01, 0x23, 0x45, 0x67]);
+    const words = [0x67452301, 0xefcdab89];
+    for (const order of ['big', 'little'] as const) expect(wordsFromBytes(WORD32, wordsToBytes(WORD32, words, order), order)).toEqual(words);
+    expect(wordsFromBytes(WORD32, [0x61, 0x62, 0x63, 0x80], 'little')).toEqual([0x80636261]);
+    expect(wordsFromBytes(WORD64, wordsToBytes(WORD64, [0x0102030405060708n], 'little'), 'little')).toEqual([0x0102030405060708n]);
+  });
+});

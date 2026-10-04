@@ -11,7 +11,7 @@ import {
   type RegisterWrite,
   type RegistersFacet,
 } from '@cryventure/core';
-import { listingSource, type Listing, type MemOperand } from './listing.ts';
+import { armSimdRegister, listingSource, type Listing, type MemOperand } from './listing.ts';
 import { withValueRef } from './valueRef.ts';
 
 /**
@@ -30,10 +30,22 @@ export interface IsaVariant {
   byteOrder: 'little' | 'big';
 }
 
+/** 128-bit little-endian vector registers with 8 … 64-bit lanes (SSE, AArch64 SIMD). */
+export const VECTOR_128_LE: { byteOrder: 'little'; lanes: number[]; registerBits: number } = {
+  byteOrder: 'little',
+  lanes: [8, 16, 32, 64],
+  registerBits: 128,
+};
+
 /** What a listing walk produced: the instructions and the register writes per instruction. */
 export interface IsaWalk {
   instructions: Instruction[];
   steps: RegisterStep[];
+}
+
+/** A walk over several runs of a listing (blocks, permutations): what it produced and the span it ended on. */
+export interface RunningIsaWalk extends IsaWalk {
+  previous: AlignSpan;
 }
 
 /** An instruction as a listing lists it (AES `ListingInstruction`, SHA `ShaListingInstruction`). */
@@ -41,24 +53,47 @@ type ListedInstruction = { address: string; mnemonic: string; operands: readonly
 
 /** `xmm0` … `xmm15`. */
 const XMM = /^xmm\d+$/;
-/** `q1`, `v1.16b` and `v1.4s` name the same 128-bit register `v1`. */
-const ARM_VECTOR = /^[qv](\d+)(?:\.\w+)?$/;
 
 /** An `xmm` operand's register name, or `undefined`. */
 export function x86VectorRegister(operand: string): string | undefined {
   return XMM.test(operand) ? operand : undefined;
 }
 
-/** Canonical name `v<n>` of an AArch64 vector operand, or `undefined`. */
+/** Canonical name `v<n>` of an AArch64 vector operand (`q1`, `v1.16b`, `v1.4s`; not a `d` view), or `undefined`. */
 export function armVectorRegister(operand: string): string | undefined {
-  const match = ARM_VECTOR.exec(operand);
-  return match === null ? undefined : `v${match[1]}`;
+  return operand.startsWith('d') ? undefined : armSimdRegister(operand);
 }
 
 /** An error naming the listed instruction: `listing <address> <mnemonic>: <reason>`. */
 export function listingError(instruction: ListedInstruction, reason: unknown): Error {
   const message = reason instanceof Error ? reason.message : String(reason);
   return new Error(`listing ${instruction.address} ${instruction.mnemonic}: ${message}`);
+}
+
+/** The semantics `semantics` give `mnemonic`; throws when they have none. */
+export function semanticsOf<S>(semantics: Readonly<Record<string, S>>, mnemonic: string): S {
+  const found = semantics[mnemonic];
+  if (found === undefined) throw new Error('no semantics for this mnemonic');
+  return found;
+}
+
+/** Runs `run` for the listed instruction, naming the instruction in any error it throws. */
+export function namingErrors<T>(listed: ListedInstruction, run: () => T): T {
+  try {
+    return run();
+  } catch (error) {
+    throw listingError(listed, error);
+  }
+}
+
+/** Appends `instruction` to the walk and, when it wrote registers (`writes` given), a register step on its span. */
+export function recordInstruction(
+  walk: IsaWalk,
+  instruction: Instruction,
+  writes: RegisterWrite[] | undefined,
+): void {
+  walk.instructions.push(instruction);
+  if (writes !== undefined) walk.steps.push({ align: instruction.align, writes });
 }
 
 /** The facet instruction of a listed one: its operand refs, span and optional chips and note. */
@@ -111,6 +146,34 @@ export function vectorRegisterSpecs(
   return [...new Set(names)]
     .sort((a, b) => registerNumber(a) - registerNumber(b))
     .map((name) => ({ name, bits, lanes: [...lanes] }));
+}
+
+/** An ISA variant whose registers are the vector registers its listing names. */
+export interface VectorIsa extends IsaVariant {
+  lanes: readonly number[];
+  registerBits: number;
+  /** Canonical vector register name of an operand, or `undefined`. */
+  vectorRegister(operand: string): string | undefined;
+}
+
+/** `instructions@<variant>` and `registers@<variant>` of a walk, with one register spec per vector register the listing names. */
+export function listingFacetPair(
+  variant: VectorIsa,
+  listing: Omit<Listing, 'instructions' | 'source'> & {
+    instructions: readonly ListedInstruction[];
+  },
+  walk: IsaWalk,
+): Partial<Record<FacetKey, unknown>> {
+  const names = listing.instructions.flatMap((instruction) =>
+    instruction.operands.flatMap((operand) => variant.vectorRegister(operand) ?? []),
+  );
+  const { instructions, steps } = walk;
+  return isaFacetPair(
+    variant,
+    listing,
+    { instructions, steps },
+    vectorRegisterSpecs(names, variant.registerBits, variant.lanes),
+  );
 }
 
 /** `instructions@<variant>` and `registers@<variant>` from a walk over `listing`. */

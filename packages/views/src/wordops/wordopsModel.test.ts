@@ -7,32 +7,21 @@ import {
   arrowTermText,
   opGlyphKey,
   opNameKey,
-  hexChunks,
   isStoryTerm,
   nibbleGroups,
   lensParts,
-  registerArrows,
   registerChunksPerLine,
   sha2RegisterShift,
   showsBitStrip,
   storyTerms,
+  upgradeWordops,
   wordBitsOf,
-  wordopsStepAt,
 } from './wordopsModel.ts';
 
 const step = (index: number, extra: Partial<WordopsStep> = {}): WordopsStep => ({ step: index, formula: { key: 'f' }, terms: [], ...extra });
 const term = (id: string, hex: string, role: WordTerm['role'] = 'intermediate'): WordTerm => ({ id, label: { key: id }, hex, role });
 
 describe('wordopsModel', () => {
-  it('finds the latest step at or before the playhead', () => {
-    const facet: WordopsFacet = { kind: 'wordops', schemaVersion: 1, wordBits: 32, steps: [step(-1), step(3), step(7)] };
-    expect(wordopsStepAt(facet, -2)).toBeUndefined();
-    expect(wordopsStepAt(facet, -1)?.step).toBe(-1);
-    expect(wordopsStepAt(facet, 5)?.step).toBe(3);
-    expect(wordopsStepAt(facet, 99)?.step).toBe(7);
-    expect(wordopsStepAt({ ...facet, steps: [] }, 0)).toBeUndefined();
-  });
-
   it('shows a neutral root glyph without a degree, √ / ∛ with one, from the catalog in EN and DE', () => {
     for (const locale of ['en', 'de'] as const) {
       const messages = loadViewMessages(locale);
@@ -74,11 +63,6 @@ describe('wordopsModel', () => {
     expect(nibbleGroups(wordBitsOf('a1'))).toBe('1010 0001');
   });
 
-  it('chunks hex into lowercase 4-digit groups', () => {
-    expect(hexChunks('6A09E667')).toEqual(['6a09', 'e667']);
-    expect(hexChunks('6a09e667f3bcc908')).toEqual(['6a09', 'e667', 'f3bc', 'c908']);
-  });
-
   it('breaks only 64-bit register words onto lines of two chunks', () => {
     expect(registerChunksPerLine(64)).toBe(2);
     expect(registerChunksPerLine(32)).toBeUndefined();
@@ -102,20 +86,16 @@ describe('wordopsModel', () => {
     expect(isStoryTerm({ id: 'Ch', role: 'intermediate' })).toBe(false);
   });
 
-  describe('storyTerms', () => {
+  it('story lens: only the terms marked story, none when none is (even results)', () => {
     const story = (id: string): WordTerm => ({ ...term(id, '00000000'), emphasis: 'story' });
-    it('v1: keeps results and T1/T2 (the structural filter)', () => {
-      expect(storyTerms(1, [term('T1', '0'), term('Ch', '0'), term('W', '0', 'result')]).map((each) => each.id)).toEqual(['T1', 'W']);
-    });
-    it('v2: keeps only the terms marked story', () => {
-      expect(storyTerms(2, [term('T1', '0'), story('newB'), term('W', '0', 'result')]).map((each) => each.id)).toEqual(['newB']);
-    });
-    it('v2: none marked → none, even results', () => {
-      expect(storyTerms(2, [term('W', '0', 'result'), term('T1', '0')])).toEqual([]);
-    });
+    expect(storyTerms([term('T1', '0'), story('newB'), term('W', '0', 'result')]).map((each) => each.id)).toEqual(['newB']);
+    expect(storyTerms([term('W', '0', 'result'), term('T1', '0')])).toEqual([]);
   });
 
-  describe('registerArrows', () => {
+  describe('upgradeWordops', () => {
+    const facet = (schemaVersion: WordopsFacet['schemaVersion'], steps: WordopsStep[]): WordopsFacet => ({ kind: 'wordops', schemaVersion, wordBits: 32, steps });
+    const arrowsOf = (schemaVersion: WordopsFacet['schemaVersion'], wordopsStep: WordopsStep) => upgradeWordops(facet(schemaVersion, [wordopsStep])).steps[0]!.arrows;
+    const storyIds = (schemaVersion: WordopsFacet['schemaVersion'], terms: WordTerm[]) => storyTerms(upgradeWordops(facet(schemaVersion, [step(0, { terms })])).steps[0]!.terms).map((each) => each.id);
     const before = ['0', '1', '2', '3'];
     const md5Round = step(2, {
       terms: [term('newB', '00000004')],
@@ -130,9 +110,16 @@ describe('wordopsModel', () => {
         ],
       },
     });
+    const sha2Shaped = step(0, { terms: [term('T1', '0'), term('T2', '0')], registers: { before: Array(8).fill('0'), after: Array(8).fill('0') } });
+
+    it('reads every facet as v2, keeping its steps in order', () => {
+      const upgraded = upgradeWordops(facet(1, [step(-1), step(3)]));
+      expect(upgraded.schemaVersion).toBe(2);
+      expect(upgraded.steps.map((each) => each.step)).toEqual([-1, 3]);
+    });
 
     it('v2: one arrow per transfer, register copies and term arrows', () => {
-      expect(registerArrows(2, md5Round)).toEqual([
+      expect(arrowsOf(2, md5Round)).toEqual([
         { to: 0, from: 3, source: 'copy' },
         { to: 1, term: 'newB', source: 'term' },
         { to: 2, from: 1, source: 'copy' },
@@ -141,17 +128,25 @@ describe('wordopsModel', () => {
     });
 
     it('v2 without transfers: no arrows, not even for a SHA-2-shaped round (no structural guess)', () => {
-      const sha2Shaped = step(0, { terms: [term('T1', '0'), term('T2', '0')], registers: { before: Array(8).fill('0'), after: Array(8).fill('0') } });
-      expect(registerArrows(2, sha2Shaped)).toBeUndefined();
-      expect(registerArrows(1, sha2Shaped)).toBe(sha2RegisterShift(sha2Shaped));
+      expect(arrowsOf(2, sha2Shaped)).toBeUndefined();
     });
 
-    it('v1: transfers are ignored, the structural SHA-2 detection stays the fallback', () => {
-      expect(registerArrows(1, md5Round)).toBeUndefined();
+    it('v1: the structural SHA-2 shift becomes the arrows; transfers are ignored', () => {
+      expect(arrowsOf(1, sha2Shaped)).toBe(sha2RegisterShift(sha2Shaped));
+      expect(arrowsOf(1, md5Round)).toBeUndefined();
     });
 
     it('no registers: no arrows', () => {
-      expect(registerArrows(2, step(0))).toBeUndefined();
+      expect(arrowsOf(2, step(0))).toBeUndefined();
+      expect(arrowsOf(1, step(0))).toBeUndefined();
+    });
+
+    it('v1: results and T1/T2 become the story terms (the structural filter as emphasis)', () => {
+      expect(storyIds(1, [term('T1', '0'), term('Ch', '0'), term('W', '0', 'result')])).toEqual(['T1', 'W']);
+    });
+
+    it('v2: emphasis stays as given', () => {
+      expect(storyIds(2, [term('T1', '0'), { ...term('newB', '0'), emphasis: 'story' }, term('W', '0', 'result')])).toEqual(['newB']);
     });
   });
 
