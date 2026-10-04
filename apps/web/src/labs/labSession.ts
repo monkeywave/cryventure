@@ -1,6 +1,7 @@
 import { getFacet, viewsFor, type ChoreographyModule, type DeriverManifest, type I18nRef, type PrimitiveManifest, type Registry, type TraceBundle } from '@cryventure/core';
 import { createLabStore, stateSteps, type AnyStateFacet, type BlockLabHrefBuilder, type LabHrefBuilder, type LabMode, type LabStore, type ReactViewManifest } from '@cryventure/viz';
 import type { LabLinkRead } from './deepLink.ts';
+import { createLabTitle } from './labHref.ts';
 import { createLabRunner, type LabRunner } from './labRunner.ts';
 import { mergeParams } from './paramFields.ts';
 import { defaultRegistries, resolveLab, viewsForBundle, type LabRegistries } from './registry.ts';
@@ -88,7 +89,7 @@ export async function startLab({ producerId, presetId, link, startAt, mode, vari
   if (!result.ok) return { status: 'error', error: result.error };
   const views = viewsForBundle(result.trace, viewCatalog, derivers);
   await preloadViews(views);
-  const store = createLabStore(result.trace, { labHref, blockLabHref, preferredVariant: variant });
+  const store = createLabStore(result.trace, { labHref, blockLabHref, labTitle: createLabTitle(producers), preferredVariant: variant });
   if (mode !== undefined) store.getState().setMode(mode);
   store.getState().seek(initialStep(start.step, startAt, stateSteps(result.trace)));
   return { status: 'ready', producer, views, viewCatalog, derivers, store, params: start.params, notice: start.notice, choreography, runner };

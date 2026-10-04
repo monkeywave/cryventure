@@ -225,3 +225,22 @@ describe('useLabSession computing', () => {
     expect(result.current.computing).toBe(false);
   });
 });
+
+describe('useLabSession restart on changed props', () => {
+  it('supersedes a pending re-run: its late failure neither reports an error nor keeps "computing"', async () => {
+    labSession.startLab.mockResolvedValueOnce(ready('start'));
+    const hook = renderHook((props: { presetId: string }) => useLabSession({ labId: 'lab', producerId: 'p', presetId: props.presetId }), { initialProps: { presetId: 'a' } });
+    await waitFor(() => expect(tagOf(hook.result.current.session)).toBe('start'));
+    const pending = deferred<RunOutcome>();
+    labSession.rerunLab.mockReturnValueOnce(pending.promise);
+    act(() => hook.result.current.applyParams({ n: 1 }));
+    expect(hook.result.current.computing).toBe(true);
+    labSession.startLab.mockResolvedValueOnce(ready('preset-b'));
+    hook.rerender({ presetId: 'b' });
+    await waitFor(() => expect(tagOf(hook.result.current.session)).toBe('preset-b'));
+    await act(async () => pending.resolve({ ok: false, error: { key: 'core.error.loadFailed' } }));
+    expect(hook.result.current.requestError).toBeNull();
+    expect(hook.result.current.computing).toBe(false);
+    expect(tagOf(hook.result.current.session)).toBe('preset-b');
+  });
+});

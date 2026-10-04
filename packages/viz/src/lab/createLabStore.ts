@@ -50,12 +50,20 @@ export type LabHrefBuilder = (zoom: LabZoom) => string | undefined;
  */
 export type BlockLabHrefBuilder = (producerId: string, keyHex: string, blockHex: string) => string | undefined;
 
+/**
+ * The host's title of the lab of `producerId` as a message key (its manifest's `titleKey`), e.g. for a
+ * zoom link "Open the lab “HMAC …”"; `undefined` when the host does not know that producer.
+ */
+export type LabTitleLookup = (producerId: string) => string | undefined;
+
 /** Host wiring fixed for the store's lifetime. */
 export interface LabStoreOptions {
   /** Backs `labHref`; without it the action is absent and views render no link. */
   labHref?: LabHrefBuilder;
   /** Backs `blockLabHref`; without it the action is absent and views render no zoom link. */
   blockLabHref?: BlockLabHrefBuilder;
+  /** Backs `labTitle`; without it the action is absent and views name no target lab. */
+  labTitle?: LabTitleLookup;
   /** The initial lab-wide preferred variant (e.g. a lesson's `variant="x86_64-aesni"`). */
   preferredVariant?: string;
 }
@@ -104,6 +112,8 @@ export interface LabActions {
   labHref?: LabHrefBuilder;
   /** Optional, wired by the host (`LabStoreOptions.blockLabHref`): a link to a block cipher's lab encrypting one block. */
   blockLabHref?: BlockLabHrefBuilder;
+  /** Optional, wired by the host (`LabStoreOptions.labTitle`): the title key of another producer's lab. */
+  labTitle?: LabTitleLookup;
 }
 
 export interface LabPlayhead {
@@ -128,6 +138,15 @@ function syncProgress(store: LabStore): void {
     const target = PROGRESS_FOR[state.transition];
     if (target !== undefined) state.progress.set(target);
   });
+}
+
+/** The host's optional link wiring as actions; an absent builder leaves its action absent (views render no link). */
+function hostLinks({ labHref, blockLabHref, labTitle }: LabStoreOptions): Pick<LabActions, 'labHref' | 'blockLabHref' | 'labTitle'> {
+  return {
+    ...(labHref === undefined ? {} : { labHref }),
+    ...(blockLabHref === undefined ? {} : { blockLabHref }),
+    ...(labTitle === undefined ? {} : { labTitle }),
+  };
 }
 
 /** One store per lab instance (never a module singleton), so several labs can share a page. */
@@ -167,8 +186,7 @@ export function createLabStore(bundle: TraceBundle | null = null, options: LabSt
     setParamsRequestHandler: (handler) => {
       paramsRequestHandler = handler;
     },
-    ...(options.labHref === undefined ? {} : { labHref: options.labHref }),
-    ...(options.blockLabHref === undefined ? {} : { blockLabHref: options.blockLabHref }),
+    ...hostLinks(options),
   }));
   syncProgress(store);
   return store;

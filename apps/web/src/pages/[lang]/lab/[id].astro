@@ -1,7 +1,8 @@
 ---
 /**
  * `/<lang>/lab/<producerId>/`: one standalone lab per registered producer (docs/M3.md §5), the
- * target of `useLabActions().labHref` (e.g. "zoom into block i"). Full width, every view the
+ * target of the views' zoom links: `useLabActions().labHref` (a derivation node's `LabZoom`, e.g.
+ * "Open the lab “HMAC …”") and `blockLabHref` (a chain view's "zoom into block i"). Full width, every view the
  * producer can feed, not in the sidebar and excluded from Pagefind.
  */
 import StarlightPage from '@astrojs/starlight/components/StarlightPage.astro';

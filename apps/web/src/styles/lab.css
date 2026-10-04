@@ -11,7 +11,8 @@
   color: var(--cv-text);
 }
 
-/* "Computing…" for a slow re-run; while empty it takes no space (no layout gap) but stays a live region. */
+/* "Computing…" for a slow re-run. While empty it is visually hidden (out of flow, so no layout gap) but
+   keeps its box, so the live region is already in the accessibility tree when its text arrives. */
 .cv-lab__computing {
   margin: 0;
   color: var(--cv-text-muted);
@@ -19,7 +20,12 @@
 }
 
 .cv-lab__computing:empty {
-  display: contents;
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
 }
 
 /* ---------- Static poster (server-rendered until hydration) ---------- */

@@ -106,3 +106,16 @@ describe('labMessages for a producer with member port fields (docs/M7.md §1b)',
     }
   });
 });
+
+describe('labMessages for zoom link targets', () => {
+  // A derivation node's zoom link names its target lab by that producer's title (`view.derivation.zoomTitled`).
+  it.each([
+    ['hkdf', 'plugin.hmac.title'],
+    ['pbkdf2', 'plugin.hmac.title'],
+    ['tls12-prf', 'plugin.hmac.title'],
+    ['hmac', 'plugin.sha256.title'],
+  ])('the %s lab ships the title of the lab it zooms into (%s)', (producerId, titleKey) => {
+    expect(labMessages('en', producerRegistry.require(producerId))[titleKey]).toBeTypeOf('string');
+    expect(labMessages('de', producerRegistry.require(producerId))[titleKey]).toBeTypeOf('string');
+  });
+});

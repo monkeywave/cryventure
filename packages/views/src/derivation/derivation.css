@@ -79,6 +79,23 @@
   overflow-wrap: anywhere;
 }
 
+/* A value wider than an AES word (PRK, T(1), a tag): its name above its hex, both left-aligned. */
+.cv-derivation__word[data-wide] {
+  display: grid;
+  justify-items: start;
+  gap: 0.1rem;
+  text-align: start;
+}
+
+.cv-derivation__word-name {
+  font-family: var(--sl-font, system-ui, sans-serif);
+  font-weight: 600;
+}
+
+.cv-derivation__word-hex {
+  word-break: break-all;
+}
+
 /* Upcoming round keys: dashed in a ≥ 3:1 tone, so the pattern is perceivable (WCAG 1.4.11); :where()
    keeps hover/selected/source states stronger. */
 :where(.cv-derivation__row[data-status='upcoming']) .cv-derivation__word {
@@ -123,12 +140,12 @@
   border-left: 3px solid var(--cv-subkey, Highlight);
   border-radius: 0 0.25rem 0.25rem 0;
   scroll-margin-block: 0.5rem;
-  /* Wide lines (long hex values) scroll inside the panel on phones, never the page. */
-  overflow-x: auto;
-  overscroll-behavior-x: contain;
+  /* No overflow here: wide values wrap (see [data-wide] below), so a short chain is never a scroll
+     container a keyboard could not reach. */
 }
 
-/* Long chains (PBKDF2 iterations, P_hash rounds) scroll inside the panel; focusable (tabindex) for keyboards. */
+/* Long chains (PBKDF2 iterations, P_hash rounds) scroll inside the panel; focusable (tabindex) for keyboards.
+   The only scroll container of the view: the ChainPanel sets tabindex exactly when it sets data-long. */
 .cv-derivation__chain[data-long] {
   max-block-size: 22rem;
   overflow-y: auto;
@@ -156,14 +173,30 @@
 
 /*
  * One chain line: glyph | [op] name (wraps) | hex (one line, right-aligned like FIPS 197 App. A); zoom link below.
- * The name keeps at least its longest word, so a hex wider than the panel (a 72-byte HMAC input) pushes the
- * line into the chain's horizontal scroll instead of covering the name.
+ * A value wider than an AES word ([data-wide]) stacks instead: [op] name on its line, the hex below it.
  */
 .cv-derivation__link {
   display: grid;
   grid-template-columns: 1.25em minmax(min-content, 1fr) auto;
   align-items: baseline;
   column-gap: 0.5rem;
+}
+
+.cv-derivation__name {
+  overflow-wrap: break-word;
+}
+
+/* Wide values (HMAC keys, PRKs, PRF blocks): the hex wraps under the name, at most 32 hex digits per line. */
+.cv-derivation__link[data-wide] {
+  grid-template-columns: 1.25em minmax(0, 1fr);
+}
+
+.cv-derivation__link[data-wide] .cv-derivation__hex {
+  grid-column: 2;
+  max-inline-size: 32ch;
+  white-space: normal;
+  word-break: break-all;
+  text-align: start;
 }
 
 .cv-derivation__link[data-operand] .cv-derivation__name {

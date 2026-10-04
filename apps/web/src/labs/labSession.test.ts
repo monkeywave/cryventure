@@ -391,6 +391,15 @@ describe('startLab / rerunLab with ports and a runner', () => {
     expect(session.runner).toBe(runner);
     expect(session.store.getState().labHref?.({ producerId: 'toy', params: {} })).toBe('/en/lab/toy/');
   });
+
+  it("wires the registry's lab titles into the store (zoom link text)", async () => {
+    const session = await toyStart();
+    if (session.status !== 'ready') throw new Error('expected ready');
+    const { labTitle } = session.store.getState();
+    expect(labTitle).toBeTypeOf('function');
+    expect(labTitle?.('toy-mode')).toBe(toyProducers.get('toy-mode')!.titleKey);
+    expect(labTitle?.('ghost')).toBeUndefined();
+  });
 });
 
 describe('startLab / rerunLab view list with derivers', () => {

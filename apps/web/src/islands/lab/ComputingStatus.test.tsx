@@ -6,6 +6,7 @@ import { I18nProvider } from '@cryventure/viz';
 import { labMessages } from '../../labs/labMessages.ts';
 import { producerRegistry } from '../../labs/registry.ts';
 import { COMPUTING_DELAY_MS, ComputingStatus } from './ComputingStatus.tsx';
+import '../../styles/lab.css';
 
 const aes = producerRegistry.require('aes');
 
@@ -60,6 +61,19 @@ describe('ComputingStatus', () => {
     expect(status.textContent).toBe('');
     act(() => vi.advanceTimersByTime(COMPUTING_DELAY_MS));
     expect(status.textContent).toBe('Computing…');
+  });
+
+  it('keeps the live region boxed in the accessibility tree while empty (visually hidden, no display: contents)', () => {
+    const { status, rerender } = renderStatus(false);
+    const empty = getComputedStyle(status);
+    expect(empty.display).not.toBe('contents');
+    expect(empty.display).not.toBe('none');
+    expect(empty.position).toBe('absolute');
+    expect(empty.clipPath).toBe('inset(50%)');
+    rerender(true);
+    act(() => vi.advanceTimersByTime(COMPUTING_DELAY_MS));
+    expect(status.textContent).not.toBe('');
+    expect(getComputedStyle(status).position).not.toBe('absolute');
   });
 
   it('is localized', () => {

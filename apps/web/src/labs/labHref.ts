@@ -1,5 +1,5 @@
 import { toLocale, type ProducerLookup } from '@cryventure/core';
-import type { BlockLabHrefBuilder, LabHrefBuilder } from '@cryventure/viz';
+import type { BlockLabHrefBuilder, LabHrefBuilder, LabTitleLookup } from '@cryventure/viz';
 import { joinBase } from '../lib/withBase.ts';
 import { encodeLabStates, MAX_HASH_LENGTH, type LabLinkState } from './deepLink.ts';
 import { producerRegistry } from './producers.ts';
@@ -15,7 +15,11 @@ export interface LabHrefContext {
 /** Path of the standalone lab route `src/pages/[lang]/lab/[id].astro`, without the base. */
 export const labRoutePath = (lang: string, producerId: string): string => `${lang}/lab/${producerId}/`;
 
-/** A link to the standalone lab of `producerId` opened with `params` (and `step`); `undefined` when it cannot link. */
+/**
+ * A link to the standalone lab of `producerId` opened with `params` (and `step`); `undefined` when it cannot link.
+ * `step` is for callers opening the lab at a position (the deep link's `s=`); zoom links (`createLabHref`,
+ * `createBlockLabHref`) open the lab at its start and leave it out.
+ */
 export type LabLinkBuilder = (producerId: string, params: unknown, step?: number) => string | undefined;
 
 /**
@@ -55,4 +59,12 @@ export function createBlockLabHref(context: LabHrefContext): BlockLabHrefBuilder
     const params = producers.get(producerId)?.blockLabParams?.(keyHex, blockHex);
     return params === undefined ? undefined : labLink(producerId, params);
   };
+}
+
+/**
+ * `useLabActions().labTitle` for the web app: the title key of a registered producer's lab (its
+ * manifest's `titleKey`), so a zoom link can say which lab it opens ("Open the lab “HMAC …”").
+ */
+export function createLabTitle(producers: ProducerLookup = producerRegistry): LabTitleLookup {
+  return (producerId) => producers.get(producerId)?.titleKey;
 }

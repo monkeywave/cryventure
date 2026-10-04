@@ -7,11 +7,14 @@ import aesEn from '../../../packages/primitives/src/aes/i18n/en.json' with { typ
 import aesDe from '../../../packages/primitives/src/aes/i18n/de.json' with { type: 'json' };
 import hkdfEn from '../../../packages/primitives/src/hkdf/i18n/en.json' with { type: 'json' };
 import hmacEn from '../../../packages/primitives/src/hmac/i18n/en.json' with { type: 'json' };
+import hmacDe from '../../../packages/primitives/src/hmac/i18n/de.json' with { type: 'json' };
+import sha256En from '../../../packages/primitives/src/sha256/i18n/en.json' with { type: 'json' };
 import pbkdf2En from '../../../packages/primitives/src/pbkdf2/i18n/en.json' with { type: 'json' };
 import sha3En from '../../../packages/primitives/src/sha3/i18n/en.json' with { type: 'json' };
 import uiEn from '../src/i18n/en/ui.json' with { type: 'json' };
 import { DESKTOP, KEY_SCHEDULE_LAB, PHONE, setLens, waitForLab, type Lang } from './labPage.ts';
 import { LANGS } from './hashLessons.ts';
+import { blockingViolations } from './helpers/axe.ts';
 import { waitForLabMounted } from './macKdfLessons.ts';
 
 // M7 labs (docs/M7.md §2, §4, §7): the derivation view (renamed from key-schedule) on AES, HKDF
@@ -41,14 +44,24 @@ const expectOutput = (lab: Locator, name: string, value: string, timeout?: numbe
 const derivation = (lab: Locator) => lab.locator('section.cv-derivation');
 /** A result word of the derivation view, by its (translated) node name. */
 const word = (view: Locator, name: string) => view.getByRole('button', { name: new RegExp(`^${name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}: [0-9a-f]+$`) });
-const zoomLink = (view: Locator, name: string, lang: Lang = 'en') =>
-  view.getByRole('link', { name: interpolate(VIEW[lang]['view.derivation.zoomLabel'], { name }), exact: true });
+const escapeRegExp = (text: string) => text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+/** Zoom links to the lab computing `name`: accessible name = visible text + "(computes <name>)". */
+const zoomLink = (view: Locator, name: string, lang: Lang = 'en') => {
+  const [, suffix = ''] = interpolate(VIEW[lang]['view.derivation.zoomLabel'], { link: '\u0000', name }).split('\u0000');
+  return view.getByRole('link', { name: new RegExp(`^.+${escapeRegExp(suffix)}$`) });
+};
+/** The zoom targets' lab titles (EN), as the zoom link's visible text names them. */
+const LAB_TITLES: Record<string, string> = { hmac: hmacEn['plugin.hmac.title'], sha256: sha256En['plugin.sha256.title'] };
 
 /** Opens the chain of `name` and follows its zoom link; returns the standalone lab it opened. */
 async function zoomInto(page: Page, view: Locator, name: string, producerId: string, lang: Lang = 'en'): Promise<Locator> {
   await word(view, name).click();
   const link = zoomLink(view, name, lang);
   await expect(link).toBeVisible();
+  // The visible text names the target lab, and the accessible name starts with it (WCAG 2.5.3 Label in Name).
+  const text = interpolate(VIEW[lang]['view.derivation.zoomTitled'], { lab: LAB_TITLES[producerId]! });
+  await expect(link).toHaveText(text);
+  await expect(link).toHaveAccessibleName(interpolate(VIEW[lang]['view.derivation.zoomLabel'], { link: text, name }));
   expect(new URL((await link.getAttribute('href'))!, page.url()).pathname).toMatch(new RegExp(`/${lang}/lab/${producerId}/$`));
   await link.click();
   await expect(page).toHaveURL(new RegExp(`/${lang}/lab/${producerId}/#lab=${producerId}&`));
@@ -142,16 +155,19 @@ test('PBKDF2 zoom links work in German too', async ({ page }) => {
   await expect(view.locator('.cv-derivation__zoom')).toHaveCount(0);
   await view.locator('.cv-derivation__word').first().click();
   const link = view.locator('.cv-derivation__zoom').first();
-  await expect(link).toHaveText(viewDe['view.derivation.zoom']);
+  await expect(link).toHaveText(interpolate(viewDe['view.derivation.zoomTitled'], { lab: hmacDe['plugin.hmac.title'] }));
   expect(new URL((await link.getAttribute('href'))!, page.url()).pathname).toMatch(/\/de\/lab\/hmac\/$/);
 });
 
-/* ---------- long values: chains scroll inside themselves, names never sit under their hex ---------- */
+/* ---------- long values: hex wraps under the name, the chain never scrolls sideways ---------- */
 
-/** The chain lines whose name is hidden under (or squeezed to nothing by) their hex, and how far the view overflows. */
+/**
+ * The chain lines whose name is hidden under (or squeezed to nothing by) their hex, how far the view
+ * and the chain overflow, whether the chain is focusable, and how far the page scrolls sideways.
+ */
 const chainLayout = (view: Locator) =>
   view.evaluate((section) => {
-    const chain = section.querySelector('.cv-derivation__chain')!;
+    const chain = section.querySelector<HTMLElement>('.cv-derivation__chain')!;
     const overlapping = [...chain.querySelectorAll('.cv-derivation__link')]
       .filter((line) => {
         const name = line.querySelector('.cv-derivation__name')!.getBoundingClientRect();
@@ -159,17 +175,29 @@ const chainLayout = (view: Locator) =>
         return name.width < 1 || (name.right > hex.left + 0.5 && name.left < hex.right && name.bottom > hex.top && name.top < hex.bottom);
       })
       .map((line) => line.textContent);
-    return { overlapping, viewOverflow: section.scrollWidth - section.clientWidth };
+    const page = document.documentElement;
+    return {
+      overlapping,
+      viewOverflow: section.scrollWidth - section.clientWidth,
+      chainOverflowX: chain.scrollWidth - chain.clientWidth,
+      chainScrolls: chain.scrollWidth > chain.clientWidth || chain.scrollHeight > chain.clientHeight,
+      chainFocusable: chain.tabIndex === 0,
+      pageOverflowX: page.scrollWidth - page.clientWidth,
+    };
   });
 
 const LONG_CHAINS = [
   { name: 'HKDF PRK (phone)', viewport: PHONE, path: HKDF_LESSON.path, labId: HKDF_LESSON.labId, open: /^PRK: / },
   { name: 'HMAC inner hash (desktop)', viewport: DESKTOP, path: HMAC_LESSON.path, labId: HMAC_LESSON.labId, open: /^Inner hash: / },
   { name: 'HMAC tag (phone)', viewport: PHONE, path: HMAC_LESSON.path, labId: HMAC_LESSON.labId, open: /^Tag: / },
+  // K0 of a 131-byte key (RFC 4231 TC6): a short chain (4 lines) with a 262-digit hex.
+  { name: 'HMAC long-key K0 (phone)', viewport: PHONE, path: HMAC_LESSON.path, labId: 'hmac-long-key', open: /^K0: / },
+  { name: 'HMAC long-key K0 (desktop)', viewport: DESKTOP, path: HMAC_LESSON.path, labId: 'hmac-long-key', open: /^K0: / },
+  { name: 'PBKDF2 T1 (phone)', viewport: PHONE, path: PBKDF2_LESSON.path, labId: PBKDF2_LESSON.labIds.tc2, open: /^T1 = / },
 ] as const;
 
 for (const chain of LONG_CHAINS) {
-  test(`derivation chain with long values, ${chain.name}: names stay readable beside their hex and only the chain scrolls`, async ({ page }) => {
+  test(`derivation chain with long values, ${chain.name}: names stay readable, the hex wraps, nothing scrolls sideways`, async ({ page }) => {
     await page.setViewportSize(chain.viewport);
     await page.goto(`en/${chain.path}`);
     const view = derivation(await waitForLab(page, chain.labId));
@@ -178,8 +206,28 @@ for (const chain of LONG_CHAINS) {
     const layout = await chainLayout(view);
     expect(layout.overlapping, 'chain lines whose name is hidden under the hex').toEqual([]);
     expect(layout.viewOverflow, 'the result rows widen past the view').toBeLessThanOrEqual(0);
+    expect(layout.chainOverflowX, 'the chain scrolls sideways').toBeLessThanOrEqual(0);
+    expect(layout.pageOverflowX, 'the page scrolls sideways').toBeLessThanOrEqual(0);
+    if (layout.chainScrolls) expect(layout.chainFocusable, 'a scrolling chain is keyboard-focusable').toBe(true);
   });
 }
+
+test('an open HMAC long-key K0 chain has no serious or critical axe violations (phone, dark)', async ({ page }) => {
+  await page.setViewportSize(PHONE);
+  await page.emulateMedia({ colorScheme: 'dark' });
+  await page.goto(`en/${HMAC_LESSON.path}`);
+  const view = derivation(await waitForLab(page, 'hmac-long-key'));
+  await view.getByRole('button', { name: /^K0: / }).click();
+  await expect(view.locator('.cv-derivation__chain')).toBeVisible();
+  expect(await blockingViolations(page)).toEqual([]);
+});
+
+test('HKDF results name their values on the buttons (PRK, T(1), …)', async ({ page }) => {
+  await page.goto(`en/${HKDF_LESSON.path}`);
+  const view = derivation(await waitForLab(page, HKDF_LESSON.labId));
+  await expect(word(view, 'PRK').locator('.cv-derivation__word-name')).toHaveText('PRK');
+  await expect(word(view, interpolate(hkdfEn['plugin.hkdf.node.t'], { n: 1 })).locator('.cv-derivation__word-name')).toHaveText(interpolate(hkdfEn['plugin.hkdf.node.t'], { n: 1 }));
+});
 
 /* ---------- member pickers ---------- */
 
@@ -212,6 +260,16 @@ test('PBKDF2 mac picker has no keyed BLAKE2 either (HMAC constructions only)', a
 /* ---------- PBKDF2 in the worker ---------- */
 
 const computing = (lab: Locator) => lab.locator('.cv-lab__computing');
+
+test('the "Computing…" live region is in the accessibility tree before its text appears', async ({ page }) => {
+  await page.goto(`en/${PBKDF2_LESSON.path}`);
+  const lab = await waitForLab(page, PBKDF2_LESSON.labIds.tc2);
+  await expect(computing(lab)).toHaveText('');
+  const box = await computing(lab).evaluate((element) => ({ display: getComputedStyle(element).display, rects: element.getClientRects().length }));
+  expect(box.display).not.toBe('contents');
+  expect(box.rects, 'the empty region keeps a box').toBeGreaterThan(0);
+  await expect(lab.getByRole('status').and(computing(lab))).toHaveCount(1);
+});
 
 /** Records, in the page, whether the lab's "Computing…" line ever showed from now on. */
 async function watchComputing(lab: Locator): Promise<() => Promise<boolean>> {

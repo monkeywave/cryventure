@@ -2,7 +2,6 @@ import { useMemo, type ComponentType, type ReactNode } from 'react';
 import { i18nRef, type I18nRef, type Lens, type Messages } from '@cryventure/core';
 import { ErrorBoundary, I18nProvider, LabRoot, Workspace, useT, type LabMode, type ParamsRequestHandler } from '@cryventure/viz';
 import type { LabParams, ReadySession } from '../labs/labSession.ts';
-import { migrateStoredLayout, resolveLayoutAliases } from '../labs/viewAliases.ts';
 import { useLabLens } from '../progress/useLabLens.ts';
 import { ComputingStatus } from './lab/ComputingStatus.tsx';
 import { InvalidLinkNotice, LabError } from './lab/LabMessages.tsx';
@@ -12,13 +11,14 @@ import { ParamPanel } from './lab/ParamPanel.tsx';
 import { PlayerBar } from './lab/PlayerBar.tsx';
 import { useHashSync } from './lab/useHashSync.ts';
 import { useLabSession } from './lab/useLabSession.ts';
+import { useStoredLayoutMigration } from './lab/useStoredLayoutMigration.ts';
 
 export interface LabProps {
   /** Unique per page; keys the deep link and saved panel sizes. */
   labId: string;
   producerId: string;
   presetId?: string;
-  /** Workspace panel preset, e.g. `"state|narration"`. */
+  /** Workspace panel preset, e.g. `"state|narration"`, with renamed view ids already resolved (`components/labIsland.ts`). */
   layout?: string;
   /** Pins the lab to one lens; without it the lab follows the page lens (header selector) live. */
   lens?: Lens;
@@ -69,18 +69,10 @@ interface ReadyLabProps {
   paramPanel: boolean;
 }
 
-/**
- * The layout preset with renamed view ids resolved (`VIEW_ID_ALIASES`). Saved panel sizes are migrated
- * first, during render, so the workspace (rendered below) already reads them under the current ids.
- */
-function useResolvedLayout(labId: string, layout: string | undefined): string | undefined {
-  useMemo(() => migrateStoredLayout(labId), [labId]);
-  return useMemo(() => resolveLayoutAliases(layout), [layout]);
-}
-
-function ReadyLab({ labId, layout: authoredLayout, lens, session, params, onParams, onRequestParams, requestError, computing, toolbar: Toolbar, views: viewsOption, paramPanel }: ReadyLabProps) {
+function ReadyLab({ labId, layout, lens, session, params, onParams, onRequestParams, requestError, computing, toolbar: Toolbar, views: viewsOption, paramPanel }: ReadyLabProps) {
   const t = useT();
-  const layout = useResolvedLayout(labId, authoredLayout);
+  // `layout` arrives with renamed view ids already resolved (`labIsland`); saved panel sizes are migrated here.
+  useStoredLayoutMigration(labId);
   const views = useMemo(() => viewsToShow(session.views, layout, viewsOption), [session.views, layout, viewsOption]);
   useHashSync(labId, session.store, session.params, { clearLink: session.notice });
   return (

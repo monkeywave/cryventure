@@ -135,6 +135,12 @@ describe('DerivationView', () => {
     expect(document.querySelectorAll('.cv-derivation [style]')).toHaveLength(0);
   });
 
+  it('shows AES words by their hex alone (the round row names them)', () => {
+    renderEnglish();
+    expect(word('a0fafe17').querySelector('.cv-derivation__word-name')).toBeNull();
+    expect(word('a0fafe17').textContent).toBe('a0fafe17');
+  });
+
   it('lists 11 round keys of 4 focusable words', () => {
     renderEnglish();
     const rounds = within(screen.getByRole('region', { name: 'Key schedule' })).getAllByRole(
@@ -299,6 +305,8 @@ function macDerivation(title?: DerivationFacet['title']): DerivationFacet {
   };
 }
 
+const MAC_MESSAGES_DE = { 'fixture.prk': 'PRK', 'fixture.info': 'Info', 'fixture.block': 'Block', 'fixture.mac': 'T(1)', 'fixture.okm': 'OKM' };
+
 const MAC_MESSAGES = {
   ...loadViewMessages('en'),
   'fixture.prk': 'PRK',
@@ -341,14 +349,34 @@ describe('DerivationView op labels and zoom links', () => {
     expect(panel.querySelector('[data-operand] .cv-derivation__glyph')?.textContent).toBe('‖');
   });
 
-  it("links a node with a zoom to the host's lab", async () => {
+  it("links a node with a zoom to the host's lab, named by its title; the accessible name contains the visible text (WCAG 2.5.3)", async () => {
     const labHref = vi.fn((zoom: LabZoom) => `/en/lab/${zoom.producerId}/#p=${zoom.params.message}`);
-    renderMac({ labHref });
+    const labTitle = vi.fn((producerId: string) => `plugin.${producerId}.title`);
+    renderLab(view, { bundle: withDerivation(macDerivation()), messages: { ...MAC_MESSAGES, 'plugin.sha256.title': 'SHA-256 and SHA-224' }, labHref, labTitle });
     await userEvent.click(nodeButton('okm'));
-    const link = screen.getByRole('link', { name: 'Open the lab that computes T(1)' });
+    const link = screen.getByRole('link', { name: 'Open the lab “SHA-256 and SHA-224” (computes T(1))' });
+    expect(link.textContent).toBe('Open the lab “SHA-256 and SHA-224”');
     expect(link.getAttribute('href')).toBe('/en/lab/sha256/#p=abcd');
-    expect(link.textContent).toBe('Open this step’s lab');
     expect(labHref).toHaveBeenCalledWith({ producerId: 'sha256', params: { message: 'abcd' } });
+    expect(labTitle).toHaveBeenCalledWith('sha256');
+  });
+
+  it('names the target lab in German', async () => {
+    const messages = { ...loadViewMessages('de'), ...MAC_MESSAGES_DE, 'plugin.sha256.title': 'SHA-256 und SHA-224' };
+    renderLab(view, { bundle: withDerivation(macDerivation()), messages, labHref: () => '/de/lab/sha256/', labTitle: (id) => `plugin.${id}.title` });
+    await userEvent.click(nodeButton('okm'));
+    const link = screen.getByRole('link', { name: 'Lab „SHA-256 und SHA-224“ öffnen (berechnet T(1))' });
+    expect(link.textContent).toBe('Lab „SHA-256 und SHA-224“ öffnen');
+  });
+
+  it('falls back to a generic link text, still contained in the accessible name, without a translated lab title', async () => {
+    for (const labTitle of [undefined, () => undefined, (id: string) => `plugin.${id}.title`]) {
+      const { unmount } = renderLab(view, { bundle: withDerivation(macDerivation()), messages: MAC_MESSAGES, labHref: () => '/en/lab/sha256/', labTitle });
+      await userEvent.click(nodeButton('okm'));
+      const link = screen.getByRole('link', { name: 'Open this step’s lab (computes T(1))' });
+      expect(link.textContent).toBe('Open this step’s lab');
+      unmount();
+    }
   });
 
   it('renders no link without a host labHref or when the host cannot link', async () => {
@@ -390,6 +418,15 @@ describe('DerivationView long chains', () => {
     await userEvent.click(word('a0fafe17'));
     expect(chain()?.hasAttribute('data-long')).toBe(false);
     expect(chain()?.hasAttribute('tabindex')).toBe(false);
+  });
+
+  it('scrolls a long chain vertically only, and only it is a scroll container', async () => {
+    renderLab(view, { bundle: withDerivation(chainOf(20)), messages: MAC_MESSAGES });
+    await userEvent.click(nodeButton('n/20'));
+    expect(getComputedStyle(chain()!).overflowY).toBe('auto');
+    await userEvent.click(nodeButton('n/0'));
+    expect(getComputedStyle(chain()!).overflowX).toBe('visible');
+    expect(getComputedStyle(chain()!).overflowY).toBe('visible');
   });
 });
 
@@ -434,6 +471,39 @@ describe('DerivationView on real MAC/KDF derivations', () => {
     expect(opTags(panel)).toEqual(['HMAC', 'HMAC', 'HMAC', 'HMAC', 'HMAC']);
     expect(panel.hasAttribute('data-long')).toBe(true);
     expect(panel.getAttribute('tabindex')).toBe('0');
+  });
+
+  it('HMAC K0 (131-byte key): wide values wrap below their names, so the short chain never scrolls sideways', async () => {
+    renderKdf('hmac');
+    const panel = await openChain('k0', 'How K0 is derived');
+    expect(panel.hasAttribute('data-long')).toBe(false);
+    expect(getComputedStyle(panel).overflowX).toBe('visible');
+    const wide = [...panel.querySelectorAll<HTMLElement>('.cv-derivation__link[data-wide]')];
+    expect(wide.length).toBeGreaterThan(0);
+    for (const line of wide) {
+      const hex = line.querySelector<HTMLElement>('.cv-derivation__hex')!;
+      expect(getComputedStyle(hex).wordBreak).toBe('break-all');
+      expect(getComputedStyle(hex).whiteSpace).toBe('normal');
+    }
+  });
+
+  it.each(['hmac', 'hkdf', 'pbkdf2', 'tls10-prf'] as const)('%s: every chain panel that is a scroll container is keyboard-focusable', async (producer) => {
+    renderKdf(producer);
+    const ids = [...document.querySelectorAll<HTMLElement>('.cv-derivation__word')].map((button) => button.dataset.node!);
+    for (const id of ids) {
+      await userEvent.click(nodeButton(id));
+      const style = getComputedStyle(chain()!);
+      const scrolls = [style.overflowX, style.overflowY].some((overflow) => overflow === 'auto' || overflow === 'scroll');
+      if (scrolls) expect(chain()!.getAttribute('tabindex'), id).toBe('0');
+      await userEvent.click(nodeButton(id));
+    }
+  });
+
+  it('names wide result values on their buttons (a lone 32-byte PRK says nothing by its hex) and keeps AES words compact', () => {
+    renderKdf('hkdf');
+    expect(nodeButton('prk').querySelector('.cv-derivation__word-name')?.textContent).toBe('PRK');
+    expect(nodeButton('t1').querySelector('.cv-derivation__word-name')?.textContent).toBe('T(1)');
+    expect(screen.getByRole('button', { name: /^PRK: [0-9a-f]{64}$/ })).toBe(nodeButton('prk'));
   });
 
   it('TLS 1.0 PRF: tags every HMAC of P_MD5 and XORs the two streams into the output', async () => {

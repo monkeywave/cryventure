@@ -37,7 +37,27 @@ describe('view id aliases', () => {
     expect(() => migrateStoredLayout('aes-key-schedule')).not.toThrow();
     expect(localStorage.getItem(KEY)).toBe('{not json');
 
-    expect(() => migrateStoredLayout('other-lab', undefined)).not.toThrow();
-    expect(localStorage.getItem('cv.layout.v1.other-lab')).toBeNull();
+  });
+
+  it('does nothing without storage (null), and never throws on a storage that throws', () => {
+    const aliased = JSON.stringify({ version: 1, panelIds: ['key-schedule'], sizes: { 'key-schedule': 100 } });
+    localStorage.setItem(KEY, aliased);
+    expect(() => migrateStoredLayout('aes-key-schedule', null)).not.toThrow();
+    expect(localStorage.getItem(KEY)).toBe(aliased);
+
+    const throwing = { getItem: () => { throw new Error('SecurityError'); }, setItem: () => { throw new Error('SecurityError'); } };
+    expect(() => migrateStoredLayout('aes-key-schedule', throwing)).not.toThrow();
+    const failingWrite = { getItem: () => aliased, setItem: () => { throw new Error('QuotaExceededError'); } };
+    expect(() => migrateStoredLayout('aes-key-schedule', failingWrite)).not.toThrow();
+  });
+
+  it('migrates size keys still naming a former id even when the panel ids are current; the current id wins a clash', () => {
+    localStorage.setItem(KEY, JSON.stringify({ version: 1, panelIds: ['state', 'derivation'], sizes: { state: 60, 'key-schedule': 40 } }));
+    migrateStoredLayout('aes-key-schedule');
+    expect(JSON.parse(localStorage.getItem(KEY)!)).toEqual({ version: 1, panelIds: ['state', 'derivation'], sizes: { state: 60, derivation: 40 } });
+
+    localStorage.setItem(KEY, JSON.stringify({ version: 1, panelIds: ['state', 'derivation'], sizes: { derivation: 30, 'key-schedule': 40, state: 70 } }));
+    migrateStoredLayout('aes-key-schedule');
+    expect(JSON.parse(localStorage.getItem(KEY)!).sizes).toEqual({ derivation: 30, state: 70 });
   });
 });

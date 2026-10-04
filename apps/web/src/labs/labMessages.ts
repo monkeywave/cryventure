@@ -6,7 +6,7 @@ import { loadViewMessages } from '@cryventure/views/messages';
 import { loadVizMessages } from '@cryventure/viz/messages';
 import { loadMessages, pickPrefix, toLocale } from '../i18n/loadMessages.ts';
 import { deriversForFacets, producerRegistry, viewRegistry, viewsForProducer } from './registry.ts';
-import { sampleApplicableDerivers } from './sampleDerivers.ts';
+import { sampleApplicableDerivers, sampleZoomTargets } from './sampleDerivers.ts';
 
 /**
  * Server-side only: assembles the exact message table one lab island needs for one locale,
@@ -62,9 +62,24 @@ function portProducerMessages(locale: string, producer: LabMessagesProducer, reg
 }
 
 /**
+ * The lab titles of the producers this lab's derivation zooms into (`sampleZoomTargets`, among
+ * `registered`), so a zoom link can say "Open the lab “HMAC …”": only each target's `titleKey`.
+ */
+function zoomTargetTitles(locale: string, producer: LabMessagesProducer, registered: readonly PrimitiveManifest[]): Messages {
+  const targets = new Set(sampleZoomTargets(producer.id));
+  const titled = registered.filter((candidate) => targets.has(candidate.id));
+  return Object.assign({}, ...titled.map((target) => pickKey(loadPrimitiveMessages(target.id, locale), target.titleKey)));
+}
+
+/** `{ [key]: message }` when `messages` has `key`, else `{}`. */
+function pickKey(messages: Messages, key: string): Messages {
+  return Object.hasOwn(messages, key) ? { [key]: messages[key]! } : {};
+}
+
+/**
  * viz `ui.*` + offered views' `view.*` + offered derivers' `deriver.*` + app `ui.lab.*` + `core.*`
- * errors + port options' namespaces (among `registered`, default: the app's registry) + the
- * producer's own `i18nNamespace`.
+ * errors + port options' namespaces (among `registered`, default: the app's registry) + its zoom
+ * targets' lab titles + the producer's own `i18nNamespace`.
  */
 export function labMessages(lang: string | undefined, producer: LabMessagesProducer, registered: readonly PrimitiveManifest[] = producerRegistry.list()): Messages {
   const locale = toLocale(lang);
@@ -75,6 +90,7 @@ export function labMessages(lang: string | undefined, producer: LabMessagesProdu
     ...pickPrefix(loadMessages(locale, ['ui']), APP_LAB_PREFIX),
     ...loadCoreMessages(locale),
     ...portProducerMessages(locale, producer, registered),
+    ...zoomTargetTitles(locale, producer, registered),
     ...producerMessages(locale, producer),
   };
 }

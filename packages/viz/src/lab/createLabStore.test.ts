@@ -255,3 +255,11 @@ describe('createLabStore blockLabHref', () => {
     expect(createLabStore(createFixtureBundle(), { blockLabHref }).getState().blockLabHref?.('aes', '00', 'ff')).toBe('/en/lab/aes/#00ff');
   });
 });
+
+describe('createLabStore labTitle', () => {
+  it('is absent without a host lookup and exposes the given one', () => {
+    expect(createLabStore(createFixtureBundle()).getState().labTitle).toBeUndefined();
+    const labTitle = (producerId: string) => `plugin.${producerId}.title`;
+    expect(createLabStore(createFixtureBundle(), { labTitle }).getState().labTitle?.('hmac')).toBe('plugin.hmac.title');
+  });
+});

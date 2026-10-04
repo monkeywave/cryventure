@@ -20,6 +20,7 @@ import {
   derivationChain,
   groupLabel,
   hostRows,
+  isWideValue,
   LONG_CHAIN_LINES,
   operandGlyph,
   opLabelKey,
@@ -42,7 +43,9 @@ import './derivation.css';
  * it; selecting it again or Escape closes it. Hover and focus never change the layout: they only
  * mark the word's source words (`data-source`), re-rendering just the words whose mark flips.
  * Chain lines name their op from the view's catalog (raw op name otherwise); a node with a `zoom`
- * links to that lab via the host's `labHref` (no link without one). Long chains scroll in the panel.
+ * links to that lab via the host's `labHref` (no link without one), named by the host's `labTitle`.
+ * Values wider than an AES word show their name on their button and wrap below it in the chain;
+ * only long chains scroll (vertically, in a focusable panel).
  * Styled by `derivation.css` (class names only, no inline styles).
  */
 const ARROW_GLYPH = '→';
@@ -72,10 +75,12 @@ const WordButton = memo(function WordButton({ word, expanded, chainId, onToggle,
   const isSource = useSyncExternalStore(marks.subscribe, () => marks.isSource(word.id));
   const preview = () => marks.preview(word.id);
   const clearPreview = () => marks.preview(null);
+  const wide = isWideValue(word.bytes);
   return (
     <button
       type="button"
       className="cv-derivation__word"
+      data-wide={wide ? '' : undefined}
       aria-expanded={expanded}
       aria-controls={expanded ? chainId : undefined}
       aria-label={t('view.derivation.word', { name, hex })}
@@ -88,7 +93,14 @@ const WordButton = memo(function WordButton({ word, expanded, chainId, onToggle,
       onFocus={preview}
       onBlur={clearPreview}
     >
-      {hex}
+      {wide ? (
+        <>
+          <span className="cv-derivation__word-name">{name}</span>
+          <span className="cv-derivation__word-hex">{hex}</span>
+        </>
+      ) : (
+        hex
+      )}
     </button>
   );
 });
@@ -151,13 +163,28 @@ function useZoomHref(zoom: LabZoom | undefined): string | undefined {
   return zoom === undefined ? undefined : labHref?.(zoom);
 }
 
+/**
+ * The zoom link's visible text: "Open the lab “HMAC …”" when the host names the target lab
+ * (`useLabActions().labTitle`) and its title ships with this lab's messages, else the generic text.
+ */
+function useZoomText(zoom: LabZoom | undefined): string {
+  const t = useT();
+  const { labTitle } = useLabActions();
+  const titleKey = zoom === undefined ? undefined : labTitle?.(zoom.producerId);
+  const title = titleKey === undefined ? undefined : t(titleKey);
+  // The translator echoes a key it has no message for: then the title is unknown here.
+  return title === undefined || title === titleKey ? t('view.derivation.zoom') : t('view.derivation.zoomTitled', { lab: title });
+}
+
+/** "Open the lab “…”"; its accessible name starts with that visible text (WCAG 2.5.3) and adds the node it computes. */
 function ZoomLink({ node }: { node: DerivationNode }) {
   const t = useT();
   const href = useZoomHref(node.zoom);
+  const text = useZoomText(node.zoom);
   if (href === undefined) return null;
   return (
-    <a className="cv-derivation__zoom" href={href} aria-label={t('view.derivation.zoomLabel', { name: t(node.label) })}>
-      {t('view.derivation.zoom')}
+    <a className="cv-derivation__zoom" href={href} aria-label={t('view.derivation.zoomLabel', { link: text, name: t(node.label) })}>
+      {text}
     </a>
   );
 }
@@ -174,7 +201,7 @@ function ChainRow({ glyph, node, op, ...rest }: ChainRowProps) {
   const t = useT();
   const label = t(node.label);
   return (
-    <li className="cv-derivation__link" {...rest}>
+    <li className="cv-derivation__link" data-wide={isWideValue(node.bytes) ? '' : undefined} {...rest}>
       <span className="cv-derivation__glyph" aria-hidden="true">
         {glyph}
       </span>
@@ -238,7 +265,7 @@ function ChainPanel({ id, word, links, ref }: ChainPanelProps) {
   const t = useT();
   const titleId = useId();
   const name = t(word.label);
-  // A long chain scrolls inside its own box; as a scroll container it must be reachable by keyboard.
+  // Only a long chain scrolls (inside its own box; wide values wrap instead), so only it needs to be reachable by keyboard.
   const long = chainLineCount(links) > LONG_CHAIN_LINES;
   return (
     <div

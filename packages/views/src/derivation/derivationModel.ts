@@ -150,6 +150,17 @@ export function opTagShown(op: string, opLabel: string, label: string): boolean 
   return !framedBy(label, opLabel) && (symbol === undefined || !label.includes(symbol));
 }
 
+/** Values up to this many bytes (an AES word) fit one short line; wider ones (MAC/KDF outputs) are named and wrap. */
+export const WIDE_VALUE_BYTES = 4;
+
+/**
+ * Whether a value is too wide for the compact layout: its word shows its name above the hex (a lone
+ * 32-byte PRK says nothing by its hex alone) and its chain line puts the wrapping hex below the name.
+ */
+export function isWideValue(bytes: readonly number[]): boolean {
+  return bytes.length > WIDE_VALUE_BYTES;
+}
+
 /** Chains with more lines than this scroll inside their panel (PBKDF2 iterations, P_hash rounds). */
 export const LONG_CHAIN_LINES = 12;
 

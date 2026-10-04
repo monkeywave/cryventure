@@ -67,12 +67,18 @@ interface LabWiring {
   runner: LabRunner;
   labHref: LabHrefBuilder;
   blockLabHref: BlockLabHrefBuilder;
+  /** Called as each start begins (stable): supersedes a pending re-run, so its late result is ignored. */
+  onStart: () => void;
 }
 
-/** Loads and runs the producer on mount and after every reset (a new `generation`); only the first start reads the deep link. */
-function useLabStart({ labId, producerId, presetId, startAt, mode, variant }: UseLabSessionOptions, { runner, labHref, blockLabHref }: LabWiring, generation: number, setSession: (session: LabSession) => void): void {
+/**
+ * Loads and runs the producer on mount, after every reset (a new `generation`) and when its props
+ * change; only the first start reads the deep link.
+ */
+function useLabStart({ labId, producerId, presetId, startAt, mode, variant }: UseLabSessionOptions, { runner, labHref, blockLabHref, onStart }: LabWiring, generation: number, setSession: (session: LabSession) => void): void {
   useEffect(() => {
     let cancelled = false;
+    onStart();
     const link = generation === 0 ? readLabLink(window.location.hash, labId) : ABSENT;
     void startLab({ producerId, presetId, link, startAt: startAt === undefined ? undefined : parseStartAt(startAt), mode, variant, runner, labHref, blockLabHref }).then((next) => {
       if (!cancelled) setSession(next);
@@ -80,7 +86,7 @@ function useLabStart({ labId, producerId, presetId, startAt, mode, variant }: Us
     return () => {
       cancelled = true;
     };
-  }, [labId, producerId, presetId, startAt, mode, variant, runner, labHref, blockLabHref, generation, setSession]);
+  }, [labId, producerId, presetId, startAt, mode, variant, runner, labHref, blockLabHref, onStart, generation, setSession]);
 }
 
 interface PendingParams {
@@ -175,7 +181,14 @@ export function useLabSession({ labId, producerId, presetId, startAt, mode, vari
     [setPendingParams],
   );
 
-  useLabStart({ labId, producerId, presetId, startAt, mode, variant }, { runner, labHref, blockLabHref }, generation, settleStart);
+  // A start (also one caused by changed props, not only `reset`) supersedes any pending re-run.
+  const onStart = useCallback(() => {
+    beginRun();
+    setRequestError(null);
+    setComputing(false);
+  }, [beginRun, setRequestError, setComputing]);
+
+  useLabStart({ labId, producerId, presetId, startAt, mode, variant }, { runner, labHref, blockLabHref, onStart }, generation, settleStart);
 
   const reset = useCallback(() => {
     createLabHashWriter(labId, browserHashEnvironment()).clear();

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { readLabLink } from './deepLink.ts';
-import { createBlockLabHref, createLabHref, createLabLink, labRoutePath } from './labHref.ts';
+import { createBlockLabHref, createLabHref, createLabLink, createLabTitle, labRoutePath } from './labHref.ts';
 import { toyProducers } from './testProducers.ts';
 
 const params = { keyHex: '000102030405060708090a0b0c0d0e0f', plaintextHex: '00112233445566778899aabbccddeeff', detail: 'op' };
@@ -69,5 +69,17 @@ describe('createBlockLabHref', () => {
     const href = createBlockLabHref({ base: '/', lang: 'en' });
     expect(href('xor', '00', '00')).toBeUndefined();
     expect(href('ghost', '00', '00')).toBeUndefined();
+  });
+});
+
+describe('createLabTitle (useLabActions().labTitle)', () => {
+  it("names a registered producer's lab by its manifest titleKey", () => {
+    expect(createLabTitle()('hmac')).toBe('plugin.hmac.title');
+    expect(createLabTitle(toyProducers)('toy-mode')).toBe(toyProducers.get('toy-mode')?.titleKey);
+  });
+
+  it('is undefined for a producer outside the registry', () => {
+    expect(createLabTitle()('ghost')).toBeUndefined();
+    expect(createLabTitle(toyProducers)('aes')).toBeUndefined();
   });
 });
