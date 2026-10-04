@@ -16,6 +16,11 @@ with their licenses by `pnpm licenses list`.
   Version 2.0 (https://www.apache.org/licenses/LICENSE-2.0); see
   https://github.com/C2SP/wycheproof/blob/main/LICENSE. The file's `header` field carries this
   notice and must be kept with it.
+- File: `packages/primitives/src/_lib/hmac/vectors/wycheproof-subset.json`, a filtered copy (94 valid
+  cases) of `testvectors_v1/hmac_sha3_{224,256,384,512}_test.json` and
+  `hmac_sha512_{224,256}_test.json` from the same repository (`main` branch). Cases filtered and
+  fields reduced; values unchanged. Same copyright and license as above; source and filter are
+  recorded in the file's `source` / `filter` fields.
 
 ### McGrew–Viega GCM test cases (NIST GCM specification)
 - File: `packages/primitives/src/gcm/vectors/conformance.json`, test cases 1–18 from D. McGrew and
@@ -66,6 +71,40 @@ with their licenses by `pnpm licenses list`.
   values and constants; RFC 1321's `md5c.c` (RSA Data Security, Inc.) is cited for the T constants,
   not reproduced.
 
+### RFC 2202, 4231, 5869, 6070, 7914 and 8448 test vectors (HMAC, HKDF, PBKDF2) — IETF Trust
+- Files: `packages/primitives/src/_lib/hmac/vectors/rfc2202.json` (RFC 2202 §2–§3, HMAC-MD5 and
+  HMAC-SHA-1) and `rfc4231.json` (RFC 4231 §4, HMAC-SHA-224/256/384/512 test cases 1–7), with their
+  cases in `hmac/vectors/conformance.json`; `packages/primitives/src/hkdf/vectors/conformance.json`
+  (RFC 5869 Appendix A, and RFC 8448 §3 handshake values for the TLS 1.3 `HKDF-Expand-Label`
+  preview); `packages/primitives/src/pbkdf2/vectors/conformance.json` and `rfc6070-tc4.json`
+  (RFC 6070 §2, PBKDF2-HMAC-SHA1; RFC 7914 §11, PBKDF2-HMAC-SHA-256). Values transcribed unchanged
+  (hex lower-cased); source URLs are recorded in each file's `source` field.
+- RFC text Copyright (c) IETF Trust and the persons identified as the document authors (RFC 2202:
+  P. Cheng, R. Glenn; RFC 4231: M. Nystrom; RFC 5869: H. Krawczyk, P. Eronen; RFC 6070:
+  S. Josefsson; RFC 7914: C. Percival, S. Josefsson; RFC 8448: M. Thomson). Code components are
+  licensed under the Revised BSD License per the IETF Trust Legal Provisions
+  (https://trustee.ietf.org/license-info). **No RFC code is copied** — only test values.
+- The four TLS 1.2 PRF vectors (P_SHA224/256/384/512) in
+  `packages/primitives/src/_lib/prf/vectors/tls-prf-cavp.json` (`kind: prf`) come from J.
+  Birr-Pixton, "[TLS] TLS1.2 PRF test vectors", IETF TLS mailing list, 2009-04-22
+  (https://mailarchive.ietf.org/arch/msg/tls/fzVCzk-z3FShgGJ6DOXqM1ydxms/), an IETF contribution
+  under the IETF Note Well. Published test values, reproduced with attribution.
+
+### NIST CAVP HMAC and SP 800-135 KDF vectors, SP 800-185 KMAC samples — public domain (US government work)
+- Files: `packages/primitives/src/_lib/hmac/vectors/cavp-subset.json`, a filtered copy (150 cases,
+  SHA-1 and SHA-2) of the CAVP HMACVS `HMAC.rsp` (CAVS 11.0, `hmactestvectors.zip`,
+  https://csrc.nist.gov/projects/cryptographic-algorithm-validation-program/message-authentication);
+  the CAVP cases (`kind: cavp`) of `packages/primitives/src/_lib/prf/vectors/tls-prf-cavp.json` and
+  `tls10-prf/vectors/conformance.json`, `tls12-prf/vectors/conformance.json`, from the SP 800-135
+  TLS KDF component vectors (CAVS 12.0, `800-135testvectors/tls.zip`, `tls.rsp`);
+  `packages/primitives/src/kmac/vectors/conformance.json`, the NIST SP 800-185 KMAC and KMACXOF
+  samples (`KMAC_samples.pdf`, `KMACXOF_samples.pdf`,
+  https://csrc.nist.gov/projects/cryptographic-standards-and-guidelines/example-values).
+- Cases filtered; values unchanged. Source URLs, filters and counts are recorded in each file's
+  `source` / `filter` / `count` fields.
+- Works of the US federal government (NIST), not subject to copyright in the United States
+  (17 U.S.C. §105). Reproduced with attribution to NIST.
+
 ### BLAKE2 reference KATs — CC0 1.0
 - Files: the `kat` cases of `packages/primitives/src/blake2/vectors/rfc7693-kat.json` and the keyed
   KAT cases of `blake2/vectors/conformance.json`, a filtered copy (messages ≤ 128 bytes) of
@@ -115,7 +154,11 @@ with their licenses by `pnpm licenses list`.
 - @noble/hashes (MIT) — Copyright (c) 2022 Paul Miller (https://github.com/paulmillr/noble-hashes).
   Root dev dependency, used only as an independent oracle in unit tests (SHA-224, SHA-256,
   SHA-384, SHA-512, SHA-512/224, SHA-512/256 cross-checks; from M6 also SHA-3, SHAKE, cSHAKE,
-  Keccak-256, BLAKE2s/b, MD5 and SHA-1); never bundled. Some conformance cases are values *computed*
+  Keccak-256, BLAKE2s/b, MD5 and SHA-1; from M7 also HMAC, HKDF, PBKDF2 and KMAC); never bundled. Some conformance cases are values *computed*
   with it (no code or text copied), marked as such in each file's `source` field
   (`sha3/vectors/keccak-256.json`, the `abc` presets in `sha3/vectors/conformance.json`, the
   non-RFC/non-KAT digests in `blake2/vectors/conformance.json`).
+- CPython 3.11.9 `hmac` + `hashlib` (PSF License 2.0; OpenSSL, Apache-2.0) — used once, offline, to
+  compute the HMAC long-key cases in `packages/primitives/src/_lib/hmac/vectors/python-oracle.json`
+  (keys longer than B for hashes whose standard vectors lack them). Values only, no code copied;
+  marked in the file's `source` field. Not a dependency.

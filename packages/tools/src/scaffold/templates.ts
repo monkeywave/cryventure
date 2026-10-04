@@ -117,6 +117,9 @@ export const ${camel}Manifest = definePrimitive<${pascal}Params>({
   id: '${id}',
   apiVersion: 1,
   family: '${family}',
+  // Ports offered to composites, e.g. ['BlockCipher'], ['Hash'] or ['Hash', 'Mac'] (HMAC via
+  // _lib/hmac hmacFamily, or a keyed MAC like keyed BLAKE2 or KMAC): export them as \`ports\` from
+  // ./module.ts; a Hash or Mac family also declares \`portMembers\` (docs/EXTENDING.md "MACs and port members").
   implements: [],
   titleKey: \`\${NS}.title\`,
   refs: [],

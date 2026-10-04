@@ -144,7 +144,9 @@ another producer through a **port**, an interface in `@cryventure/core` (`ports.
   `validate()` only checks that it is a kebab-case string. The panel's options are
   `portOptions(registered, 'BlockCipher')` (every producer that implements the port, labelled by its
   `titleKey`), and `labMessages` loads `portNamespaces(manifest, registered)` so every option is
-  translated. The contract kit checks that some registered producer implements the port.
+  translated. The contract kit checks that some registered producer implements the port. To pick
+  one function of a family port (a hash, a MAC) instead of a producer, use a member field (see
+  "MACs and port members").
 - **Running:** the host calls `preparePorts(manifest, params, registry)` (async; loads only the
   named producers and never throws) and passes the result as `run(params, { resolve })`. `resolve`
   is synchronous. In `run()`, `requirePort(options.resolve, 'BlockCipher', params.cipher)` returns
@@ -181,11 +183,79 @@ across `functions` and `xofs`). Look up a member with `hashFunction(family, id)`
   `squeeze(a) ‖ squeeze(b)` across a rate boundary, clone independence, `update` after `squeeze`
   throws, the customization rule above, and cSHAKE(N = S = empty) = SHAKE.
 
+### MACs and port members
+
+The `Mac` port is a `MacFamily` (`{ id, functions }`, family id = producer id; `macFunction(family,
+id)` looks one up). A `MacFunction` has `outputSize` (the default tag length), `blockSize` (HMAC: the
+hash's B; KMAC: the rate; BLAKE2: the block), `keySizes` `{ min, max? }` in bytes (no `max` =
+unbounded), `customizable` and `variableOutput` (KMAC's S and L, `MacOptions`), `mac(key, data,
+options?)` and `create(key, options?)` → `MacContext` (`update*`, `mac()` without changing the
+context, `clone()`: for HMAC both midstates, so PBKDF2 keys once and clones per iteration). Its
+`construction` is metadata for zoom links and pickers, not behaviour: `{ kind: 'hmac', hash }`
+(`hash` is the Hash member ref it runs on), `{ kind: 'kmac' }` or `{ kind: 'keyed-hash' }` (keyed
+BLAKE2, RFC 7693 §2.5).
+
+- **Member refs:** a family port (`Hash`, `Mac`) offers several functions, and a **member ref**
+  `"<producerId>:<memberId>"` names one (`sha256:sha-256`, `sha256:hmac-sha-256`,
+  `blake2:blake2s-256`). Producer ids are kebab-case, member ids never contain `:`. Build and split
+  them with `portMemberRef` / `parsePortMemberRef`; `portMember(port, family, memberId)` looks the
+  member up in a loaded family. Hash members are `HashFamily.functions` only (no XOFs).
+- **Declaring members:** a producer lists its members in the manifest, `portMembers: { Hash: [...],
+  Mac: [...] }` of `PortMemberDecl` `{ id, labelKey, construction? }` (`labelKey` in its own
+  namespace, e.g. `plugin.sha256.mac.hmac-sha-256`; `construction` = the kind, `Mac` only). The
+  manifest is eager and the port lazy, so the list is declared twice; the contract kit keeps them
+  equal. A new hash producer that declares its members appears in every HMAC, HKDF, PBKDF2 and PRF
+  picker without edits elsewhere.
+- **HMAC for free:** a hash producer exposes HMAC over its own functions with `hmacFamily(hashFamily,
+  producerId, functionIds)` (`primitives/src/_lib/hmac/family.ts`) in the module,
+  `export const ports = { Hash, Mac: hmacFamily(Hash, 'sha512', SHA512_HASH_IDS) }`, and declares the
+  same members in the manifest with `hmacPortMembers(NS, functionIds)` (`_lib/hmac/manifestKit.ts`,
+  members `hmac-<functionId>` labelled `<NS>.mac.hmac-<functionId>`; `hashPortMembers` does the same
+  for the Hash members). `implements: ['Hash', 'Mac']`. The HMAC is RFC 2104: `keySizes` `{ min: 0 }`,
+  a key longer than B is hashed first, and it takes no `MacOptions`.
+- **Other keyed MACs** implement `MacFunction` themselves (`blake2/mac.ts`: keyed BLAKE2,
+  `{ min: 1, max: 32 | 64 }`; `_lib/keccak/kmac.ts`: KMAC, customizable with variable output) and
+  declare their members with the matching `construction`. The rules: a key outside `keySizes`, a
+  customization when `customizable` is false and an `outputLength` when `variableOutput` is false
+  throw a `RangeError`, in both `mac` and `create`; `mac` never modifies its key or data.
+- **Using a member:** a member field is a `port` field with `member: true`,
+  `{ name: 'mac', kind: 'port', port: 'Mac', member: true, constructions: ['hmac'], labelKey }`. Its
+  value is a member ref; `validate()` checks it with `readPortMemberRef(input)` (kebab-case producer,
+  non-empty member). `constructions` (`Mac` member fields only; absent = all) filters the offered
+  members, e.g. HKDF and PBKDF2 take HMACs only, so keyed BLAKE2 and KMAC do not appear. For a member
+  field `portOptions(producers, field)` lists one option per declared member of every producer
+  implementing the port (value = member ref, label = the member's `labelKey`), sorted by producer id,
+  then declaration order. `preparePorts` loads the producer named by the ref's producer part, and in
+  `run()` `requirePortMember(options.resolve, 'Mac', params.mac)` returns
+  `{ ok, member, producerId, memberId }` or a `core.error.portMissing` / `portLoadFailed` /
+  `portMemberMissing` (`{{id}}`) run error.
+- **Zooming into the `hmac` lab:** a KDF node computed by one HMAC call carries
+  `zoom: hmacZoom(mac, key, message)` (`primitives/src/_lib/prf/derivation.ts`): a `LabZoom` into the
+  `hmac` lab with the MAC's `construction.hash` as its `hash` param, or `undefined` when the MAC is not
+  an HMAC or the inputs pass the lab's 256-byte limit. The `hmac` lab in turn links its inner and outer
+  hash nodes to the hash producer's lab via `hashLabParams` (above), so every hop is a real lab run.
+- **`PORT_SANITY.Mac`** (`portChecks.ts`) checks the family (id = producer id, non-empty, unique ids)
+  and per function: sizes (`keySizes.min ≥ 0`, `max ≥ min`), the construction kind (an `hmac` `hash`
+  must be a member ref); for key lengths {min, 1, B, B + 1} and messages {0, 1, B, 2B + 3} bytes (those
+  allowed) a deterministic, non-mutating `mac` of `outputSize` bytes; per key length `create(key)` +
+  `update` over the `Hash` splits equal to `mac`, `mac()` twice, `clone()` independent both ways; a
+  key just outside `keySizes` throws a `RangeError`; unsupported options throw and a variable
+  `outputLength` is honoured; for `kind: 'hmac'` two (B + 1)-byte keys that differ only in their last
+  byte give different tags (the long-key branch exists).
+- **Member checks:** for every producer, each `portMembers` port is a `Hash` or `Mac` port in
+  `implements`, the declared ids equal the loaded port's members in order (Hash: `functions`; Mac:
+  `functions` and each `construction.kind`), and every member `labelKey` exists in EN and DE (the
+  same value in both is fine for names such as "HMAC-SHA-256"). A member field must have port `Hash`
+  or `Mac`, and `constructions` needs a `Mac` member field.
+
 ### `runIn`
 
 `runIn?: 'main' | 'worker'` (optional, additive; default `'main'`). A producer whose run is heavy
-(e.g. `padding-oracle`) sets `'worker'`; the web host then runs `preparePorts` and the run in a
-module Web Worker and terminates a superseded run. The bundle must be JSON-serializable either way.
+sets `'worker'`; the web host then runs `preparePorts` and the run in a module Web Worker
+(`apps/web/src/labs/labRunner.ts`) and terminates a superseded run. The bundle must be
+JSON-serializable either way. `pbkdf2` is the first producer to do so (thousands of HMAC calls per
+run): while a re-run is pending for more than 300 ms the lab shows a progress-free "Computing…"
+line (`ComputingStatus`), so fast labs do not flicker.
 
 ### State regions and the views that render them
 
@@ -228,12 +298,17 @@ view lists results under these labels (generic "Group n" otherwise). The optiona
 `DerivationFacet.title` (an `I18nRef`, e.g. "HKDF", "Key schedule") is the view's heading (else
 "Derivation"). The view names each chain line's `op` from its catalog (`view.derivation.op.*`: the
 AES ops plus `hmac`, `concat`, `xor`, `counter`, `truncate`, `hkdfLabel`, `split`; any other op shows
-its raw name). A node may
-carry `zoom: LabZoom` (`{ producerId, params }`, every param a string): a link to another
-producer's lab computing that node, e.g. the hash call inside an HMAC via that producer's
-`hashLabParams`; the view renders it via the host's `useLabActions().labHref` (no link without one). `validateDerivationFacet` (core) checks `kind`, labels, `title` and every `zoom`
-(kebab-case `producerId`, string params); the contract kit runs it and checks the `title` and group
-label keys and `{{params}}` in EN and DE.
+its raw name).
+
+**Zoom (`LabZoom`):** a node may carry `zoom: LabZoom` (`{ producerId, params }`, every param a
+string, `core/src/facets/derivation.ts`): a link to another producer's lab computing that node.
+Examples: a KDF's HMAC call into the `hmac` lab (`hmacZoom`), and the `hmac` lab's inner and outer
+hash calls into the hash lab via that producer's `hashLabParams`. Leave it unset when the target lab
+cannot take the inputs. The view renders it as a link via the host's `useLabActions().labHref`
+(no link without one, or for an unknown producer). It is the generic successor of the chain facet's
+block `zoom` (M3), which stays as is. `validateDerivationFacet` (core) checks `kind`, labels, `title`
+and every `zoom` (kebab-case `producerId`, string params); the contract kit runs it and checks the
+`title` and group label keys and `{{params}}` in EN and DE.
 
 ### Sponge facet
 
@@ -462,7 +537,9 @@ pieces without new facets:
   (`BlockCipher`: id, sizes, round trip, wrong lengths throw; `Hash`: family id = producer id,
   unique function ids, `blockSize` 64 or 128, and every function is deterministic, leaves its
   input unchanged and returns `outputSize` bytes for inputs of 0, 1 and `blockSize` bytes, those
-  three digests pairwise distinct)
+  three digests pairwise distinct; `Mac`: `PORT_SANITY.Mac`, see "MACs and port members")
+- with `portMembers`: the declared members equal the loaded port's members in order (with the same
+  `construction` for `Mac`), and their label keys exist in EN and DE
 - a `Hash` producer with a `digest` output and `hashLabParams`: for every fixed-length function of
   its port and messages of 0, 3, 56, 128 and 200 bytes (those its lab accepts; the empty one is
   required), the params from `hashLabParams` validate, run, and publish `hash(message)` as the
