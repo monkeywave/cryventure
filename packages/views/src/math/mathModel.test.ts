@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest';
-import { bitStrip, hexOf, OP_GLYPHS, polynomialOf } from './mathModel.ts';
+import type { MathFacet, MathTerm } from '@cryventure/core';
+import { bitStrip, hexOf, OP_GLYPHS, polynomialOf, usesModulus } from './mathModel.ts';
+import { gmulMath, hmacPadsMath } from './testFixture.ts';
 
 describe('bitStrip', () => {
   it('lists the bits MSB → LSB with emphasis', () => {
@@ -60,5 +62,27 @@ describe('OP_GLYPHS', () => {
     expect(OP_GLYPHS.xor).toBe('⊕');
     expect(OP_GLYPHS.mul).toBe('⊗');
     expect(OP_GLYPHS.result).toBe('=');
+  });
+});
+
+describe('usesModulus', () => {
+  const facetOf = (...terms: Partial<MathTerm>[]): MathFacet => ({
+    kind: 'math',
+    schemaVersion: 1,
+    notation: { field: 'gf2^8', modulus: 0x11b },
+    steps: [{ step: 0, formula: { key: 'f' }, terms: terms.map((term, i) => ({ id: `t${i}`, label: { key: 'l' }, value: 0, width: 8, role: 'operand', ...term })) }],
+  });
+
+  it('is false for XOR-only bit strips (HMAC ipad/opad): GF(2⁸) addition never reduces', () => {
+    expect(usesModulus(hmacPadsMath)).toBe(false);
+    expect(usesModulus(facetOf({ op: 'xor' }, { role: 'result', op: 'result' }))).toBe(false);
+  });
+
+  it('is true for field arithmetic (multiplication, xtime, inversion, the S-box)', () => {
+    expect(usesModulus(gmulMath)).toBe(true);
+    expect(usesModulus(facetOf({ op: 'shift' }, { op: 'xor' }))).toBe(true);
+    expect(usesModulus(facetOf({ op: 'affine-bit' }, { op: 'xor' }))).toBe(true);
+    // ginv(0) loads and returns without any XOR: still read as field inversion
+    expect(usesModulus(facetOf({}, { role: 'result', op: 'result' }))).toBe(true);
   });
 });

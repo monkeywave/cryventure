@@ -1,4 +1,4 @@
-import { hexDigits, type MathOp, type MathTerm } from '@cryventure/core';
+import { hexDigits, type MathFacet, type MathOp, type MathTerm } from '@cryventure/core';
 import { toSuperscript } from '@cryventure/viz';
 
 /**
@@ -69,3 +69,18 @@ export const OP_GLYPHS: Record<MathOp, string> = {
   'affine-bit': '⊕',
   result: '=',
 };
+
+/** Ops that never involve the field modulus: GF(2⁸) addition is a bitwise XOR, `result` just names the outcome. */
+const BITWISE_OPS: ReadonlySet<MathOp | undefined> = new Set<MathOp | undefined>(['xor', 'result', undefined]);
+
+/**
+ * Whether the facet's equations are GF(2⁸) arithmetic the modulus matters for. Every math facet
+ * declares `notation.field: 'gf2^8'`, so this reads the terms: a facet that only XORs bytes (the HMAC
+ * ipad/opad bit strips) never reduces; any other op (mul, square, shift, reduce, affine-bit) or a
+ * facet without any XOR (an inversion such as ginv) does.
+ */
+export function usesModulus(facet: MathFacet): boolean {
+  const terms = facet.steps.flatMap((step) => step.terms);
+  const xorOnly = terms.every((term) => term.role !== 'carry' && BITWISE_OPS.has(term.op)) && terms.some((term) => term.op === 'xor');
+  return !xorOnly;
+}

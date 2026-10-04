@@ -5,6 +5,7 @@ import {
   type TraceBundle,
 } from '@cryventure/core';
 import fixture from './fixtures/aes128-derivation.json';
+import kdfFixture from './fixtures/kdf-derivations.json';
 
 /**
  * Test-only: the derivation facet of the AES module's FIPS 197 App. B run (AES-128, op detail),
@@ -16,18 +17,23 @@ export const aesStepCount = fixture.stepCount;
 
 /** A bundle with the fixture derivation plus an empty-write state facet so the playhead can move. */
 export function aesDerivationBundle(): TraceBundle {
+  return derivationBundle('aes', aesDerivation, aesStepCount);
+}
+
+/** A bundle of `producerId` with `derivation` plus an empty-write state facet of `stepCount` steps. */
+function derivationBundle(producerId: string, derivation: DerivationFacet, stepCount: number): TraceBundle {
   const tracer = new RecordingTracer<'s', { op: 'tick' }>(
     [{ id: 's', labelKey: 'fixture.region.s', elem: 'u8', shape: [1] }],
     { s: [0] },
   );
-  for (let i = 0; i < aesStepCount; i++)
+  for (let i = 0; i < stepCount; i++)
     tracer.step({ op: 'tick', writes: [], highlights: [], narration: { key: 'fixture.tick' } });
   return {
     schemaVersion: 1,
-    producer: { kind: 'primitive', id: 'aes', apiVersion: 1 },
+    producer: { kind: 'primitive', id: producerId, apiVersion: 1 },
     provenance: 'modeled',
     params: {},
-    facets: { 'state@default': tracer.toFacet(), 'derivation@default': aesDerivation },
+    facets: { 'state@default': tracer.toFacet(), 'derivation@default': derivation },
     output: {},
   };
 }
@@ -51,3 +57,25 @@ export const derivationLabels: Record<'en' | 'de', Messages> = {
     'plugin.aes.derivation.title': 'Schlüsselplan',
   },
 };
+
+/**
+ * Test-only: real MAC/KDF derivations (HMAC with a hashed long key, HKDF RFC 5869 A.1, PBKDF2 RFC 6070
+ * c = 4096 with its skip step, the TLS 1.0 PRF), snapshotted from `@cryventure/primitives` by a tools
+ * contract test (`pnpm fixtures:update`), with the catalog entries they reference.
+ */
+export type KdfProducer = 'hmac' | 'hkdf' | 'pbkdf2' | 'tls10-prf';
+
+export function kdfDerivation(producer: KdfProducer): { derivation: DerivationFacet; stepCount: number } {
+  const found = kdfFixture.cases.find((entry) => entry.producer === producer)!;
+  return { derivation: found.derivation as DerivationFacet, stepCount: found.stepCount };
+}
+
+export const kdfDerivations: readonly DerivationFacet[] = kdfFixture.cases.map((entry) => entry.derivation as DerivationFacet);
+
+export const kdfLabels: Record<'en' | 'de', Messages> = kdfFixture.labels;
+
+/** A bundle of `producer`'s derivation plus an empty-write state facet of its step count. */
+export function kdfDerivationBundle(producer: KdfProducer): TraceBundle {
+  const { derivation, stepCount } = kdfDerivation(producer);
+  return derivationBundle(producer, derivation, stepCount);
+}

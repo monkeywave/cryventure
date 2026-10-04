@@ -9,12 +9,13 @@ import {
   OP_CATALOG,
   operandGlyph,
   opLabelKey,
+  opTagShown,
   resultGroups,
   rowStatus,
   sourceWordIds,
   wordHex,
 } from './derivationModel.ts';
-import { aesDerivation } from './testFixture.ts';
+import { aesDerivation, kdfDerivations } from './testFixture.ts';
 
 const ids = (nodes: { node: DerivationNode }[]) => nodes.map((link) => link.node.id);
 
@@ -215,5 +216,33 @@ describe('op catalog', () => {
   it('counts the lines of a chain (operands plus links)', () => {
     expect(chainLineCount(derivationChain(aesDerivation, 'w/4'))).toBe(7);
     expect(chainLineCount([])).toBe(0);
+  });
+});
+
+describe('op catalog against the real producers', () => {
+  it('catalogues every op the AES, HMAC, HKDF, PBKDF2 and TLS PRF derivations emit (incl. HMAC hash)', () => {
+    const ops = new Set([aesDerivation, ...kdfDerivations].flatMap((facet) => facet.nodes.map((node) => node.op)));
+    expect(ops).toContain('hash');
+    for (const op of ops) expect(opLabelKey(op), op).toBe(`view.derivation.op.${op}`);
+  });
+});
+
+describe('opTagShown', () => {
+  it('drops the tag when the label already names the op, by its name or its glyph', () => {
+    expect(opTagShown('rotWord', 'RotWord', 'RotWord for w[4]')).toBe(false);
+    expect(opTagShown('subWord', 'SubWord', 'subword für w[4]')).toBe(false);
+    expect(opTagShown('hash', 'Hash', 'Innerer Hash')).toBe(false);
+    expect(opTagShown('xor', 'XOR', '⊕ Rcon for w[4]')).toBe(false);
+    expect(opTagShown('concat', 'Concatenate', '(K0 ⊕ ipad) ‖ m')).toBe(false);
+  });
+
+  it('keeps the tag otherwise (HKDF, PRF and AES result words)', () => {
+    expect(opTagShown('hmac', 'HMAC', 'T(1)')).toBe(true);
+    expect(opTagShown('counter', 'Counter', 'T(1)')).toBe(true);
+    expect(opTagShown('hmac', 'HMAC', 'P_MD5: A(1)')).toBe(true);
+    expect(opTagShown('hmac', 'HMAC', 'U4095 (after 4092 HMAC calls not shown)')).toBe(true);
+    expect(opTagShown('hash', 'Hash', 'H(K)')).toBe(true);
+    expect(opTagShown('xor', 'XOR', 'Word w[4]')).toBe(true);
+    expect(opTagShown('input', 'Input', '')).toBe(true);
   });
 });

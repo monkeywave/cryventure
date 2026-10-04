@@ -19,6 +19,7 @@
   "view.derivation.op.subWord": "SubWord",
   "view.derivation.op.rcon": "Rcon",
   "view.derivation.op.xor": "XOR",
+  "view.derivation.op.hash": "Hash",
   "view.derivation.op.hmac": "HMAC",
   "view.derivation.op.concat": "Verketten",
   "view.derivation.op.counter": "Zähler",

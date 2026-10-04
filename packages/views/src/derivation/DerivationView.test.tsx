@@ -8,7 +8,7 @@ import { loadVizMessages } from '@cryventure/viz/messages';
 import { loadViewMessages } from '../messages.ts';
 import DerivationView from './DerivationView.tsx';
 import type { DerivationFacet, DerivationNode, LabZoom, TraceBundle } from '@cryventure/core';
-import { aesDerivation, derivationLabels, aesDerivationBundle } from './testFixture.ts';
+import { aesDerivation, derivationLabels, aesDerivationBundle, kdfDerivationBundle, kdfLabels, type KdfProducer } from './testFixture.ts';
 
 const view = <DerivationView labId="fixture" lens="engineer" />;
 
@@ -180,7 +180,12 @@ describe('DerivationView', () => {
       expect(text).toContain(part);
     }
     expect(within(panel).getByLabelText('XOR with Round constant Rcon[1] (01000000)')).toBeTruthy();
-    expect([...panel.querySelectorAll('.cv-derivation__op')].map((tag) => tag.textContent)).toEqual(['RotWord', 'SubWord', 'XOR', 'XOR']);
+    // Labels that already name their op (RotWord …, ⊕ Rcon …) carry no tag; the word itself is tagged XOR.
+    expect([...panel.querySelectorAll('.cv-derivation__op')].map((tag) => tag.textContent)).toEqual(['XOR']);
+    const names = [...panel.querySelectorAll('.cv-derivation__name')].map((name) => name.textContent);
+    expect(names).toContain('RotWord for w[4]');
+    expect(names).toContain('SubWord for w[4]');
+    expect(names).toContain('⊕ Rcon for w[4]');
     expect(panel.querySelector('[data-result]')?.textContent).toContain('a0fafe17');
   });
 
@@ -385,5 +390,58 @@ describe('DerivationView long chains', () => {
     await userEvent.click(word('a0fafe17'));
     expect(chain()?.hasAttribute('data-long')).toBe(false);
     expect(chain()?.hasAttribute('tabindex')).toBe(false);
+  });
+});
+
+describe('DerivationView on real MAC/KDF derivations', () => {
+  function renderKdf(producer: KdfProducer, locale: 'en' | 'de' = 'en') {
+    return renderLab(view, {
+      bundle: kdfDerivationBundle(producer),
+      messages: { ...loadViewMessages(locale), ...loadVizMessages(locale), ...kdfLabels[locale] },
+    });
+  }
+  const opTags = (panel: HTMLElement) => [...panel.querySelectorAll('.cv-derivation__op')].map((tag) => tag.textContent);
+  const openChain = async (id: string, name: string) => {
+    await userEvent.click(nodeButton(id));
+    return screen.getByRole('region', { name });
+  };
+
+  it('HMAC: names the key, inner and outer hashes by the catalogued Hash op, never by the raw op', async () => {
+    renderKdf('hmac');
+    const panel = await openChain('k0', 'How K0 is derived');
+    expect(opTags(panel)).toEqual(['Hash', 'Concatenate']);
+  });
+
+  it('HMAC in German: „Hash“', async () => {
+    renderKdf('hmac', 'de');
+    await userEvent.click(nodeButton('k0'));
+    expect(opTags(chain()!)).toContain('Hash');
+  });
+
+  it('HKDF: keeps the op tags (Concatenate, HMAC) on T(2)', async () => {
+    renderKdf('hkdf');
+    const panel = await openChain('t2', 'How T(2) is derived');
+    expect(opTags(panel)).toEqual(['Concatenate', 'HMAC']);
+    expect(panel.hasAttribute('data-long')).toBe(false);
+  });
+
+  it('PBKDF2 (c = 4096): shows the skip step and scrolls the long chain inside the panel', async () => {
+    renderKdf('pbkdf2');
+    const panel = await openChain('1/t', 'How T1 = U1 ⊕ … ⊕ Uc is derived');
+    expect(panel.textContent).toContain('U4095 (after 4092 HMAC calls not shown)');
+    expect(panel.textContent).toContain('U4096 (block 1)');
+    // "S ‖ INT(1)" and "T1 = U1 ⊕ … ⊕ Uc" already show their op; every U_j keeps its HMAC tag.
+    expect(opTags(panel)).toEqual(['HMAC', 'HMAC', 'HMAC', 'HMAC', 'HMAC']);
+    expect(panel.hasAttribute('data-long')).toBe(true);
+    expect(panel.getAttribute('tabindex')).toBe('0');
+  });
+
+  it('TLS 1.0 PRF: tags every HMAC of P_MD5 and XORs the two streams into the output', async () => {
+    renderKdf('tls10-prf');
+    const p3 = await openChain('md5/p/3', 'How P_MD5: P(3) is derived');
+    expect(opTags(p3)).toEqual(['HMAC', 'HMAC', 'HMAC', 'HMAC']);
+    await userEvent.click(nodeButton('output'));
+    const output = screen.getByRole('region', { name: 'How PRF output (48 bytes) is derived' });
+    expect(opTags(output)).toEqual(['Truncate', 'XOR']);
   });
 });

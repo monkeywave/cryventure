@@ -20,8 +20,8 @@ import {
   GCM_CHAIN_VIEW_FIXTURE,
   GCM_WIRE_VIEW_FIXTURE,
 } from './gcmViewFixtures.ts';
-import { buildDerivationViewFixture, DERIVATION_VIEW_FIXTURE } from './derivationViewFixture.ts';
-import { buildMathViewFixture, MATH_VIEW_FIXTURE } from './mathViewFixture.ts';
+import { buildDerivationViewFixture, buildKdfDerivationViewFixture, DERIVATION_VIEW_FIXTURE, KDF_DERIVATION_VIEW_FIXTURE } from './derivationViewFixture.ts';
+import { buildHmacMathViewFixture, buildMathViewFixture, HMAC_MATH_VIEW_FIXTURE, MATH_VIEW_FIXTURE } from './mathViewFixture.ts';
 import { buildModeViewFixture, MODE_VIEW_FIXTURE } from './modeViewFixture.ts';
 import { buildStateViewFixture, STATE_VIEW_FIXTURE } from './stateViewFixture.ts';
 
@@ -46,7 +46,9 @@ export const SNAPSHOT_FIXTURES: readonly SnapshotFixture[] = [
   { path: GCM_CHAIN_VIEW_FIXTURE, build: buildGcmChainViewFixture },
   { path: GCM_WIRE_VIEW_FIXTURE, build: buildGcmWireViewFixture },
   { path: DERIVATION_VIEW_FIXTURE, build: buildDerivationViewFixture },
+  { path: KDF_DERIVATION_VIEW_FIXTURE, build: buildKdfDerivationViewFixture },
   { path: MATH_VIEW_FIXTURE, build: buildMathViewFixture },
+  { path: HMAC_MATH_VIEW_FIXTURE, build: buildHmacMathViewFixture },
   { path: MODE_VIEW_FIXTURE, build: buildModeViewFixture },
   { path: STATE_VIEW_FIXTURE, build: buildStateViewFixture },
 ];

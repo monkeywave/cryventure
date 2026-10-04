@@ -11,6 +11,7 @@ import {
   hexOf,
   OP_GLYPHS,
   polynomialOf,
+  usesModulus,
   type BitCell,
 } from './mathModel.ts';
 import { ScrollRegion } from '../_lib/ScrollRegion.tsx';
@@ -20,7 +21,7 @@ import './math.css';
  * Math view (any `math` facet): the equation of the latest math step at the playhead, as a formula
  * line over a table of terms (label, operator, bit strip MSB → LSB, hex). The lens decides the
  * depth: story = formula + hex, engineer adds bit strips, cryptographer adds polynomial notation
- * and the field modulus. Emphasised bits pair colour with an outline and underline; the carry bit
+ * and the field modulus (only for GF(2⁸) arithmetic, `usesModulus`; not for XOR-only bit strips). Emphasised bits pair colour with an outline and underline; the carry bit
  * of a 9-bit product is set apart by a gap and dashed border. Caret exponents in formulas and labels
  * (`a^254`) render raised. Before the first math step, that step is previewed in a muted "upcoming"
  * style under a start hint. The table reflows with its container (`math.css`): polynomial under the
@@ -50,7 +51,7 @@ function MathPanel({ facet, columns }: { facet: MathFacet; columns: LensColumns 
   const upcoming = current === undefined ? facet.steps[0] : undefined;
   return (
     <section className="cv-view cv-math" aria-label={t('view.math.title')}>
-      {columns.polynomial && (
+      {columns.polynomial && usesModulus(facet) && (
         <p className="cv-math__modulus">
           {t('view.math.modulus', { polynomial: polynomialOf(facet.notation.modulus) })}
         </p>

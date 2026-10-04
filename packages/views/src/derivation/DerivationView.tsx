@@ -23,6 +23,7 @@ import {
   LONG_CHAIN_LINES,
   operandGlyph,
   opLabelKey,
+  opTagShown,
   resultGroups,
   rowStatus,
   wordHex,
@@ -168,17 +169,18 @@ interface ChainRowProps extends Omit<ComponentProps<'li'>, 'children'> {
   op?: string;
 }
 
-/** One line of the chain: a glyph column, the op, the value's name and its hex (FIPS 197 Appendix A layout). */
+/** One line of the chain: a glyph column, the op (unless the name already says it), the value's name and its hex (FIPS 197 Appendix A layout). */
 function ChainRow({ glyph, node, op, ...rest }: ChainRowProps) {
   const t = useT();
+  const label = t(node.label);
   return (
     <li className="cv-derivation__link" {...rest}>
       <span className="cv-derivation__glyph" aria-hidden="true">
         {glyph}
       </span>
       <span className="cv-derivation__name">
-        {op !== undefined && <OpTag op={op} />}
-        {t(node.label)}
+        {op !== undefined && <OpTag op={op} label={label} />}
+        {label}
       </span>{' '}
       <code className="cv-derivation__hex">{wordHex(node.bytes)}</code>
       <ZoomLink node={node} />
@@ -186,8 +188,10 @@ function ChainRow({ glyph, node, op, ...rest }: ChainRowProps) {
   );
 }
 
-function OpTag({ op }: { op: string }) {
-  return <span className="cv-derivation__op">{useOpLabel(op)}</span>;
+/** The op's name in front of `label`, unless the label already names it (`opTagShown`). */
+function OpTag({ op, label }: { op: string; label: string }) {
+  const opLabel = useOpLabel(op);
+  return opTagShown(op, opLabel, label) ? <span className="cv-derivation__op">{opLabel}</span> : null;
 }
 
 /** An operand combined into `into` (e.g. XORed), announced as "XOR with Rcon[1] (01000000)". */

@@ -5,7 +5,7 @@ import { createFixtureBundle, renderLab } from '@cryventure/viz/testing';
 import { loadVizMessages } from '@cryventure/viz/messages';
 import { loadViewMessages } from '../messages.ts';
 import MathView from './MathView.tsx';
-import { gmulMath, mathBundle, mathLabels } from './testFixture.ts';
+import { gmulMath, hmacPadsBundle, hmacPadsLabels, mathBundle, mathLabels } from './testFixture.ts';
 
 const english = { ...loadViewMessages('en'), ...mathLabels.en };
 
@@ -188,5 +188,21 @@ describe('MathView', () => {
       messages: english,
     });
     expect(screen.getByRole('status').textContent).toBe(english['view.math.missing']);
+  });
+});
+
+describe('MathView modulus', () => {
+  it('omits the GF(2⁸) modulus for the HMAC ipad/opad bit strips (XOR only), even in the cryptographer lens', () => {
+    renderLab(<MathView labId="fixture" lens="cryptographer" />, {
+      bundle: hmacPadsBundle(),
+      messages: { ...loadViewMessages('en'), ...hmacPadsLabels.en },
+    });
+    expect(screen.getByRole('table')).toBeTruthy();
+    expect(document.querySelector('.cv-math__modulus')).toBeNull();
+  });
+
+  it('keeps the modulus for GF(2⁸) multiplication', () => {
+    render('cryptographer');
+    expect(document.querySelector('.cv-math__modulus')).not.toBeNull();
   });
 });

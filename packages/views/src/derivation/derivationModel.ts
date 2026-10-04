@@ -108,9 +108,9 @@ export function hostRows(rows: readonly ResultGroup[]): ReadonlyMap<string, Resu
 
 /**
  * Ops the view names from its own catalog (`view.derivation.op.<op>`): the AES key schedule's and the
- * MAC/KDF producers'. Any other op is shown by its raw name.
+ * MAC/KDF producers' (HMAC's key, inner and outer `hash`). Any other op is shown by its raw name.
  */
-export const OP_CATALOG = ['input', 'rotWord', 'subWord', 'rcon', 'xor', 'hmac', 'concat', 'counter', 'truncate', 'hkdfLabel', 'split'] as const;
+export const OP_CATALOG = ['input', 'rotWord', 'subWord', 'rcon', 'xor', 'hash', 'hmac', 'concat', 'counter', 'truncate', 'hkdfLabel', 'split'] as const;
 
 const CATALOGUED_OPS: ReadonlySet<string> = new Set(OP_CATALOG);
 
@@ -124,6 +124,30 @@ export function operandGlyph(op: string): string {
   if (op === 'xor') return '⊕';
   if (op === 'concat') return '‖';
   return '+';
+}
+
+/** The symbol a label may use for `op` in place of its name (`⊕`, `‖`), if any. */
+function opSymbol(op: string): string | undefined {
+  const glyph = operandGlyph(op);
+  return glyph === '+' ? undefined : glyph;
+}
+
+/** Whether `label` begins or ends with the word(s) `name` (case-insensitive): "RotWord for w[4]", "Inner hash". */
+function framedBy(label: string, name: string): boolean {
+  const text = label.trim().toLocaleLowerCase();
+  const word = name.toLocaleLowerCase();
+  return word !== '' && (text === word || text.startsWith(`${word} `) || text.endsWith(` ${word}`));
+}
+
+/**
+ * Whether a chain line tags its node with the op's name: not when the node's (translated) label
+ * already says it, beginning or ending with the op's name ("RotWord for w[4]", "Inner hash") or
+ * using its symbol ("⊕ Rcon for w[4]", "S ‖ INT(1)"), so the line never reads twice. HKDF/PRF
+ * values ("T(1)", "P_MD5: A(1)", "U4095 (after 4092 HMAC calls not shown)") keep their tag.
+ */
+export function opTagShown(op: string, opLabel: string, label: string): boolean {
+  const symbol = opSymbol(op);
+  return !framedBy(label, opLabel) && (symbol === undefined || !label.includes(symbol));
 }
 
 /** Chains with more lines than this scroll inside their panel (PBKDF2 iterations, P_hash rounds). */
