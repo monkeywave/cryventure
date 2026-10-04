@@ -30,6 +30,14 @@ describe('termFactory', () => {
   });
 });
 
+describe('termFactory emphasis', () => {
+  it('adds emphasis only when given', () => {
+    const term = termFactory(NS, WORD32);
+    expect(term('T1', 'T1', 1, 'intermediate', { emphasis: 'story' })).toMatchObject({ emphasis: 'story' });
+    expect('emphasis' in term('T1', 'T1', 1, 'intermediate')).toBe(false);
+  });
+});
+
 describe('roundTerms', () => {
   const terms = roundTerms(termFactory(NS, WORD32), round(0));
 
@@ -44,7 +52,28 @@ describe('roundTerms', () => {
       ['Sigma0', 'intermediate', 'Sigma0'],
       ['maj', 'intermediate', 'maj'],
       ['T2', 'intermediate', 'add'],
+      ['e', 'result', 'add'],
+      ['a', 'result', 'add'],
     ]);
+  });
+
+  it('marks T1 and T2 (and only them) for the story lens', () => {
+    expect(terms.filter((term) => term.emphasis === 'story').map((term) => term.id)).toEqual(['T1', 'T2']);
+  });
+
+  it('ends with the new e = d + T1 and the new a = T1 + T2, the words after the round', () => {
+    const hex = Object.fromEntries(terms.map((term) => [term.id, term.hex]));
+    expect([hex['e'], hex['a']]).toEqual([WORD32.toHex(round(0).after[4]!), WORD32.toHex(round(0).after[0]!)]);
+    expect(terms.slice(-2).map((term) => term.label.key)).toEqual([`${NS}.term.newE`, `${NS}.term.newA`]);
+  });
+
+  it('adds hKW = h + K_t + W_t after K_t + W_t only when asked (the SHA512H input)', () => {
+    expect(terms.some((term) => term.id === 'hKW')).toBe(false);
+    const withHKW = roundTerms(termFactory(NS, WORD32), round(3), { hKW: true });
+    const index = withHKW.findIndex((term) => term.id === 'hKW');
+    expect(withHKW[index - 1]!.id).toBe('kw');
+    const { before, k, w } = round(3);
+    expect(withHKW[index]).toMatchObject({ hex: WORD32.toHex(WORD32.add(before[7]!, k, w)), role: 'intermediate', op: 'add', label: { key: `${NS}.term.hKW`, params: { t: 3 } } });
   });
 
   it('carries the round values of the FIPS "abc" example (round 0)', () => {
@@ -52,13 +81,15 @@ describe('roundTerms', () => {
     expect(hex).toMatchObject({ Sigma1: '3587272b', ch: '1f85c98c', k: '428a2f98', w: '61626380', kw: 'a3ec9318', Sigma0: 'ce20b47e', maj: '3a6fe667' });
   });
 
-  it('passes t to the K, W and K + W labels only', () => {
+  it('passes t to the K, W and K + W (and h + K + W) labels only', () => {
     const t = roundTerms(termFactory(NS, WORD32), round(7));
     expect(t.filter((term) => term.label.params !== undefined).map((term) => [term.id, term.label.params])).toEqual([
       ['k', { t: 7 }],
       ['w', { t: 7 }],
       ['kw', { t: 7 }],
     ]);
+    const withHKW = roundTerms(termFactory(NS, WORD32), round(7), { hKW: true });
+    expect(withHKW.filter((term) => term.label.params !== undefined).map((term) => term.id)).toEqual(['k', 'w', 'kw', 'hKW']);
   });
 });
 

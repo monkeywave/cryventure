@@ -1,9 +1,8 @@
-import { describeLanes, sameWord, type Lanes, type ShaWord } from './shaWords.ts';
+import { describeLanes, describeWord, sameWord, type Lanes, type ShaWord } from './shaWords.ts';
 import {
   regionWord,
   roundStep,
   scheduleStep,
-  SHA256_ROUNDS,
   SHA_VAR_NAMES,
   termWord,
   type ShaBlockSteps,
@@ -46,9 +45,11 @@ function traceBytes({ trace, block }: ShaBlockContext, lane: ShaWord): number[] 
     }
     case 'w':
     case 'wBytes':
-      return regionWord(trace, 'w', roundStep(block, SHA256_ROUNDS - 1), lane.t);
+      return regionWord(trace, 'w', roundStep(block, trace.rounds - 1), lane.t);
     case 'k':
     case 'kw':
+    case 'hKW':
+    case 'T1':
       return termWord(trace, roundStep(block, lane.t), lane.kind);
     case 'p1':
     case 'p2':
@@ -57,11 +58,13 @@ function traceBytes({ trace, block }: ShaBlockContext, lane: ShaWord): number[] 
       return regionWord(trace, 'h', block.feedForward, SHA_VAR_NAMES.indexOf(lane.name));
     case 'const':
       return [...lane.bytes];
+    case 'partial':
+      throw new Error(`the trace records no value for ${describeWord(lane)}`);
   }
 }
 
 /**
- * A lane's 4 bytes in memory order (byte 0 = least significant, as the lane sits in a little-endian
+ * A lane's 4 (or 8) bytes in memory order (byte 0 = least significant, as the lane sits in a little-endian
  * vector register). Words are stored big-endian in the trace, so a lane holding the value W_t is the
  * byte reversal of W_t's trace bytes; `wBytes` (loaded, not yet swapped) and literals keep their order.
  */
@@ -70,7 +73,7 @@ export function laneBytes(context: ShaBlockContext, lane: ShaWord): number[] {
   return lane.kind === 'wBytes' || lane.kind === 'const' ? bytes : reversed(bytes);
 }
 
-/** The 16 register bytes in memory order, lane 0 first. */
+/** The 16 register bytes in memory order, lane 0 first; throws for an untraced (`partial`) lane. */
 export function registerBytes(context: ShaBlockContext, lanes: Lanes): number[] {
   return lanes.flatMap((lane) => laneBytes(context, lane));
 }

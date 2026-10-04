@@ -140,6 +140,43 @@
   border: 2px solid var(--cv-state, CanvasText);
 }
 
+/* A register the step reads and writes (v2 `touched`, e.g. the BLAKE2 G column or diagonal): a thick key-coloured border plus a ◆ glyph. */
+.cv-wordops__reg[data-touched] {
+  border: 3px solid var(--cv-key, CanvasText);
+  padding: calc(0.25rem - 2px) calc(0.375rem - 2px);
+}
+
+.cv-wordops__reg[data-touched][data-changed] {
+  border-style: double;
+}
+
+.cv-wordops__legend {
+  margin: 0.25rem 0 0;
+  font-size: 0.8em;
+  color: var(--cv-text-muted, GrayText);
+}
+
+/* Register grids (`registerColumns`, the BLAKE2 4 × 4 matrix): before and after side by side when they fit, else stacked. */
+.cv-wordops__grids {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem 1.25rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.cv-wordops__grid {
+  display: grid;
+  grid-template-columns: repeat(var(--cv-wordops-cols, 4), var(--cv-wordops-col));
+  gap: 0.125rem;
+  align-content: start;
+}
+
+.cv-wordops__gridside {
+  grid-column: 1 / -1;
+  font-size: 0.8em;
+  color: var(--cv-text-muted, GrayText);
+}
+
 .cv-wordops__shift {
   grid-column: 2 / -1;
   min-width: 0;
@@ -176,6 +213,11 @@
   font-size: 12px;
   font-weight: 700;
   fill: var(--cv-text, CanvasText);
+  /* A halo in the panel colour keeps a label legible where a long arrow (MD5's a ← d) crosses it. */
+  paint-order: stroke;
+  stroke: var(--cv-scroll-cover, var(--cv-surface, Canvas));
+  stroke-width: 4px;
+  stroke-linejoin: round;
 }
 
 /* ---------- terms ---------- */

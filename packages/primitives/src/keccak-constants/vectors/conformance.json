@@ -1,0 +1,23 @@
+{
+  "source": "NIST FIPS 202 (SHA-3 Standard, 2015-08), §3.2.2 Table 2 (ρ offsets, listed here by lane x + 5y) and §3.2.5 Algorithms 5 and 6 (ι round constants); the RC values as printed in G. Bertoni, J. Daemen, M. Peeters, G. Van Assche, The Keccak reference, version 3.0, §1.2, concatenated as big-endian 64-bit words; https://doi.org/10.6028/NIST.FIPS.202",
+  "cases": [
+    {
+      "name": "Keccak reference 3.0 §1.2 round constants RC[0..23]",
+      "params": {
+        "constant": "rc"
+      },
+      "outputs": {
+        "table": "00000000000000010000000000008082800000000000808a8000000080008000000000000000808b000000008000000180000000800080818000000000008009000000000000008a00000000000000880000000080008009000000008000000a000000008000808b800000000000008b8000000000008089800000000000800380000000000080028000000000000080000000000000800a800000008000000a8000000080008081800000000000808000000000800000018000000080008008"
+      }
+    },
+    {
+      "name": "FIPS 202 Table 2 ρ offsets",
+      "params": {
+        "constant": "rho"
+      },
+      "outputs": {
+        "table": "00013e1c1b242c063714030a2b1927292d0f150812023d380e"
+      }
+    }
+  ]
+}

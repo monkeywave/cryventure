@@ -1,0 +1,71 @@
+{
+  "source": "NIST CSRC, Examples with Intermediate Values, SHA1.pdf (https://csrc.nist.gov/CSRC/media/Projects/Cryptographic-Standards-and-Guidelines/documents/examples/SHA1.pdf); the empty-message digest from NIST CAVP, SHAVS byte-oriented test vectors (CAVS 11.0), https://csrc.nist.gov/CSRC/media/Projects/Cryptographic-Algorithm-Validation-Program/documents/shs/shabytetestvectors.zip (SHA-256 of the zip: 929ef80b7b3418aca026643f6f248815913b60e01741a44bba9e118067f4c9b8), SHA1ShortMsg.rsp",
+  "cases": [
+    {
+      "name": "SHA-1, \"abc\" (SHA1.pdf, one block) at round detail",
+      "params": {
+        "encoding": "utf8",
+        "input": "abc",
+        "detail": "round"
+      },
+      "outputs": {
+        "digest": "a9993e364706816aba3e25717850c26c9cd0d89d"
+      }
+    },
+    {
+      "name": "SHA-1, \"abc\" (SHA1.pdf, one block) at block detail",
+      "params": {
+        "encoding": "utf8",
+        "input": "abc",
+        "detail": "block"
+      },
+      "outputs": {
+        "digest": "a9993e364706816aba3e25717850c26c9cd0d89d"
+      }
+    },
+    {
+      "name": "SHA-1, \"abc\" as hex 616263",
+      "params": {
+        "encoding": "hex",
+        "input": "616263",
+        "detail": "round"
+      },
+      "outputs": {
+        "digest": "a9993e364706816aba3e25717850c26c9cd0d89d"
+      }
+    },
+    {
+      "name": "SHA-1, 448-bit message (SHA1.pdf, two blocks) at round detail",
+      "params": {
+        "encoding": "utf8",
+        "input": "abcdbcdecdefdefgefghfghighijhijkijkljklmklmnlmnomnopnopq",
+        "detail": "round"
+      },
+      "outputs": {
+        "digest": "84983e441c3bd26ebaae4aa1f95129e5e54670f1"
+      }
+    },
+    {
+      "name": "SHA-1, 448-bit message (SHA1.pdf, two blocks) at block detail",
+      "params": {
+        "encoding": "utf8",
+        "input": "abcdbcdecdefdefgefghfghighijhijkijkljklmklmnlmnomnopnopq",
+        "detail": "block"
+      },
+      "outputs": {
+        "digest": "84983e441c3bd26ebaae4aa1f95129e5e54670f1"
+      }
+    },
+    {
+      "name": "SHA-1, empty message (SHA1ShortMsg.rsp, Len = 0)",
+      "params": {
+        "encoding": "hex",
+        "input": "",
+        "detail": "round"
+      },
+      "outputs": {
+        "digest": "da39a3ee5e6b4b0d3255bfef95601890afd80709"
+      }
+    }
+  ]
+}

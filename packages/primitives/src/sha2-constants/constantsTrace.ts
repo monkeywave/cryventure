@@ -73,10 +73,10 @@ function wordTerms(spec: ConstantSpec, derived: DerivedWord, variant: RootVarian
   const { bits } = spec;
   const terms: WordTerm[] = [
     { id: 'p', label: i18nRef(`${NS}.term.prime`, { n: derived.primeNumber }), hex: wordHex(BigInt(derived.prime), bits), role: 'operand' },
-    { id: 'integer', label: i18nRef(`${NS}.term.integer${variant === 'Cube' ? 'Cube' : 'Square'}`, { p: derived.prime }), hex: wordHex(derived.integerPart, bits), role: 'intermediate', op: 'root' },
+    { id: 'integer', label: i18nRef(`${NS}.term.integer${variant === 'Cube' ? 'Cube' : 'Square'}`, { p: derived.prime }), hex: wordHex(derived.integerPart, bits), role: 'intermediate', op: 'root', degree: spec.root },
   ];
-  if (spec.skipBits > 0) terms.push({ id: 'skipped', label: i18nRef(`${NS}.term.skipped`, { bits: spec.skipBits }), hex: wordHex(derived.skipped, bits), role: 'intermediate', op: 'root' });
-  terms.push({ id: 'word', label: i18nRef(`${NS}.term.word`, { symbol: spec.symbol, index: derived.index }), hex: wordHex(derived.word, bits), role: 'result', op: 'root', valueRef: wordValueId(derived.index) });
+  if (spec.skipBits > 0) terms.push({ id: 'skipped', label: i18nRef(`${NS}.term.skipped`, { bits: spec.skipBits }), hex: wordHex(derived.skipped, bits), role: 'intermediate', op: 'root', degree: spec.root });
+  terms.push({ id: 'word', label: i18nRef(`${NS}.term.word`, { symbol: spec.symbol, index: derived.index }), hex: wordHex(derived.word, bits), role: 'result', op: 'root', degree: spec.root, valueRef: wordValueId(derived.index) });
   return terms;
 }
 

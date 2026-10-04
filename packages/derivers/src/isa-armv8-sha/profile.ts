@@ -20,7 +20,7 @@ import {
 } from '../_lib/sha/shaOperands.ts';
 import { expectLanes } from '../_lib/sha/shaRegisters.ts';
 import { isRoundInstruction, requiredShaRound } from '../_lib/sha/shaSpans.ts';
-import { SHA_WORD_BYTES, type ShaVarName } from '../_lib/sha/shaTrace.ts';
+import type { ShaVarName } from '../_lib/sha/shaTrace.ts';
 import {
   blockInputLanes,
   byteSwapLanes,
@@ -41,58 +41,70 @@ import sha256 from './data/sha256.json';
  * A…D from Qn and writes E…H after round t+3. So ABCD is lanes [A, B, C, D], EFGH [E, F, G, H].
  */
 
-const DERIVER_ID = 'isa-armv8-sha';
-const NS = `deriver.${DERIVER_ID}`;
+export const DERIVER_ID = 'isa-armv8-sha';
+export const NS = `deriver.${DERIVER_ID}`;
 const ABCD = ['a', 'b', 'c', 'd'] as const;
 const EFGH = ['e', 'f', 'g', 'h'] as const;
-const VECTOR_BYTES = 16;
+export const VECTOR_BYTES = 16;
 
 /**
  * A literal-pool operand, `[x8, :lo12:.LCPI0_3]`. Its label is the compiler's numbering, so which
  * round constants it holds is read from the dataflow instead (`literalRound`).
  */
-const LITERAL = /\[\s*\w+\s*,\s*:lo12:\s*\.?LCPI\d+_\d+\s*\]/;
+export const LITERAL = /\[\s*\w+\s*,\s*:lo12:\s*\.?LCPI\d+_\d+\s*\]/;
 
-const register = vectorOperandReader(armVectorRegister, 'a vector register');
+export const register = vectorOperandReader(armVectorRegister, 'a vector register');
+
+/** Words per 16-byte vector register for the machine's word size (4 or 2). */
+export const wordsPerVector = (machine: Pick<ShaMachine, 'wordBytes'>): number =>
+  VECTOR_BYTES / machine.wordBytes;
 
 /** The 16-byte access `index` (0, 1 for a pair) at `[base, #offset]`, and its first word index. */
-function memoryAccess(text: string, index: number, valueRef?: string) {
+export function memoryAccess(text: string, index: number, wordBytes: number, valueRef?: string) {
   const parsed = requiredMemOperand(text);
   const offset = parsed.offset + index * VECTOR_BYTES;
   return {
     ref: memoryOperand({ base: parsed.base, offset }, VECTOR_BYTES, valueRef),
-    firstWord: offset / SHA_WORD_BYTES,
+    firstWord: offset / wordBytes,
   };
 }
 
 /** The vector registers of a pair instruction (`ldp`/`stp qA, qB, [...]`) and their memory accesses. */
-function pairAccesses(instruction: ShaListingInstruction, valueRef: string | undefined) {
+function pairAccesses(
+  instruction: ShaListingInstruction,
+  machine: ShaMachine,
+  valueRef: string | undefined,
+) {
   const address = operand(instruction, 2);
   return [0, 1].map((index) => ({
     reg: register(instruction, index),
-    ...memoryAccess(address, index, valueRef),
+    ...memoryAccess(address, index, machine.wordBytes, valueRef),
   }));
 }
 
 /** `ldp qA, qB, [base, #off]`: two 16-byte loads of state words or block bytes. */
-function loadPair(instruction: ShaListingInstruction, machine: ShaMachine): ShaEffects {
+export function loadPair(instruction: ShaListingInstruction, machine: ShaMachine): ShaEffects {
   const valueRef = instruction.role === 'loadState' ? machine.chainIn : undefined;
-  const accesses = pairAccesses(instruction, valueRef);
+  const accesses = pairAccesses(instruction, machine, valueRef);
   return {
     reads: accesses.map(({ ref }) => ref),
     writes: accesses.map(({ reg }) => registerOperand(reg)),
     written: accesses.map(({ reg, firstWord }) => ({
       reg,
-      lanes: blockInputLanes(instruction.role, firstWord),
+      lanes: blockInputLanes(instruction.role, firstWord, wordsPerVector(machine)),
     })),
   };
 }
 
 /** `stp qA, qB, [base, #off]`: stores H, word by word, into the chaining value. */
-function storePair(instruction: ShaListingInstruction, machine: ShaMachine): ShaEffects {
-  const accesses = pairAccesses(instruction, machine.chainOut);
+export function storePair(instruction: ShaListingInstruction, machine: ShaMachine): ShaEffects {
+  const accesses = pairAccesses(instruction, machine, machine.chainOut);
   accesses.forEach(({ reg, firstWord }) =>
-    expectLanes(machine.registers.read(reg), hLanes(firstWord), `${reg} must hold H`),
+    expectLanes(
+      machine.registers.read(reg),
+      hLanes(firstWord, wordsPerVector(machine)),
+      `${reg} must hold H`,
+    ),
   );
   return {
     reads: accesses.map(({ reg }) => registerOperand(reg)),
@@ -150,7 +162,7 @@ function loadLiteral(instruction: ShaListingInstruction, machine: ShaMachine): S
 }
 
 /** `mov vD.16b, vN.16b`: a register copy. */
-function move(instruction: ShaListingInstruction, machine: ShaMachine): ShaEffects {
+export function move(instruction: ShaListingInstruction, machine: ShaMachine): ShaEffects {
   const [target, source] = [register(instruction, 0), register(instruction, 1)];
   return {
     reads: [registerOperand(source)],
@@ -160,7 +172,11 @@ function move(instruction: ShaListingInstruction, machine: ShaMachine): ShaEffec
 }
 
 /** Destination and register sources of a vector instruction (`op vD, vN[, vM]`). */
-function vectorOperands(instruction: ShaListingInstruction, machine: ShaMachine, count: number) {
+export function vectorOperands(
+  instruction: ShaListingInstruction,
+  machine: ShaMachine,
+  count: number,
+) {
   const names = Array.from({ length: count }, (_, index) => register(instruction, index));
   return {
     target: names[0]!,
@@ -170,8 +186,8 @@ function vectorOperands(instruction: ShaListingInstruction, machine: ShaMachine,
   };
 }
 
-/** `rev32 vD.16b, vN.16b`: reverses the bytes of each word, W_t's bytes ↔ W_t. */
-function byteSwap(instruction: ShaListingInstruction, machine: ShaMachine): ShaEffects {
+/** `rev32 vD.16b, vN.16b` (`rev64` for 64-bit words): reverses the bytes of each word, W_t's bytes ↔ W_t. */
+export function byteSwap(instruction: ShaListingInstruction, machine: ShaMachine): ShaEffects {
   const target = register(instruction, 0);
   const source = register(instruction, 1);
   return {
@@ -182,10 +198,14 @@ function byteSwap(instruction: ShaListingInstruction, machine: ShaMachine): ShaE
 }
 
 /** `add vD.4s, vN.4s, vM.4s`: lane sums the trace records (K+W, the feed-forward). */
-function addWords(instruction: ShaListingInstruction, machine: ShaMachine): ShaEffects {
+export function addWords(instruction: ShaListingInstruction, machine: ShaMachine): ShaEffects {
   const target = register(instruction, 0);
   const [left, right] = [register(instruction, 1), register(instruction, 2)];
-  const lanes = sumLanes(machine.registers.read(left), machine.registers.read(right));
+  const lanes = sumLanes(
+    machine.registers.read(left),
+    machine.registers.read(right),
+    machine.rounds,
+  );
   return {
     reads: [registerOperand(left), registerOperand(right)],
     writes: [registerOperand(target)],

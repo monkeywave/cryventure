@@ -39,6 +39,7 @@ function toyProfile(execute: ShaSemantics): ShaIsaProfile {
     byteOrder: 'little',
     lanes: [32],
     registerBits: 128,
+    wordBits: 32,
     roundsPerInstruction: 4,
     listing: { compiler: 'c', flags: 'f', triple: 't', function: 'fn', source: '', instructions },
     vectorRegister: (operand) => (operand.startsWith('v') ? operand : undefined),
@@ -83,6 +84,37 @@ describe('deriveShaIsaFacets', () => {
     expect(instructions[0]!.note).toBeUndefined();
   });
 
+  it('writes no bytes for an untraced (partial) register, keeping the step for the instruction', () => {
+    const partial = { kind: 'partial' as const, left: word.w(0), right: word.w(1) };
+    const profile = toyProfile((instruction, machine) =>
+      instruction.role === 'store'
+        ? { reads: [], writes: [], written: [{ reg: 'v1', lanes: [partial] }] }
+        : toyExecute(instruction, machine),
+    );
+    const registers = deriveShaIsaFacets(sharedShaFixtureBundle('sha-256-abc'), profile)[
+      'registers@toy'
+    ] as RegistersFacet;
+    expect(registers.steps).toHaveLength(18);
+    expect(registers.steps.at(-1)!.writes).toEqual([]);
+  });
+
+  it('labels the facets under the profile label namespace, when it has one', () => {
+    const profile = { ...toyProfile(toyExecute), labelNamespace: 'deriver.toy.wide' };
+    const facets = deriveShaIsaFacets(sharedShaFixtureBundle('sha-256-abc'), profile);
+    expect((facets['instructions@toy'] as InstructionsFacet).label).toEqual({
+      key: 'deriver.toy.wide.label',
+    });
+    expect((facets['registers@toy'] as RegistersFacet).label).toEqual({
+      key: 'deriver.toy.wide.registers.label',
+    });
+  });
+
+  it('refuses a trace of another word size than the listing (SHA-512 bundle, 32-bit listing)', () => {
+    expect(() =>
+      deriveShaIsaFacets(sharedShaFixtureBundle('sha-512-abc'), toyProfile(toyExecute)),
+    ).toThrow('the toy listing works on 32-bit words, the trace on 64-bit');
+  });
+
   it('names the failing instruction when the profile finds unexpected register contents', () => {
     const profile = toyProfile(() => {
       throw new Error('v0 must hold ABCD');
@@ -102,6 +134,8 @@ describe('shaExecute', () => {
       chainOut: 'h/1',
       listing: [],
       index: 0,
+      wordBytes: 4,
+      rounds: 64,
     };
     expect(shaExecute(toyProfile(toyExecute), listed({ role: 'store' }), machine)).toEqual({
       reads: [],
@@ -126,7 +160,12 @@ describe('scheduleAheadNote', () => {
 });
 
 describe('shaCovers', () => {
-  const profile = { deriverId: 'd', roundsPerInstruction: 2 };
+  const profile = {
+    deriverId: 'd',
+    roundsPerInstruction: 2,
+    registerBits: 128,
+    wordBits: 32,
+  } as const;
 
   it('chips the rounds of a round instruction and the words of a message instruction', () => {
     expect(shaCovers(profile, listed({ role: 'rounds', round: 6 }))).toEqual([
@@ -138,6 +177,17 @@ describe('shaCovers', () => {
     expect(shaCovers(profile, listed({ role: 'msg2', w: 16 }))).toEqual([
       { key: 'deriver.d.covers.msg2', params: { first: 16, last: 19 } },
     ]);
+  });
+
+  it('chips two schedule words per register for 64-bit words (SHA-512)', () => {
+    const sha512 = { ...profile, wordBits: 64 } as const;
+    expect(shaCovers(sha512, listed({ role: 'msg2', w: 16 }))).toEqual([
+      { key: 'deriver.d.covers.msg2', params: { first: 16, last: 17 } },
+    ]);
+    expect(scheduleAheadNote('d', listed({ role: 'msg1', w: 18 }), 2)?.params).toEqual({
+      first: 18,
+      last: 19,
+    });
   });
 
   it('gives no chips to helpers (a msg2-tagged palignr without w, loads, shuffles)', () => {

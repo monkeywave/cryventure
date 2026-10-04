@@ -31,6 +31,7 @@ import {
   sha2Trace,
   type Sha2OpName,
   type Sha2Trace,
+  type Sha2TraceOptions,
 } from './steps.ts';
 import { WordopsRecorder } from './wordopsRecorder.ts';
 import { wordsToBytes, type Word } from './words.ts';
@@ -46,6 +47,8 @@ export interface Sha2Run<W extends Word> {
   algorithm: Sha2Algorithm<W>;
   message: readonly number[];
   detail: Sha2Detail;
+  /** Optional round terms (`sha512` adds hKW, docs/M6.md §2f). */
+  options?: Sha2TraceOptions;
 }
 
 /** The message bytes of a validated `input` (UTF-8 text, or hex already normalised by `validate`). */
@@ -63,7 +66,7 @@ function createTrace<W extends Word>(run: Sha2Run<W>, paddedBytes: number): Sha2
   const regions = sha2Regions(ns, algorithm, message.length, paddedBytes);
   const initialNarration = sha2InitialNarration(ns, algorithm, message.length);
   const recorder = new WordopsRecorder<Sha2Region, { op: Sha2OpName }>(regions, sha2InitialSnapshot(regions, message), scopeLevels(ns, 'block', 'op'), initialNarration);
-  return sha2Trace(ns, algorithm, recorder);
+  return sha2Trace(ns, algorithm, recorder, run.options);
 }
 
 function recordBlockBody<W extends Word>(trace: Sha2Trace<W>, blockIndex: number, block: BlockDetail<W>, detail: Sha2Detail): void {

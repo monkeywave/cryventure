@@ -358,6 +358,24 @@ describe('textFieldProblems', () => {
       'preset x: param "message" is not a string of at most 4 UTF-8 bytes',
     ]);
   });
+
+  it('measures the `input` field in hex-decoded bytes while the `encoding` param is hex (docs/EXTENDING.md "Text params")', () => {
+    const input: ParamField = { ...message, name: 'input' };
+    const hex = (text: string) => ({ name: 'hex', params: { input: text, encoding: 'hex' } });
+    expect(textFieldProblems([input], [hex('a3'.repeat(4)), hex('a3 a3:a3-A3'), { name: 'utf8', params: { input: 'abcd', encoding: 'utf8' } }])).toEqual([]);
+    expect(textFieldProblems([input], [hex('a3'.repeat(5)), hex('zz'), hex('a3a'), { name: 'utf8', params: { input: 'a3a3a3', encoding: 'utf8' } }])).toEqual([
+      'hex: param "input" is not hex of at most 4 bytes',
+      'hex: param "input" is not hex of at most 4 bytes',
+      'hex: param "input" is not hex of at most 4 bytes',
+      'utf8: param "input" is not a string of at most 4 UTF-8 bytes',
+    ]);
+  });
+
+  it('measures every other text field in UTF-8 bytes, whatever the encoding (e.g. cSHAKE N and S)', () => {
+    const customization: ParamField = { ...message, name: 'customization' };
+    expect(textFieldProblems([customization], [{ name: 'S', params: { customization: 'abcd', encoding: 'hex' } }])).toEqual([]);
+    expect(textFieldProblems([customization], [{ name: 'S', params: { customization: 'abcdef', encoding: 'hex' } }])).toEqual(['S: param "customization" is not a string of at most 4 UTF-8 bytes']);
+  });
 });
 
 describe('runInProblems', () => {

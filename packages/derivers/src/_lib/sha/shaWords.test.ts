@@ -5,8 +5,10 @@ import {
   byteSwapped,
   describeLanes,
   hLanes,
+  isTraced,
   laneRun,
   laneSum,
+  partialSumLanes,
   sameWord,
   sumLanes,
   varLanes,
@@ -49,6 +51,31 @@ describe('lane words', () => {
     expect(laneSum(word.var('a', 62), word.var('a', -1))).toBeUndefined();
   });
 
+  it('add the SHA-512 round sums: h + (K+W) = hKW, d + T1 = e, with the feed-forward after round 79', () => {
+    expect(laneSum(word.kw(1), word.var('g', -1))).toEqual(word.hKW(1));
+    expect(laneSum(word.var('h', -1), word.kw(0))).toEqual(word.hKW(0));
+    expect(laneSum(word.kw(1), word.var('h', -1))).toBeUndefined();
+    expect(laneSum(word.T1(0), word.var('d', -1))).toEqual(word.var('e', 0));
+    expect(laneSum(word.T1(1), word.var('c', -1))).toEqual(word.var('e', 1));
+    expect(laneSum(word.T1(1), word.var('d', -1))).toBeUndefined();
+    expect(laneSum(word.var('a', 79), word.var('a', -1), 80)).toEqual(word.h('a'));
+    expect(laneSum(word.var('a', 63), word.var('a', -1), 80)).toBeUndefined();
+  });
+
+  it('keep an untraced sum partial until a recorded sum completes it (the folded feed-forward)', () => {
+    const [partial] = partialSumLanes([word.var('c', 77)], [word.var('e', -1)], 80);
+    expect(partial).toEqual({ kind: 'partial', left: word.var('c', 77), right: word.var('e', -1) });
+    expect(isTraced([partial!])).toBe(false);
+    expect(isTraced([word.w(0)])).toBe(true);
+    expect(laneSum(partial!, word.T1(79), 80)).toEqual(word.h('e'));
+    expect(laneSum(word.T1(79), partial!, 80)).toEqual(word.h('e'));
+    expect(laneSum(partial!, word.T1(78), 80)).toBeUndefined();
+    expect(partialSumLanes([word.k(3)], [word.w(3)], 80)).toEqual([word.kw(3)]);
+    expect(sameWord(partial!, { ...partial! })).toBe(true);
+    expect(sameWord(partial!, word.var('c', 77))).toBe(false);
+    expect(describeLanes([partial!, word.T1(4), word.hKW(4)])).toBe('[(c@77+e@-1), T1(4), h+K+W4]');
+  });
+
   it('byte-swap W_t and its loaded bytes only', () => {
     expect(byteSwapped(word.wBytes(2))).toEqual(word.w(2));
     expect(byteSwapped(word.w(2))).toEqual(word.wBytes(2));
@@ -76,5 +103,8 @@ describe('lane words', () => {
     expect(blockInputLanes('loadBlock', 4)).toEqual(laneRun(word.wBytes, 4));
     expect(() => blockInputLanes('msg1', 0)).toThrow('no load semantics for role msg1');
     expect(hLanes(0)).toEqual(['a', 'b', 'c', 'd'].map((name) => word.h(name as 'a')));
+    expect(hLanes(6, 2)).toEqual([word.h('g'), word.h('h')]);
+    expect(blockInputLanes('loadState', 2, 2)).toEqual(varLanes(['c', 'd'], -1));
+    expect(blockInputLanes('loadBlock', 14, 2)).toEqual([word.wBytes(14), word.wBytes(15)]);
   });
 });

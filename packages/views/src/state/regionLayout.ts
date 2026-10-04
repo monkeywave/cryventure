@@ -1,4 +1,4 @@
-import { elemBytes, regionSize, type Highlight, type RegionSpec, type StateStep } from '@cryventure/core';
+import { elemBytes, regionSize, type Highlight, type RegionSpec, type StateStep, type WordByteOrder } from '@cryventure/core';
 import type { GridHighlight, GridShape } from '@cryventure/viz';
 
 /** Regions up to this many rows/columns render as a matrix; longer ones as hex rows. */
@@ -18,6 +18,8 @@ export interface WordRows {
   wordsPerLine: number;
   /** Row header symbol before the word index, e.g. `w` → `w0`, `w1`, … */
   labelPrefix: string;
+  /** `little`: each word's integer value is its bytes reversed (Keccak lanes, BLAKE2, MD5); absent = big-endian. */
+  byteOrder?: WordByteOrder;
 }
 
 export interface RegionLayout {
@@ -54,7 +56,12 @@ function isLabelledCellRow(size: number, elemsPerWord: number, wordsPerLine: num
 
 function wordsLayout(region: RegionSpec<string>, hint: WordsHint): RegionLayout {
   const elemsPerWord = Math.max(1, Math.round(hint.wordBytes / elemBytes(region.elem)));
-  const words = { elemsPerWord, wordsPerLine: Math.max(1, hint.wordsPerGroup ?? 1), labelPrefix: hint.labelPrefix ?? '' };
+  const words: WordRows = {
+    elemsPerWord,
+    wordsPerLine: Math.max(1, hint.wordsPerGroup ?? 1),
+    labelPrefix: hint.labelPrefix ?? '',
+    ...(hint.byteOrder === 'little' ? { byteOrder: 'little' as const } : {}),
+  };
   const size = regionSize(region);
   if (isLabelledCellRow(size, elemsPerWord, words.wordsPerLine)) {
     return { kind: 'rows', shape: [1, size], order: 'row-major', columnLabels: Array.from({ length: size }, (_, index) => `${words.labelPrefix}${index}`) };

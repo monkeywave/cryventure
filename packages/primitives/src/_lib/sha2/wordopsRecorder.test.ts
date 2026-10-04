@@ -41,7 +41,7 @@ describe('WordopsRecorder', () => {
     rec.op(step('b', 2), { formula, terms: [] });
     rec.op(step('a', 3), { formula, terms: [], registers: { before: ['00'], after: ['01'] } });
     const facet = rec.wordopsFacet(32, ['a', 'b']);
-    expect(facet).toMatchObject({ kind: 'wordops', schemaVersion: 1, wordBits: 32, registerNames: ['a', 'b'] });
+    expect(facet).toMatchObject({ kind: 'wordops', schemaVersion: 2, wordBits: 32, registerNames: ['a', 'b'] });
     expect(facet.steps.map((entry) => entry.step)).toEqual([1, 2]);
     expect(facet.steps[1]!.registers).toEqual({ before: ['00'], after: ['01'] });
   });

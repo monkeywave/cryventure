@@ -1,11 +1,12 @@
 /**
  * Dev-only generator for the precomputed assembly listings (docs/M4.md §5, docs/M5.md §5b):
  *   pnpm asm:generate
- * For every kernel in the table (AES, SHA-256) compiles its x86 and ARMv8 C source with the pinned
- * LLVM (`llvm.ts`), parses each function's assembly, takes real byte offsets from `llvm-objdump`,
- * annotates roles, and writes packages/derivers/src/isa-{x86,armv8}/data/aes{128,192,256}.json and
- * packages/derivers/src/isa-{x86,armv8}-sha/data/sha256.json. CI never runs this; tests read the
- * committed JSON.
+ * For every kernel in the table (AES, SHA-256, SHA-512, Keccak) compiles its C source per ISA with
+ * the pinned LLVM (`llvm.ts`), parses each function's assembly, takes real byte offsets from
+ * `llvm-objdump`, annotates roles, and writes packages/derivers/src/isa-{x86,armv8}/data/
+ * aes{128,192,256}.json, packages/derivers/src/isa-{x86,armv8}-sha/data/sha256.json,
+ * isa-armv8-sha/data/sha512.json and isa-armv8-sha3/data/keccak.json. CI never runs this; tests
+ * read the committed JSON.
  */
 import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -28,15 +29,24 @@ import {
 } from './llvm.ts';
 import {
   annotateShaListing,
+  ARMV8_SHA512_ANNOTATE,
   ARMV8_SHA_ANNOTATE,
   X86_SHA_ANNOTATE,
 } from './annotateSha.ts';
-import type { ShaListingInstruction } from '@cryventure/derivers/listing';
+import { annotateKeccakListing } from './annotateKeccak.ts';
+import type {
+  KeccakListingInstruction,
+  ListingLoop,
+  ShaListingInstruction,
+} from '@cryventure/derivers/listing';
 import {
   attachAddresses,
+  findLoop,
   parseAsmFunction,
+  parseAsmLabels,
   parseObjdumpFunction,
   type AsmSyntax,
+  type LoopRange,
   type ParsedInstruction,
 } from './parse.ts';
 import { compilerExplorerUrl, extractCFunction, extractPreamble } from './source.ts';
@@ -76,16 +86,25 @@ interface KernelTarget {
   sourceFile: string;
   /** Flags besides `-target`, `-S`/`-c`, shared by both compiles. */
   flags: readonly string[];
-  annotate: (instructions: readonly AddressedInstruction[]) => ListingInstruction[];
+  /** `loop`: the function's one loop, for kernels that declare `loopIterations`. */
+  annotate: (instructions: readonly AddressedInstruction[], loop?: LoopRange) => ListingInstruction[];
 }
 
 /** A compiled kernel: its functions (each one listing file per target) and the targets. */
 interface Kernel {
-  kernel: 'aes' | 'sha256';
+  kernel: 'aes' | 'sha256' | 'sha512' | 'keccak';
   /** Function name → listing file in the target's `data/` folder; the first one ends the preamble. */
   functions: readonly { name: string; file: string }[];
   targets: readonly KernelTarget[];
+  /**
+   * Kernels with one (not unrolled) loop: its trip count. The listing then records the loop body
+   * (`loop`, see `ListingLoop`); straight-line kernels have none.
+   */
+  loopIterations?: number;
 }
+
+/** Keccak-f[1600] rounds: the kernel runs one round per loop iteration. */
+const KECCAK_ROUNDS = 24;
 
 const AES_KEY_BITS = [128, 192, 256] as const;
 
@@ -134,10 +153,43 @@ const KERNELS: readonly Kernel[] = [
       },
     ],
   },
+  {
+    kernel: 'sha512',
+    functions: [{ name: 'sha512_compress_block', file: 'sha512.json' }],
+    targets: [
+      {
+        isa: ARMV8,
+        directory: 'isa-armv8-sha',
+        sourceFile: 'sha512_armv8.c',
+        flags: ['-O2', '-march=armv8.2-a+sha3', '-ffreestanding'],
+        annotate: (instructions) => annotateShaListing(instructions, ARMV8_SHA512_ANNOTATE),
+      },
+    ],
+  },
+  {
+    kernel: 'keccak',
+    functions: [{ name: 'keccak_f1600', file: 'keccak.json' }],
+    loopIterations: KECCAK_ROUNDS,
+    targets: [
+      {
+        isa: ARMV8,
+        directory: 'isa-armv8-sha3',
+        sourceFile: 'keccak_armv8.c',
+        flags: ['-O2', '-march=armv8.2-a+sha3', '-ffreestanding'],
+        annotate: (instructions, loop) => {
+          if (loop === undefined) throw new Error('keccak_f1600: no loop found');
+          return annotateKeccakListing(instructions, loop);
+        },
+      },
+    ],
+  },
 ];
 
-/** An annotated instruction of either kernel's role set. */
-export type ListingInstruction = AnnotatedInstruction | ShaListingInstruction;
+/** An annotated instruction of any kernel's role set. */
+export type ListingInstruction =
+  | AnnotatedInstruction
+  | ShaListingInstruction
+  | KeccakListingInstruction;
 
 export interface AsmListing<Instruction extends ListingInstruction = AnnotatedInstruction> {
   compiler: string;
@@ -146,6 +198,8 @@ export interface AsmListing<Instruction extends ListingInstruction = AnnotatedIn
   function: string;
   source: string;
   compilerExplorerUrl: string;
+  /** Kernels with a loop only (Keccak); absent from the AES and SHA listings. */
+  loop?: ListingLoop;
   instructions: Instruction[];
 }
 
@@ -192,6 +246,10 @@ function buildListing(
   const preamble = extractPreamble(cSource, kernel.functions[0]!.name);
   const listing = parseAsmFunction(compiled.asm, functionName, isa.syntax);
   const addressed = attachAddresses(listing, parseObjdumpFunction(compiled.dump, functionName));
+  const loop =
+    kernel.loopIterations === undefined
+      ? undefined
+      : findLoop(listing, parseAsmLabels(compiled.asm, functionName, isa.syntax));
   return {
     compiler,
     flags,
@@ -203,7 +261,23 @@ function buildListing(
       isa.compilerExplorerId,
       target.flags.join(' '),
     ),
-    instructions: target.annotate(addressed),
+    ...(loop === undefined || kernel.loopIterations === undefined
+      ? {}
+      : { loop: listingLoop(addressed, loop, kernel.loopIterations) }),
+    instructions: target.annotate(addressed, loop),
+  };
+}
+
+/** The listing's `loop` field: the body's first and last (branch) addresses and the trip count. */
+export function listingLoop(
+  instructions: readonly AddressedInstruction[],
+  loop: LoopRange,
+  iterations: number,
+): ListingLoop {
+  return {
+    first: instructions[loop.firstIndex]!.address,
+    last: instructions[loop.lastIndex]!.address,
+    iterations,
   };
 }
 

@@ -9,5 +9,8 @@
   "view.state.watch.initial": "Start",
   "view.state.watch.clear": "Nicht mehr beobachten",
   "view.state.watch.hint": "Wähle eine Zelle aus, um ihren Wert über alle Schritte zu beobachten.",
-  "view.state.region.summary": "{{region}} · {{bytes}} Byte"
+  "view.state.region.summary": "{{region}} · {{bytes}} Byte",
+  "view.state.wordOrder.memory": "Speicherreihenfolge",
+  "view.state.wordOrder.integerNote": "Little-Endian-Wörter werden als Ganzzahlen gezeigt (Bytes umgekehrt).",
+  "view.state.wordOrder.memoryNote": "Little-Endian-Wörter werden in Speicherreihenfolge gezeigt (wie gespeichert)."
 }

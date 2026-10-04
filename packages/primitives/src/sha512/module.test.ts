@@ -95,13 +95,15 @@ describe('sha512 run: steps, scope and facets', () => {
       const bundle = trace(params);
       expect(validateWordopsFacet(wordops(bundle), state(bundle).steps.length)).toEqual([]);
       expect(wordops(bundle).wordBits).toBe(64);
+      expect(wordops(bundle).schemaVersion).toBe(2);
       expect(wordops(bundle).registerNames).toEqual(['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h']);
     }
   });
 
-  it('gives round 0 the terms of M5 §2d with 64-bit K_0 + W_0', () => {
+  it('gives round 0 the terms of M5 §2d with 64-bit K_0 + W_0, plus hKW = h + K_0 + W_0 (M6 §2f)', () => {
     const step = roundStep(trace(ABC), 0);
-    expect(step.terms.map((term) => term.id)).toEqual(['Sigma1', 'ch', 'k', 'w', 'kw', 'T1', 'Sigma0', 'maj', 'T2']);
+    expect(step.terms.map((term) => term.id)).toEqual(['Sigma1', 'ch', 'k', 'w', 'kw', 'hKW', 'T1', 'Sigma0', 'maj', 'T2', 'e', 'a']);
+    expect(step.terms.find((term) => term.id === 'hKW')?.hex).toBe('ffcd6031eaa6cf9b');
     expect(step.terms.find((term) => term.id === 'k')?.hex).toBe('428a2f98d728ae22');
     expect(step.terms.find((term) => term.id === 'kw')?.hex).toBe('a3ec9318d728ae22');
     expect(step.registers?.before).toEqual(['6a09e667f3bcc908', 'bb67ae8584caa73b', '3c6ef372fe94f82b', 'a54ff53a5f1d36f1', '510e527fade682d1', '9b05688c2b3e6c1f', '1f83d9abfb41bd6b', '5be0cd19137e2179']);

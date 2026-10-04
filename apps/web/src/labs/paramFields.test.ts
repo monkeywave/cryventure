@@ -79,17 +79,21 @@ describe('choiceLabelKey', () => {
 
 describe('textFieldLength', () => {
   it('counts UTF-8 bytes unless the producer\'s `encoding` param is hex', () => {
-    expect(textFieldLength('äö', {})).toEqual({ unit: 'utf8', bytes: 4 });
-    expect(textFieldLength('äö', { encoding: 'utf8' })).toEqual({ unit: 'utf8', bytes: 4 });
+    expect(textFieldLength('input', 'äö', {})).toEqual({ unit: 'utf8', bytes: 4 });
+    expect(textFieldLength('input', 'äö', { encoding: 'utf8' })).toEqual({ unit: 'utf8', bytes: 4 });
   });
 
   it('counts the decoded bytes of hex text, ignoring separators', () => {
-    expect(textFieldLength('00 '.repeat(100).trim(), { encoding: 'hex' })).toEqual({ unit: 'hex', bytes: 100 });
-    expect(textFieldLength('', { encoding: 'hex' })).toEqual({ unit: 'hex', bytes: 0 });
+    expect(textFieldLength('input', '00 '.repeat(100).trim(), { encoding: 'hex' })).toEqual({ unit: 'hex', bytes: 100 });
+    expect(textFieldLength('input', '', { encoding: 'hex' })).toEqual({ unit: 'hex', bytes: 0 });
   });
 
   it('counts the complete bytes of odd-length hex and leaves invalid hex uncounted', () => {
-    expect(textFieldLength('616', { encoding: 'hex' })).toEqual({ unit: 'hex', bytes: 1 });
-    expect(textFieldLength('zz', { encoding: 'hex' })).toEqual({ unit: 'hex', bytes: undefined });
+    expect(textFieldLength('input', '616', { encoding: 'hex' })).toEqual({ unit: 'hex', bytes: 1 });
+    expect(textFieldLength('input', 'zz', { encoding: 'hex' })).toEqual({ unit: 'hex', bytes: undefined });
+  });
+
+  it('measures only the `input` field in hex; other text fields stay UTF-8 (e.g. cSHAKE S)', () => {
+    expect(textFieldLength('customization', 'Email Signature', { encoding: 'hex' })).toEqual({ unit: 'utf8', bytes: 15 });
   });
 });

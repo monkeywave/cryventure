@@ -1,0 +1,141 @@
+import type { HashContext, XofContext } from '@cryventure/core';
+import { zeroState, type KeccakState } from './lanes.ts';
+import { padTail, type DomainSuffix } from './padding.ts';
+import { absorbBlock, squeezeBlock, squeezeFrom } from './sponge.ts';
+import { keccakF1600 } from './stepMappings.ts';
+
+/**
+ * Incremental sponges (docs/M6.md §1): the absorbing state permutes every whole rate block as data
+ * arrives and keeps only the partial block, so a clone after a block is a true midstate. A hash
+ * context's `digest()` pads and squeezes a copy; an XOF context switches to squeezing on its first
+ * `squeeze` and refuses further input.
+ */
+
+/** The absorbing phase: the lanes plus the partial rate block. */
+class AbsorbingSponge {
+  constructor(
+    private readonly rateBytes: number,
+    private readonly suffix: DomainSuffix,
+    private state: KeccakState,
+    private readonly partial: Uint8Array,
+    private partialLength: number,
+  ) {}
+
+  static fresh(rateBytes: number, suffix: DomainSuffix): AbsorbingSponge {
+    return new AbsorbingSponge(rateBytes, suffix, zeroState(), new Uint8Array(rateBytes), 0);
+  }
+
+  absorb(data: Uint8Array): void {
+    const rate = this.rateBytes;
+    let offset = 0;
+    if (this.partialLength > 0) {
+      offset = Math.min(rate - this.partialLength, data.length);
+      this.partial.set(data.subarray(0, offset), this.partialLength);
+      this.partialLength += offset;
+      if (this.partialLength < rate) return;
+      this.permuteBlock(this.partial);
+      this.partialLength = 0;
+    }
+    for (; offset + rate <= data.length; offset += rate) this.permuteBlock(data.subarray(offset, offset + rate));
+    this.partial.set(data.subarray(offset));
+    this.partialLength = data.length - offset;
+  }
+
+  /** The state after the padded last block (this sponge stays unchanged). */
+  finish(): KeccakState {
+    const last = new Uint8Array(this.rateBytes);
+    last.set(this.partial.subarray(0, this.partialLength));
+    last.set(padTail(this.partialLength, this.rateBytes, this.suffix), this.partialLength);
+    return keccakF1600(absorbBlock(this.state, last));
+  }
+
+  clone(): AbsorbingSponge {
+    return new AbsorbingSponge(this.rateBytes, this.suffix, [...this.state], this.partial.slice(), this.partialLength);
+  }
+
+  private permuteBlock(block: Uint8Array): void {
+    this.state = keccakF1600(absorbBlock(this.state, block));
+  }
+}
+
+class KeccakHashContext implements HashContext {
+  constructor(
+    private readonly sponge: AbsorbingSponge,
+    private readonly rateBytes: number,
+    private readonly outputSize: number,
+  ) {}
+
+  update(data: Uint8Array): void {
+    this.sponge.absorb(data);
+  }
+
+  digest(): Uint8Array {
+    return squeezeFrom(this.sponge.finish(), this.rateBytes, this.outputSize);
+  }
+
+  clone(): HashContext {
+    return new KeccakHashContext(this.sponge.clone(), this.rateBytes, this.outputSize);
+  }
+}
+
+/** The squeezing phase: the state and the unread rest of its current rate block. */
+interface Squeezing {
+  state: KeccakState;
+  block: Uint8Array;
+  offset: number;
+}
+
+class KeccakXofContext implements XofContext {
+  constructor(
+    private readonly sponge: AbsorbingSponge,
+    private readonly rateBytes: number,
+    private squeezing?: Squeezing,
+  ) {}
+
+  update(data: Uint8Array): void {
+    if (this.squeezing !== undefined) throw new Error('XofContext.update: the context is already squeezing');
+    this.sponge.absorb(data);
+  }
+
+  squeeze(length: number): Uint8Array {
+    if (!Number.isInteger(length) || length < 0) throw new RangeError(`XofContext.squeeze: length ${length} is not a non-negative integer`);
+    const squeezing = (this.squeezing ??= this.startSqueezing());
+    const out = new Uint8Array(length);
+    for (let written = 0; written < length; ) {
+      if (squeezing.offset === this.rateBytes) this.nextBlock(squeezing);
+      const taken = Math.min(length - written, this.rateBytes - squeezing.offset);
+      out.set(squeezing.block.subarray(squeezing.offset, squeezing.offset + taken), written);
+      squeezing.offset += taken;
+      written += taken;
+    }
+    return out;
+  }
+
+  clone(): XofContext {
+    const squeezing = this.squeezing === undefined ? undefined : { ...this.squeezing, state: [...this.squeezing.state] };
+    return new KeccakXofContext(this.sponge.clone(), this.rateBytes, squeezing);
+  }
+
+  private startSqueezing(): Squeezing {
+    const state = this.sponge.finish();
+    return { state, block: squeezeBlock(state, this.rateBytes), offset: 0 };
+  }
+
+  private nextBlock(squeezing: Squeezing): void {
+    squeezing.state = keccakF1600(squeezing.state);
+    squeezing.block = squeezeBlock(squeezing.state, this.rateBytes);
+    squeezing.offset = 0;
+  }
+}
+
+/** A fresh hash context (nothing absorbed) for a fixed-length function with this rate, suffix and digest size. */
+export function createKeccakHashContext(rateBytes: number, suffix: DomainSuffix, outputSize: number): HashContext {
+  return new KeccakHashContext(AbsorbingSponge.fresh(rateBytes, suffix), rateBytes, outputSize);
+}
+
+/** A fresh XOF context that has absorbed `prefix` (cSHAKE's bytepad(encode_string(N) ‖ encode_string(S), r); empty otherwise). */
+export function createKeccakXofContext(rateBytes: number, suffix: DomainSuffix, prefix: Uint8Array): XofContext {
+  const sponge = AbsorbingSponge.fresh(rateBytes, suffix);
+  sponge.absorb(prefix);
+  return new KeccakXofContext(sponge, rateBytes);
+}

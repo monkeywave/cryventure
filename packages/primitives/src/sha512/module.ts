@@ -15,7 +15,7 @@ const NS = 'plugin.sha512';
 /** Validates `params`, records the hash (checked against the untraced reference) and returns a TraceBundle. */
 export function run(params: Sha512Params, _options: RunOptions = {}): RunResult {
   return runPrimitive(sha512Manifest, params, ({ algorithm, encoding, input, detail }) =>
-    recordSha2({ ns: NS, algorithm: SHA512_ALGORITHMS[algorithm], message: sha2MessageBytes(encoding, input), detail }),
+    recordSha2({ ns: NS, algorithm: SHA512_ALGORITHMS[algorithm], message: sha2MessageBytes(encoding, input), detail, options: { hKW: true } }),
   );
 }
 

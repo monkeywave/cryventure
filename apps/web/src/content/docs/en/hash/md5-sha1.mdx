@@ -1,0 +1,242 @@
+---
+title: 'MD5 and SHA-1: the broken ancestors'
+description: MD5 and SHA-1 share the Merkle–Damgård structure of SHA-2 but with four and five 32-bit registers, little-endian versus big-endian words and constants from sin and √n; both lost collision resistance, which is why signatures and certificates must not use them.
+lessonId: hash/md5-sha1
+track: hash
+phase: 2
+sidebar:
+  order: 3
+tableOfContents: false
+prereqs:
+  - hash/index
+  - hash/sha256
+  - foundations/endianness
+labs:
+  - md5-abc
+  - sha1-abc
+refs:
+  - RFC 1321, The MD5 Message-Digest Algorithm (1992), Section 2 (word and byte order), Sections 3.1–3.5 (padding, length, buffer, the four rounds and the T table, output), Appendix A.5 (test suite)
+  - FIPS 180-4, Section 3.1 (big-endian convention)
+  - FIPS 180-4, Section 4.1.1 (SHA-1 functions) and Section 4.2.1 (SHA-1 constants)
+  - FIPS 180-4, Section 5.1.1 (Padding the message, SHA-1/224/256) and Section 5.3.1 (SHA-1 initial hash value)
+  - FIPS 180-4, Section 6.1 (SHA-1, hash computation in 6.1.2)
+  - NIST CSRC, Examples with Intermediate Values, SHA1.pdf ("abc")
+  - RFC 6151, Turner, Chen (2011), Updated Security Considerations for the MD5 Message-Digest and the HMAC-MD5 Algorithms
+  - NIST SP 800-131A Rev. 2 (2019), Section 9, Table 8 (approval status of hash functions)
+  - NIST (15 December 2022), NIST Transitioning Away from SHA-1 for All Applications, CSRC news
+  - den Boer, Bosselaers (1993), Collisions for the Compression Function of MD5, EUROCRYPT '93, LNCS 765
+  - Dobbertin (1996), Cryptanalysis of MD5 Compress, EUROCRYPT '96 rump session
+  - Wang, Feng, Lai, Yu (2004), Collisions for Hash Functions MD4, MD5, HAVAL-128 and RIPEMD, Cryptology ePrint Archive 2004/199
+  - Wang, Yu (2005), How to Break MD5 and Other Hash Functions, EUROCRYPT 2005, LNCS 3494
+  - Wang, Yin, Yu (2005), Finding Collisions in the Full SHA-1, CRYPTO 2005, LNCS 3621
+  - Stevens, Lenstra, de Weger (2007), Chosen-Prefix Collisions for MD5 and Colliding X.509 Certificates for Different Identities, EUROCRYPT 2007, LNCS 4515
+  - Stevens, Sotirov, Appelbaum, Lenstra, Molnar, Osvik, de Weger (2009), Short Chosen-Prefix Collisions for MD5 and the Creation of a Rogue CA Certificate, CRYPTO 2009, LNCS 5677
+  - Microsoft Security Advisory 2718704 (June 2012), Unauthorized Digital Certificates Could Allow Spoofing
+  - Fillinger, Stevens (2015), Reverse-Engineering of the Cryptanalytic Attack Used in the Flame Super-Malware, ASIACRYPT 2015, LNCS 9453
+  - Stevens, Bursztein, Karpman, Albertini, Markov (2017), The First Collision for Full SHA-1, CRYPTO 2017, LNCS 10401
+  - Leurent, Peyrin (2020), SHA-1 is a Shambles — First Chosen-Prefix Collision on SHA-1 and Application to the PGP Web of Trust, USENIX Security 2020
+  - Intel 64 and IA-32 Architectures Software Developer's Manual, Vol. 2B, SHA1RNDS4
+  - Albertini, Aumasson, Eichlseder, Mendel, Schläffer (2014), Malicious Hashing — Eve's Variant of SHA-1, SAC 2014, LNCS 8781
+---
+
+import Lab from '../../../../components/Lab.astro';
+import CheckQuestion from '../../../../components/lesson/CheckQuestion.astro';
+import Formula from '../../../../components/lesson/Formula.astro';
+import KeyFact from '../../../../components/lesson/KeyFact.astro';
+import KeyFacts from '../../../../components/lesson/KeyFacts.astro';
+import Lens from '../../../../components/lesson/Lens.astro';
+import LessonSection from '../../../../components/lesson/LessonSection.astro';
+import WhyBox from '../../../../components/lesson/WhyBox.astro';
+
+<LessonSection part="concept">
+
+## Same skeleton, smaller state
+
+MD5 (RFC 1321) and SHA-1 (FIPS 180-4, §6.1) predate SHA-2 and use the same
+[Merkle–Damgård](../) recipe: pad to 512-bit blocks ending in the 64-bit length (RFC 1321 §3.1–3.2;
+FIPS 180-4 §5.1.1), run a compression function per block, and add the old chaining value back in
+(RFC 1321 §3.4; FIPS 180-4 §6.1.2 step 4).
+
+MD5 has four 32-bit registers and 64 operations; SHA-1 five and 80 rounds. MD5
+reads its words **little-endian** (RFC 1321 §2), SHA-1 **big-endian**, like SHA-2 (FIPS 180-4 §3.1).
+
+<KeyFacts>
+  <KeyFact label="MD5 digest" value="128 bit" kind="ciphertext" />
+  <KeyFact label="SHA-1 digest" value="160 bit" kind="ciphertext" />
+  <KeyFact label="Block" value="512 bit" kind="plaintext" />
+  <KeyFact label="Steps" value="64 / 80" kind="constant" />
+</KeyFacts>
+
+<WhyBox constant="T[1] = d76aa478" title="why MD5's table comes from the sine">
+  `T[i]` is the integer part of 2³²·|sin i|, with `i` in radians (RFC 1321 §3.4):
+  2³²·|sin 1| → `d76aa478`.
+</WhyBox>
+
+<WhyBox constant="K = 5a827999" title="why SHA-1's constants are square roots">
+  SHA-1's four constants (FIPS 180-4 §4.2.1) are ⌊2³⁰·√n⌋ for n = 2, 3, 5, 10 (Albertini et al.,
+  SAC 2014): `5a827999`, `6ed9eba1`, `8f1bbcdc`, `ca62c1d6`. FIPS gives no rule; all four recompute exactly.
+</WhyBox>
+
+<Lens only="story">
+
+Two old locks built like today's, whose keys can now be copied.
+
+</Lens>
+
+</LessonSection>
+
+<LessonSection part="playground">
+
+## Step one of "abc", twice
+
+Both labs hash "abc" (RFC 1321 A.5; NIST SHA1.pdf), padded to one block, and open at the first
+step. In **MD5**, `X[0] = 80636261`: the bytes `61 62 63 80` read little-endian. With `F(b, c, d) =
+98badcfe` and `T[1] = d76aa478`, the sum `57ce06d8` rotates left by 7 to `e7036c2b`, and the new
+`b = d6d117b4` (RFC 1321 §3.4). The digest is `90015098 … 28e17f72`.
+
+<Lab labId="md5-abc" producerId="md5" presetId="md5-abc" startAt="op:round" layout="wordops:55|state:20|narration:25" />
+
+In **SHA-1**, the same bytes give `W₀ = 61626380`, big-endian. Round 0 computes
+`T = 0116fc33` and `c = ROTL³⁰(b) = 7bf36ae2`, exactly NIST's values for `t = 0`. The digest is
+`a9993e36 … 9cd0d89d`.
+
+<Lab labId="sha1-abc" producerId="sha1" presetId="sha1-abc" startAt="op:round" layout="wordops:55|state:20|narration:25" />
+
+</LessonSection>
+
+<LessonSection part="inside">
+
+## One operation, one round
+
+<Formula caption="MD5 operation i, RFC 1321 §3.4 (⋘ = rotate left, + mod 2³²; a, b, c, d then rotate one place).">
+{`F(b, c, d) = (b ∧ c) ∨ (¬b ∧ d)        operations  1 – 16
+G(b, c, d) = (b ∧ d) ∨ (c ∧ ¬d)        operations 17 – 32
+H(b, c, d) = b ⊕ c ⊕ d                 operations 33 – 48
+I(b, c, d) = c ⊕ (b ∨ ¬d)              operations 49 – 64
+b ← b + ((a + f(b, c, d) + X[k] + T[i]) ⋘ s)`}
+</Formula>
+
+<Formula caption="SHA-1 schedule and round t, FIPS 180-4 §4.1.1 and §6.1.2 (ROTL = rotate left).">
+{`Wₜ = ROTL¹(Wₜ₋₃ ⊕ Wₜ₋₈ ⊕ Wₜ₋₁₄ ⊕ Wₜ₋₁₆)        16 ≤ t ≤ 79
+T  = ROTL⁵(a) + fₜ(b, c, d) + e + Kₜ + Wₜ
+e ← d   d ← c   c ← ROTL³⁰(b)   b ← a   a ← T`}
+</Formula>
+
+MD5 has **no message schedule**: each round reads the 16 block words `X[k]` in a new order
+(RFC 1321 §3.4). SHA-1 expands them to 80 words; `fₜ` is `Ch`, `Parity`, `Maj`, `Parity` for 20
+rounds each (§4.1.1), with one constant per group (§4.2.1). SHA-2 added the Σ and σ functions and
+eight variables (see [SHA-256 inside](../sha256/)).
+
+<Lens level="cryptographer">
+
+Both round functions update only one or two words per step and keep the rest as shifted copies,
+like SHA-256. That makes each step invertible for a fixed block (RFC 1321 §3.4; FIPS 180-4 §6.1.2).
+
+</Lens>
+
+</LessonSection>
+
+<LessonSection part="memory">
+
+## Byte order on the wire
+
+The same four bytes `61 62 63 80` become `X[0] = 80636261` in MD5 and `W₀ = 61626380` in SHA-1.
+MD5 even stores its length and its digest low byte first: the length 24 sits at block bytes 56–63
+as `18 00 … 00` (RFC 1321 §3.2), and the initial value word `A = 67452301` is written as the bytes
+`01 23 45 67` (§3.3). SHA-1 writes the length and every digest word big-endian (FIPS 180-4 §3.1,
+§5.1.1). On a little-endian CPU, MD5 loads its words directly; SHA-1 and SHA-2 need a byte swap.
+The [endianness page](../../foundations/endianness/) explains the two orders.
+
+Watch the `padded` region in both labs: the length byte `18` sits at opposite ends of the last
+eight bytes.
+
+<Lens level="engineer">
+
+Intel's `SHA1RNDS4` computes four SHA-1 rounds per instruction (Intel SDM Vol. 2B, SHA1RNDS4), like SHA-NI for SHA-256.
+
+</Lens>
+
+</LessonSection>
+
+<LessonSection part="break">
+
+## Why collisions break signatures
+
+A signature or certificate signs `H(m)`, not `m`. If Mallory has two messages with the same hash,
+a signature on the harmless one also covers the harmful one. **Chosen-prefix** collisions let both
+messages start with different, meaningful content, such as two certificates for different names
+(Stevens, Lenstra, de Weger, EUROCRYPT 2007). This page describes the history, not the methods.
+
+| Year | Result |
+|---|---|
+| 1993 | den Boer–Bosselaers: pseudo-collisions for the MD5 compression function (EUROCRYPT '93) |
+| 1996 | Dobbertin: collisions for MD5's compression function with a chosen IV (EUROCRYPT '96 rump session) |
+| 2004/2005 | Wang et al.: full MD5 collisions (ePrint 2004/199; EUROCRYPT 2005); SHA-1 in under 2⁶⁹ (CRYPTO 2005) |
+| 2007 | Stevens et al.: MD5 chosen-prefix collisions, colliding X.509 certificates (EUROCRYPT 2007) |
+| 2008 | Stevens et al.: a rogue CA certificate trusted by browsers (CRYPTO 2009) |
+| 2012 | Flame: a forged Microsoft code-signing certificate (Microsoft Advisory 2718704; Fillinger–Stevens, ASIACRYPT 2015) |
+| 2017 | SHAttered: the first full SHA-1 collision, 2⁶³·¹ compressions (Stevens et al., CRYPTO 2017) |
+| 2020 | Leurent–Peyrin: SHA-1 chosen-prefix collision, "SHA-1 is a Shambles" (USENIX Security 2020) |
+
+RFC 6151 (2011): MD5 is "no longer acceptable where collision resistance is required such as
+digital signatures". NIST SP 800-131A Rev. 2 (Table 8) disallows SHA-1 for signature generation,
+and NIST plans to retire SHA-1 entirely by 31 December 2030 (NIST, 2022).
+
+<Lens level="cryptographer">
+
+Constants matter: changing 45 bits of SHA-1's round constants yields a variant with a
+designer-planted collision (Albertini et al., SAC 2014). Public rules like √2 limit that freedom.
+
+</Lens>
+
+</LessonSection>
+
+<LessonSection part="check">
+
+## Check yourself
+
+<CheckQuestion
+  id="md5-sha1-byte-order"
+  number={1}
+  question="The block starts with the bytes 61 62 63 80. Which first message word does MD5 read?"
+  options={['61626380', '80636261', '63616280', '00000018']}
+  answer={1}
+>
+  MD5 reads words little-endian, lowest byte first (RFC 1321 §2), so `X[0] = 80636261`. SHA-1 reads
+  the same bytes big-endian as `W₀ = 61626380` (FIPS 180-4 §3.1).
+</CheckQuestion>
+
+<CheckQuestion
+  id="md5-t-table-origin"
+  number={2}
+  question="Where does MD5's constant T[1] = d76aa478 come from?"
+  options={[
+    'The cube root of 2',
+    'The integer part of 2³² · |sin 1|',
+    'The square root of 2, scaled by 2³⁰',
+    'Random numbers published with RFC 1321',
+  ]}
+  answer={1}
+>
+  RFC 1321 §3.4: `T[i]` is the integer part of 4294967296 · |sin i|, with `i` in radians. The
+  √2 · 2³⁰ rule gives SHA-1's first constant `5a827999`.
+</CheckQuestion>
+
+<CheckQuestion
+  id="collision-breaks-signature"
+  number={3}
+  question="Why does a practical collision attack make a hash unfit for digital signatures?"
+  options={[
+    'Because it reveals the signer’s private key',
+    'Because it makes the hash invertible',
+    'Because a signature on one colliding message also verifies for the other',
+    'Because it changes the digest length',
+  ]}
+  answer={2}
+>
+  The signature covers `H(m)`. Two messages with the same hash share every signature, which is why
+  RFC 6151 rules MD5 out for signatures and NIST SP 800-131A Rev. 2 (Table 8) disallows SHA-1 for
+  signature generation. A collision reveals no key and inverts nothing.
+</CheckQuestion>
+
+</LessonSection>

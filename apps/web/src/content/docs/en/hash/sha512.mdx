@@ -14,6 +14,7 @@ labs:
   - sha512-abc
   - sha512-256-iv
   - sha384-iv
+  - sha512-armv8
 refs:
   - FIPS 180-4, Section 1 (Introduction, Figure 1 — message, block and digest sizes)
   - FIPS 180-4, Section 3.1 (big-endian convention)
@@ -153,6 +154,20 @@ Words are big-endian (§3.1): a little-endian core byte-swaps each 8-byte word i
 [endianness page](../../foundations/endianness/). Armv8.2-A adds optional SHA-512 instructions
 (`SHA512H`, `SHA512H2`, `SHA512SU0`, `SHA512SU1`; Arm ARM, FEAT_SHA512). The
 [SHA-256 page](../sha256/) shows how such instructions map onto the round.
+
+### SHA-512 in hardware
+
+FEAT_SHA512 (optional from Armv8.2-A) runs **two rounds** per instruction pair; each 128-bit vector
+register holds two 64-bit words (Arm ARM, SHA512H, SHA512H2). `SHA512H` takes `h + Kₜ + Wₜ` of
+both rounds plus the pairs `(f, g)` and `(d, e)` and returns `T₁` of both rounds; `SHA512H2` turns
+them into the new `(a, b)`, and a plain `ADD` of `d` gives the new `(e, f)`. `SHA512SU0` and
+`SHA512SU1` extend the message schedule two words at a time (Arm ARM, SHA512SU0, SHA512SU1).
+
+The lab shows clang `-O2` AArch64 output for "abc". At the end of the block the compiler folds the
+old `(e, f)` into the feed-forward before `T₁` of rounds 78 and 79 is ready: that register briefly
+holds a partial sum that is not a value of FIPS 180-4, and the next `ADD` completes `H⁽¹⁾`.
+
+<Lab labId="sha512-armv8" producerId="sha512" presetId="sha-512-abc" variant="aarch64-armv8-sha512" startAt="op:round" layout="instructions:50|registers:50" />
 
 </LessonSection>
 

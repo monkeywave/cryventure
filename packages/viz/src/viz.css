@@ -462,8 +462,21 @@
   min-height: 16rem;
 }
 
+/*
+ * Wide containers: side-by-side panels take their own content height (top-aligned) instead of all
+ * stretching to the tallest one, so a short view next to a long one leaves no empty block below it.
+ * The separators still span the whole row so they stay easy to grab.
+ */
+.cv-workspace [data-group] {
+  align-items: flex-start;
+}
+
+.cv-workspace .cv-separator {
+  align-self: stretch;
+}
+
 .cv-workspace__panel {
-  height: 100%;
+  height: auto;
   overflow: auto;
   padding: 0.5rem;
 }

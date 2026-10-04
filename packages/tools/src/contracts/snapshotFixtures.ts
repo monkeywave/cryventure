@@ -14,6 +14,9 @@ import {
   SHA_FIXTURE_PRESETS,
   shaBundleFixturePath,
   buildShaBundleFixture,
+  SHA3_FIXTURE_PRESETS,
+  sha3BundleFixturePath,
+  buildSha3BundleFixture,
 } from './deriverViewFixtures.ts';
 import {
   buildFieldViewFixture,
@@ -43,6 +46,7 @@ export interface SnapshotFixture {
 export const SNAPSHOT_FIXTURES: readonly SnapshotFixture[] = [
   ...AES_FIXTURE_PRESETS.map((preset) => ({ path: aesBundleFixturePath(preset), build: () => buildAesBundleFixture(preset) })),
   ...SHA_FIXTURE_PRESETS.map((preset) => ({ path: shaBundleFixturePath(preset), build: () => buildShaBundleFixture(preset) })),
+  ...SHA3_FIXTURE_PRESETS.map((preset) => ({ path: sha3BundleFixturePath(preset), build: () => buildSha3BundleFixture(preset) })),
   { path: INSTRUCTIONS_VIEW_FIXTURE, build: () => buildIsaViewFixture('instructions') },
   { path: REGISTERS_VIEW_FIXTURE, build: () => buildIsaViewFixture('registers') },
   { path: MEMORY_VIEW_FIXTURE, build: buildMemoryViewFixture },

@@ -28,6 +28,11 @@ describe('regionLayout', () => {
     expect(regionLayout(u32Words).shape).toEqual([8, 1]);
   });
 
+  it("carries a little-endian words hint's byte order (big/absent adds nothing)", () => {
+    expect(regionLayout(region([4, 8], undefined, { kind: 'words', wordBytes: 8, byteOrder: 'little' })).words).toEqual({ elemsPerWord: 8, wordsPerLine: 1, labelPrefix: '', byteOrder: 'little' });
+    expect(regionLayout(region([4, 8], undefined, { kind: 'words', wordBytes: 8, byteOrder: 'big' })).words).toEqual({ elemsPerWord: 8, wordsPerLine: 1, labelPrefix: '' });
+  });
+
   it('never guesses words from the shape: without a hint [n,4] is a long byte region', () => {
     expect(isMatrixRegion(region([8, 4]))).toBe(true);
     expect(regionLayout(region([44, 4])).kind).toBe('rows');

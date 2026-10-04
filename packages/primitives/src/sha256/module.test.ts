@@ -97,13 +97,14 @@ describe('sha256 run: steps, scope and facets', () => {
       const bundle = trace({ ...ABC, input: TWO_BLOCK, detail });
       expect(validateWordopsFacet(wordops(bundle), state(bundle).steps.length)).toEqual([]);
       expect(wordops(bundle).wordBits).toBe(32);
+      expect(wordops(bundle).schemaVersion).toBe(2);
       expect(wordops(bundle).registerNames).toEqual(['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h']);
     }
   });
 
   it('gives round t the terms of M5 §2d, with K_t + W_t', () => {
     const step = roundStep(trace(ABC), 0);
-    expect(step.terms.map((term) => term.id)).toEqual(['Sigma1', 'ch', 'k', 'w', 'kw', 'T1', 'Sigma0', 'maj', 'T2']);
+    expect(step.terms.map((term) => term.id)).toEqual(['Sigma1', 'ch', 'k', 'w', 'kw', 'T1', 'Sigma0', 'maj', 'T2', 'e', 'a']);
     expect(step.terms.find((term) => term.id === 'kw')?.hex).toBe('a3ec9318');
     expect(step.registers?.before).toEqual(['6a09e667', 'bb67ae85', '3c6ef372', 'a54ff53a', '510e527f', '9b05688c', '1f83d9ab', '5be0cd19']);
   });

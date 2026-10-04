@@ -1,0 +1,915 @@
+{
+  "compiler": "Homebrew clang version 23.1.0",
+  "flags": "-target aarch64-linux-gnu -O2 -march=armv8.2-a+sha3 -ffreestanding -S",
+  "triple": "aarch64-linux-gnu",
+  "function": "keccak_f1600",
+  "source": "void keccak_f1600(uint64_t A[25]) {\n    uint64x2_t a00 = LOAD(0, 0), a10 = LOAD(1, 0), a20 = LOAD(2, 0), a30 = LOAD(3, 0), a40 = LOAD(4, 0);\n    uint64x2_t a01 = LOAD(0, 1), a11 = LOAD(1, 1), a21 = LOAD(2, 1), a31 = LOAD(3, 1), a41 = LOAD(4, 1);\n    uint64x2_t a02 = LOAD(0, 2), a12 = LOAD(1, 2), a22 = LOAD(2, 2), a32 = LOAD(3, 2), a42 = LOAD(4, 2);\n    uint64x2_t a03 = LOAD(0, 3), a13 = LOAD(1, 3), a23 = LOAD(2, 3), a33 = LOAD(3, 3), a43 = LOAD(4, 3);\n    uint64x2_t a04 = LOAD(0, 4), a14 = LOAD(1, 4), a24 = LOAD(2, 4), a34 = LOAD(3, 4), a44 = LOAD(4, 4);\n#pragma clang loop unroll(disable)\n    for (int round = 0; round < 24; ++round) {\n        uint64x2_t c0 = PARITY(0);\n        uint64x2_t c1 = PARITY(1);\n        uint64x2_t c2 = PARITY(2);\n        uint64x2_t c3 = PARITY(3);\n        uint64x2_t c4 = PARITY(4);\n        /* D[x] = C[x-1] ^ rot(C[x+1], 1) */\n        uint64x2_t d0 = vrax1q_u64(c4, c1);\n        uint64x2_t d1 = vrax1q_u64(c0, c2);\n        uint64x2_t d2 = vrax1q_u64(c1, c3);\n        uint64x2_t d3 = vrax1q_u64(c2, c4);\n        uint64x2_t d4 = vrax1q_u64(c3, c0);\n        /* pi: lane (x, y) moves to (y, 2x + 3y) */\n        uint64x2_t b00 = THETA_RHO(a00, d0, 0);\n        uint64x2_t b02 = THETA_RHO(a10, d1, 1);\n        uint64x2_t b04 = THETA_RHO(a20, d2, 62);\n        uint64x2_t b01 = THETA_RHO(a30, d3, 28);\n        uint64x2_t b03 = THETA_RHO(a40, d4, 27);\n        uint64x2_t b13 = THETA_RHO(a01, d0, 36);\n        uint64x2_t b10 = THETA_RHO(a11, d1, 44);\n        uint64x2_t b12 = THETA_RHO(a21, d2, 6);\n        uint64x2_t b14 = THETA_RHO(a31, d3, 55);\n        uint64x2_t b11 = THETA_RHO(a41, d4, 20);\n        uint64x2_t b21 = THETA_RHO(a02, d0, 3);\n        uint64x2_t b23 = THETA_RHO(a12, d1, 10);\n        uint64x2_t b20 = THETA_RHO(a22, d2, 43);\n        uint64x2_t b22 = THETA_RHO(a32, d3, 25);\n        uint64x2_t b24 = THETA_RHO(a42, d4, 39);\n        uint64x2_t b34 = THETA_RHO(a03, d0, 41);\n        uint64x2_t b31 = THETA_RHO(a13, d1, 45);\n        uint64x2_t b33 = THETA_RHO(a23, d2, 15);\n        uint64x2_t b30 = THETA_RHO(a33, d3, 21);\n        uint64x2_t b32 = THETA_RHO(a43, d4, 8);\n        uint64x2_t b42 = THETA_RHO(a04, d0, 18);\n        uint64x2_t b44 = THETA_RHO(a14, d1, 2);\n        uint64x2_t b41 = THETA_RHO(a24, d2, 61);\n        uint64x2_t b43 = THETA_RHO(a34, d3, 56);\n        uint64x2_t b40 = THETA_RHO(a44, d4, 14);\n        a00 = CHI(0, 1, 2, 0);\n        a10 = CHI(1, 2, 3, 0);\n        a20 = CHI(2, 3, 4, 0);\n        a30 = CHI(3, 4, 0, 0);\n        a40 = CHI(4, 0, 1, 0);\n        a01 = CHI(0, 1, 2, 1);\n        a11 = CHI(1, 2, 3, 1);\n        a21 = CHI(2, 3, 4, 1);\n        a31 = CHI(3, 4, 0, 1);\n        a41 = CHI(4, 0, 1, 1);\n        a02 = CHI(0, 1, 2, 2);\n        a12 = CHI(1, 2, 3, 2);\n        a22 = CHI(2, 3, 4, 2);\n        a32 = CHI(3, 4, 0, 2);\n        a42 = CHI(4, 0, 1, 2);\n        a03 = CHI(0, 1, 2, 3);\n        a13 = CHI(1, 2, 3, 3);\n        a23 = CHI(2, 3, 4, 3);\n        a33 = CHI(3, 4, 0, 3);\n        a43 = CHI(4, 0, 1, 3);\n        a04 = CHI(0, 1, 2, 4);\n        a14 = CHI(1, 2, 3, 4);\n        a24 = CHI(2, 3, 4, 4);\n        a34 = CHI(3, 4, 0, 4);\n        a44 = CHI(4, 0, 1, 4);\n        a00 = veorq_u64(a00, vcombine_u64(vld1_u64(RC + round), vdup_n_u64(0)));\n    }\n    STORE(0, 0, a00); STORE(1, 0, a10); STORE(2, 0, a20); STORE(3, 0, a30); STORE(4, 0, a40);\n    STORE(0, 1, a01); STORE(1, 1, a11); STORE(2, 1, a21); STORE(3, 1, a31); STORE(4, 1, a41);\n    STORE(0, 2, a02); STORE(1, 2, a12); STORE(2, 2, a22); STORE(3, 2, a32); STORE(4, 2, a42);\n    STORE(0, 3, a03); STORE(1, 3, a13); STORE(2, 3, a23); STORE(3, 3, a33); STORE(4, 3, a43);\n    STORE(0, 4, a04); STORE(1, 4, a14); STORE(2, 4, a24); STORE(3, 4, a34); STORE(4, 4, a44);\n}",
+  "compilerExplorerUrl": "https://godbolt.org/clientstate/eyJzZXNzaW9ucyI6W3siaWQiOjEsImxhbmd1YWdlIjoiYyIsInNvdXJjZSI6Ii8qXG4gKiBBUk12OC4yIFNIQTMgQ3J5cHRvIEV4dGVuc2lvbnM6IHRoZSBLZWNjYWstZlsxNjAwXSBwZXJtdXRhdGlvbiAoQUFyY2g2NCksIGNvbXBpbGVkIGJ5XG4gKiBwYWNrYWdlcy90b29scy9zcmMvYXNtL2dlbmVyYXRlLnRzIChkb2NzL002Lm1kIMKnNWIpLiBBW3ggKyA1eV0gaXMgbGFuZSAoeCwgeSkgYXMgYSBob3N0LWVuZGlhblxuICogNjQtYml0IHdvcmQgKEZJUFMgMjAyIMKnMy4xLjIpOyBlYWNoIGxhbmUgbGl2ZXMgaW4gdGhlIGxvdyBoYWxmIG9mIGl0cyBvd24gdmVjdG9yIHJlZ2lzdGVyIChhWFkpLlxuICogT25lIGxvb3AgaXRlcmF0aW9uIGlzIG9uZSByb3VuZCAobm90IHVucm9sbGVkKTogdGhldGEgcGFyaXR5IHdpdGggZW9yMywgdGhldGEgRCB3aXRoIHJheDEsIHRoZXRhLFxuICogcmhvIGFuZCBwaSB0b2dldGhlciB3aXRoIHhhciAodGhlIHJlc3VsdCBsYW5kcyBpbiB0aGUgcmVnaXN0ZXIgb2YgdGhlIGxhbmUncyBwaSBkZXN0aW5hdGlvbiksXG4gKiBjaGkgd2l0aCBiY2F4LCBpb3RhIHdpdGggZW9yLlxuICovXG4jaW5jbHVkZSA8c3RkaW50Lmg-XG4jaW5jbHVkZSA8YXJtX25lb24uaD5cblxuc3RhdGljIGNvbnN0IHVpbnQ2NF90IFJDWzI0XSA9IHtcbiAgICAweDAwMDAwMDAwMDAwMDAwMDEsIDB4MDAwMDAwMDAwMDAwODA4MiwgMHg4MDAwMDAwMDAwMDA4MDhhLCAweDgwMDAwMDAwODAwMDgwMDAsXG4gICAgMHgwMDAwMDAwMDAwMDA4MDhiLCAweDAwMDAwMDAwODAwMDAwMDEsIDB4ODAwMDAwMDA4MDAwODA4MSwgMHg4MDAwMDAwMDAwMDA4MDA5LFxuICAgIDB4MDAwMDAwMDAwMDAwMDA4YSwgMHgwMDAwMDAwMDAwMDAwMDg4LCAweDAwMDAwMDAwODAwMDgwMDksIDB4MDAwMDAwMDA4MDAwMDAwYSxcbiAgICAweDAwMDAwMDAwODAwMDgwOGIsIDB4ODAwMDAwMDAwMDAwMDA4YiwgMHg4MDAwMDAwMDAwMDA4MDg5LCAweDgwMDAwMDAwMDAwMDgwMDMsXG4gICAgMHg4MDAwMDAwMDAwMDA4MDAyLCAweDgwMDAwMDAwMDAwMDAwODAsIDB4MDAwMDAwMDAwMDAwODAwYSwgMHg4MDAwMDAwMDgwMDAwMDBhLFxuICAgIDB4ODAwMDAwMDA4MDAwODA4MSwgMHg4MDAwMDAwMDAwMDA4MDgwLCAweDAwMDAwMDAwODAwMDAwMDEsIDB4ODAwMDAwMDA4MDAwODAwOCxcbn07XG5cbi8qIExhbmUgKHgsIHkpIGludG8gdGhlIGxvdyBoYWxmIG9mIGEgdmVjdG9yIHJlZ2lzdGVyIChoaWdoIGhhbGYgemVybyksIGFuZCBiYWNrLiAqL1xuI2RlZmluZSBMT0FEKHgsIHkpIHZjb21iaW5lX3U2NCh2bGQxX3U2NChBICsgKHgpICsgNSAqICh5KSksIHZkdXBfbl91NjQoMCkpXG4jZGVmaW5lIFNUT1JFKHgsIHksIGxhbmUpIHZzdDFfdTY0KEEgKyAoeCkgKyA1ICogKHkpLCB2Z2V0X2xvd191NjQobGFuZSkpXG5cbi8qIENvbHVtbiBwYXJpdHkgQ1t4XSBvZiB0aGUgZml2ZSBsYW5lcyBvZiBjb2x1bW4geC4gKi9cbiNkZWZpbmUgUEFSSVRZKHgpIHZlb3IzcV91NjQodmVvcjNxX3U2NChhIyN4IyMwLCBhIyN4IyMxLCBhIyN4IyMyKSwgYSMjeCMjMywgYSMjeCMjNClcblxuLyogKGxhbmUgeG9yIERbeF0pIHJvdGF0ZWQgbGVmdCBieSB0aGUgcmhvIG9mZnNldCByOiB4YXIgcm90YXRlcyByaWdodCwgYnkgKDY0IC0gcikgbW9kIDY0LiAqL1xuI2RlZmluZSBUSEVUQV9SSE8obGFuZSwgZCwgcikgdnhhcnFfdTY0KGxhbmUsIGQsICg2NCAtIChyKSkgJSA2NClcblxuLyogY2hpIGZvciBsYW5lICh4LCB5KTogQlt4XSBeICh-Qlt4KzFdICYgQlt4KzJdKSwgYXMgYmNheChCW3hdLCBCW3grMl0sIEJbeCsxXSkuICovXG4jZGVmaW5lIENISSh4MCwgeDEsIHgyLCB5KSB2YmNheHFfdTY0KGIjI3gwIyN5LCBiIyN4MiMjeSwgYiMjeDEjI3kpXG5cbnZvaWQga2VjY2FrX2YxNjAwKHVpbnQ2NF90IEFbMjVdKSB7XG4gICAgdWludDY0eDJfdCBhMDAgPSBMT0FEKDAsIDApLCBhMTAgPSBMT0FEKDEsIDApLCBhMjAgPSBMT0FEKDIsIDApLCBhMzAgPSBMT0FEKDMsIDApLCBhNDAgPSBMT0FEKDQsIDApO1xuICAgIHVpbnQ2NHgyX3QgYTAxID0gTE9BRCgwLCAxKSwgYTExID0gTE9BRCgxLCAxKSwgYTIxID0gTE9BRCgyLCAxKSwgYTMxID0gTE9BRCgzLCAxKSwgYTQxID0gTE9BRCg0LCAxKTtcbiAgICB1aW50NjR4Ml90IGEwMiA9IExPQUQoMCwgMiksIGExMiA9IExPQUQoMSwgMiksIGEyMiA9IExPQUQoMiwgMiksIGEzMiA9IExPQUQoMywgMiksIGE0MiA9IExPQUQoNCwgMik7XG4gICAgdWludDY0eDJfdCBhMDMgPSBMT0FEKDAsIDMpLCBhMTMgPSBMT0FEKDEsIDMpLCBhMjMgPSBMT0FEKDIsIDMpLCBhMzMgPSBMT0FEKDMsIDMpLCBhNDMgPSBMT0FEKDQsIDMpO1xuICAgIHVpbnQ2NHgyX3QgYTA0ID0gTE9BRCgwLCA0KSwgYTE0ID0gTE9BRCgxLCA0KSwgYTI0ID0gTE9BRCgyLCA0KSwgYTM0ID0gTE9BRCgzLCA0KSwgYTQ0ID0gTE9BRCg0LCA0KTtcbiNwcmFnbWEgY2xhbmcgbG9vcCB1bnJvbGwoZGlzYWJsZSlcbiAgICBmb3IgKGludCByb3VuZCA9IDA7IHJvdW5kIDwgMjQ7ICsrcm91bmQpIHtcbiAgICAgICAgdWludDY0eDJfdCBjMCA9IFBBUklUWSgwKTtcbiAgICAgICAgdWludDY0eDJfdCBjMSA9IFBBUklUWSgxKTtcbiAgICAgICAgdWludDY0eDJfdCBjMiA9IFBBUklUWSgyKTtcbiAgICAgICAgdWludDY0eDJfdCBjMyA9IFBBUklUWSgzKTtcbiAgICAgICAgdWludDY0eDJfdCBjNCA9IFBBUklUWSg0KTtcbiAgICAgICAgLyogRFt4XSA9IENbeC0xXSBeIHJvdChDW3grMV0sIDEpICovXG4gICAgICAgIHVpbnQ2NHgyX3QgZDAgPSB2cmF4MXFfdTY0KGM0LCBjMSk7XG4gICAgICAgIHVpbnQ2NHgyX3QgZDEgPSB2cmF4MXFfdTY0KGMwLCBjMik7XG4gICAgICAgIHVpbnQ2NHgyX3QgZDIgPSB2cmF4MXFfdTY0KGMxLCBjMyk7XG4gICAgICAgIHVpbnQ2NHgyX3QgZDMgPSB2cmF4MXFfdTY0KGMyLCBjNCk7XG4gICAgICAgIHVpbnQ2NHgyX3QgZDQgPSB2cmF4MXFfdTY0KGMzLCBjMCk7XG4gICAgICAgIC8qIHBpOiBsYW5lICh4LCB5KSBtb3ZlcyB0byAoeSwgMnggKyAzeSkgKi9cbiAgICAgICAgdWludDY0eDJfdCBiMDAgPSBUSEVUQV9SSE8oYTAwLCBkMCwgMCk7XG4gICAgICAgIHVpbnQ2NHgyX3QgYjAyID0gVEhFVEFfUkhPKGExMCwgZDEsIDEpO1xuICAgICAgICB1aW50NjR4Ml90IGIwNCA9IFRIRVRBX1JITyhhMjAsIGQyLCA2Mik7XG4gICAgICAgIHVpbnQ2NHgyX3QgYjAxID0gVEhFVEFfUkhPKGEzMCwgZDMsIDI4KTtcbiAgICAgICAgdWludDY0eDJfdCBiMDMgPSBUSEVUQV9SSE8oYTQwLCBkNCwgMjcpO1xuICAgICAgICB1aW50NjR4Ml90IGIxMyA9IFRIRVRBX1JITyhhMDEsIGQwLCAzNik7XG4gICAgICAgIHVpbnQ2NHgyX3QgYjEwID0gVEhFVEFfUkhPKGExMSwgZDEsIDQ0KTtcbiAgICAgICAgdWludDY0eDJfdCBiMTIgPSBUSEVUQV9SSE8oYTIxLCBkMiwgNik7XG4gICAgICAgIHVpbnQ2NHgyX3QgYjE0ID0gVEhFVEFfUkhPKGEzMSwgZDMsIDU1KTtcbiAgICAgICAgdWludDY0eDJfdCBiMTEgPSBUSEVUQV9SSE8oYTQxLCBkNCwgMjApO1xuICAgICAgICB1aW50NjR4Ml90IGIyMSA9IFRIRVRBX1JITyhhMDIsIGQwLCAzKTtcbiAgICAgICAgdWludDY0eDJfdCBiMjMgPSBUSEVUQV9SSE8oYTEyLCBkMSwgMTApO1xuICAgICAgICB1aW50NjR4Ml90IGIyMCA9IFRIRVRBX1JITyhhMjIsIGQyLCA0Myk7XG4gICAgICAgIHVpbnQ2NHgyX3QgYjIyID0gVEhFVEFfUkhPKGEzMiwgZDMsIDI1KTtcbiAgICAgICAgdWludDY0eDJfdCBiMjQgPSBUSEVUQV9SSE8oYTQyLCBkNCwgMzkpO1xuICAgICAgICB1aW50NjR4Ml90IGIzNCA9IFRIRVRBX1JITyhhMDMsIGQwLCA0MSk7XG4gICAgICAgIHVpbnQ2NHgyX3QgYjMxID0gVEhFVEFfUkhPKGExMywgZDEsIDQ1KTtcbiAgICAgICAgdWludDY0eDJfdCBiMzMgPSBUSEVUQV9SSE8oYTIzLCBkMiwgMTUpO1xuICAgICAgICB1aW50NjR4Ml90IGIzMCA9IFRIRVRBX1JITyhhMzMsIGQzLCAyMSk7XG4gICAgICAgIHVpbnQ2NHgyX3QgYjMyID0gVEhFVEFfUkhPKGE0MywgZDQsIDgpO1xuICAgICAgICB1aW50NjR4Ml90IGI0MiA9IFRIRVRBX1JITyhhMDQsIGQwLCAxOCk7XG4gICAgICAgIHVpbnQ2NHgyX3QgYjQ0ID0gVEhFVEFfUkhPKGExNCwgZDEsIDIpO1xuICAgICAgICB1aW50NjR4Ml90IGI0MSA9IFRIRVRBX1JITyhhMjQsIGQyLCA2MSk7XG4gICAgICAgIHVpbnQ2NHgyX3QgYjQzID0gVEhFVEFfUkhPKGEzNCwgZDMsIDU2KTtcbiAgICAgICAgdWludDY0eDJfdCBiNDAgPSBUSEVUQV9SSE8oYTQ0LCBkNCwgMTQpO1xuICAgICAgICBhMDAgPSBDSEkoMCwgMSwgMiwgMCk7XG4gICAgICAgIGExMCA9IENISSgxLCAyLCAzLCAwKTtcbiAgICAgICAgYTIwID0gQ0hJKDIsIDMsIDQsIDApO1xuICAgICAgICBhMzAgPSBDSEkoMywgNCwgMCwgMCk7XG4gICAgICAgIGE0MCA9IENISSg0LCAwLCAxLCAwKTtcbiAgICAgICAgYTAxID0gQ0hJKDAsIDEsIDIsIDEpO1xuICAgICAgICBhMTEgPSBDSEkoMSwgMiwgMywgMSk7XG4gICAgICAgIGEyMSA9IENISSgyLCAzLCA0LCAxKTtcbiAgICAgICAgYTMxID0gQ0hJKDMsIDQsIDAsIDEpO1xuICAgICAgICBhNDEgPSBDSEkoNCwgMCwgMSwgMSk7XG4gICAgICAgIGEwMiA9IENISSgwLCAxLCAyLCAyKTtcbiAgICAgICAgYTEyID0gQ0hJKDEsIDIsIDMsIDIpO1xuICAgICAgICBhMjIgPSBDSEkoMiwgMywgNCwgMik7XG4gICAgICAgIGEzMiA9IENISSgzLCA0LCAwLCAyKTtcbiAgICAgICAgYTQyID0gQ0hJKDQsIDAsIDEsIDIpO1xuICAgICAgICBhMDMgPSBDSEkoMCwgMSwgMiwgMyk7XG4gICAgICAgIGExMyA9IENISSgxLCAyLCAzLCAzKTtcbiAgICAgICAgYTIzID0gQ0hJKDIsIDMsIDQsIDMpO1xuICAgICAgICBhMzMgPSBDSEkoMywgNCwgMCwgMyk7XG4gICAgICAgIGE0MyA9IENISSg0LCAwLCAxLCAzKTtcbiAgICAgICAgYTA0ID0gQ0hJKDAsIDEsIDIsIDQpO1xuICAgICAgICBhMTQgPSBDSEkoMSwgMiwgMywgNCk7XG4gICAgICAgIGEyNCA9IENISSgyLCAzLCA0LCA0KTtcbiAgICAgICAgYTM0ID0gQ0hJKDMsIDQsIDAsIDQpO1xuICAgICAgICBhNDQgPSBDSEkoNCwgMCwgMSwgNCk7XG4gICAgICAgIGEwMCA9IHZlb3JxX3U2NChhMDAsIHZjb21iaW5lX3U2NCh2bGQxX3U2NChSQyArIHJvdW5kKSwgdmR1cF9uX3U2NCgwKSkpO1xuICAgIH1cbiAgICBTVE9SRSgwLCAwLCBhMDApOyBTVE9SRSgxLCAwLCBhMTApOyBTVE9SRSgyLCAwLCBhMjApOyBTVE9SRSgzLCAwLCBhMzApOyBTVE9SRSg0LCAwLCBhNDApO1xuICAgIFNUT1JFKDAsIDEsIGEwMSk7IFNUT1JFKDEsIDEsIGExMSk7IFNUT1JFKDIsIDEsIGEyMSk7IFNUT1JFKDMsIDEsIGEzMSk7IFNUT1JFKDQsIDEsIGE0MSk7XG4gICAgU1RPUkUoMCwgMiwgYTAyKTsgU1RPUkUoMSwgMiwgYTEyKTsgU1RPUkUoMiwgMiwgYTIyKTsgU1RPUkUoMywgMiwgYTMyKTsgU1RPUkUoNCwgMiwgYTQyKTtcbiAgICBTVE9SRSgwLCAzLCBhMDMpOyBTVE9SRSgxLCAzLCBhMTMpOyBTVE9SRSgyLCAzLCBhMjMpOyBTVE9SRSgzLCAzLCBhMzMpOyBTVE9SRSg0LCAzLCBhNDMpO1xuICAgIFNUT1JFKDAsIDQsIGEwNCk7IFNUT1JFKDEsIDQsIGExNCk7IFNUT1JFKDIsIDQsIGEyNCk7IFNUT1JFKDMsIDQsIGEzNCk7IFNUT1JFKDQsIDQsIGE0NCk7XG59XG4iLCJjb21waWxlcnMiOlt7ImlkIjoiYXJtdjgtY2NsYW5nLXRydW5rIiwib3B0aW9ucyI6Ii1PMiAtbWFyY2g9YXJtdjguMi1hK3NoYTMgLWZmcmVlc3RhbmRpbmcifV19XX0",
+  "loop": {
+    "first": "0x54",
+    "last": "0x1a8",
+    "iterations": 24
+  },
+  "instructions": [
+    {
+      "address": "0x0",
+      "mnemonic": "sub",
+      "operands": ["sp", "sp", "#80"],
+      "role": "other"
+    },
+    {
+      "address": "0x4",
+      "mnemonic": "stp",
+      "operands": ["d15", "d14", "[sp, #16]"],
+      "role": "other"
+    },
+    {
+      "address": "0x8",
+      "mnemonic": "ldp",
+      "operands": ["d14", "d2", "[x0, #16]"],
+      "role": "loadState",
+      "lane": 2
+    },
+    {
+      "address": "0xc",
+      "mnemonic": "stp",
+      "operands": ["d11", "d10", "[sp, #48]"],
+      "role": "other"
+    },
+    {
+      "address": "0x10",
+      "mnemonic": "mov",
+      "operands": ["x8", "xzr"],
+      "role": "loop"
+    },
+    {
+      "address": "0x14",
+      "mnemonic": "adrp",
+      "operands": ["x9", "RC"],
+      "role": "other"
+    },
+    {
+      "address": "0x18",
+      "mnemonic": "add",
+      "operands": ["x9", "x9", ":lo12:RC"],
+      "role": "other"
+    },
+    {
+      "address": "0x1c",
+      "mnemonic": "stp",
+      "operands": ["d9", "d8", "[sp, #64]"],
+      "role": "other"
+    },
+    {
+      "address": "0x20",
+      "mnemonic": "ldr",
+      "operands": ["d31", "[x0, #192]"],
+      "role": "loadState",
+      "lane": 24
+    },
+    {
+      "address": "0x24",
+      "mnemonic": "ldp",
+      "operands": ["d8", "d11", "[x0]"],
+      "role": "loadState",
+      "lane": 0
+    },
+    {
+      "address": "0x28",
+      "mnemonic": "stp",
+      "operands": ["d13", "d12", "[sp, #32]"],
+      "role": "other"
+    },
+    {
+      "address": "0x2c",
+      "mnemonic": "ldp",
+      "operands": ["d4", "d5", "[x0, #32]"],
+      "role": "loadState",
+      "lane": 4
+    },
+    {
+      "address": "0x30",
+      "mnemonic": "ldp",
+      "operands": ["d6", "d17", "[x0, #48]"],
+      "role": "loadState",
+      "lane": 6
+    },
+    {
+      "address": "0x34",
+      "mnemonic": "ldp",
+      "operands": ["d7", "d22", "[x0, #64]"],
+      "role": "loadState",
+      "lane": 8
+    },
+    {
+      "address": "0x38",
+      "mnemonic": "ldp",
+      "operands": ["d19", "d18", "[x0, #80]"],
+      "role": "loadState",
+      "lane": 10
+    },
+    {
+      "address": "0x3c",
+      "mnemonic": "ldp",
+      "operands": ["d28", "d23", "[x0, #96]"],
+      "role": "loadState",
+      "lane": 12
+    },
+    {
+      "address": "0x40",
+      "mnemonic": "ldp",
+      "operands": ["d25", "d3", "[x0, #112]"],
+      "role": "loadState",
+      "lane": 14
+    },
+    {
+      "address": "0x44",
+      "mnemonic": "ldp",
+      "operands": ["d15", "d16", "[x0, #128]"],
+      "role": "loadState",
+      "lane": 16
+    },
+    {
+      "address": "0x48",
+      "mnemonic": "ldp",
+      "operands": ["d29", "d21", "[x0, #144]"],
+      "role": "loadState",
+      "lane": 18
+    },
+    {
+      "address": "0x4c",
+      "mnemonic": "ldp",
+      "operands": ["d24", "d26", "[x0, #160]"],
+      "role": "loadState",
+      "lane": 20
+    },
+    {
+      "address": "0x50",
+      "mnemonic": "ldp",
+      "operands": ["d30", "d20", "[x0, #176]"],
+      "role": "loadState",
+      "lane": 22
+    },
+    {
+      "address": "0x54",
+      "mnemonic": "eor3",
+      "operands": ["v9.16b", "v11.16b", "v6.16b", "v18.16b"],
+      "role": "thetaParity",
+      "x": 1,
+      "half": 1
+    },
+    {
+      "address": "0x58",
+      "mnemonic": "eor3",
+      "operands": ["v10.16b", "v4.16b", "v22.16b", "v25.16b"],
+      "role": "thetaParity",
+      "x": 4,
+      "half": 1
+    },
+    {
+      "address": "0x5c",
+      "mnemonic": "str",
+      "operands": ["q26", "[sp]"],
+      "role": "other"
+    },
+    {
+      "address": "0x60",
+      "mnemonic": "mov",
+      "operands": ["v0.16b", "v11.16b"],
+      "role": "other"
+    },
+    {
+      "address": "0x64",
+      "mnemonic": "eor3",
+      "operands": ["v11.16b", "v8.16b", "v5.16b", "v19.16b"],
+      "role": "thetaParity",
+      "x": 0,
+      "half": 1
+    },
+    {
+      "address": "0x68",
+      "mnemonic": "eor3",
+      "operands": ["v12.16b", "v14.16b", "v17.16b", "v28.16b"],
+      "role": "thetaParity",
+      "x": 2,
+      "half": 1
+    },
+    {
+      "address": "0x6c",
+      "mnemonic": "eor3",
+      "operands": ["v13.16b", "v2.16b", "v7.16b", "v23.16b"],
+      "role": "thetaParity",
+      "x": 3,
+      "half": 1
+    },
+    {
+      "address": "0x70",
+      "mnemonic": "mov",
+      "operands": ["v1.16b", "v14.16b"],
+      "role": "other"
+    },
+    {
+      "address": "0x74",
+      "mnemonic": "mov",
+      "operands": ["v27.16b", "v24.16b"],
+      "role": "other"
+    },
+    {
+      "address": "0x78",
+      "mnemonic": "eor3",
+      "operands": ["v9.16b", "v9.16b", "v15.16b", "v26.16b"],
+      "role": "thetaParity",
+      "x": 1,
+      "half": 2
+    },
+    {
+      "address": "0x7c",
+      "mnemonic": "eor3",
+      "operands": ["v10.16b", "v10.16b", "v21.16b", "v31.16b"],
+      "role": "thetaParity",
+      "x": 4,
+      "half": 2
+    },
+    {
+      "address": "0x80",
+      "mnemonic": "mov",
+      "operands": ["v26.16b", "v20.16b"],
+      "role": "other"
+    },
+    {
+      "address": "0x84",
+      "mnemonic": "eor3",
+      "operands": ["v11.16b", "v11.16b", "v3.16b", "v24.16b"],
+      "role": "thetaParity",
+      "x": 0,
+      "half": 2
+    },
+    {
+      "address": "0x88",
+      "mnemonic": "eor3",
+      "operands": ["v12.16b", "v12.16b", "v16.16b", "v30.16b"],
+      "role": "thetaParity",
+      "x": 2,
+      "half": 2
+    },
+    {
+      "address": "0x8c",
+      "mnemonic": "mov",
+      "operands": ["v24.16b", "v16.16b"],
+      "role": "other"
+    },
+    {
+      "address": "0x90",
+      "mnemonic": "eor3",
+      "operands": ["v13.16b", "v13.16b", "v29.16b", "v20.16b"],
+      "role": "thetaParity",
+      "x": 3,
+      "half": 2
+    },
+    {
+      "address": "0x94",
+      "mnemonic": "mov",
+      "operands": ["v16.16b", "v15.16b"],
+      "role": "other"
+    },
+    {
+      "address": "0x98",
+      "mnemonic": "mov",
+      "operands": ["v20.16b", "v25.16b"],
+      "role": "other"
+    },
+    {
+      "address": "0x9c",
+      "mnemonic": "rax1",
+      "operands": ["v14.2d", "v10.2d", "v9.2d"],
+      "role": "thetaD",
+      "x": 0
+    },
+    {
+      "address": "0xa0",
+      "mnemonic": "mov",
+      "operands": ["v25.16b", "v21.16b"],
+      "role": "other"
+    },
+    {
+      "address": "0xa4",
+      "mnemonic": "mov",
+      "operands": ["v21.16b", "v3.16b"],
+      "role": "other"
+    },
+    {
+      "address": "0xa8",
+      "mnemonic": "rax1",
+      "operands": ["v15.2d", "v11.2d", "v12.2d"],
+      "role": "thetaD",
+      "x": 1
+    },
+    {
+      "address": "0xac",
+      "mnemonic": "rax1",
+      "operands": ["v9.2d", "v9.2d", "v13.2d"],
+      "role": "thetaD",
+      "x": 2
+    },
+    {
+      "address": "0xb0",
+      "mnemonic": "rax1",
+      "operands": ["v10.2d", "v12.2d", "v10.2d"],
+      "role": "thetaD",
+      "x": 3
+    },
+    {
+      "address": "0xb4",
+      "mnemonic": "rax1",
+      "operands": ["v11.2d", "v13.2d", "v11.2d"],
+      "role": "thetaD",
+      "x": 4
+    },
+    {
+      "address": "0xb8",
+      "mnemonic": "xar",
+      "operands": ["v8.2d", "v8.2d", "v14.2d", "#0"],
+      "role": "thetaRhoPi",
+      "lane": 0
+    },
+    {
+      "address": "0xbc",
+      "mnemonic": "xar",
+      "operands": ["v19.2d", "v19.2d", "v14.2d", "#61"],
+      "role": "thetaRhoPi",
+      "lane": 7
+    },
+    {
+      "address": "0xc0",
+      "mnemonic": "xar",
+      "operands": ["v12.2d", "v0.2d", "v15.2d", "#63"],
+      "role": "thetaRhoPi",
+      "lane": 10
+    },
+    {
+      "address": "0xc4",
+      "mnemonic": "xar",
+      "operands": ["v13.2d", "v1.2d", "v9.2d", "#2"],
+      "role": "thetaRhoPi",
+      "lane": 20
+    },
+    {
+      "address": "0xc8",
+      "mnemonic": "xar",
+      "operands": ["v3.2d", "v17.2d", "v9.2d", "#58"],
+      "role": "thetaRhoPi",
+      "lane": 11
+    },
+    {
+      "address": "0xcc",
+      "mnemonic": "xar",
+      "operands": ["v17.2d", "v28.2d", "v9.2d", "#21"],
+      "role": "thetaRhoPi",
+      "lane": 2
+    },
+    {
+      "address": "0xd0",
+      "mnemonic": "xar",
+      "operands": ["v0.2d", "v2.2d", "v10.2d", "#36"],
+      "role": "thetaRhoPi",
+      "lane": 5
+    },
+    {
+      "address": "0xd4",
+      "mnemonic": "xar",
+      "operands": ["v2.2d", "v5.2d", "v14.2d", "#28"],
+      "role": "thetaRhoPi",
+      "lane": 16
+    },
+    {
+      "address": "0xd8",
+      "mnemonic": "xar",
+      "operands": ["v5.2d", "v6.2d", "v15.2d", "#20"],
+      "role": "thetaRhoPi",
+      "lane": 1
+    },
+    {
+      "address": "0xdc",
+      "mnemonic": "xar",
+      "operands": ["v1.2d", "v4.2d", "v11.2d", "#37"],
+      "role": "thetaRhoPi",
+      "lane": 15
+    },
+    {
+      "address": "0xe0",
+      "mnemonic": "xar",
+      "operands": ["v4.2d", "v7.2d", "v10.2d", "#9"],
+      "role": "thetaRhoPi",
+      "lane": 21
+    },
+    {
+      "address": "0xe4",
+      "mnemonic": "xar",
+      "operands": ["v22.2d", "v22.2d", "v11.2d", "#44"],
+      "role": "thetaRhoPi",
+      "lane": 6
+    },
+    {
+      "address": "0xe8",
+      "mnemonic": "xar",
+      "operands": ["v6.2d", "v18.2d", "v15.2d", "#54"],
+      "role": "thetaRhoPi",
+      "lane": 17
+    },
+    {
+      "address": "0xec",
+      "mnemonic": "xar",
+      "operands": ["v7.2d", "v20.2d", "v11.2d", "#25"],
+      "role": "thetaRhoPi",
+      "lane": 22
+    },
+    {
+      "address": "0xf0",
+      "mnemonic": "xar",
+      "operands": ["v18.2d", "v29.2d", "v10.2d", "#43"],
+      "role": "thetaRhoPi",
+      "lane": 3
+    },
+    {
+      "address": "0xf4",
+      "mnemonic": "xar",
+      "operands": ["v20.2d", "v31.2d", "v11.2d", "#50"],
+      "role": "thetaRhoPi",
+      "lane": 4
+    },
+    {
+      "address": "0xf8",
+      "mnemonic": "xar",
+      "operands": ["v31.2d", "v21.2d", "v14.2d", "#23"],
+      "role": "thetaRhoPi",
+      "lane": 23
+    },
+    {
+      "address": "0xfc",
+      "mnemonic": "xar",
+      "operands": ["v21.2d", "v16.2d", "v15.2d", "#19"],
+      "role": "thetaRhoPi",
+      "lane": 8
+    },
+    {
+      "address": "0x100",
+      "mnemonic": "xar",
+      "operands": ["v29.2d", "v24.2d", "v9.2d", "#49"],
+      "role": "thetaRhoPi",
+      "lane": 18
+    },
+    {
+      "address": "0x104",
+      "mnemonic": "xar",
+      "operands": ["v24.2d", "v30.2d", "v9.2d", "#3"],
+      "role": "thetaRhoPi",
+      "lane": 9
+    },
+    {
+      "address": "0x108",
+      "mnemonic": "xar",
+      "operands": ["v16.2d", "v27.2d", "v14.2d", "#46"],
+      "role": "thetaRhoPi",
+      "lane": 14
+    },
+    {
+      "address": "0x10c",
+      "mnemonic": "ldr",
+      "operands": ["q27", "[sp]"],
+      "role": "other"
+    },
+    {
+      "address": "0x110",
+      "mnemonic": "xar",
+      "operands": ["v23.2d", "v23.2d", "v10.2d", "#39"],
+      "role": "thetaRhoPi",
+      "lane": 12
+    },
+    {
+      "address": "0x114",
+      "mnemonic": "xar",
+      "operands": ["v25.2d", "v25.2d", "v11.2d", "#56"],
+      "role": "thetaRhoPi",
+      "lane": 13
+    },
+    {
+      "address": "0x118",
+      "mnemonic": "xar",
+      "operands": ["v26.2d", "v26.2d", "v10.2d", "#8"],
+      "role": "thetaRhoPi",
+      "lane": 19
+    },
+    {
+      "address": "0x11c",
+      "mnemonic": "bcax",
+      "operands": ["v10.16b", "v8.16b", "v17.16b", "v5.16b"],
+      "role": "chi",
+      "lane": 0
+    },
+    {
+      "address": "0x120",
+      "mnemonic": "bcax",
+      "operands": ["v11.16b", "v5.16b", "v18.16b", "v17.16b"],
+      "role": "chi",
+      "lane": 1
+    },
+    {
+      "address": "0x124",
+      "mnemonic": "xar",
+      "operands": ["v9.2d", "v27.2d", "v15.2d", "#62"],
+      "role": "thetaRhoPi",
+      "lane": 24
+    },
+    {
+      "address": "0x128",
+      "mnemonic": "bcax",
+      "operands": ["v14.16b", "v17.16b", "v20.16b", "v18.16b"],
+      "role": "chi",
+      "lane": 2
+    },
+    {
+      "address": "0x12c",
+      "mnemonic": "bcax",
+      "operands": ["v27.16b", "v18.16b", "v8.16b", "v20.16b"],
+      "role": "chi",
+      "lane": 3
+    },
+    {
+      "address": "0x130",
+      "mnemonic": "bcax",
+      "operands": ["v8.16b", "v20.16b", "v5.16b", "v8.16b"],
+      "role": "chi",
+      "lane": 4
+    },
+    {
+      "address": "0x134",
+      "mnemonic": "bcax",
+      "operands": ["v20.16b", "v0.16b", "v19.16b", "v22.16b"],
+      "role": "chi",
+      "lane": 5
+    },
+    {
+      "address": "0x138",
+      "mnemonic": "bcax",
+      "operands": ["v30.16b", "v22.16b", "v21.16b", "v19.16b"],
+      "role": "chi",
+      "lane": 6
+    },
+    {
+      "address": "0x13c",
+      "mnemonic": "bcax",
+      "operands": ["v5.16b", "v21.16b", "v0.16b", "v24.16b"],
+      "role": "chi",
+      "lane": 8
+    },
+    {
+      "address": "0x140",
+      "mnemonic": "bcax",
+      "operands": ["v22.16b", "v24.16b", "v22.16b", "v0.16b"],
+      "role": "chi",
+      "lane": 9
+    },
+    {
+      "address": "0x144",
+      "mnemonic": "ldr",
+      "operands": ["d0", "[x9, x8]"],
+      "role": "loadRc"
+    },
+    {
+      "address": "0x148",
+      "mnemonic": "bcax",
+      "operands": ["v17.16b", "v19.16b", "v24.16b", "v21.16b"],
+      "role": "chi",
+      "lane": 7
+    },
+    {
+      "address": "0x14c",
+      "mnemonic": "bcax",
+      "operands": ["v19.16b", "v12.16b", "v23.16b", "v3.16b"],
+      "role": "chi",
+      "lane": 10
+    },
+    {
+      "address": "0x150",
+      "mnemonic": "bcax",
+      "operands": ["v18.16b", "v3.16b", "v25.16b", "v23.16b"],
+      "role": "chi",
+      "lane": 11
+    },
+    {
+      "address": "0x154",
+      "mnemonic": "bcax",
+      "operands": ["v28.16b", "v23.16b", "v16.16b", "v25.16b"],
+      "role": "chi",
+      "lane": 12
+    },
+    {
+      "address": "0x158",
+      "mnemonic": "bcax",
+      "operands": ["v23.16b", "v25.16b", "v12.16b", "v16.16b"],
+      "role": "chi",
+      "lane": 13
+    },
+    {
+      "address": "0x15c",
+      "mnemonic": "bcax",
+      "operands": ["v25.16b", "v16.16b", "v3.16b", "v12.16b"],
+      "role": "chi",
+      "lane": 14
+    },
+    {
+      "address": "0x160",
+      "mnemonic": "bcax",
+      "operands": ["v3.16b", "v1.16b", "v6.16b", "v2.16b"],
+      "role": "chi",
+      "lane": 15
+    },
+    {
+      "address": "0x164",
+      "mnemonic": "bcax",
+      "operands": ["v15.16b", "v2.16b", "v29.16b", "v6.16b"],
+      "role": "chi",
+      "lane": 16
+    },
+    {
+      "address": "0x168",
+      "mnemonic": "bcax",
+      "operands": ["v16.16b", "v6.16b", "v26.16b", "v29.16b"],
+      "role": "chi",
+      "lane": 17
+    },
+    {
+      "address": "0x16c",
+      "mnemonic": "mov",
+      "operands": ["v6.16b", "v30.16b"],
+      "role": "other"
+    },
+    {
+      "address": "0x170",
+      "mnemonic": "bcax",
+      "operands": ["v29.16b", "v29.16b", "v1.16b", "v26.16b"],
+      "role": "chi",
+      "lane": 18
+    },
+    {
+      "address": "0x174",
+      "mnemonic": "add",
+      "operands": ["x8", "x8", "#8"],
+      "role": "loop"
+    },
+    {
+      "address": "0x178",
+      "mnemonic": "bcax",
+      "operands": ["v21.16b", "v26.16b", "v2.16b", "v1.16b"],
+      "role": "chi",
+      "lane": 19
+    },
+    {
+      "address": "0x17c",
+      "mnemonic": "mov",
+      "operands": ["v2.16b", "v27.16b"],
+      "role": "other"
+    },
+    {
+      "address": "0x180",
+      "mnemonic": "cmp",
+      "operands": ["x8", "#192"],
+      "role": "loop"
+    },
+    {
+      "address": "0x184",
+      "mnemonic": "bcax",
+      "operands": ["v24.16b", "v13.16b", "v7.16b", "v4.16b"],
+      "role": "chi",
+      "lane": 20
+    },
+    {
+      "address": "0x188",
+      "mnemonic": "bcax",
+      "operands": ["v26.16b", "v4.16b", "v31.16b", "v7.16b"],
+      "role": "chi",
+      "lane": 21
+    },
+    {
+      "address": "0x18c",
+      "mnemonic": "bcax",
+      "operands": ["v30.16b", "v7.16b", "v9.16b", "v31.16b"],
+      "role": "chi",
+      "lane": 22
+    },
+    {
+      "address": "0x190",
+      "mnemonic": "mov",
+      "operands": ["v7.16b", "v5.16b"],
+      "role": "other"
+    },
+    {
+      "address": "0x194",
+      "mnemonic": "mov",
+      "operands": ["v5.16b", "v20.16b"],
+      "role": "other"
+    },
+    {
+      "address": "0x198",
+      "mnemonic": "bcax",
+      "operands": ["v20.16b", "v31.16b", "v13.16b", "v9.16b"],
+      "role": "chi",
+      "lane": 23
+    },
+    {
+      "address": "0x19c",
+      "mnemonic": "bcax",
+      "operands": ["v31.16b", "v9.16b", "v4.16b", "v13.16b"],
+      "role": "chi",
+      "lane": 24
+    },
+    {
+      "address": "0x1a0",
+      "mnemonic": "mov",
+      "operands": ["v4.16b", "v8.16b"],
+      "role": "other"
+    },
+    {
+      "address": "0x1a4",
+      "mnemonic": "eor",
+      "operands": ["v8.16b", "v0.16b", "v10.16b"],
+      "role": "iota",
+      "lane": 0
+    },
+    {
+      "address": "0x1a8",
+      "mnemonic": "b.ne",
+      "operands": [".LBB0_1"],
+      "role": "loop"
+    },
+    {
+      "address": "0x1ac",
+      "mnemonic": "zip1",
+      "operands": ["v0.2d", "v8.2d", "v11.2d"],
+      "role": "storeState",
+      "lane": 0
+    },
+    {
+      "address": "0x1b0",
+      "mnemonic": "zip1",
+      "operands": ["v1.2d", "v14.2d", "v2.2d"],
+      "role": "storeState",
+      "lane": 2
+    },
+    {
+      "address": "0x1b4",
+      "mnemonic": "str",
+      "operands": ["d31", "[x0, #192]"],
+      "role": "storeState",
+      "lane": 24
+    },
+    {
+      "address": "0x1b8",
+      "mnemonic": "zip1",
+      "operands": ["v4.2d", "v4.2d", "v5.2d"],
+      "role": "storeState",
+      "lane": 4
+    },
+    {
+      "address": "0x1bc",
+      "mnemonic": "zip1",
+      "operands": ["v5.2d", "v6.2d", "v17.2d"],
+      "role": "storeState",
+      "lane": 6
+    },
+    {
+      "address": "0x1c0",
+      "mnemonic": "zip1",
+      "operands": ["v6.2d", "v7.2d", "v22.2d"],
+      "role": "storeState",
+      "lane": 8
+    },
+    {
+      "address": "0x1c4",
+      "mnemonic": "zip1",
+      "operands": ["v3.2d", "v25.2d", "v3.2d"],
+      "role": "storeState",
+      "lane": 14
+    },
+    {
+      "address": "0x1c8",
+      "mnemonic": "ldp",
+      "operands": ["d9", "d8", "[sp, #64]"],
+      "role": "other"
+    },
+    {
+      "address": "0x1cc",
+      "mnemonic": "zip1",
+      "operands": ["v2.2d", "v15.2d", "v16.2d"],
+      "role": "storeState",
+      "lane": 16
+    },
+    {
+      "address": "0x1d0",
+      "mnemonic": "ldp",
+      "operands": ["d11", "d10", "[sp, #48]"],
+      "role": "other"
+    },
+    {
+      "address": "0x1d4",
+      "mnemonic": "stp",
+      "operands": ["q0", "q1", "[x0]"],
+      "role": "storeState",
+      "lane": 0
+    },
+    {
+      "address": "0x1d8",
+      "mnemonic": "zip1",
+      "operands": ["v0.2d", "v19.2d", "v18.2d"],
+      "role": "storeState",
+      "lane": 10
+    },
+    {
+      "address": "0x1dc",
+      "mnemonic": "zip1",
+      "operands": ["v1.2d", "v28.2d", "v23.2d"],
+      "role": "storeState",
+      "lane": 12
+    },
+    {
+      "address": "0x1e0",
+      "mnemonic": "stp",
+      "operands": ["q4", "q5", "[x0, #32]"],
+      "role": "storeState",
+      "lane": 4
+    },
+    {
+      "address": "0x1e4",
+      "mnemonic": "zip1",
+      "operands": ["v4.2d", "v24.2d", "v26.2d"],
+      "role": "storeState",
+      "lane": 20
+    },
+    {
+      "address": "0x1e8",
+      "mnemonic": "ldp",
+      "operands": ["d13", "d12", "[sp, #32]"],
+      "role": "other"
+    },
+    {
+      "address": "0x1ec",
+      "mnemonic": "ldp",
+      "operands": ["d15", "d14", "[sp, #16]"],
+      "role": "other"
+    },
+    {
+      "address": "0x1f0",
+      "mnemonic": "stp",
+      "operands": ["q6", "q0", "[x0, #64]"],
+      "role": "storeState",
+      "lane": 8
+    },
+    {
+      "address": "0x1f4",
+      "mnemonic": "zip1",
+      "operands": ["v0.2d", "v29.2d", "v21.2d"],
+      "role": "storeState",
+      "lane": 18
+    },
+    {
+      "address": "0x1f8",
+      "mnemonic": "stp",
+      "operands": ["q1", "q3", "[x0, #96]"],
+      "role": "storeState",
+      "lane": 12
+    },
+    {
+      "address": "0x1fc",
+      "mnemonic": "zip1",
+      "operands": ["v1.2d", "v30.2d", "v20.2d"],
+      "role": "storeState",
+      "lane": 22
+    },
+    {
+      "address": "0x200",
+      "mnemonic": "stp",
+      "operands": ["q2", "q0", "[x0, #128]"],
+      "role": "storeState",
+      "lane": 16
+    },
+    {
+      "address": "0x204",
+      "mnemonic": "stp",
+      "operands": ["q4", "q1", "[x0, #160]"],
+      "role": "storeState",
+      "lane": 20
+    },
+    {
+      "address": "0x208",
+      "mnemonic": "add",
+      "operands": ["sp", "sp", "#80"],
+      "role": "other"
+    },
+    {
+      "address": "0x20c",
+      "mnemonic": "ret",
+      "operands": [],
+      "role": "other"
+    }
+  ]
+}

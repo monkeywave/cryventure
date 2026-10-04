@@ -7,15 +7,17 @@ import { useSelectionPreviewHandlers } from '../_lib/useSelectionPreview.ts';
 import { useValueLabel } from '../_lib/useValueLabel.ts';
 import {
   NIBBLE,
+  arrowTermText,
   opGlyphKey,
+  opNameKey,
   TERM_ROLE_GLYPHS,
   hexChunks,
-  isStoryTerm,
   lensParts,
   nibbleGroups,
+  registerArrows,
   registerChunksPerLine,
-  sha2RegisterShift,
   showsBitStrip,
+  storyTerms,
   wordBitsOf,
   wordopsStepAt,
   type LensParts,
@@ -28,11 +30,16 @@ import './wordops.css';
  * step at the playhead (as the math view: sparse steps keep the latest one; before the first, that one
  * is previewed in a dashed frame tagged "preview" under a start hint, not linked: its values are not
  * computed yet). With `registerNames`: the registers before and after the
- * step; on a SHA-2 round (eight registers plus the terms T1 and T2) the shift b ← a, …, e ← d + T1,
- * a ← T1 + T2 is drawn as labelled arrows (dashed + bold for the computed ones, listed in words for
- * screen readers). Then the terms in dataflow order: label, operator glyph, hex in 4-digit chunks.
- * Lenses: story = registers + results and T1/T2 only (`isStoryTerm`); engineer = all terms, 32-bit
- * rotation/shift terms also as bit strips (64-bit stays hex); cryptographer = the formula + all terms.
+ * step, with arrows for how each after-register comes about (dashed + bold for the computed ones,
+ * listed in words for screen readers): schema v2 draws the step's `transfers` (a term arrow carries
+ * the right-hand side of the term's label); v1 keeps the structural SHA-2 shift b ← a, …,
+ * e ← d + T1, a ← T1 + T2 (docs/M6.md §3b). With `registerColumns` the registers form a grid (the
+ * BLAKE2 4 × 4 matrix) whose `touched` cells (the G column or diagonal) are highlighted with a ◆ in
+ * both grids; the transfers are then listed in words only. Without arrows, changed registers get a •.
+ * Then the terms in dataflow order: label, operator glyph (√ / ∛ for a root's `degree`), hex in
+ * 4-digit chunks. Lenses: story = registers + the story terms (`storyTerms`: v2 `emphasis`, v1
+ * results and T1/T2; a hint when a step has none); engineer = all terms, 32-bit rotation/shift terms
+ * also as bit strips (64-bit stays hex); cryptographer = the formula + all terms.
  * Terms with a ValueRef publish it as the lab selection on hover/focus. Each term shows its role as a
  * glyph and in words, not by colour only. Both blocks scroll horizontally inside the panel on a phone,
  * never the page (focusable only while they overflow). 64-bit register words wrap onto two lines.
@@ -77,7 +84,8 @@ interface WordStepProps {
 
 function WordStep({ facet, wordStep, parts, linked }: WordStepProps) {
   const t = useT();
-  const terms = parts.storyTermsOnly ? wordStep.terms.filter(isStoryTerm) : wordStep.terms;
+  const terms = parts.storyTermsOnly ? storyTerms(facet.schemaVersion, wordStep.terms) : wordStep.terms;
+  const nothingToTell = parts.storyTermsOnly && terms.length === 0 && wordStep.terms.length > 0;
   return (
     <>
       {parts.formula && (
@@ -86,9 +94,10 @@ function WordStep({ facet, wordStep, parts, linked }: WordStepProps) {
         </p>
       )}
       {facet.registerNames !== undefined && wordStep.registers !== undefined && (
-        <Registers names={facet.registerNames} wordStep={wordStep} wordBits={facet.wordBits} />
+        <Registers facet={facet} names={facet.registerNames} wordStep={wordStep} />
       )}
       {terms.length > 0 && <TermTable terms={terms} wordBits={facet.wordBits} bitStrips={parts.bitStrips} linked={linked} />}
+      {nothingToTell && <p className="cv-wordops__hint">{t('view.wordops.storyNone')}</p>}
     </>
   );
 }
@@ -130,20 +139,34 @@ function HexWord({ hex, chunksPerLine }: { hex: string; chunksPerLine?: number }
   );
 }
 
-/* ---------- registers and the SHA-2 shift ---------- */
+/* ---------- registers and their arrows ---------- */
 
-function Registers({ names, wordStep, wordBits }: { names: string[]; wordStep: WordopsStep; wordBits: WordBits }) {
+function Registers({ facet, names, wordStep }: { facet: WordopsFacet; names: string[]; wordStep: WordopsStep }) {
   const t = useT();
   const registers = wordStep.registers!;
-  const arrows = useMemo(() => sha2RegisterShift(wordStep), [wordStep]);
-  const chunksPerLine = registerChunksPerLine(wordBits);
+  const arrows = useMemo(() => registerArrows(facet.schemaVersion, wordStep), [facet.schemaVersion, wordStep]);
+  const rowProps = { names, touched: new Set(registers.touched), chunksPerLine: registerChunksPerLine(facet.wordBits) };
+  const before = arrows === undefined ? registers.before : undefined;
+  if (facet.registerColumns !== undefined) {
+    return (
+      <ScrollRegion className={SCROLL_CLASS} label={t('view.wordops.registers')}>
+        <div className="cv-wordops__grids" style={{ '--cv-wordops-cols': facet.registerColumns } as CSSProperties}>
+          <RegisterGrid side="before" words={registers.before} columns={facet.registerColumns} {...rowProps} />
+          <RegisterGrid side="after" words={registers.after} before={before} columns={facet.registerColumns} {...rowProps} />
+        </div>
+        {rowProps.touched.size > 0 && <p className="cv-wordops__legend">{t('view.wordops.touchedLegend')}</p>}
+        {arrows !== undefined && <ArrowList names={names} arrows={arrows} terms={wordStep.terms} />}
+      </ScrollRegion>
+    );
+  }
   return (
     <ScrollRegion className={SCROLL_CLASS} label={t('view.wordops.registers')}>
       <div className="cv-wordops__registers" style={{ '--cv-wordops-regs': names.length } as CSSProperties} data-shift={arrows !== undefined || undefined}>
-        <RegisterRow side="before" names={names} words={registers.before} chunksPerLine={chunksPerLine} />
-        {arrows !== undefined && <ShiftArrows names={names} arrows={arrows} />}
-        <RegisterRow side="after" names={names} words={registers.after} before={arrows === undefined ? registers.before : undefined} chunksPerLine={chunksPerLine} />
+        <RegisterRow side="before" words={registers.before} {...rowProps} />
+        {arrows !== undefined && <ShiftArrows names={names} arrows={arrows} terms={wordStep.terms} />}
+        <RegisterRow side="after" words={registers.after} before={before} {...rowProps} />
       </div>
+      {rowProps.touched.size > 0 && <p className="cv-wordops__legend">{t('view.wordops.touchedLegend')}</p>}
     </ScrollRegion>
   );
 }
@@ -152,36 +175,80 @@ interface RegisterRowProps {
   side: 'before' | 'after';
   names: string[];
   words: string[];
-  /** The words before the step, to mark changed registers (only without shift arrows). */
-  before?: string[];
+  /** The words before the step, to mark changed registers (only without arrows). */
+  before?: string[] | undefined;
+  /** Register indices the step reads and writes (v2), marked ◆ on both sides. */
+  touched: ReadonlySet<number>;
   chunksPerLine: number | undefined;
 }
 
-function RegisterRow({ side, names, words, before, chunksPerLine }: RegisterRowProps) {
+/** The registers of one side as a grid of `columns` columns (the BLAKE2 matrix), its label above. */
+function RegisterGrid({ columns, ...row }: RegisterRowProps & { columns: number }) {
   const t = useT();
   return (
-    <div className="cv-wordops__regrow" role="group" aria-label={t(`view.wordops.${side}`)} data-side={side}>
-      <span className="cv-wordops__regside" aria-hidden="true">
-        {t(`view.wordops.${side}`)}
+    <div className="cv-wordops__grid" role="group" aria-label={t(`view.wordops.${row.side}`)} data-side={row.side} data-columns={columns}>
+      <span className="cv-wordops__gridside" aria-hidden="true">
+        {t(`view.wordops.${row.side}`)}
       </span>
-      {names.map((name, index) => {
-        const changed = before !== undefined && before[index] !== words[index];
-        return (
-          <span key={name} className="cv-wordops__reg" data-register={name} data-changed={changed || undefined}>
-            <span className="cv-wordops__regname">
-              {name}
-              {changed && (
-                <>
-                  <span aria-hidden="true">{' •'}</span>
-                  <span className="cv-visually-hidden">{t('view.wordops.changed')}</span>
-                </>
-              )}
-            </span>
-            <HexWord hex={words[index] ?? ''} chunksPerLine={chunksPerLine} />
-          </span>
-        );
-      })}
+      <RegisterCells {...row} />
     </div>
+  );
+}
+
+function RegisterRow(row: RegisterRowProps) {
+  const t = useT();
+  return (
+    <div className="cv-wordops__regrow" role="group" aria-label={t(`view.wordops.${row.side}`)} data-side={row.side}>
+      <span className="cv-wordops__regside" aria-hidden="true">
+        {t(`view.wordops.${row.side}`)}
+      </span>
+      <RegisterCells {...row} />
+    </div>
+  );
+}
+
+function RegisterCells({ names, words, before, touched, chunksPerLine }: RegisterRowProps) {
+  return names.map((name, index) => (
+    <RegisterCell
+      key={name}
+      name={name}
+      hex={words[index] ?? ''}
+      changed={before !== undefined && before[index] !== words[index]}
+      touched={touched.has(index)}
+      chunksPerLine={chunksPerLine}
+    />
+  ));
+}
+
+interface RegisterCellProps {
+  name: string;
+  hex: string;
+  changed: boolean;
+  touched: boolean;
+  chunksPerLine: number | undefined;
+}
+
+/** One register: its name (plus a ◆ when touched, a • when changed, each also in words) and its word. */
+function RegisterCell({ name, hex, changed, touched, chunksPerLine }: RegisterCellProps) {
+  return (
+    <span className="cv-wordops__reg" data-register={name} data-changed={changed || undefined} data-touched={touched || undefined}>
+      <span className="cv-wordops__regname">
+        {name}
+        {touched && <RegisterMark glyph=" ◆" textKey="view.wordops.touched" />}
+        {changed && <RegisterMark glyph=" •" textKey="view.wordops.changed" />}
+      </span>
+      <HexWord hex={hex} chunksPerLine={chunksPerLine} />
+    </span>
+  );
+}
+
+function RegisterMark({ glyph, textKey }: { glyph: string; textKey: 'view.wordops.touched' | 'view.wordops.changed' }) {
+  const t = useT();
+  return (
+    <>
+      <span aria-hidden="true">{glyph}</span>
+      <span className="cv-visually-hidden">{t(textKey)}</span>
+    </>
   );
 }
 
@@ -192,6 +259,11 @@ const ARROW_HEIGHT = 48;
 /** The T1 + T2 arrow starts below its label (baseline at `SUM_LABEL_BASELINE`), with a clear gap. */
 const SUM_LABEL_BASELINE = ARROW_TOP + 11;
 const SUM_START = SUM_LABEL_BASELINE + 7;
+/**
+ * A term arrow's label ends just left of its target column's centre: it then stays clear of the
+ * arrow that leaves that column (the register's old value moving on, e.g. MD5's c ← b).
+ */
+const TERM_LABEL_END = -4;
 
 function arrowPath(arrow: ShiftArrow): { x1: number; y1: number; x2: number; y2: number } {
   const x2 = arrow.to * COLUMN + COLUMN / 2;
@@ -199,17 +271,43 @@ function arrowPath(arrow: ShiftArrow): { x1: number; y1: number; x2: number; y2:
   return { x1: arrow.from * COLUMN + COLUMN / 2, y1: ARROW_TOP, x2, y2: ARROW_BOTTOM };
 }
 
-function arrowText(arrow: ShiftArrow, names: string[], t: ReturnType<typeof useT>): string {
+/** The translated label of the step's term `id` ('' when absent; validation guarantees it exists). */
+function termLabel(terms: readonly WordTerm[], id: string | undefined, t: ReturnType<typeof useT>): string {
+  const term = terms.find((each) => each.id === id);
+  return term === undefined ? '' : t(term.label);
+}
+
+function arrowText(arrow: ShiftArrow, names: string[], terms: readonly WordTerm[], t: ReturnType<typeof useT>): string {
   const to = names[arrow.to] ?? '';
+  if (arrow.source === 'term') return t('view.wordops.shift.term', { to, term: termLabel(terms, arrow.term, t) });
   const from = arrow.from === undefined ? '' : (names[arrow.from] ?? '');
   return t(`view.wordops.shift.${arrow.source}`, { to, from });
+}
+
+interface ArrowsProps {
+  names: string[];
+  arrows: readonly ShiftArrow[];
+  /** The step's terms, for the labels of term arrows. */
+  terms: readonly WordTerm[];
+}
+
+/** The arrows in words (screen readers; the grid layout draws no SVG arrows). */
+function ArrowList({ names, arrows, terms }: ArrowsProps) {
+  const t = useT();
+  return (
+    <ul className="cv-visually-hidden" aria-label={t('view.wordops.shift.title')}>
+      {arrows.map((arrow) => (
+        <li key={arrow.to}>{arrowText(arrow, names, terms, t)}</li>
+      ))}
+    </ul>
+  );
 }
 
 /** Arrowheads: plain for copies, the computed colour for e ← d + T1 and a ← T1 + T2. */
 const ARROW_HEADS = ['copy', 'calc'] as const;
 
 /** The labelled shift arrows (decorative SVG) plus the same arrows in words for screen readers. */
-function ShiftArrows({ names, arrows }: { names: string[]; arrows: readonly ShiftArrow[] }) {
+function ShiftArrows({ names, arrows, terms }: ArrowsProps) {
   const t = useT();
   const markerId = useId();
   return (
@@ -228,19 +326,15 @@ function ShiftArrows({ names, arrows }: { names: string[]; arrows: readonly Shif
           ))}
         </defs>
         {arrows.map((arrow) => (
-          <ShiftLine key={arrow.to} arrow={arrow} markerId={`${markerId}-${arrow.source === 'copy' ? 'copy' : 'calc'}`} />
+          <ShiftLine key={arrow.to} arrow={arrow} markerId={`${markerId}-${arrow.source === 'copy' ? 'copy' : 'calc'}`} termText={arrowTermText(termLabel(terms, arrow.term, t))} />
         ))}
       </svg>
-      <ul className="cv-visually-hidden" aria-label={t('view.wordops.shift.title')}>
-        {arrows.map((arrow) => (
-          <li key={arrow.to}>{arrowText(arrow, names, t)}</li>
-        ))}
-      </ul>
+      <ArrowList names={names} arrows={arrows} terms={terms} />
     </div>
   );
 }
 
-function ShiftLine({ arrow, markerId }: { arrow: ShiftArrow; markerId: string }) {
+function ShiftLine({ arrow, markerId, termText }: { arrow: ShiftArrow; markerId: string; termText: string }) {
   const t = useT();
   const { x1, y1, x2, y2 } = arrowPath(arrow);
   return (
@@ -254,6 +348,11 @@ function ShiftLine({ arrow, markerId }: { arrow: ShiftArrow; markerId: string })
       {arrow.source === 'sum' && (
         <text x={x1} y={SUM_LABEL_BASELINE} textAnchor="middle" className="cv-wordops__arrowlabel">
           {t('view.wordops.arrow.sum')}
+        </text>
+      )}
+      {arrow.source === 'term' && (
+        <text x={x2 + TERM_LABEL_END} y={SUM_LABEL_BASELINE} textAnchor="end" className="cv-wordops__arrowlabel">
+          {termText}
         </text>
       )}
     </g>
@@ -344,8 +443,8 @@ const TermRow = memo(function TermRow({ term, bits, linked, selected, valueLabel
       <td role="cell" className="cv-wordops__op">
         {term.op !== undefined && (
           <>
-            <span aria-hidden="true">{t(opGlyphKey(term.op))}</span>
-            <span className="cv-visually-hidden">{t(`view.wordops.op.${term.op}`)}</span>
+            <span aria-hidden="true">{t(opGlyphKey({ op: term.op, degree: term.degree }))}</span>
+            <span className="cv-visually-hidden">{t(opNameKey({ op: term.op, degree: term.degree }))}</span>
           </>
         )}
       </td>

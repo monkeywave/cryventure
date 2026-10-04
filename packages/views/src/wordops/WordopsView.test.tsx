@@ -300,6 +300,149 @@ describe('WordopsView', () => {
     vi.unstubAllGlobals();
   });
 
+  describe('schema v2', () => {
+    const story = (each: WordTerm): WordTerm => ({ ...each, emphasis: 'story' });
+    /* MD5 round shape: a ← d, b ← new b (a term), c ← b, d ← c. */
+    const md5: WordopsFacet = {
+      kind: 'wordops',
+      schemaVersion: 2,
+      wordBits: 32,
+      registerNames: ['a', 'b', 'c', 'd'],
+      steps: [
+        {
+          step: 0,
+          formula: { key: 'test.formula.round' },
+          terms: [term('G', '00000001', 'intermediate', 'md5G'), term('I', '00000002', 'intermediate', 'md5I'), term('P', '00000003', 'intermediate', 'parity'), term('O', '00000004', 'intermediate', 'or'), story(term('newB', '0000000b', 'result', 'add'))],
+          registers: {
+            before: ['0000000a', '0000000b', '0000000c', '0000000d'],
+            after: ['0000000d', '0000000b', '0000000b', '0000000c'],
+            transfers: [
+              { to: 0, from: { register: 3 } },
+              { to: 1, from: { term: 'newB' } },
+              { to: 2, from: { register: 1 } },
+              { to: 3, from: { register: 2 } },
+            ],
+          },
+        },
+        { step: 1, formula: { key: 'test.formula.feed' }, terms: [term('H0', '00000001', 'result', 'add')] },
+        /* A SHA-2-shaped v2 step without transfers: no structural guess. */
+        { step: 2, formula: { key: 'test.formula.round' }, terms: [term('T1', T1, 'intermediate', 'add'), term('T2', T2, 'intermediate', 'add')], registers: { before: IV, after: ROUND0_AFTER } },
+      ],
+    };
+    const md5Labels = { 'test.term.G': 'G(b, c, d)', 'test.term.I': 'I(b, c, d)', 'test.term.P': 'b ⊕ c ⊕ d', 'test.term.O': 'b ∨ ¬d', 'test.term.newB': 'new b = b + ((…) ⋘ 7)' };
+    const renderV2 = (lens: Lens, facet: WordopsFacet, labels: Record<string, string> = md5Labels) =>
+      renderLab(<WordopsView labId="fixture" lens={lens} />, { bundle: bundleWith({ [facetKey('wordops')]: facet }), messages: { ...english, ...labels } });
+
+    it('draws the arrows from the transfers, labelling term arrows with the label\'s right-hand side', () => {
+      const { store } = renderV2('engineer', md5);
+      act(() => store.getState().seek(0));
+      const arrows = within(shiftList()!).getAllByRole('listitem').map((item) => item.textContent);
+      expect(arrows).toEqual(['a ← d', 'b ← new b = b + ((…) ⋘ 7)', 'c ← b', 'd ← c']);
+      const svg = document.querySelector('.cv-wordops__arrows')!;
+      expect([...svg.querySelectorAll('.cv-wordops__arrowlabel')].map((label) => label.textContent)).toEqual(['b + ((…) ⋘ 7)']);
+      expect(svg.querySelectorAll('[data-source="copy"] line')).toHaveLength(3);
+      expect(svg.querySelectorAll('[data-source="term"] line')).toHaveLength(1);
+    });
+
+    it('draws no arrows for a v2 step without transfers, marking changed registers instead', () => {
+      const { store } = renderV2('engineer', md5, { ...md5Labels, ...LABELS });
+      act(() => store.getState().seek(2));
+      expect(shiftList()).toBeNull();
+      expect(register('after', 'a').hasAttribute('data-changed')).toBe(true);
+    });
+
+    it('shows the new op glyphs with their spoken names', () => {
+      const { store } = renderV2('engineer', md5);
+      act(() => store.getState().seek(0));
+      expect(['G', 'I', 'P', 'O'].map((id) => row(id)!.querySelector('.cv-wordops__op')!.textContent)).toEqual([
+        'GMD5 function G',
+        'IMD5 function I',
+        'Parityparity (x ⊕ y ⊕ z)',
+        '∨OR',
+      ]);
+    });
+
+    it('story lens: only the terms marked story; a step without any shows none plus a hint', () => {
+      const { store } = renderV2('story', md5);
+      act(() => store.getState().seek(0));
+      expect(termLabels()).toEqual(['new b = b + ((…) ⋘ 7)']);
+      expect(screen.queryByText(english['view.wordops.storyNone']!)).toBeNull();
+      act(() => store.getState().seek(1));
+      expect(screen.queryByRole('table')).toBeNull();
+      expect(screen.getByText(english['view.wordops.storyNone']!)).toBeTruthy();
+    });
+
+    it('engineer lens still shows every term of a step without story terms', () => {
+      const { store } = renderV2('engineer', md5);
+      act(() => store.getState().seek(1));
+      expect(termLabels()).toEqual(['H0']);
+      expect(screen.queryByText(english['view.wordops.storyNone']!)).toBeNull();
+    });
+
+    it('writes √ or ∛ for a root with a degree', () => {
+      const roots: WordopsFacet = {
+        kind: 'wordops',
+        schemaVersion: 2,
+        wordBits: 32,
+        steps: [{ step: 0, formula: { key: 'test.formula.feed' }, terms: [{ ...term('r', '428a2f98', 'result', 'root'), degree: 3 }, { ...term('s', '6a09e667', 'result', 'root'), degree: 2 }] }],
+      };
+      const { store } = renderV2('engineer', roots, { 'test.term.r': 'K0', 'test.term.s': 'H0' });
+      act(() => store.getState().seek(0));
+      expect(row('r')!.querySelector('.cv-wordops__op [aria-hidden]')!.textContent).toBe('∛');
+      expect(row('s')!.querySelector('.cv-wordops__op [aria-hidden]')!.textContent).toBe('√');
+      expect(row('r')!.querySelector('.cv-wordops__op')!.textContent).toContain(english['view.wordops.op.root3']!);
+    });
+
+    describe('register grid (BLAKE2 4 × 4)', () => {
+      const names = Array.from({ length: 16 }, (_, index) => `v${index}`);
+      const words = (offset: number) => names.map((_, index) => (index + offset).toString(16).padStart(8, '0'));
+      const column = [0, 4, 8, 12];
+      const after = words(0).map((word, index) => (column.includes(index) ? 'ffffff0' + index.toString(16) : word));
+      const blake: WordopsFacet = {
+        kind: 'wordops',
+        schemaVersion: 2,
+        wordBits: 32,
+        registerNames: names,
+        registerColumns: 4,
+        steps: [
+          {
+            step: 0,
+            formula: { key: 'test.formula.round' },
+            terms: [story(term('a2', after[0]!, 'result', 'add'))],
+            registers: { before: words(0), after, touched: column, transfers: column.map((to, index) => ({ to, from: { term: index === 0 ? 'a2' : 'a2' } })) },
+          },
+          /* BLAKE2 round detail: registers only, neither touched nor transfers. */
+          { step: 1, formula: { key: 'test.formula.round' }, terms: [], registers: { before: words(0), after: words(1) } },
+        ],
+      };
+      const grid = (side: 'before' | 'after') => screen.getByRole('group', { name: side });
+
+      it('lays the registers out in registerColumns columns and highlights the touched ones in both grids', () => {
+        const { store } = renderV2('engineer', blake, { 'test.term.a2': 'v0″ = v0′ + v4′ + y' });
+        act(() => store.getState().seek(0));
+        expect(grid('before').closest<HTMLElement>('[data-columns]')!.dataset.columns).toBe('4');
+        for (const side of ['before', 'after'] as const) {
+          const touched = [...grid(side).querySelectorAll<HTMLElement>('[data-touched]')].map((cell) => cell.dataset.register);
+          expect(touched).toEqual(['v0', 'v4', 'v8', 'v12']);
+          expect(register(side, 'v4').textContent).toContain(english['view.wordops.touched']!);
+        }
+        expect(register('after', 'v1').hasAttribute('data-touched')).toBe(false);
+        expect(document.querySelector('.cv-wordops__arrows')).toBeNull();
+        expect(within(shiftList()!).getAllByRole('listitem')[0]!.textContent).toBe('v0 ← v0″ = v0′ + v4′ + y');
+        expect(screen.getByText(english['view.wordops.touchedLegend']!)).toBeTruthy();
+      });
+
+      it('renders a round-detail step without touched/transfers, marking changed registers', () => {
+        const { store } = renderV2('engineer', blake);
+        act(() => store.getState().seek(1));
+        expect(grid('after').querySelectorAll('[data-touched]')).toHaveLength(0);
+        expect(grid('after').querySelectorAll('[data-changed]')).toHaveLength(16);
+        expect(register('after', 'v15').textContent).toContain('0000 0010');
+        expect(screen.queryByText(english['view.wordops.touchedLegend']!)).toBeNull();
+      });
+    });
+  });
+
   it('explains when the facet is missing', () => {
     renderLab(<WordopsView labId="fixture" lens="story" />, { bundle: { ...createFixtureBundle(), facets: {} }, messages: english });
     expect(screen.getByRole('status').textContent).toBe(english['view.wordops.missing']);

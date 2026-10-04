@@ -4,7 +4,7 @@ import type { BlockDetail, RoundDetail, ScheduleDetail } from './compress.ts';
 import type { Sha2OpName } from './manifestKit.ts';
 import type { Sha2Padding } from './padding.ts';
 import { SHA2_REGISTER_NAMES, wordIndices, type Sha2Region } from './regions.ts';
-import { roundTerms, scheduleTerms, termFactory, type TermFactory } from './wordTerms.ts';
+import { ROUND_TRANSFERS, roundTerms, scheduleTerms, termFactory, type RoundTermOptions, type TermFactory } from './wordTerms.ts';
 import { wordsHex, wordsToBytes, type Word, type WordArith } from './words.ts';
 import type { WordopsRecorder } from './wordopsRecorder.ts';
 
@@ -16,16 +16,20 @@ import type { WordopsRecorder } from './wordopsRecorder.ts';
 export { SHA2_OP_NAMES, type Sha2OpName } from './manifestKit.ts';
 export type Sha2Recorder = WordopsRecorder<Sha2Region, { op: Sha2OpName }>;
 
-/** What every step recorder needs: the namespace, the algorithm, the recorder and its term factory. */
+/** Per-producer trace choices: which optional round terms to emit (`hKW` for `sha512`). */
+export type Sha2TraceOptions = RoundTermOptions;
+
+/** What every step recorder needs: the namespace, the algorithm, the recorder, its term factory and the options. */
 export interface Sha2Trace<W extends Word> {
   ns: string;
   algorithm: Sha2Algorithm<W>;
   recorder: Sha2Recorder;
   term: TermFactory<W>;
+  options: Sha2TraceOptions;
 }
 
-export function sha2Trace<W extends Word>(ns: string, algorithm: Sha2Algorithm<W>, recorder: Sha2Recorder): Sha2Trace<W> {
-  return { ns, algorithm, recorder, term: termFactory(ns, algorithm.params.arith) };
+export function sha2Trace<W extends Word>(ns: string, algorithm: Sha2Algorithm<W>, recorder: Sha2Recorder, options: Sha2TraceOptions = {}): Sha2Trace<W> {
+  return { ns, algorithm, recorder, term: termFactory(ns, algorithm.params.arith), options };
 }
 
 const arithOf = <W extends Word>(trace: Sha2Trace<W>): WordArith<W> => trace.algorithm.params.arith;
@@ -143,8 +147,8 @@ export function recordRound<W extends Word>(trace: Sha2Trace<W>, round: RoundDet
     },
     {
       formula: i18nRef(`${trace.ns}.formula.round`, { t: round.t }),
-      terms: roundTerms(trace.term, round),
-      registers: { before: round.before.map((word) => arith.toHex(word)), after: round.after.map((word) => arith.toHex(word)) },
+      terms: roundTerms(trace.term, round, trace.options),
+      registers: { before: round.before.map((word) => arith.toHex(word)), after: round.after.map((word) => arith.toHex(word)), transfers: [...ROUND_TRANSFERS] },
     },
   );
 }

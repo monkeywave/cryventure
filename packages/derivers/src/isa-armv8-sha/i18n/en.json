@@ -9,5 +9,19 @@
   "deriver.isa-armv8-sha.note.copyAbcd": "sha256h and sha256h2 work as a pair: sha256h overwrites A … D, but sha256h2 for the same rounds still needs the old A … D. That is why the compiler copies A … D first; sha256h works on the copy.",
   "deriver.isa-armv8-sha.note.copyEfgh": "A copy of E … H for sha256h2 to overwrite: the original stays untouched for the feed-forward at the end of the block.",
   "deriver.isa-armv8-sha.note.literalK": "Loads K{{first}}…K{{last}} from the literal pool next to the code (adrp gives the page, ldr the offset), often well before the rounds that use them.",
-  "deriver.isa-armv8-sha.note.scheduleAhead": "The message schedule runs ahead: this instruction works on W{{first}}…W{{last}} several rounds before the state view's schedule steps write them. The four message registers hold a sliding window of 16 schedule words."
+  "deriver.isa-armv8-sha.note.scheduleAhead": "The message schedule runs ahead: this instruction works on W{{first}}…W{{last}} several rounds before the state view's schedule steps write them. The four message registers hold a sliding window of 16 schedule words.",
+  "deriver.isa-armv8-sha.sha512.label": "AArch64 · ARMv8.2 SHA512 extension",
+  "deriver.isa-armv8-sha.sha512.registers.label": "AArch64 · ARMv8.2 SHA512 · vector registers",
+  "deriver.isa-armv8-sha.note.sha512h": "Two rounds, first half: the destination holds h + K + W of both rounds (round t in the upper half) and receives T1 of both rounds; the second operand holds (f, g), the third (d, e) from before the rounds.",
+  "deriver.isa-armv8-sha.note.sha512h2": "Two rounds, second half: the destination holds the two T1 values and receives the new (a, b); the second operand holds (c, d), the third (a, b) from before the rounds.",
+  "deriver.isa-armv8-sha.note.newE": "The new (e, f) of both rounds: d + T1, lane by lane. The old (a, b) is now (c, d) and the old (e, f) is now (g, h), so five registers rotate through the state without any copy.",
+  "deriver.isa-armv8-sha.note.addKw512": "Adds the round constants to the schedule words: K + W of two rounds.",
+  "deriver.isa-armv8-sha.note.addHkw": "Adds h to K + W: h + K + W is the input sha512h expects. For the second round, h is the current g, because the round shifts g into h.",
+  "deriver.isa-armv8-sha.note.swapKw": "Swaps the two halves of K + W: sha512h wants round t in the upper half and round t+1 in the lower half.",
+  "deriver.isa-armv8-sha.note.pairState": "Pairs two state words across registers ((d, e) or (f, g)), the operands sha512h reads.",
+  "deriver.isa-armv8-sha.note.pairSchedule": "Pairs W[t−7] and W[t−6] from two message registers, the operand sha512su1 adds.",
+  "deriver.isa-armv8-sha.note.partialFeedForward": "Feed-forward, folded: the compiler adds the old (e, f) to the (c, d) of round 77 before T1 of rounds 78 and 79 arrives. That partial sum is not a value of the trace, so the register view keeps showing the old contents; the next add of this register completes H.",
+  "deriver.isa-armv8-sha.note.feedForward512": "Feed-forward: adds the state from before the block to the state after round 79, giving two words of H.",
+  "deriver.isa-armv8-sha.note.copyT1": "A copy of the two T1 values: sha512h2 overwrites its destination, but the feed-forward still needs T1 to finish (e, f).",
+  "deriver.isa-armv8-sha.note.scheduleAhead512": "The message schedule runs ahead: this instruction works on W{{first}}, W{{last}} several rounds before the state view's schedule steps write them. The eight message registers hold a sliding window of 16 schedule words."
 }

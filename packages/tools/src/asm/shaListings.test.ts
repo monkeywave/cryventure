@@ -7,12 +7,16 @@ import { join } from 'node:path';
 import type { ShaListingInstruction, ShaListingRole } from '@cryventure/derivers/listing';
 import { describe, expect, it } from 'vitest';
 import { REPO_ROOT } from '../fs/repoRoot.ts';
+import { canonicalRegister, isMemory, parseMemoryOperand } from './annotate.ts';
 import type { AsmListing } from './generate.ts';
 
 type ShaAsmListing = AsmListing<ShaListingInstruction>;
 
-function readListing(isa: 'isa-x86-sha' | 'isa-armv8-sha'): ShaAsmListing {
-  const path = join(REPO_ROOT, 'packages/derivers/src', isa, 'data', 'sha256.json');
+function readListing(
+  isa: 'isa-x86-sha' | 'isa-armv8-sha',
+  file: 'sha256.json' | 'sha512.json' = 'sha256.json',
+): ShaAsmListing {
+  const path = join(REPO_ROOT, 'packages/derivers/src', isa, 'data', file);
   return JSON.parse(readFileSync(path, 'utf8')) as ShaAsmListing;
 }
 
@@ -179,5 +183,127 @@ describe('ARMv8 SHA-256 listing', () => {
     expect(withRole(listing, 'feedForward')).toHaveLength(2);
     expect(withRole(listing, 'store').map((entry) => entry.operands.at(-1))).toEqual(['[x0]']);
     expect(span(listing, 'feedForward')[0]).toBeGreaterThan(span(listing, 'rounds2')[1]);
+  });
+});
+
+/**
+ * Follows the message words through an ARM SHA-512 listing: which W[t] (first of the pair) each
+ * vector register holds, `t` after su0 meaning the partial result for W[t]. Returns, per su0/su1,
+ * the word pair it reads/produces, so the occurrence-order `w` can be checked against the data.
+ */
+function scheduleDataflow(
+  listing: ShaAsmListing,
+): { mnemonic: string; w: number; reads: number[] }[] {
+  const words = new Map<string, number>();
+  const read = (operand: string | undefined) => words.get(canonicalRegister(operand ?? '')) ?? -1;
+  return listing.instructions.flatMap(({ mnemonic, operands }) => {
+    const [destination, first, second] = operands;
+    const memory = parseMemoryOperand(operands.find(isMemory) ?? '');
+    if (mnemonic.startsWith('ld') && memory?.base === 'x1') {
+      operands
+        .filter((operand) => !isMemory(operand))
+        .forEach((operand, index) => {
+          words.set(canonicalRegister(operand), memory.offset / 8 + 2 * index);
+        });
+      return [];
+    }
+    if (mnemonic.startsWith('st')) return [];
+    if (mnemonic === 'sha512su0' || mnemonic === 'sha512su1') {
+      const reads =
+        mnemonic === 'sha512su0'
+          ? [read(destination), read(first)]
+          : [read(destination), read(first), read(second)];
+      const w = mnemonic === 'sha512su0' ? reads[0]! + 16 : reads[0]!;
+      words.set(canonicalRegister(destination!), w);
+      return [{ mnemonic, w, reads }];
+    }
+    const message = read(first);
+    if (mnemonic === 'rev64' || mnemonic === 'mov')
+      words.set(canonicalRegister(destination!), message);
+    else if (mnemonic === 'ext' && message >= 0 && read(second) === message + 2)
+      words.set(canonicalRegister(destination!), message + 1);
+    else words.delete(canonicalRegister(destination ?? ''));
+    return [];
+  });
+}
+
+describe('ARMv8 SHA-512 listing (docs/M6.md §5b)', () => {
+  const listing = readListing('isa-armv8-sha', 'sha512.json');
+
+  it('has the common header, the M6 flags and 40/40/32/32 SHA512 instructions', () => {
+    expect(listing.compiler).toMatch(/^Homebrew clang version \d+\.\d+\.\d+/);
+    expect(listing.function).toBe('sha512_compress_block');
+    expect(listing.source).toMatch(
+      /^void sha512_compress_block\(uint64_t state\[8\], const uint8_t block\[128\]\)/,
+    );
+    expect(listing.flags).toBe(
+      '-target aarch64-linux-gnu -O2 -march=armv8.2-a+sha3 -ffreestanding -S',
+    );
+    expect(withMnemonic(listing, 'sha512h')).toHaveLength(40);
+    expect(withMnemonic(listing, 'sha512h2')).toHaveLength(40);
+    expect(withMnemonic(listing, 'sha512su0')).toHaveLength(32);
+    expect(withMnemonic(listing, 'sha512su1')).toHaveLength(32);
+  });
+
+  it('numbers sha512h/h2 by rounds 0, 2, …, 78 and su0/su1 by W16, W18, …, W78', () => {
+    const words = sequence(32, 16, 2);
+    expect(withMnemonic(listing, 'sha512h').map((entry) => [entry.role, entry.round])).toEqual(
+      sequence(40, 0, 2).map((round) => ['rounds', round]),
+    );
+    expect(withMnemonic(listing, 'sha512h2').map((entry) => [entry.role, entry.round])).toEqual(
+      sequence(40, 0, 2).map((round) => ['rounds2', round]),
+    );
+    expect(withMnemonic(listing, 'sha512su0').map((entry) => [entry.role, entry.w])).toEqual(
+      words.map((w) => ['msg1', w]),
+    );
+    expect(withMnemonic(listing, 'sha512su1').map((entry) => [entry.role, entry.w])).toEqual(
+      words.map((w) => ['msg2', w]),
+    );
+  });
+
+  it('su0/su1 occurrence order is the schedule data flow (W[t], W[t+2] → W[t+16]; + W[t+14], W[t+9])', () => {
+    const flow = scheduleDataflow(listing);
+    const annotated = listing.instructions.filter((entry) => entry.w !== undefined);
+    expect(flow.map(({ w }) => w)).toEqual(annotated.map((entry) => entry.w));
+    flow.forEach(({ mnemonic, w, reads }) => {
+      const t = w - 16;
+      expect(reads).toEqual(mnemonic === 'sha512su0' ? [t, t + 2] : [w, t + 14, t + 9]);
+    });
+  });
+
+  it('marks the (e,f) add after each sha512h with its round, except the reassociated last one', () => {
+    const adds = listing.instructions.filter(
+      (entry) => entry.mnemonic === 'add' && entry.role === 'rounds',
+    );
+    expect(adds.map((entry) => entry.round)).toEqual(sequence(39, 0, 2));
+    listing.instructions.forEach((entry, index) => {
+      if (entry.mnemonic !== 'add' || entry.role !== 'rounds') return;
+      const hashed = listing.instructions
+        .slice(0, index)
+        .findLast(
+          (candidate) => candidate.mnemonic === 'sha512h' && candidate.round === entry.round,
+        );
+      expect(entry.operands.slice(1).map(canonicalRegister)).toContain(
+        canonicalRegister(hashed!.operands[0]!),
+      );
+    });
+    expect(withRole(listing, 'feedForward')).toHaveLength(5);
+  });
+
+  it('loads the state from x0 and the block from x1, byte-swaps with rev64, stores to x0', () => {
+    expect(withRole(listing, 'loadState').map((entry) => entry.operands.at(-1))).toEqual([
+      '[x0, #16]',
+      '[x0, #48]',
+      '[x0]',
+    ]);
+    expect(withRole(listing, 'loadBlock')).toHaveLength(4);
+    expect(withRole(listing, 'byteSwap').map((entry) => entry.mnemonic)).toEqual(
+      Array(8).fill('rev64'),
+    );
+    expect(withRole(listing, 'store').map((entry) => entry.operands.at(-1))).toEqual([
+      '[x0, #32]',
+      '[x0]',
+    ]);
+    expect(withRole(listing, 'unpackState')).toEqual([]);
   });
 });

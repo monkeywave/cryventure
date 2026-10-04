@@ -1,0 +1,291 @@
+{
+  "source": "RFC 7693 Appendix A and B (https://www.rfc-editor.org/rfc/rfc7693.txt); BLAKE2 reference keyed KATs blake2s-kat.txt / blake2b-kat.txt (https://github.com/BLAKE2/BLAKE2/tree/ed1974ea83433eba7b2d95c5dcd9ac33cb847913/testvectors, CC0); the remaining digests (other digest lengths, the empty message, short keys) from the independent implementation @noble/hashes 2.4.0 (blake2s/blake2b with dkLen and key)",
+  "cases": [
+    {
+      "name": "RFC 7693 App. B: BLAKE2s-256(\"abc\"), per G call",
+      "params": {
+        "algorithm": "blake2s-256",
+        "encoding": "utf8",
+        "input": "abc",
+        "key": "",
+        "detail": "g"
+      },
+      "outputs": {
+        "digest": "508c5e8c327c14e2e1a72ba34eeb452f37458b209ed63a294d999b4c86675982"
+      }
+    },
+    {
+      "name": "RFC 7693 App. B: BLAKE2s-256(\"abc\"), per block",
+      "params": {
+        "algorithm": "blake2s-256",
+        "encoding": "utf8",
+        "input": "abc",
+        "key": "",
+        "detail": "block"
+      },
+      "outputs": {
+        "digest": "508c5e8c327c14e2e1a72ba34eeb452f37458b209ed63a294d999b4c86675982"
+      }
+    },
+    {
+      "name": "RFC 7693 App. A: BLAKE2b-512(\"abc\"), per G call",
+      "params": {
+        "algorithm": "blake2b-512",
+        "encoding": "utf8",
+        "input": "abc",
+        "key": "",
+        "detail": "g"
+      },
+      "outputs": {
+        "digest": "ba80a53f981c4d0d6a2797b69f12f6e94c212f14685ac4b74b12bb6fdbffa2d17d87c5392aab792dc252d5de4533cc9518d38aa8dbf1925ab92386edd4009923"
+      }
+    },
+    {
+      "name": "RFC 7693 App. A: BLAKE2b-512(\"abc\"), per round (preset blake2b-512-abc-round)",
+      "params": {
+        "algorithm": "blake2b-512",
+        "encoding": "utf8",
+        "input": "abc",
+        "key": "",
+        "detail": "round"
+      },
+      "outputs": {
+        "digest": "ba80a53f981c4d0d6a2797b69f12f6e94c212f14685ac4b74b12bb6fdbffa2d17d87c5392aab792dc252d5de4533cc9518d38aa8dbf1925ab92386edd4009923"
+      }
+    },
+    {
+      "name": "BLAKE2 KAT blake2s-kat.txt: key 00…1f, message 00…(3 bytes) (preset blake2s-256-keyed)",
+      "params": {
+        "algorithm": "blake2s-256",
+        "encoding": "hex",
+        "input": "000102",
+        "key": "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f",
+        "detail": "g"
+      },
+      "outputs": {
+        "digest": "1d220dbe2ee134661fdf6d9e74b41704710556f2f6e5a091b227697445dbea6b"
+      }
+    },
+    {
+      "name": "BLAKE2 KAT blake2s-kat.txt: key 00…1f, message 00…(0 bytes)",
+      "params": {
+        "algorithm": "blake2s-256",
+        "encoding": "hex",
+        "input": "",
+        "key": "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f",
+        "detail": "round"
+      },
+      "outputs": {
+        "digest": "48a8997da407876b3d79c0d92325ad3b89cbb754d86ab71aee047ad345fd2c49"
+      }
+    },
+    {
+      "name": "BLAKE2 KAT blake2s-kat.txt: key 00…1f, message 00…(64 bytes)",
+      "params": {
+        "algorithm": "blake2s-256",
+        "encoding": "hex",
+        "input": "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f202122232425262728292a2b2c2d2e2f303132333435363738393a3b3c3d3e3f",
+        "key": "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f",
+        "detail": "block"
+      },
+      "outputs": {
+        "digest": "8975b0577fd35566d750b362b0897a26c399136df07bababbde6203ff2954ed4"
+      }
+    },
+    {
+      "name": "BLAKE2 KAT blake2s-kat.txt: key 00…1f, message 00…(65 bytes)",
+      "params": {
+        "algorithm": "blake2s-256",
+        "encoding": "hex",
+        "input": "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f202122232425262728292a2b2c2d2e2f303132333435363738393a3b3c3d3e3f40",
+        "key": "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f",
+        "detail": "block"
+      },
+      "outputs": {
+        "digest": "21fe0ceb0052be7fb0f004187cacd7de67fa6eb0938d927677f2398c132317a8"
+      }
+    },
+    {
+      "name": "BLAKE2 KAT blake2s-kat.txt: key 00…1f, message 00…(128 bytes)",
+      "params": {
+        "algorithm": "blake2s-256",
+        "encoding": "hex",
+        "input": "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f202122232425262728292a2b2c2d2e2f303132333435363738393a3b3c3d3e3f404142434445464748494a4b4c4d4e4f505152535455565758595a5b5c5d5e5f606162636465666768696a6b6c6d6e6f707172737475767778797a7b7c7d7e7f",
+        "key": "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f",
+        "detail": "round"
+      },
+      "outputs": {
+        "digest": "0c311f38c35a4fb90d651c289d486856cd1413df9b0677f53ece2cd9e477c60a"
+      }
+    },
+    {
+      "name": "BLAKE2 KAT blake2b-kat.txt: key 00…3f, message 00…(0 bytes)",
+      "params": {
+        "algorithm": "blake2b-512",
+        "encoding": "hex",
+        "input": "",
+        "key": "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f202122232425262728292a2b2c2d2e2f303132333435363738393a3b3c3d3e3f",
+        "detail": "block"
+      },
+      "outputs": {
+        "digest": "10ebb67700b1868efb4417987acf4690ae9d972fb7a590c2f02871799aaa4786b5e996e8f0f4eb981fc214b005f42d2ff4233499391653df7aefcbc13fc51568"
+      }
+    },
+    {
+      "name": "BLAKE2 KAT blake2b-kat.txt: key 00…3f, message 00…(3 bytes)",
+      "params": {
+        "algorithm": "blake2b-512",
+        "encoding": "hex",
+        "input": "000102",
+        "key": "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f202122232425262728292a2b2c2d2e2f303132333435363738393a3b3c3d3e3f",
+        "detail": "round"
+      },
+      "outputs": {
+        "digest": "33d0825dddf7ada99b0e7e307104ad07ca9cfd9692214f1561356315e784f3e5a17e364ae9dbb14cb2036df932b77f4b292761365fb328de7afdc6d8998f5fc1"
+      }
+    },
+    {
+      "name": "BLAKE2 KAT blake2b-kat.txt: key 00…3f, message 00…(128 bytes)",
+      "params": {
+        "algorithm": "blake2b-512",
+        "encoding": "hex",
+        "input": "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f202122232425262728292a2b2c2d2e2f303132333435363738393a3b3c3d3e3f404142434445464748494a4b4c4d4e4f505152535455565758595a5b5c5d5e5f606162636465666768696a6b6c6d6e6f707172737475767778797a7b7c7d7e7f",
+        "key": "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f202122232425262728292a2b2c2d2e2f303132333435363738393a3b3c3d3e3f",
+        "detail": "block"
+      },
+      "outputs": {
+        "digest": "72065ee4dd91c2d8509fa1fc28a37c7fc9fa7d5b3f8ad3d0d7a25626b57b1b44788d4caf806290425f9890a3a2a35a905ab4b37acfd0da6e4517b2525c9651e4"
+      }
+    },
+    {
+      "name": "@noble/hashes 2.4.0: BLAKE2s-256(\"\") (preset blake2s-256-empty)",
+      "params": {
+        "algorithm": "blake2s-256",
+        "encoding": "utf8",
+        "input": "",
+        "key": "",
+        "detail": "g"
+      },
+      "outputs": {
+        "digest": "69217a3079908094e11121d042354a7c1f55b6482ca1a51e1b250dfd1ed0eef9"
+      }
+    },
+    {
+      "name": "@noble/hashes 2.4.0: BLAKE2b-512(\"\")",
+      "params": {
+        "algorithm": "blake2b-512",
+        "encoding": "utf8",
+        "input": "",
+        "key": "",
+        "detail": "block"
+      },
+      "outputs": {
+        "digest": "786a02f742015903c6c6fd852552d272912f4740e15847618a86e217f71f5419d25e1031afee585313896444934eb04b903a685b1448b755d56f701afe9be2ce"
+      }
+    },
+    {
+      "name": "@noble/hashes 2.4.0: BLAKE2s-128(\"abc\")",
+      "params": {
+        "algorithm": "blake2s-128",
+        "encoding": "utf8",
+        "input": "abc",
+        "key": "",
+        "detail": "round"
+      },
+      "outputs": {
+        "digest": "aa4938119b1dc7b87cbad0ffd200d0ae"
+      }
+    },
+    {
+      "name": "@noble/hashes 2.4.0: BLAKE2s-160(\"abc\")",
+      "params": {
+        "algorithm": "blake2s-160",
+        "encoding": "utf8",
+        "input": "abc",
+        "key": "",
+        "detail": "round"
+      },
+      "outputs": {
+        "digest": "5ae3b99be29b01834c3b508521ede60438f8de17"
+      }
+    },
+    {
+      "name": "@noble/hashes 2.4.0: BLAKE2s-224(\"abc\")",
+      "params": {
+        "algorithm": "blake2s-224",
+        "encoding": "utf8",
+        "input": "abc",
+        "key": "",
+        "detail": "round"
+      },
+      "outputs": {
+        "digest": "0b033fc226df7abde29f67a05d3dc62cf271ef3dfea4d387407fbd55"
+      }
+    },
+    {
+      "name": "@noble/hashes 2.4.0: BLAKE2b-160(\"abc\")",
+      "params": {
+        "algorithm": "blake2b-160",
+        "encoding": "utf8",
+        "input": "abc",
+        "key": "",
+        "detail": "round"
+      },
+      "outputs": {
+        "digest": "384264f676f39536840523f284921cdc68b6846b"
+      }
+    },
+    {
+      "name": "@noble/hashes 2.4.0: BLAKE2b-256(\"abc\")",
+      "params": {
+        "algorithm": "blake2b-256",
+        "encoding": "utf8",
+        "input": "abc",
+        "key": "",
+        "detail": "round"
+      },
+      "outputs": {
+        "digest": "bddd813c634239723171ef3fee98579b94964e3bb1cb3e427262c8c068d52319"
+      }
+    },
+    {
+      "name": "@noble/hashes 2.4.0: BLAKE2b-384(\"abc\")",
+      "params": {
+        "algorithm": "blake2b-384",
+        "encoding": "utf8",
+        "input": "abc",
+        "key": "",
+        "detail": "round"
+      },
+      "outputs": {
+        "digest": "6f56a82c8e7ef526dfe182eb5212f7db9df1317e57815dbda46083fc30f54ee6c66ba83be64b302d7cba6ce15bb556f4"
+      }
+    },
+    {
+      "name": "@noble/hashes 2.4.0: BLAKE2b-256 keyed (key 01 02 03, message \"abc\")",
+      "params": {
+        "algorithm": "blake2b-256",
+        "encoding": "utf8",
+        "input": "abc",
+        "key": "010203",
+        "detail": "g"
+      },
+      "outputs": {
+        "digest": "3a97cd0507c36730438fc2e41cb3349a2db061da300c63f664e9a1a99d930aac"
+      }
+    },
+    {
+      "name": "@noble/hashes 2.4.0: BLAKE2s-128 of 128 bytes 00…7f, keyed with 16 bytes",
+      "params": {
+        "algorithm": "blake2s-128",
+        "encoding": "hex",
+        "input": "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f202122232425262728292a2b2c2d2e2f303132333435363738393a3b3c3d3e3f404142434445464748494a4b4c4d4e4f505152535455565758595a5b5c5d5e5f606162636465666768696a6b6c6d6e6f707172737475767778797a7b7c7d7e7f",
+        "key": "000102030405060708090a0b0c0d0e0f",
+        "detail": "round"
+      },
+      "outputs": {
+        "digest": "24548ecbf479d44b545512c39a847b95"
+      }
+    }
+  ]
+}

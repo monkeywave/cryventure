@@ -1,7 +1,24 @@
 import type { WordopsFacet, WordopsStep, WordTerm } from '@cryventure/core';
 import { describe, expect, it } from 'vitest';
 import { loadViewMessages } from '../messages.ts';
-import { TERM_ROLE_GLYPHS, opGlyphKey, hexChunks, isStoryTerm, nibbleGroups, lensParts, registerChunksPerLine, sha2RegisterShift, showsBitStrip, wordBitsOf, wordopsStepAt } from './wordopsModel.ts';
+import { WORD_OPS } from '@cryventure/core';
+import {
+  TERM_ROLE_GLYPHS,
+  arrowTermText,
+  opGlyphKey,
+  opNameKey,
+  hexChunks,
+  isStoryTerm,
+  nibbleGroups,
+  lensParts,
+  registerArrows,
+  registerChunksPerLine,
+  sha2RegisterShift,
+  showsBitStrip,
+  storyTerms,
+  wordBitsOf,
+  wordopsStepAt,
+} from './wordopsModel.ts';
 
 const step = (index: number, extra: Partial<WordopsStep> = {}): WordopsStep => ({ step: index, formula: { key: 'f' }, terms: [], ...extra });
 const term = (id: string, hex: string, role: WordTerm['role'] = 'intermediate'): WordTerm => ({ id, label: { key: id }, hex, role });
@@ -16,14 +33,36 @@ describe('wordopsModel', () => {
     expect(wordopsStepAt({ ...facet, steps: [] }, 0)).toBeUndefined();
   });
 
-  it('shows a neutral root glyph (the facet carries no root degree), from the catalog in EN and DE', () => {
-    for (const locale of ['en', 'de'] as const) expect(loadViewMessages(locale)[opGlyphKey('root')]).toBe('ⁿ√');
+  it('shows a neutral root glyph without a degree, √ / ∛ with one, from the catalog in EN and DE', () => {
+    for (const locale of ['en', 'de'] as const) {
+      const messages = loadViewMessages(locale);
+      expect(messages[opGlyphKey({ op: 'root' })]).toBe('ⁿ√');
+      expect(messages[opGlyphKey({ op: 'root', degree: 2 })]).toBe('√');
+      expect(messages[opGlyphKey({ op: 'root', degree: 3 })]).toBe('∛');
+      expect(messages[opNameKey({ op: 'root', degree: 3 })]).toBeTruthy();
+      expect(messages[opNameKey({ op: 'root', degree: 2 })]).not.toBe(messages[opNameKey({ op: 'root', degree: 3 })]);
+    }
+  });
+
+  it('ignores a degree on any op but root', () => {
+    expect(opGlyphKey({ op: 'add', degree: 2 })).toBe('view.wordops.glyph.add');
+    expect(opNameKey({ op: 'add', degree: 2 })).toBe('view.wordops.op.add');
+  });
+
+  it('has a glyph and a spoken name for every op in EN and DE (incl. or, parity, md5G, md5I)', () => {
+    for (const locale of ['en', 'de'] as const) {
+      const messages = loadViewMessages(locale);
+      for (const op of WORD_OPS) {
+        expect(messages[opGlyphKey({ op })], `${locale} glyph ${op}`).toBeTruthy();
+        expect(messages[opNameKey({ op })], `${locale} name ${op}`).toBeTruthy();
+      }
+    }
   });
 
   it('keeps FIPS 180-4 op notation in the catalog of both languages', () => {
     for (const locale of ['en', 'de'] as const) {
       const messages = loadViewMessages(locale);
-      expect([opGlyphKey('rotr'), opGlyphKey('shr'), opGlyphKey('ch'), opGlyphKey('maj')].map((key) => messages[key])).toEqual(['ROTR', 'SHR', 'Ch', 'Maj']);
+      expect([opGlyphKey({ op: 'rotr' }), opGlyphKey({ op: 'shr' }), opGlyphKey({ op: 'ch' }), opGlyphKey({ op: 'maj' })].map((key) => messages[key])).toEqual(['ROTR', 'SHR', 'Ch', 'Maj']);
     }
   });
 
@@ -61,6 +100,66 @@ describe('wordopsModel', () => {
     expect(isStoryTerm({ id: 'T1', role: 'intermediate' })).toBe(true);
     expect(isStoryTerm({ id: 'W', role: 'result' })).toBe(true);
     expect(isStoryTerm({ id: 'Ch', role: 'intermediate' })).toBe(false);
+  });
+
+  describe('storyTerms', () => {
+    const story = (id: string): WordTerm => ({ ...term(id, '00000000'), emphasis: 'story' });
+    it('v1: keeps results and T1/T2 (the structural filter)', () => {
+      expect(storyTerms(1, [term('T1', '0'), term('Ch', '0'), term('W', '0', 'result')]).map((each) => each.id)).toEqual(['T1', 'W']);
+    });
+    it('v2: keeps only the terms marked story', () => {
+      expect(storyTerms(2, [term('T1', '0'), story('newB'), term('W', '0', 'result')]).map((each) => each.id)).toEqual(['newB']);
+    });
+    it('v2: none marked → none, even results', () => {
+      expect(storyTerms(2, [term('W', '0', 'result'), term('T1', '0')])).toEqual([]);
+    });
+  });
+
+  describe('registerArrows', () => {
+    const before = ['0', '1', '2', '3'];
+    const md5Round = step(2, {
+      terms: [term('newB', '00000004')],
+      registers: {
+        before,
+        after: ['3', '00000004', '1', '2'],
+        transfers: [
+          { to: 0, from: { register: 3 } },
+          { to: 1, from: { term: 'newB' } },
+          { to: 2, from: { register: 1 } },
+          { to: 3, from: { register: 2 } },
+        ],
+      },
+    });
+
+    it('v2: one arrow per transfer, register copies and term arrows', () => {
+      expect(registerArrows(2, md5Round)).toEqual([
+        { to: 0, from: 3, source: 'copy' },
+        { to: 1, term: 'newB', source: 'term' },
+        { to: 2, from: 1, source: 'copy' },
+        { to: 3, from: 2, source: 'copy' },
+      ]);
+    });
+
+    it('v2 without transfers: no arrows, not even for a SHA-2-shaped round (no structural guess)', () => {
+      const sha2Shaped = step(0, { terms: [term('T1', '0'), term('T2', '0')], registers: { before: Array(8).fill('0'), after: Array(8).fill('0') } });
+      expect(registerArrows(2, sha2Shaped)).toBeUndefined();
+      expect(registerArrows(1, sha2Shaped)).toBe(sha2RegisterShift(sha2Shaped));
+    });
+
+    it('v1: transfers are ignored, the structural SHA-2 detection stays the fallback', () => {
+      expect(registerArrows(1, md5Round)).toBeUndefined();
+    });
+
+    it('no registers: no arrows', () => {
+      expect(registerArrows(2, step(0))).toBeUndefined();
+    });
+  });
+
+  it('arrow text of a term: the right-hand side of its label, else the label', () => {
+    expect(arrowTermText('e (new) = d + T1')).toBe('d + T1');
+    expect(arrowTermText('a = b = c')).toBe('c');
+    expect(arrowTermText('ROTL³⁰(b)')).toBe('ROTL³⁰(b)');
+    expect(arrowTermText('  T ')).toBe('T');
   });
 
   it('maps lenses to parts', () => {

@@ -1,4 +1,4 @@
-import { narrationFromState, parseHexOfLength, RecordingTracer, type AnyStateFacet, type FieldFacet, type I18nRef, type MathFacet, type NarrationFacet, type PrimitiveManifest, type RegionSpec, type TableFacet, type TraceBundle, type WordopsFacet } from '@cryventure/core';
+import { narrationFromState, parseHexOfLength, RecordingTracer, type AnyStateFacet, type FieldFacet, type I18nRef, type MathFacet, type NarrationFacet, type PrimitiveManifest, type RegionSpec, type SpongeFacet, type TableFacet, type TraceBundle, type WordopsFacet } from '@cryventure/core';
 import { describe, expect, it } from 'vitest';
 import { validateFieldFacet, validateWordopsFacet } from '@cryventure/core';
 import {
@@ -18,12 +18,12 @@ import {
   runtimeLabelKeys,
   scopeLevelKeys,
   sequentialReplay,
+  spongeFacetRefs,
   tableFacetRefs,
   tableSelectParamProblems,
   termFacetRefs,
   termValueRefProblems,
   unknownParamFields,
-  wordopsShapeProblems,
 } from './checks.ts';
 
 const catalogs = {
@@ -164,6 +164,18 @@ describe('regionLayoutProblems', () => {
     expect(regionLayoutProblems([region({ kind: 'words', wordBytes: 3 })])).toEqual(['region "r": wordBytes 3 does not divide its 16 bytes']);
     expect(regionLayoutProblems([region({ kind: 'words', wordBytes: 0 })])).toHaveLength(1);
   });
+
+  it('accepts the byteOrder values big and little (docs/M6.md §3c)', () => {
+    expect(regionLayoutProblems([region({ kind: 'words', wordBytes: 8, byteOrder: 'little' }), region({ kind: 'words', wordBytes: 4, byteOrder: 'big' })])).toEqual([]);
+  });
+
+  it('flags any other byteOrder', () => {
+    expect(regionLayoutProblems([region({ kind: 'words', wordBytes: 4, byteOrder: 'middle' as never })])).toEqual(['region "r": byteOrder "middle" is not "big" or "little"']);
+    expect(regionLayoutProblems([region({ kind: 'words', wordBytes: 3, byteOrder: 1 as never })])).toEqual([
+      'region "r": wordBytes 3 does not divide its 16 bytes',
+      'region "r": byteOrder "1" is not "big" or "little"',
+    ]);
+  });
 });
 
 describe('derivationGroupRefs', () => {
@@ -270,23 +282,30 @@ describe('wordops facet checks', () => {
     expect(validateWordopsFacet(broken)).toEqual(['wordops step 2 term "w": hex "6A09E667" is not 8 lowercase hex digits', 'wordops: step 1 does not increase (after 2)']);
   });
 
-  it('checks term and register shapes the core validator does not (and never throws)', () => {
-    expect(wordopsShapeProblems(valid)).toEqual([]);
+  it('rejects malformed term and register shapes with the core validator alone (it never throws)', () => {
     const badTerms = wordops([{ step: 0, formula: { key: 'plugin.x.t1' }, terms: [{ ...term('w'), id: '' }, { ...term('k'), role: 'input' as never }, { ...term('s'), op: 'rotr2' as never }] }]);
-    expect(wordopsShapeProblems(badTerms)).toEqual([
+    expect(validateWordopsFacet(badTerms)).toEqual([
       'wordops step 0 term 0: id is not a non-empty string',
       'wordops step 0 term "k": role "input" is not a MathTermRole',
       'wordops step 0 term "s": op "rotr2" is not a WordOp',
     ]);
     const noAfter = wordops([{ step: 0, formula: { key: 'plugin.x.t1' }, terms: [], registers: { before: ['00000000', '00000001'] } as never }]);
     expect(validateWordopsFacet(noAfter)).toEqual(['wordops step 0: registers.after is not an array']);
-    expect(wordopsShapeProblems(noAfter)).toEqual(['wordops step 0: registers.after is not an array']);
-    expect(wordopsShapeProblems({ kind: 'wordops', wordBits: 32, steps: {} })).toEqual(['wordops: steps is not an array']);
-    expect(wordopsShapeProblems(wordops([{ step: 0, formula: { key: 'plugin.x.t1' }, terms: 'w' as never }]))).toEqual(['wordops step 0: terms is not an array']);
-    expect(wordopsShapeProblems(null)).toEqual(['wordops: facet is not an object']);
+    expect(validateWordopsFacet({ kind: 'wordops', schemaVersion: 1, wordBits: 32, steps: {} })).toEqual(['wordops: steps is not an array']);
+    expect(validateWordopsFacet(wordops([{ step: 0, formula: { key: 'plugin.x.t1' }, terms: 'w' as never }]))).toEqual(['wordops step 0: terms is not an array']);
+    expect(validateWordopsFacet(null)).toEqual(['wordops: facet is not an object']);
   });
 
-  it('includes the core validator problems', () => expect(wordopsShapeProblems(broken)).toEqual(validateWordopsFacet(broken)));
+  it('collects the refs of a v2 facet (its new fields carry no message refs)', () => {
+    const v2: WordopsFacet = {
+      ...valid,
+      schemaVersion: 2,
+      registerColumns: 2,
+      steps: [{ ...valid.steps[0]!, terms: [{ ...term('w', 'w'), emphasis: 'story' }, term('k')], registers: { before: ['00000000', '00000001'], after: ['6a09e667', '00000000'], touched: [0, 1], transfers: [{ to: 0, from: { term: 'w' } }, { to: 1, from: { register: 0 } }] } }],
+    };
+    expect(validateWordopsFacet(v2)).toEqual([]);
+    expect(termFacetRefs(v2)).toEqual(termFacetRefs(valid));
+  });
 
   it('reports wordops steps outside the state steps', () => {
     const state = { steps: new Array(2).fill(undefined) };
@@ -305,6 +324,35 @@ describe('wordops facet checks', () => {
     expect(termValueRefProblems('wordops', valid, values)).toEqual([]);
     expect(termValueRefProblems('wordops', broken, values)).toEqual(['wordops step 2 term "w": valueRef "nope" is not in the values facet']);
     expect(termValueRefProblems('wordops', valid, undefined)).toEqual(['wordops step 0 term "w": valueRef "w" is not in the values facet']);
+  });
+});
+
+describe('sponge facet checks', () => {
+  const lanes = (fill: string) => new Array<string>(4).fill(fill);
+  const sponge: SpongeFacet = {
+    kind: 'sponge',
+    schemaVersion: 1,
+    label: { key: 'plugin.x.sponge', params: { b: 64 } },
+    width: 2,
+    height: 2,
+    laneBits: 16,
+    rounds: 2,
+    rateLanes: 2,
+    steps: [
+      { step: 0, phase: 'absorb', lanes: lanes('0001'), input: ['0001', '0001'] },
+      { step: 1, phase: 'round', round: 0, lanes: lanes('00ff') },
+    ],
+  };
+
+  it('collects the label ref, checked in EN and DE', () => {
+    expect(spongeFacetRefs(sponge)).toEqual([{ key: 'plugin.x.sponge', params: { b: 64 } }]);
+    const spongeCatalogs = { en: { 'plugin.x.sponge': 'Keccak-f[{{b}}]' }, de: {} };
+    expect(refProblems(spongeFacetRefs(sponge), spongeCatalogs)).toEqual(['de:plugin.x.sponge missing']);
+  });
+
+  it('reports sponge steps outside the state steps', () => {
+    expect(facetStepRangeProblems('sponge', sponge, { steps: new Array(2).fill(undefined) })).toEqual([]);
+    expect(facetStepRangeProblems('sponge', sponge, { steps: new Array(1).fill(undefined) })).toEqual(['sponge step 1 has no state step (-1..0)']);
   });
 });
 

@@ -49,6 +49,23 @@ describe('shaTrace', () => {
     expect(trace.output).toBe(trace.blocks[1]!.feedForward + 1);
   });
 
+  it('reads a SHA-512 trace: 8-byte words, 80 rounds, 64 schedule steps, hKW and T1 terms', () => {
+    const trace = shaTrace(sharedShaFixtureBundle('sha-512-abc'));
+    const block = trace.blocks[0]!;
+    expect([trace.wordBytes, trace.rounds, block.rounds.length]).toEqual([8, 80, 80]);
+    expect(block.schedule.filter((step) => step !== undefined)).toHaveLength(64);
+    expect(toHex(regionWord(trace, 'vars', roundStep(block, 79), 0))).toBe('73a54f399fa4b1b2');
+    expect(toHex(termWord(trace, roundStep(block, 0), 'k'))).toBe('428a2f98d728ae22');
+    expect(toHex(termWord(trace, roundStep(block, 0), 'hKW'))).toBe('ffcd6031eaa6cf9b');
+    expect(() => scheduleStep(block, 80)).toThrow(/no schedule 80/);
+  });
+
+  it('throws for a word size SHA-2 does not use', () => {
+    const bundle = shaFixtureBundle('sha-512-abc');
+    (bundle.facets['wordops@default'] as { wordBits: number }).wordBits = 16;
+    expect(() => shaTrace(bundle)).toThrow(/word size 16, not 32 or 64/);
+  });
+
   it('reads words of a region and wordops terms as big-endian bytes', () => {
     const trace = shaTrace(sharedShaFixtureBundle('sha-256-abc'));
     const block = trace.blocks[0]!;

@@ -78,6 +78,8 @@
   "plugin.sha256.term.Sigma0": "Σ0(a)",
   "plugin.sha256.term.maj": "Maj(a, b, c)",
   "plugin.sha256.term.T2": "T2",
+  "plugin.sha256.term.newE": "e (neu) = d + T1",
+  "plugin.sha256.term.newA": "a (neu) = T1 + T2",
   "plugin.sha256.term.sigma1": "σ1(W{{i}})",
   "plugin.sha256.term.sigma0": "σ0(W{{i}})",
   "plugin.sha256.term.p1": "p1 = W{{t16}} + σ0(W{{t15}})",

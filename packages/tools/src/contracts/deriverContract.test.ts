@@ -196,6 +196,24 @@ describe('deriveApplicableCases', () => {
     expect(derived.map(({ testCase }) => testCase.producerId)).toEqual(cases.filter(({ producerId }) => producerId === 'aes').map(({ producerId }) => producerId));
     expect(derived.every(({ facets }) => facets !== undefined)).toBe(true);
   });
+
+  it('exercises a deriver on every preset of a producer that newly joins the set (e.g. a new hash for a listing deriver)', async () => {
+    const xor = primitiveManifests.find((manifest) => manifest.id === 'xor')!;
+    const renamed = (bundle: TraceBundle): TraceBundle => ({ ...bundle, producer: { ...bundle.producer, id: 'fresh' } });
+    const fresh = {
+      ...xor,
+      id: 'fresh',
+      load: async () => {
+        const module = await xor.load();
+        return { ...module, run: (params: unknown) => { const result = module.run(params as never); return result.ok ? { ...result, trace: renamed(result.trace) } : result; } };
+      },
+    } as typeof xor;
+    const withFresh = [...list, fresh];
+    const onFresh = deriver((bundle) => ({ [facetKey('registers', 'demo')]: demoRegisters(bundle) }), { appliesTo: (bundle) => bundle.producer.id === 'fresh' });
+    const derived = await deriveApplicableCases(onFresh, await cachedPrimitiveBundleCases({ list: withFresh, lookup: producerRegistry(withFresh) }));
+    expect(derived.map(({ testCase }) => testCase.name)).toEqual(['fresh/defaults', ...xor.presets.map((preset) => `fresh/${preset.id}`)]);
+    expect(derived.every(({ facets }) => facets !== undefined)).toBe(true);
+  });
 });
 
 /** The registered suite itself, on the valid deriver (its golden recorded first, as `pnpm golden:update` would). */

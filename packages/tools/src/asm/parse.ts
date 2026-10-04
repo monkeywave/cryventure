@@ -157,3 +157,46 @@ export function attachAddresses(
     return { ...instruction, address: formatAddress(dumped.offset - functionStart) };
   });
 }
+
+/** Instruction index range of a loop body: `firstIndex` (the branch target) … `lastIndex` (the branch). */
+export interface LoopRange {
+  firstIndex: number;
+  lastIndex: number;
+}
+
+/**
+ * Labels inside `functionName` in `clang -S` output, each mapped to the index (in
+ * `parseAsmFunction`'s instruction list) of the instruction that follows it.
+ */
+export function parseAsmLabels(
+  asm: string,
+  functionName: string,
+  syntax: AsmSyntax,
+): Map<string, number> {
+  const labels = new Map<string, number>();
+  let instructions = 0;
+  for (const line of functionBody(asm, functionName)) {
+    const code = stripComment(line, syntax).trim();
+    const label = /^([.\w$]+):$/.exec(code);
+    if (label !== null) labels.set(label[1] ?? '', instructions);
+    else if (isInstructionLine(code)) instructions += 1;
+  }
+  return labels;
+}
+
+/**
+ * The single loop of a function: a branch whose target label precedes it. Throws unless there is
+ * exactly one such backward branch (the kernels that declare a loop have one, not unrolled).
+ */
+export function findLoop(
+  instructions: readonly ParsedInstruction[],
+  labels: ReadonlyMap<string, number>,
+): LoopRange {
+  const loops = instructions.flatMap((instruction, lastIndex): LoopRange[] => {
+    if (!/^b(\.\w+)?$|^cbn?z$|^tbn?z$/.test(instruction.mnemonic)) return [];
+    const firstIndex = labels.get(instruction.operands.at(-1) ?? '');
+    return firstIndex !== undefined && firstIndex <= lastIndex ? [{ firstIndex, lastIndex }] : [];
+  });
+  if (loops.length !== 1) throw new Error(`expected one backward branch, found ${loops.length}`);
+  return loops[0]!;
+}

@@ -247,3 +247,66 @@ describe('StateView choreography', () => {
     expect(document.querySelectorAll('[data-dimmed]')).toHaveLength(0);
   });
 });
+
+describe('StateView little-endian words', () => {
+  /** The fixture with its key schedule declared as little-endian 4-byte words (w = 00 01 02 … 2f). */
+  function littleBundle(): TraceBundle {
+    const bundle = createFixtureBundle();
+    const state = bundle.facets['state@default'] as AnyStateFacet;
+    const regions = state.regions.map((region) => (region.id === 'w' && region.layout?.kind === 'words' ? { ...region, layout: { ...region.layout, byteOrder: 'little' as const } } : region));
+    bundle.facets['state@default'] = { ...state, regions };
+    return bundle;
+  }
+  const renderLittle = (lens: 'engineer' | 'story' = 'engineer') => renderLab(<StateView labId="fixture" lens={lens} />, { bundle: littleBundle(), messages });
+  const schedule = () => screen.getByRole('grid', { name: 'Key schedule' });
+  const firstWord = () => within(schedule()).getAllByRole('row')[0]!.querySelectorAll('.cv-cell__value');
+  const memoryToggle = () => screen.getByRole('button', { name: 'Memory order' });
+
+  it('shows each little-endian word as its integer value (bytes reversed) and says so', () => {
+    renderLittle();
+    expect([...firstWord()].map((cell) => cell.textContent)).toEqual(['03', '02', '01', '00']);
+    expect(document.querySelector('[data-region="w"]')?.getAttribute('data-word-display')).toBe('integer');
+    expect(screen.getByText('Little-endian words are shown as integers (bytes reversed).')).toBeTruthy();
+  });
+
+  it('switches to memory order with an aria-pressed toggle in the engineer lens', async () => {
+    const user = userEvent.setup();
+    renderLittle();
+    expect(memoryToggle().getAttribute('aria-pressed')).toBe('false');
+    await user.click(memoryToggle());
+    expect(memoryToggle().getAttribute('aria-pressed')).toBe('true');
+    expect([...firstWord()].map((cell) => cell.textContent)).toEqual(['00', '01', '02', '03']);
+    expect(document.querySelector('[data-region="w"]')?.getAttribute('data-word-display')).toBe('memory');
+    expect(screen.getByText('Little-endian words are shown in memory order (as stored).')).toBeTruthy();
+  });
+
+  it('offers no toggle outside the engineer lens, and none for big-endian words', () => {
+    renderLittle('story');
+    expect(screen.queryByRole('button', { name: 'Memory order' })).toBeNull();
+    expect([...firstWord()].map((cell) => cell.textContent)).toEqual(['03', '02', '01', '00']);
+  });
+
+  it('keeps big-endian (default) words in memory order without a toggle or note', () => {
+    renderState();
+    expect(screen.queryByRole('button', { name: 'Memory order' })).toBeNull();
+    expect(screen.queryByText(/Little-endian words/)).toBeNull();
+    expect([...firstWord()].map((cell) => cell.textContent)).toEqual(['00', '01', '02', '03']);
+  });
+
+  it('marks the changed memory byte at its reversed position', () => {
+    const { store } = renderLittle();
+    act(() => store.getState().seek(2));
+    expect(within(schedule()).getByRole('gridcell', { name: 'row 5, column 4, value 0xff, XOR-combined' })).toBeTruthy();
+    expect(within(schedule()).getByRole('gridcell', { name: 'row 5, column 1, value 0x13' })).toBeTruthy();
+  });
+
+  it('selects the memory byte behind a reversed cell and marks it selected', async () => {
+    const user = userEvent.setup();
+    const { store } = renderLittle();
+    const cell = () => within(schedule()).getByRole('gridcell', { name: 'row 5, column 1, value 0x13' });
+    await user.click(cell());
+    expect(store.getState().selection.node).toEqual({ region: 'w', index: 19 });
+    expect(cell().getAttribute('aria-selected')).toBe('true');
+    expect(screen.getByRole('region', { name: 'Watching Key schedule[19]' })).toBeTruthy();
+  });
+});

@@ -1,7 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import {
   attachAddresses,
+  findLoop,
   formatAddress,
+  parseAsmLabels,
   parseAsmFunction,
   parseInstructionText,
   parseObjdumpFunction,
@@ -153,5 +155,40 @@ describe('attachAddresses', () => {
 
   it('formats addresses as 0x-prefixed hex', () => {
     expect(formatAddress(0x7d)).toBe('0x7d');
+  });
+});
+
+const ARM_LOOP_ASM = `keccak:                                 // @keccak
+// %bb.0:
+	mov	x8, xzr
+.LBB0_1:                                // =>This Inner Loop Header: Depth=1
+	eor3	v9.16b, v11.16b, v6.16b, v18.16b
+	add	x8, x8, #8
+	cmp	x8, #192
+	b.ne	.LBB0_1
+// %bb.2:
+	ret
+.Lfunc_end0:
+`;
+
+describe('parseAsmLabels', () => {
+  it('maps each label to the index of the instruction after it', () => {
+    expect(parseAsmLabels(ARM_LOOP_ASM, 'keccak', 'arm')).toEqual(new Map([['.LBB0_1', 1]]));
+    expect(parseAsmLabels(ARM_ASM, 'f', 'arm')).toEqual(new Map([['.LBB0_1', 2]]));
+  });
+});
+
+describe('findLoop', () => {
+  it('finds the body from the branch target through the backward branch', () => {
+    const instructions = parseAsmFunction(ARM_LOOP_ASM, 'keccak', 'arm');
+    const labels = parseAsmLabels(ARM_LOOP_ASM, 'keccak', 'arm');
+    expect(findLoop(instructions, labels)).toEqual({ firstIndex: 1, lastIndex: 4 });
+  });
+
+  it('throws without a backward branch, and for a forward one', () => {
+    const straight = parseAsmFunction(ARM_ASM, 'f', 'arm');
+    expect(() => findLoop(straight, new Map())).toThrow(/found 0/);
+    const forward = [parseInstructionText('b .LBB0_1')!, parseInstructionText('ret')!];
+    expect(() => findLoop(forward, new Map([['.LBB0_1', 1]]))).toThrow(/found 0/);
   });
 });

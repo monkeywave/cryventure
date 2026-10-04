@@ -9,5 +9,8 @@
   "view.state.watch.initial": "start",
   "view.state.watch.clear": "Stop watching",
   "view.state.watch.hint": "Select a cell to watch its value across the steps.",
-  "view.state.region.summary": "{{region}} · {{bytes}} bytes"
+  "view.state.region.summary": "{{region}} · {{bytes}} bytes",
+  "view.state.wordOrder.memory": "Memory order",
+  "view.state.wordOrder.integerNote": "Little-endian words are shown as integers (bytes reversed).",
+  "view.state.wordOrder.memoryNote": "Little-endian words are shown in memory order (as stored)."
 }

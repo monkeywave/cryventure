@@ -1,4 +1,4 @@
-import { bytesEqual, isPortName, readText, type BlockCipher, type HashFamily, type HashFunction, type ParamField, type PortMap, type PortName, type PrimitiveManifest, type PrimitiveModule, type XofContext, type XofCustomization, type XofFunction } from '@cryventure/core';
+import { bytesEqual, isPortName, parseHex, readText, type BlockCipher, type HashFamily, type HashFunction, type ParamField, type PortMap, type PortName, type PrimitiveManifest, type PrimitiveModule, type XofContext, type XofCustomization, type XofFunction } from '@cryventure/core';
 
 /**
  * Contract checks for ports, port and text params and the `runIn` flag (docs/M3.md §1, §2, §8).
@@ -316,6 +316,24 @@ interface ParamCase {
   params: unknown;
 }
 
+/** The text field measured in hex-decoded bytes while the producer's `encoding` param is `'hex'`; every other text field is UTF-8. */
+const HEX_TEXT_FIELD = 'input';
+const TEXT_ENCODING_PARAM = 'encoding';
+
+/**
+ * Why one case's value does not fit `maxLength`, or undefined when it fits. The convention
+ * (docs/EXTENDING.md "Text params") is mirrored by `textFieldLength` in apps/web/src/labs/paramFields.ts:
+ * only the field named `input` counts hex-decoded bytes, and only while `encoding` is `'hex'`.
+ */
+function textFitProblem(field: ParamField, params: Record<string, unknown> | null, maxLength: number): string | undefined {
+  const value = params?.[field.name];
+  if (field.name === HEX_TEXT_FIELD && params?.[TEXT_ENCODING_PARAM] === 'hex') {
+    const parsed = typeof value === 'string' ? parseHex(value) : undefined;
+    return parsed?.ok === true && parsed.bytes.length <= maxLength ? undefined : `is not hex of at most ${maxLength} bytes`;
+  }
+  return readText(value, maxLength) === undefined ? `is not a string of at most ${maxLength} UTF-8 bytes` : undefined;
+}
+
 /** `text` fields have a positive integer `maxLength`, and every case's value fits it. */
 export function textFieldProblems(fields: readonly ParamField[], cases: readonly ParamCase[]): string[] {
   return fields
@@ -323,9 +341,10 @@ export function textFieldProblems(fields: readonly ParamField[], cases: readonly
     .flatMap((field) => {
       const { maxLength } = field;
       if (maxLength === undefined || !isPositiveInteger(maxLength)) return [`param "${field.name}": maxLength ${maxLength} is not a positive integer`];
-      return cases
-        .filter(({ params }) => readText((params as Record<string, unknown> | null)?.[field.name], maxLength) === undefined)
-        .map(({ name }) => `${name}: param "${field.name}" is not a string of at most ${maxLength} UTF-8 bytes`);
+      return cases.flatMap(({ name, params }) => {
+        const problem = textFitProblem(field, params as Record<string, unknown> | null, maxLength);
+        return problem === undefined ? [] : [`${name}: param "${field.name}" ${problem}`];
+      });
     });
 }
 

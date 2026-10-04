@@ -164,3 +164,40 @@
   color: var(--cv-text-muted, GrayText);
   font-size: 0.8rem;
 }
+
+/* ---------- Little-endian words: note and memory-order toggle (docs/M6.md §3c) ---------- */
+.cv-word-order {
+  flex: 1 1 100%;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.cv-word-order__toggle {
+  min-height: 2rem;
+  padding: 0.2rem 0.6rem;
+  font: inherit;
+  font-size: 0.8rem;
+  color: inherit;
+  background: var(--cv-surface-elevated, ButtonFace);
+  border: 1px solid var(--cv-border, ButtonBorder);
+  border-radius: 0.375rem;
+  cursor: pointer;
+}
+
+.cv-word-order__toggle:hover {
+  border-color: var(--sl-color-accent, Highlight);
+}
+
+/* Pressed: heavy accent border and bold text (not colour alone). */
+.cv-word-order__toggle[aria-pressed='true'] {
+  font-weight: 700;
+  border: 2px solid var(--sl-color-accent, Highlight);
+}
+
+.cv-word-order__note {
+  margin: 0;
+  font-size: 0.8rem;
+  color: var(--cv-text-muted, GrayText);
+}

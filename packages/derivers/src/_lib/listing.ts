@@ -74,6 +74,63 @@ export interface ShaListing extends ListingHeader {
   instructions: ShaListingInstruction[];
 }
 
+/**
+ * Roles in the Keccak-f[1600] listing (`isa-armv8-sha3/data/keccak.json`, docs/M6.md §5b): a
+ * separate set again. `thetaParity` = `eor3` (C[x], `half` 1 = the inner `eor3` of three lanes,
+ * 2 = the outer one finishing the column), `thetaD` = `rax1` (D[x]), `thetaRhoPi` = `xar` (θ, ρ
+ * and π of one lane), `chi` = `bcax`, `iota` = the `eor` with RC, `loadRc` = the RC load, `loop` =
+ * the round counter and the back branch. A `zip1` that pairs two lanes for a q-register `stp` is
+ * `storeState` too. Callee-saved register saves, spills and reloads, register moves and the RC
+ * table address are `other` (the listing stays honest).
+ */
+export type KeccakListingRole =
+  | 'loadState'
+  | 'loadRc'
+  | 'thetaParity'
+  | 'thetaD'
+  | 'thetaRhoPi'
+  | 'chi'
+  | 'iota'
+  | 'loop'
+  | 'storeState'
+  | 'other';
+
+export interface KeccakListingInstruction {
+  address: string;
+  mnemonic: string;
+  operands: string[];
+  role: KeccakListingRole;
+  /** `thetaParity` and `thetaD`: the column x of the C[x] or D[x] the instruction produces. */
+  x?: number;
+  /** `thetaParity`: 1 = C[x] partial over lanes (x,0)…(x,2), 2 = the full column parity. */
+  half?: 1 | 2;
+  /**
+   * The lane index x + 5y (FIPS 202 A[x, y]) the instruction's result belongs to: `thetaRhoPi` the
+   * destination lane after π, `chi` and `iota` the lane they produce, `loadState`/`storeState` the
+   * first lane they move (an `ldp`/`stp` of d registers moves `lane` and `lane + 1`, of q registers
+   * `lane` … `lane + 3`; a `zip1` packs `lane` and `lane + 1` into one q register).
+   */
+  lane?: number;
+}
+
+/**
+ * A listing with one loop (additive to the M4/M5 shape, absent from the AES and SHA listings): the
+ * instructions from address `first` through `last` (inclusive; `last` is the backward branch) form
+ * the loop body, run `iterations` times in a row. Everything before `first` is the prologue, after
+ * `last` the epilogue. For Keccak one body iteration is one round, so a deriver replays prologue,
+ * then the body `iterations` (24) times, then the epilogue, once per permutation.
+ */
+export interface ListingLoop {
+  first: string;
+  last: string;
+  iterations: number;
+}
+
+export interface KeccakListing extends ListingHeader {
+  loop: ListingLoop;
+  instructions: KeccakListingInstruction[];
+}
+
 /** A memory operand: base register and byte offset. */
 export interface MemOperand {
   base: string;

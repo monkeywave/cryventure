@@ -1,0 +1,104 @@
+{
+  "source": "RFC 1321, The MD5 Message-Digest Algorithm (https://www.rfc-editor.org/rfc/rfc1321.txt), Appendix A.5 (test suite): all seven messages, copied unchanged.",
+  "cases": [
+    {
+      "name": "RFC 1321 A.5: MD5(\"\")",
+      "params": {
+        "encoding": "utf8",
+        "input": "",
+        "detail": "round"
+      },
+      "outputs": {
+        "digest": "d41d8cd98f00b204e9800998ecf8427e"
+      }
+    },
+    {
+      "name": "RFC 1321 A.5: MD5(\"a\")",
+      "params": {
+        "encoding": "utf8",
+        "input": "a",
+        "detail": "round"
+      },
+      "outputs": {
+        "digest": "0cc175b9c0f1b6a831c399e269772661"
+      }
+    },
+    {
+      "name": "RFC 1321 A.5: MD5(\"abc\")",
+      "params": {
+        "encoding": "utf8",
+        "input": "abc",
+        "detail": "round"
+      },
+      "outputs": {
+        "digest": "900150983cd24fb0d6963f7d28e17f72"
+      }
+    },
+    {
+      "name": "RFC 1321 A.5: MD5(\"message digest\")",
+      "params": {
+        "encoding": "utf8",
+        "input": "message digest",
+        "detail": "round"
+      },
+      "outputs": {
+        "digest": "f96b697d7cb7938d525a2f31aaf161d0"
+      }
+    },
+    {
+      "name": "RFC 1321 A.5: MD5(\"abcdefghijklmnopqrstuvwxyz\")",
+      "params": {
+        "encoding": "utf8",
+        "input": "abcdefghijklmnopqrstuvwxyz",
+        "detail": "round"
+      },
+      "outputs": {
+        "digest": "c3fcd3d76192e4007dfb496cca67e13b"
+      }
+    },
+    {
+      "name": "RFC 1321 A.5: MD5(\"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789\")",
+      "params": {
+        "encoding": "utf8",
+        "input": "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789",
+        "detail": "round"
+      },
+      "outputs": {
+        "digest": "d174ab98d277d9f5a5611c2c9f419d9f"
+      }
+    },
+    {
+      "name": "RFC 1321 A.5: MD5(\"12345678901234567890123456789012345678901234567890123456789012345678901234567890\")",
+      "params": {
+        "encoding": "utf8",
+        "input": "12345678901234567890123456789012345678901234567890123456789012345678901234567890",
+        "detail": "round"
+      },
+      "outputs": {
+        "digest": "57edf4a22be3c955ac49da2e2107b67a"
+      }
+    },
+    {
+      "name": "RFC 1321 A.5: MD5(\"abc\") at block detail",
+      "params": {
+        "encoding": "utf8",
+        "input": "abc",
+        "detail": "block"
+      },
+      "outputs": {
+        "digest": "900150983cd24fb0d6963f7d28e17f72"
+      }
+    },
+    {
+      "name": "RFC 1321 A.5: MD5(\"abc\") as hex 616263",
+      "params": {
+        "encoding": "hex",
+        "input": "616263",
+        "detail": "round"
+      },
+      "outputs": {
+        "digest": "900150983cd24fb0d6963f7d28e17f72"
+      }
+    }
+  ]
+}

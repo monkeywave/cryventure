@@ -39,6 +39,6 @@ export class WordopsRecorder<R extends string, Op extends { op: string }> {
   }
 
   wordopsFacet(wordBits: WordBits, registerNames?: readonly string[]): WordopsFacet {
-    return { kind: 'wordops', schemaVersion: 1, wordBits, ...(registerNames === undefined ? {} : { registerNames: [...registerNames] }), steps: [...this.wordopsSteps] };
+    return { kind: 'wordops', schemaVersion: 2, wordBits, ...(registerNames === undefined ? {} : { registerNames: [...registerNames] }), steps: [...this.wordopsSteps] };
   }
 }

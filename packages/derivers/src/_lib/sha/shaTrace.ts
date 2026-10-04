@@ -19,17 +19,27 @@ import {
 } from '../traceFacets.ts';
 
 /**
- * Reads the SHA-256 producer's **published facet contract** (docs/M5.md §2c–2d, §5c), never its code:
- * state regions `vars` (a … h), `w` (W_0 … W_63) and `h` (H), all 4-byte big-endian words; ops `init`,
- * `schedule`, `round`, `feedForward` (per block) and `output`; the `wordops` terms `k`, `kw` (round t)
- * and `p1`, `p2` (schedule t); the values `iv` and `h/<n>`. A broken contract throws, and so do
+ * Reads the SHA-256 and SHA-512 producers' **published facet contract** (docs/M5.md §2c–2d, §5c,
+ * docs/M6.md §2f, §5c), never their code: state regions `vars` (a … h), `w` (W_0 … W_63, or W_79) and
+ * `h` (H), all big-endian words of 4 bytes (`wordops.wordBits` 32: 64 rounds) or 8 bytes (64: 80
+ * rounds); ops `init`, `schedule`, `round`, `feedForward` (per block) and `output`; the `wordops` terms
+ * `k`, `kw`, `hKW`, `T1` (round t) and `p1`, `p2` (schedule t); the values `iv` and `h/<n>`. A broken contract throws, and so do
  * facets that disagree: the derivers take K+W, p1, p2 from `wordops` but a … h, W and H from `state`,
  * so each round's `w` term must be word t of `w` and its `registers.after` the `vars` region.
  */
 
+/** Bytes per SHA-224/256 word. */
 export const SHA_WORD_BYTES = 4;
 /** SHA-224/256 rounds per block (FIPS 180-4 §6.2.2). */
 export const SHA256_ROUNDS = 64;
+/** SHA-384/512 rounds per block (FIPS 180-4 §6.4.2). */
+export const SHA512_ROUNDS = 80;
+
+/** Word size and rounds per block of each SHA-2 word width (`wordops.wordBits`). */
+const SHA2_SHAPES: Readonly<Record<number, { wordBytes: number; rounds: number }>> = {
+  32: { wordBytes: SHA_WORD_BYTES, rounds: SHA256_ROUNDS },
+  64: { wordBytes: 8, rounds: SHA512_ROUNDS },
+};
 /** The first schedule word computed by `schedule` (W_0 … W_15 come from the block). */
 export const SHA256_FIRST_SCHEDULED = 16;
 /** The working variables in register order. */
@@ -45,7 +55,7 @@ export interface ShaBlockSteps {
   index: number;
   /** The `init` step: a … h ← H, W_0 … W_15 ← the block. */
   init: number;
-  /** `round t` step per t (0 … 63). */
+  /** `round t` step per t (0 … 63, or 79). */
   rounds: readonly number[];
   /** `schedule t` step per t (index t; `undefined` for t < 16). */
   schedule: readonly (number | undefined)[];
@@ -54,6 +64,10 @@ export interface ShaBlockSteps {
 }
 
 export interface ShaTrace {
+  /** Bytes per word: 4 (SHA-224/256) or 8 (SHA-384/512). */
+  wordBytes: number;
+  /** Rounds per block: 64 or 80. */
+  rounds: number;
   facet: AnyStateFacet;
   values: ValuesFacet;
   wordops: WordopsFacet;
@@ -69,7 +83,7 @@ export interface ShaTrace {
   wordopsByStep: ReadonlyMap<number, WordopsStep>;
 }
 
-const CONTRACT = 'SHA-256';
+const CONTRACT = 'SHA-2';
 
 function contractError(message: string): Error {
   return traceContractError(CONTRACT, message);
@@ -83,18 +97,24 @@ interface OpenBlock {
   scheduled: number;
 }
 
-function closeBlock(block: OpenBlock, index: number, feedForward: number): ShaBlockSteps {
-  if (block.rounds.length !== SHA256_ROUNDS)
-    throw contractError(
-      `block ${index} has ${block.rounds.length} round steps, not ${SHA256_ROUNDS}`,
-    );
-  if (block.scheduled !== SHA256_ROUNDS - SHA256_FIRST_SCHEDULED)
+function closeBlock(
+  block: OpenBlock,
+  index: number,
+  feedForward: number,
+  rounds: number,
+): ShaBlockSteps {
+  if (block.rounds.length !== rounds)
+    throw contractError(`block ${index} has ${block.rounds.length} round steps, not ${rounds}`);
+  if (block.scheduled !== rounds - SHA256_FIRST_SCHEDULED)
     throw contractError(`block ${index} has ${block.scheduled} schedule steps`);
   return { index, init: block.init, rounds: block.rounds, schedule: block.schedule, feedForward };
 }
 
 /** Collects the blocks: `init`, then `schedule t` (t ≥ 16) / `round t` in order, then `feedForward`. */
-function locateBlocks(facet: AnyStateFacet): { blocks: ShaBlockSteps[]; output: number } {
+function locateBlocks(
+  facet: AnyStateFacet,
+  rounds: number,
+): { blocks: ShaBlockSteps[]; output: number } {
   const blocks: ShaBlockSteps[] = [];
   let open: OpenBlock | undefined;
   let output: number | undefined;
@@ -108,7 +128,7 @@ function locateBlocks(facet: AnyStateFacet): { blocks: ShaBlockSteps[]; output: 
     else if (op === 'round') open.rounds.push(step);
     else if (op === 'schedule') open.schedule[SHA256_FIRST_SCHEDULED + open.scheduled++] = step;
     else if (op === 'feedForward') {
-      blocks.push(closeBlock(open, blocks.length, step));
+      blocks.push(closeBlock(open, blocks.length, step, rounds));
       open = undefined;
     }
   });
@@ -176,14 +196,24 @@ function checkRegisterNames(wordops: WordopsFacet): void {
 function checkFacetsAgree(trace: ShaTrace): void {
   checkRegisterNames(trace.wordops);
   for (const block of trace.blocks)
-    for (let t = 0; t < SHA256_ROUNDS; t++) checkRoundAgrees(trace, block, t);
+    for (let t = 0; t < trace.rounds; t++) checkRoundAgrees(trace, block, t);
+}
+
+/** Word size and rounds of the trace, from `wordops.wordBits`; throws for a width SHA-2 does not use. */
+function sha2Shape(wordops: WordopsFacet): { wordBytes: number; rounds: number } {
+  const shape = SHA2_SHAPES[wordops.wordBits];
+  if (shape === undefined)
+    throw contractError(`wordops word size ${wordops.wordBits}, not 32 or 64`);
+  return shape;
 }
 
 function readShaTrace(bundle: TraceBundle): ShaTrace {
   const facet = requiredStateFacet(bundle, REQUIRED_REGIONS, CONTRACT);
   const wordops = requiredFacet<WordopsFacet>(bundle, 'wordops', CONTRACT);
-  const { blocks, output } = locateBlocks(facet);
+  const shape = sha2Shape(wordops);
+  const { blocks, output } = locateBlocks(facet, shape.rounds);
   const trace: ShaTrace = {
+    ...shape,
     facet,
     values: requiredFacet<ValuesFacet>(bundle, 'values', CONTRACT),
     wordops,
@@ -205,7 +235,7 @@ export function regionWord(trace: ShaTrace, region: string, step: number, index:
   const bytes =
     state === undefined
       ? undefined
-      : regionSlice(state, region, index * SHA_WORD_BYTES, SHA_WORD_BYTES);
+      : regionSlice(state, region, index * trace.wordBytes, trace.wordBytes);
   if (bytes === undefined)
     throw contractError(`region "${region}" has no word ${index} after step ${step}`);
   return bytes;
@@ -226,14 +256,14 @@ export function chainingValueId(trace: ShaTrace, n: number): string {
   return id;
 }
 
-/** The round-t step of `block`; throws for t outside 0 … 63. */
+/** The round-t step of `block`; throws for t outside 0 … 63 (or 79). */
 export function roundStep(block: ShaBlockSteps, t: number): number {
   const step = block.rounds[t];
   if (step === undefined) throw contractError(`no round ${t} in block ${block.index}`);
   return step;
 }
 
-/** The schedule-t step of `block`; throws for t outside 16 … 63. */
+/** The schedule-t step of `block`; throws for t outside 16 … 63 (or 79). */
 export function scheduleStep(block: ShaBlockSteps, t: number): number {
   const step = block.schedule[t];
   if (step === undefined) throw contractError(`no schedule ${t} in block ${block.index}`);

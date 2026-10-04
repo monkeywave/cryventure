@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import { annotateShaListing, ARMV8_SHA_ANNOTATE, X86_SHA_ANNOTATE } from './annotateSha.ts';
+import {
+  annotateShaListing,
+  ARMV8_SHA512_ANNOTATE,
+  ARMV8_SHA_ANNOTATE,
+  X86_SHA_ANNOTATE,
+} from './annotateSha.ts';
 import { parseInstructionText, type ParsedInstruction } from './parse.ts';
 
 function listing(lines: readonly string[]): (ParsedInstruction & { address: string })[] {
@@ -132,5 +137,75 @@ describe('annotateShaListing (armv8)', () => {
       'store',
       'other',
     ]);
+  });
+});
+
+describe('annotateShaListing (armv8 SHA-512)', () => {
+  it('labels state ext as packState, the (e,f) add after sha512h as rounds, and numbers W by twos', () => {
+    expect(
+      summary(
+        [
+          'ldp q1, q2, [x0, #16]',
+          'ldr q3, [x0, #48]',
+          'ldr q0, [x0]',
+          'ldp q4, q5, [x1]',
+          'rev64 v4.16b, v4.16b',
+          'rev64 v5.16b, v5.16b',
+          'adrp x8, .LCPI0_0',
+          'ldr q6, [x8, :lo12:.LCPI0_0]',
+          'add v6.2d, v4.2d, v6.2d',
+          'ext v6.16b, v6.16b, v6.16b, #8',
+          'ext v7.16b, v2.16b, v3.16b, #8',
+          'ext v16.16b, v1.16b, v2.16b, #8',
+          'add v3.2d, v3.2d, v6.2d',
+          'sha512h q3, q7, v16.2d',
+          'sha512su0 v4.2d, v5.2d',
+          'ext v17.16b, v5.16b, v4.16b, #8',
+          'sha512su1 v4.2d, v5.2d, v17.2d',
+          'add v18.2d, v1.2d, v3.2d',
+          'sha512h2 q3, q1, v0.2d',
+          'sha512su0 v5.2d, v4.2d',
+          'stp q3, q0, [x0]',
+        ],
+        ARMV8_SHA512_ANNOTATE,
+      ),
+    ).toEqual([
+      'loadState',
+      'loadState',
+      'loadState',
+      'loadBlock',
+      'byteSwap',
+      'byteSwap',
+      'other',
+      'addK',
+      'addK',
+      'addK',
+      'packState',
+      'packState',
+      'addK',
+      'rounds@0',
+      'msg1w16',
+      'msg2',
+      'msg2w16',
+      'rounds@0',
+      'rounds2@0',
+      'msg1w18',
+      'store',
+    ]);
+  });
+
+  it('keeps a feed-forward that clang reassociated with the last sha512h output as feedForward', () => {
+    expect(
+      summary(
+        [
+          'ldp q1, q2, [x0, #16]',
+          'sha512h q7, q18, v19.2d',
+          'add v2.2d, v6.2d, v2.2d',
+          'add v2.2d, v2.2d, v7.2d',
+          'add v8.2d, v1.2d, v7.2d',
+        ],
+        ARMV8_SHA512_ANNOTATE,
+      ),
+    ).toEqual(['loadState', 'rounds@0', 'feedForward', 'feedForward', 'rounds@0']);
   });
 });

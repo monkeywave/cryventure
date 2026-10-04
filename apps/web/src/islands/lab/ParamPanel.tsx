@@ -146,8 +146,8 @@ function HexField(props: FieldProps) {
 }
 
 /**
- * A text param with a live byte counter against `maxLength`: UTF-8 bytes, or decoded bytes while the
- * producer's `encoding` param is `'hex'` (`textFieldLength`, docs/EXTENDING.md "Text params").
+ * A text param with a live byte counter against `maxLength`: UTF-8 bytes, or decoded bytes for the
+ * `input` field while the producer's `encoding` param is `'hex'` (`textFieldLength`, docs/EXTENDING.md "Text params").
  */
 function TextField(props: FieldProps) {
   const t = useT();
@@ -156,7 +156,7 @@ function TextField(props: FieldProps) {
   const { text, error, change: changeText } = useDraft(props);
   const change = (event: ChangeEvent<HTMLInputElement>) => changeText(event.target.value);
   const max = field.maxLength;
-  const { unit, bytes } = textFieldLength(text, props.params);
+  const { unit, bytes } = textFieldLength(field.name, text, props.params);
   const counterId = `${id}-count`;
   return (
     <div className="cv-params__field cv-params__field--text">

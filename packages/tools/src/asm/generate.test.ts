@@ -9,7 +9,14 @@ import { readFileSync } from 'node:fs';
 import { basename, join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { REPO_ROOT } from '../fs/repoRoot.ts';
-import { buildListings, formatListingJson, listingJson, type AsmListing, type ListingInstruction } from './generate.ts';
+import {
+  buildListings,
+  formatListingJson,
+  listingJson,
+  listingLoop,
+  type AsmListing,
+  type ListingInstruction,
+} from './generate.ts';
 
 /** Each C source → the functions it defines and their committed listing (deriver folder, file). */
 const SOURCES: Record<string, readonly { name: string; isa: string; file: string }[]> = {
@@ -25,6 +32,8 @@ const SOURCES: Record<string, readonly { name: string; isa: string; file: string
   })),
   'sha256_x86.c': [{ name: 'sha256_compress_block', isa: 'isa-x86-sha', file: 'sha256.json' }],
   'sha256_armv8.c': [{ name: 'sha256_compress_block', isa: 'isa-armv8-sha', file: 'sha256.json' }],
+  'sha512_armv8.c': [{ name: 'sha512_compress_block', isa: 'isa-armv8-sha', file: 'sha512.json' }],
+  'keccak_armv8.c': [{ name: 'keccak_f1600', isa: 'isa-armv8-sha3', file: 'keccak.json' }],
 };
 const FUNCTION_STRIDE = 0x400;
 
@@ -46,11 +55,16 @@ function rebased(instructions: readonly ListingInstruction[]): ListingInstructio
   }));
 }
 
+/** The loop label clang puts before the body, where the listing has a `loop`. */
+const LOOP_LABEL = '.LBB0_1';
+
 function fakeAsm(sourceFile: string): string {
   return SOURCES[sourceFile]!.map(({ name, isa, file }) => {
-    const body = committed(isa, file).instructions.map(
-      ({ mnemonic, operands }) => `\t${mnemonic}\t${operands.join(', ')}`,
-    );
+    const { instructions, loop } = committed(isa, file);
+    const body = instructions.flatMap(({ address, mnemonic, operands }) => [
+      ...(address === loop?.first ? [`${LOOP_LABEL}:`] : []),
+      `\t${mnemonic}\t${operands.join(', ')}`,
+    ]);
     return [`${name}:`, ...body, '.Lfunc_end0:'].join('\n');
   }).join('\n');
 }
@@ -91,7 +105,7 @@ describe('buildListings (injected compiler runner)', () => {
     expect(new Set(commands)).toEqual(new Set([tools.clang, tools.objdump]));
   });
 
-  it('builds the six AES and two SHA-256 listings, each starting at 0x0 and matching the committed annotation', () => {
+  it('builds the six AES, two SHA-256, SHA-512 and Keccak listings, each starting at 0x0 and matching the committed annotation', () => {
     const expected = Object.values(SOURCES).flat();
     expect(listings).toHaveLength(expected.length);
     expected.forEach(({ name, isa, file }, index) => {
@@ -101,12 +115,37 @@ describe('buildListings (injected compiler runner)', () => {
       expect(listing.compiler).toBe(RECORDED_COMPILER);
       expect(listing.instructions[0]!.address).toBe('0x0');
       expect(listing.instructions).toEqual(rebased(committed(isa, file).instructions));
+      expect(listing.loop).toEqual(committed(isa, file).loop);
     });
   });
 
-  it('regenerates every committed listing (AES and SHA-256) byte for byte', async () => {
+  it('records a loop only for the Keccak kernel, from its label through the back branch', () => {
+    const withLoop = listings.filter(({ listing }) => listing.loop !== undefined);
+    expect(withLoop.map(({ listing }) => listing.function)).toEqual(['keccak_f1600']);
+    const { loop, instructions } = withLoop[0]!.listing;
+    const branch = instructions.find(({ address }) => address === loop!.last);
+    expect(branch).toMatchObject({ mnemonic: 'b.ne', operands: [LOOP_LABEL] });
+    expect(loop!.iterations).toBe(24);
+  });
+
+  it('regenerates every committed listing (AES, SHA-256, SHA-512, Keccak) byte for byte', async () => {
     const formatted = await Promise.all(listings.map(({ path, listing }) => formatListingJson(path, listingJson(listing))));
     const drifted = listings.filter(({ path }, index) => formatted[index] !== readFileSync(path, 'utf8'));
     expect(drifted.map(({ path }) => path.slice(REPO_ROOT.length))).toEqual([]);
+  });
+});
+
+describe('listingLoop', () => {
+  it('names the body by its first and last (branch) addresses', () => {
+    const instructions = ['mov', 'eor3', 'cmp', 'b.ne', 'ret'].map((mnemonic, index) => ({
+      mnemonic,
+      operands: [],
+      address: `0x${(index * 4).toString(16)}`,
+    }));
+    expect(listingLoop(instructions, { firstIndex: 1, lastIndex: 3 }, 24)).toEqual({
+      first: '0x4',
+      last: '0xc',
+      iterations: 24,
+    });
   });
 });

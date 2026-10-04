@@ -8,7 +8,8 @@ describe('isa-armv8-sha catalogs', () => {
     expect(catalogProblems('isa-armv8-sha', en, de)).toEqual([]);
   });
 
-  it('label the variant after the ARMv8 SHA2 extension', () => {
+  it('label the variants after the ARMv8 SHA2 and ARMv8.2 SHA512 extensions', () => {
     expect(en['deriver.isa-armv8-sha.label']).toBe('AArch64 · ARMv8 SHA2 extension');
+    expect(en['deriver.isa-armv8-sha.sha512.label']).toBe('AArch64 · ARMv8.2 SHA512 extension');
   });
 });

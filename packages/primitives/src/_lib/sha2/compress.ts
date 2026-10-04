@@ -35,6 +35,8 @@ export interface RoundDetail<W extends Word> {
   w: W;
   /** K_t + W_t (the lane value of sha256rnds2 / sha256h). */
   kw: W;
+  /** h + K_t + W_t (the input of ARMv8.2 SHA512H, docs/M6.md §2f). */
+  hKW: W;
   T1: W;
   Sigma0: W;
   maj: W;
@@ -79,7 +81,7 @@ function round<W extends Word>(params: Sha2Params<W>, before: readonly W[], k: W
   const majority = maj(arith, a, b, c);
   const T2 = arith.add(Sigma0, majority);
   const after = [arith.add(T1, T2), a, b, c, arith.add(d, T1), e, f, g];
-  return { kind: 'round', t, before: [...before], Sigma1, ch: choose, k, w, kw, T1, Sigma0, maj: majority, T2, after };
+  return { kind: 'round', t, before: [...before], Sigma1, ch: choose, k, w, kw, hKW: arith.add(h, kw), T1, Sigma0, maj: majority, T2, after };
 }
 
 /** Compresses one block (`params.blockBytes` bytes) into `hIn`, keeping every intermediate value. */

@@ -78,7 +78,7 @@ describe('wordops in derived facets', () => {
     expect(derivedSchemaProblems({ 'wordops@x': wordops([term('k', { hex: '428a2f9' })]) })).toEqual(['wordops@x: wordops step 0 term "k": hex "428a2f9" is not 8 lowercase hex digits']);
   });
 
-  it('checks wordops term shapes beyond the core validator (empty id, role, op)', () => {
+  it('checks wordops term shapes with the core validator (empty id, role, op)', () => {
     const facet = wordops([term(''), term('r', { role: 'bogus' }), term('o', { op: 'rotr2' })]);
     expect(derivedSchemaProblems({ 'wordops@x': facet })).toEqual([
       'wordops@x: wordops step 0 term 0: id is not a non-empty string',
@@ -103,6 +103,43 @@ describe('wordops in derived facets', () => {
 
   it('finds wordops refs for the EN/DE and namespace checks', () => {
     expect(i18nRefsIn(wordops([term('k')]))).toEqual([{ key: 'deriver.demo.f' }, { key: 'deriver.demo.k' }]);
+  });
+  it('validates wordops v2 fields (and only with schemaVersion 2), finding no refs in them', () => {
+    const registers = { before: ['00000000'], after: ['428a2f98'], touched: [0], transfers: [{ to: 0, from: { term: 'k' } }] };
+    const v2 = { ...wordops([term('k', { emphasis: 'story' })]), schemaVersion: 2, registerNames: ['a'], registerColumns: 1 };
+    v2.steps[0] = { ...v2.steps[0]!, registers } as never;
+    expect(derivedSchemaProblems({ 'wordops@x': v2 })).toEqual([]);
+    expect(derivedSchemaProblems({ 'wordops@x': { ...v2, schemaVersion: 1 } })).toEqual([
+      'wordops@x: wordops: registerColumns needs schemaVersion 2',
+      'wordops@x: wordops step 0 term "k": emphasis needs schemaVersion 2',
+      'wordops@x: wordops step 0: registers.touched needs schemaVersion 2',
+      'wordops@x: wordops step 0: registers.transfers needs schemaVersion 2',
+    ]);
+    expect(malformedRefProblems({ 'wordops@x': v2 })).toEqual([]);
+    expect(i18nRefsIn(v2)).toEqual([{ key: 'deriver.demo.f' }, { key: 'deriver.demo.k' }]);
+  });
+
+  it('reports a malformed wordops facet as problems, not as a throwing validator', () => {
+    expect(derivedSchemaProblems({ 'wordops@x': null, 'wordops@y': { schemaVersion: 2, wordBits: 64, steps: [null] } })).toEqual([
+      'wordops@x: wordops: facet is not an object',
+      'wordops@y: wordops steps[0]: not an object',
+    ]);
+  });
+});
+
+describe('sponge in derived facets', () => {
+  const lanes = new Array<string>(4).fill('00');
+  const sponge = (label: unknown = { key: 'deriver.demo.sponge' }) => ({ kind: 'sponge', schemaVersion: 1, label, width: 2, height: 2, laneBits: 8, rounds: 1, rateLanes: 2, steps: [{ step: 0, phase: 'absorb', lanes }] });
+
+  it('validates sponge facets with the core validator', () => {
+    expect(derivedSchemaProblems({ 'sponge@x': sponge() })).toEqual([]);
+    expect(derivedSchemaProblems({ 'sponge@x': { ...sponge(), laneBits: 12 } })).toEqual(['sponge@x: sponge: laneBits 12 is not 8, 16, 32 or 64']);
+  });
+
+  it('flags a malformed sponge label and finds a well-formed one for the EN/DE and namespace checks', () => {
+    expect(malformedRefProblems({ 'sponge@x': sponge('Keccak') })).toEqual(['sponge@x: label is not an I18nRef { key, params? }']);
+    expect(malformedRefProblems({ 'sponge@x': sponge() })).toEqual([]);
+    expect(i18nRefsIn(sponge())).toEqual([{ key: 'deriver.demo.sponge' }]);
   });
 });
 

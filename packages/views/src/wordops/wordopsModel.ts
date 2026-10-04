@@ -1,13 +1,12 @@
-import type { Lens, WordBits, WordOp, WordopsFacet, WordopsStep, WordTerm } from '@cryventure/core';
+import { latestStepAt, type Lens, type WordBits, type WordOp, type WordopsFacet, type WordopsSchemaVersion, type WordopsStep, type WordTerm } from '@cryventure/core';
 import { chunk } from '../_lib/chunk.ts';
-import { latestStepAt } from '../_lib/latestStepAt.ts';
 
 /**
  * Pure helpers of the wordops view: step lookup at the playhead, hex chunking, bit strips, the
  * story-lens term filter and the SHA-2 register shift. No React, no i18n: the component translates.
  */
 
-/** The latest wordops step whose `step ≤ step`, or `undefined` before the first (as `mathStepAt`). */
+/** The latest wordops step whose `step ≤ step`, or `undefined` before the first (core `latestStepAt`). */
 export function wordopsStepAt(facet: WordopsFacet, step: number): WordopsStep | undefined {
   return latestStepAt(facet.steps, step);
 }
@@ -27,12 +26,27 @@ export function registerChunksPerLine(wordBits: WordBits): number | undefined {
   return wordBits === 64 ? 2 : undefined;
 }
 
+/** An op's catalog suffix: the op, or `root2` / `root3` for a root with a degree (v2). */
+type OpKeySuffix = WordOp | 'root2' | 'root3';
+
+function opKeySuffix({ op, degree }: OpOf): OpKeySuffix {
+  return op === 'root' && degree !== undefined ? `root${degree}` : op;
+}
+
+/** What the op keys read from a term. */
+type OpOf = { op: WordOp; degree?: WordTerm['degree'] };
+
 /**
  * Catalog key of the visible operator glyph (FIPS 180-4 notation: ROTR, Ch, Σ0, ⊕ …), so the
- * on-screen text is localizable like every other label; the accessible name is `view.wordops.op.<op>`.
+ * on-screen text is localizable like every other label. A root with `degree` reads √ or ∛ (v2).
  */
-export function opGlyphKey(op: WordOp): `view.wordops.glyph.${WordOp}` {
-  return `view.wordops.glyph.${op}`;
+export function opGlyphKey(term: OpOf): `view.wordops.glyph.${OpKeySuffix}` {
+  return `view.wordops.glyph.${opKeySuffix(term)}`;
+}
+
+/** Catalog key of the op's accessible name (`view.wordops.op.<op>`, or `root2` / `root3`). */
+export function opNameKey(term: OpOf): `view.wordops.op.${OpKeySuffix}` {
+  return `view.wordops.op.${opKeySuffix(term)}`;
 }
 
 /**
@@ -84,6 +98,14 @@ export function isStoryTerm(term: Pick<WordTerm, 'id' | 'role'>): boolean {
   return term.role === 'result' || STORY_TERM_IDS.has(term.id);
 }
 
+/**
+ * The terms the story lens shows: for a v2 facet exactly those marked `emphasis: 'story'` (none when
+ * none is, docs/M6.md §3b); for a v1 facet the structural `isStoryTerm` filter.
+ */
+export function storyTerms(schemaVersion: WordopsSchemaVersion, terms: readonly WordTerm[]): WordTerm[] {
+  return schemaVersion === 1 ? terms.filter(isStoryTerm) : terms.filter((term) => term.emphasis === 'story');
+}
+
 /** What each lens shows. */
 export interface LensParts {
   formula: boolean;
@@ -95,13 +117,18 @@ export function lensParts(lens: Lens): LensParts {
   return { formula: lens === 'cryptographer', bitStrips: lens === 'engineer', storyTermsOnly: lens === 'story' };
 }
 
-/** How one after-register gets its value in the SHA-2 shift. */
-export type ShiftSource = 'copy' | 'plusT1' | 'sum';
+/**
+ * How one after-register gets its value: a copy of `from`; in the v1 SHA-2 shift `from` + T1 or
+ * T1 + T2; in v2 the value of the step's term `term`.
+ */
+export type ShiftSource = 'copy' | 'plusT1' | 'sum' | 'term';
 
-/** One labelled arrow of the register shift: `to ← from` (+ T1), or `to ← T1 + T2` (`from` undefined). */
+/** One labelled arrow of the register shift: `to ← from` (+ T1), `to ← T1 + T2`, or `to ← term`. */
 export interface ShiftArrow {
   to: number;
   from?: number;
+  /** The source term's id (`source: 'term'`). */
+  term?: string;
   source: ShiftSource;
 }
 
@@ -127,4 +154,21 @@ export function sha2RegisterShift(wordopsStep: WordopsStep): readonly ShiftArrow
   if (registers === undefined || registers.before.length !== SHA2_REGISTER_COUNT || registers.after.length !== SHA2_REGISTER_COUNT) return undefined;
   const hasTerm = (id: string) => terms.some((term) => term.id === id);
   return hasTerm('T1') && hasTerm('T2') ? SHA2_SHIFT : undefined;
+}
+
+/**
+ * The register arrows of a step: a v2 facet draws its `transfers` (none without them); a v1 facet
+ * keeps the structural SHA-2 detection (`sha2RegisterShift`) as the fallback.
+ */
+export function registerArrows(schemaVersion: WordopsSchemaVersion, wordopsStep: WordopsStep): readonly ShiftArrow[] | undefined {
+  if (schemaVersion === 1) return sha2RegisterShift(wordopsStep);
+  return wordopsStep.registers?.transfers?.map(({ to, from }): ShiftArrow => ('register' in from ? { to, from: from.register, source: 'copy' } : { to, term: from.term, source: 'term' }));
+}
+
+const DEFINITION = ' = ';
+
+/** A term arrow's short text: the right-hand side of the (translated) term label "e (new) = d + T1" → "d + T1". */
+export function arrowTermText(label: string): string {
+  const at = label.lastIndexOf(DEFINITION);
+  return (at < 0 ? label : label.slice(at + DEFINITION.length)).trim();
 }

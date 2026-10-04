@@ -20,16 +20,12 @@ import {
   type PrimitiveManifest,
   type RegionSpec,
   type Snapshot,
+  type SpongeFacet,
   type TableFacet,
   type TraceBundle,
   type ValuesFacet,
-  type WordopsFacet,
-  validateWordopsFacet,
-  WORD_OPS,
-  WORD_TERM_ROLES,
 } from '@cryventure/core';
 import { CONTRACT_LOCALES, type LocaleCatalogs } from './catalogs.ts';
-import { isRecord } from './jsonValues.ts';
 
 /** Pure contract checks; each returns a list of human-readable problems (empty = pass). */
 export type { AnyStateFacet } from '@cryventure/core';
@@ -118,14 +114,21 @@ export function manifestLabelKeys(manifest: Pick<PrimitiveManifest, 'ops' | 'out
   return [...new Set([...ops, ...outputs])];
 }
 
-/** `words` layouts whose `wordBytes` is not a positive integer dividing the region's byte size. */
+const WORD_BYTE_ORDERS: readonly unknown[] = ['big', 'little'];
+
+/**
+ * `words` layouts whose `wordBytes` is not a positive integer dividing the region's byte size, or
+ * whose `byteOrder` (optional) is not `big` or `little`.
+ */
 export function regionLayoutProblems(regions: readonly RegionSpec<string>[]): string[] {
   return regions.flatMap((region) => {
     if (region.layout?.kind !== 'words') return [];
-    const { wordBytes } = region.layout;
+    const { wordBytes, byteOrder } = region.layout;
     const bytes = regionSize(region) * elemBytes(region.elem);
     const divides = Number.isInteger(wordBytes) && wordBytes > 0 && bytes % wordBytes === 0;
-    return divides ? [] : [`region "${region.id}": wordBytes ${wordBytes} does not divide its ${bytes} bytes`];
+    const problems = divides ? [] : [`region "${region.id}": wordBytes ${wordBytes} does not divide its ${bytes} bytes`];
+    if (byteOrder !== undefined && !WORD_BYTE_ORDERS.includes(byteOrder)) problems.push(`region "${region.id}": byteOrder "${String(byteOrder)}" is not "big" or "little"`);
+    return problems;
   });
 }
 
@@ -152,6 +155,11 @@ export function termValueRefProblems(kind: string, facet: TermFacet, values: Pic
       .filter((term) => term.valueRef !== undefined && !known.has(term.valueRef))
       .map((term) => `${kind} step ${step.step} term "${term.id}": valueRef "${term.valueRef}" is not in the values facet`),
   );
+}
+
+/** Every ref a sponge facet emits: its label. */
+export function spongeFacetRefs(facet: SpongeFacet): I18nRef[] {
+  return [facet.label];
 }
 
 /** Every ref a table facet emits: its title. */
@@ -205,7 +213,7 @@ export function jsonRoundTrip<T>(value: T): unknown {
 }
 
 /**
- * Steps of a per-step facet (`math`, `field`, `wordops`) outside the state facet's steps −1..n−1 (views could
+ * Steps of a per-step facet (`math`, `field`, `wordops`, `sponge`) outside the state facet's steps −1..n−1 (views could
  * never show them), and a step −1 entry on a state facet without an `initialNarration` (the initial
  * state must be narrated). `kind` prefixes each problem.
  */
@@ -216,56 +224,6 @@ export function facetStepRangeProblems(kind: string, facet: { steps: readonly { 
     if (step === INITIAL_STEP_INDEX && state.initialNarration === undefined) return [`${kind} step ${step} (initial state) has no initialNarration on the state facet`];
     return [];
   });
-}
-
-/** Whether `value` is one of `table`'s strings (core's `WORD_TERM_ROLES` / `WORD_OPS`). */
-const isOneOf = (table: readonly string[], value: unknown): boolean => typeof value === 'string' && table.includes(value);
-
-function wordTermShapeProblems(term: unknown, index: number, where: string): string[] {
-  if (!isRecord(term)) return [`${where} term ${index}: not an object`];
-  const { id, role, op } = term;
-  const hasId = typeof id === 'string' && id !== '';
-  const problems = hasId ? [] : [`${where} term ${index}: id is not a non-empty string`];
-  const at = hasId ? `${where} term "${id}"` : `${where} term ${index}`;
-  if (!isOneOf(WORD_TERM_ROLES, role)) problems.push(`${at}: role "${String(role)}" is not a MathTermRole`);
-  if (op !== undefined && !isOneOf(WORD_OPS, op)) problems.push(`${at}: op "${String(op)}" is not a WordOp`);
-  return problems;
-}
-
-function wordRegistersShapeProblems(registers: unknown, where: string): string[] {
-  if (registers === undefined) return [];
-  if (!isRecord(registers)) return [`${where}: registers is not an object`];
-  return (['before', 'after'] as const).filter((side) => !Array.isArray(registers[side])).map((side) => `${where}: registers.${side} is not an array`);
-}
-
-function wordopsStepShapeProblems(step: unknown, index: number): string[] {
-  if (!isRecord(step)) return [`wordops steps[${index}]: not an object`];
-  const where = `wordops step ${String(step['step'])}`;
-  const { terms } = step;
-  const termProblems = Array.isArray(terms) ? terms.flatMap((term, termIndex) => wordTermShapeProblems(term, termIndex, where)) : [`${where}: terms is not an array`];
-  return [...termProblems, ...wordRegistersShapeProblems(step['registers'], where)];
-}
-
-/** Core's `validateWordopsFacet`, a throw reported as a problem rather than a TypeError. */
-function coreWordopsProblems(facet: WordopsFacet): string[] {
-  try {
-    return validateWordopsFacet(facet);
-  } catch (error) {
-    return [`wordops: validator threw (${error instanceof Error ? error.message : String(error)}); malformed facet`];
-  }
-}
-
-/**
- * Wordops shape problems the core validator does not check (core is shallow and frozen): steps and
- * terms are arrays, term ids non-empty, `role` a `MathTermRole`, `op` (if any) a `WordOp`,
- * `registers` with `before` and `after` arrays. Only a well-shaped facet goes on to the core
- * validator (which assumes the shape); if that still throws, the throw is reported as a problem.
- */
-export function wordopsShapeProblems(facet: unknown): string[] {
-  if (!isRecord(facet)) return ['wordops: facet is not an object'];
-  if (!Array.isArray(facet['steps'])) return ['wordops: steps is not an array'];
-  const shape = facet['steps'].flatMap(wordopsStepShapeProblems);
-  return shape.length > 0 ? shape : coreWordopsProblems(facet as unknown as WordopsFacet);
 }
 
 /**

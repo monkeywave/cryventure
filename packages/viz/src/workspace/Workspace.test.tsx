@@ -9,6 +9,7 @@ import { initialPanelSizes, Workspace, type WorkspaceProps } from './Workspace.t
 import { planPanels } from './planPanels.ts';
 import { LabLayoutProvider } from '../lab/LabLayout.tsx';
 import { renderLab } from '../testing/renderLab.tsx';
+import '../viz.css';
 
 afterEach(() => vi.restoreAllMocks());
 
@@ -72,6 +73,17 @@ describe('Workspace', () => {
     });
     renderWorkspace({ layout: 'state' });
     expect(await screen.findByText('view state (aes/engineer)')).toBeTruthy();
+  });
+
+  it('top-aligns side-by-side panels at their own height while the separator spans the row', () => {
+    renderWorkspace({ layout: 'state|narration', views: views.slice(0, 2) });
+    const group = document.querySelector<HTMLElement>('.cv-workspace [data-group]');
+    expect(group).not.toBeNull();
+    expect(getComputedStyle(group as HTMLElement).alignItems).toBe('flex-start');
+    expect(getComputedStyle(screen.getByRole('separator', { name: 'Resize panels' })).alignSelf).toBe('stretch');
+    const panels = [...document.querySelectorAll<HTMLElement>('.cv-workspace__panel')];
+    expect(panels).toHaveLength(2);
+    for (const panel of panels) expect(getComputedStyle(panel).height).not.toBe('100%');
   });
 
   it('applies preset default sizes when nothing is saved', () => {

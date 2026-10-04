@@ -65,12 +65,15 @@ describe('recordConstants', () => {
       ['word', 'result', '3c6ef372'],
     ]);
     expect(step.terms.at(-1)!.valueRef).toBe(wordValueId(2));
+    expect(step.terms.map((term) => term.degree)).toEqual([undefined, 2, 2]);
+    expect(recording.wordops.schemaVersion).toBe(2);
     expect(recording.wordops.wordBits).toBe(32);
   });
 
   it('adds the skipped bits as a term and uses the SquareSkip texts for SHA-224', () => {
     const sha224 = recordConstants('sha224-iv', CONSTANT_SPECS['sha224-iv'], NO_TABLE);
     expect(sha224.wordops.steps[0]!.terms.map((term) => term.id)).toEqual(['p', 'integer', 'skipped', 'word']);
+    expect(sha224.wordops.steps[0]!.terms.map((term) => term.degree)).toEqual([undefined, 2, 2, 2]);
     expect(sha224.state.steps[0]!.narration).toMatchObject({ key: `${NS}.step.wordSquareSkip`, params: { skipped: 'cbbb9d5d', word: 'c1059ed8' } });
     expect(sha224.wordops.steps[0]!.formula.key).toBe(`${NS}.math.wordSquareSkip`);
   });
@@ -79,6 +82,7 @@ describe('recordConstants', () => {
     const k = recordConstants('sha512-k', CONSTANT_SPECS['sha512-k'], NO_TABLE);
     expect(k.state.steps[0]!.narration.key).toBe(`${NS}.step.wordCube`);
     expect(k.wordops.steps[0]!.terms[1]!.label.key).toBe(`${NS}.term.integerCube`);
+    expect(k.wordops.steps[0]!.terms.filter((term) => term.op === 'root').map((term) => term.degree)).toEqual([3, 3]);
   });
 
   it('reports every word as a mismatch against an empty table', () => {

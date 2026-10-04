@@ -30,6 +30,12 @@ refs:
   - Kelsey, Schneier (2005), Second Preimages on n-bit Hash Functions for Much Less than 2^n Work, EUROCRYPT 2005
   - Wang, Yu (2005), How to Break MD5 and Other Hash Functions, EUROCRYPT 2005
   - Stevens, Bursztein, Karpman, Albertini, Markov (2017), The First Collision for Full SHA-1, CRYPTO 2017
+  - RFC 1321 (The MD5 Message-Digest Algorithm), Section 3
+  - FIPS 180-4, Sections 6.1–6.7 (SHA-1 and SHA-2 hash computation)
+  - FIPS 202, Section 4 (The sponge construction)
+  - Bertoni, Daemen, Peeters, Van Assche (2007), Sponge Functions, ECRYPT Hash Workshop 2007
+  - Biham, Dunkelman (2007), A Framework for Iterative Hash Functions — HAIFA, Cryptology ePrint Archive 2007/278
+  - RFC 7693 (BLAKE2), Section 3.2 (Compression Function F)
 ---
 
 import Lab from '../../../../components/Lab.astro';
@@ -76,6 +82,23 @@ H(m) = H⁽ᴺ⁾`}
 A blender with memory: it mixes one 64-byte scoop at a time into what is already there.
 
 </Lens>
+
+### Three ways to build a hash
+
+The hash pages follow three constructions:
+
+| Construction | Functions | Pages |
+|---|---|---|
+| Merkle–Damgård | MD5, SHA-1, SHA-2 | [MD5 and SHA-1](./md5-sha1/), [SHA-256](./sha256/), [SHA-512](./sha512/) |
+| Sponge | SHA-3, SHAKE | [Sponge](./sponge/), [Keccak](./keccak/) |
+| HAIFA-style ARX | BLAKE2 | [BLAKE2](./blake2/) |
+
+**Merkle–Damgård** chains a compression function over padded blocks, as above: MD5 (RFC 1321, §3),
+SHA-1 (FIPS 180-4, §6.1) and SHA-2 (§6.2–6.7). A **sponge** instead absorbs blocks into a larger
+permutation state, part of which is never output (FIPS 202, §4; Bertoni et al. 2007). **HAIFA**
+keeps the chain but gives every compression call the number of bits hashed so far and a salt
+(Biham and Dunkelman, ePrint 2007/278). BLAKE2's compression function likewise takes a byte counter
+and a final-block flag and mixes only with addition, rotation and XOR (RFC 7693, §3.2).
 
 </LessonSection>
 

@@ -1,0 +1,28 @@
+{
+  "source": "NIST CSRC, Examples with Intermediate Values, SHA1.pdf (https://csrc.nist.gov/CSRC/media/Projects/Cryptographic-Standards-and-Guidelines/documents/examples/SHA1.pdf), \"One Block Message Sample\" (input \"abc\"): the a … e rows after rounds t = 0, 19, 79, transcribed with pdftotext.",
+  "message": "abc",
+  "digest": "a9993e364706816aba3e25717850c26c9cd0d89d",
+  "vars": {
+    "0": [
+      "0116fc33",
+      "67452301",
+      "7bf36ae2",
+      "98badcfe",
+      "10325476"
+    ],
+    "19": [
+      "fd9e1d7d",
+      "dc64901d",
+      "20aa99ca",
+      "d3a49608",
+      "c82f758b"
+    ],
+    "79": [
+      "42541b35",
+      "5738d5e1",
+      "21834873",
+      "681e6df6",
+      "d8fdf6ad"
+    ]
+  }
+}

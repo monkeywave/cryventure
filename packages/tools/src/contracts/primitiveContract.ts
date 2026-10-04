@@ -5,7 +5,9 @@ import {
   paramFieldsOf,
   validateFieldFacet,
   validateMathFacet,
+  validateSpongeFacet,
   validateTableFacet,
+  validateWordopsFacet,
   type DerivationFacet,
   type FieldFacet,
   type I18nRef,
@@ -13,6 +15,7 @@ import {
   type PrimitiveManifest,
   type PrimitiveModule,
   type RunOptions,
+  type SpongeFacet,
   type TableFacet,
   type TraceBundle,
   type ValuesFacet,
@@ -37,12 +40,12 @@ import {
   regionLayoutProblems,
   replayProblems,
   runtimeLabelKeys,
+  spongeFacetRefs,
   tableFacetRefs,
   tableSelectParamProblems,
   termFacetRefs,
   termValueRefProblems,
   unknownParamFields,
-  wordopsShapeProblems,
   type AnyStateFacet,
   type TermFacet,
 } from './checks.ts';
@@ -170,7 +173,7 @@ function runSuite<P>(manifest: PrimitiveManifest<P>, catalogs: LocaleCatalogs, p
   optionalRunChecks(manifest, catalogs, () => bundle);
 }
 
-/** Checks that only apply when the manifest opts in (choreography, derivation/math/table facets). */
+/** Checks that only apply when the manifest opts in (choreography, derivation/math/table/field/wordops/sponge facets). */
 function optionalRunChecks<P>(manifest: PrimitiveManifest<P>, catalogs: LocaleCatalogs, bundle: () => TraceBundle): void {
   const { loadChoreography } = manifest;
   if (loadChoreography !== undefined) {
@@ -194,18 +197,27 @@ function optionalRunChecks<P>(manifest: PrimitiveManifest<P>, catalogs: LocaleCa
     termFacetCrossChecks('field', bundle);
   }
   if (manifest.facets.includes('wordops')) {
-    facetChecks<WordopsFacet>('wordops', wordopsShapeProblems, termFacetRefs, catalogs, bundle);
+    facetChecks<WordopsFacet>('wordops', validateWordopsFacet, termFacetRefs, catalogs, bundle);
     termFacetCrossChecks('wordops', bundle);
   }
+  if (manifest.facets.includes('sponge')) {
+    facetChecks<SpongeFacet>('sponge', validateSpongeFacet, spongeFacetRefs, catalogs, bundle);
+    stepRangeCheck('sponge', bundle);
+  }
+}
+
+/** A per-step facet's steps lie within the state steps (or are the narrated initial state, step −1). */
+function stepRangeCheck(kind: 'math' | 'field' | 'wordops' | 'sponge', bundle: () => TraceBundle): void {
+  it(`aligns every ${kind} step with a state step or the narrated initial state (step −1)`, () => {
+    const facet = getFacet<{ steps: readonly { step: number }[] }>(bundle(), kind);
+    const state = getFacet<AnyStateFacet>(bundle(), 'state') ?? { steps: [] };
+    expect(facet === undefined ? [] : facetStepRangeProblems(kind, facet, state)).toEqual([]);
+  });
 }
 
 /** A term facet (`math`, `field`, `wordops`): steps within the state steps, term `valueRef`s in the values facet. */
 function termFacetCrossChecks(kind: 'math' | 'field' | 'wordops', bundle: () => TraceBundle): void {
-  it(`aligns every ${kind} step with a state step or the narrated initial state (step −1)`, () => {
-    const facet = getFacet<TermFacet>(bundle(), kind);
-    const state = getFacet<AnyStateFacet>(bundle(), 'state') ?? { steps: [] };
-    expect(facet === undefined ? [] : facetStepRangeProblems(kind, facet, state)).toEqual([]);
-  });
+  stepRangeCheck(kind, bundle);
   it(`links ${kind} terms only to values in the values facet`, () => {
     const facet = getFacet<TermFacet>(bundle(), kind);
     expect(facet === undefined ? [] : termValueRefProblems(kind, facet, getFacet<ValuesFacet>(bundle(), 'values'))).toEqual([]);

@@ -1,0 +1,24 @@
+{
+ "source": "Oracle-computed with @noble/hashes 2.4.0 keccak_256 (original Keccak padding 0x01...0x80, as used by Ethereum); not transcribed from a standard. Keccak-256(\"\") cross-checked against the well-known value c5d2460186f7233c927e7db2dcc703c0e500b653ca82273b7bfad8045d85a470 (Ethereum's empty-code hash / KECCAK_EMPTY, e.g. go-ethereum crypto.Keccak256Hash(nil)).",
+ "licence": "computed values, no third-party text",
+ "filter": "Two inputs: the empty string and \"abc\" (UTF-8).",
+ "counts": {
+  "cases": 2
+ },
+ "cases": [
+  {
+   "name": "Keccak-256(\"\")",
+   "algorithm": "keccak-256",
+   "encoding": "utf8",
+   "input": "",
+   "md": "c5d2460186f7233c927e7db2dcc703c0e500b653ca82273b7bfad8045d85a470"
+  },
+  {
+   "name": "Keccak-256(\"abc\")",
+   "algorithm": "keccak-256",
+   "encoding": "utf8",
+   "input": "abc",
+   "md": "4e03657aea45a94fc7d47ba826c8d667c0d1e6e33a64a036ec44f58fa12d6c45"
+  }
+ ]
+}

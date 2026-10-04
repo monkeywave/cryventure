@@ -1,0 +1,203 @@
+---
+title: Inside Keccak-f[1600]
+description: The permutation behind SHA-3 — five step mappings θ, ρ, π, χ and ι on a 5 × 5 array of 64-bit lanes, where its constants come from, and how ARMv8.2 SHA3 instructions compute a round.
+lessonId: hash/keccak
+track: hash
+phase: 2
+sidebar:
+  order: 5
+tableOfContents: false
+prereqs:
+  - hash/index
+  - hash/sponge
+labs:
+  - sha3-256-abc
+  - keccak-rc
+  - keccak-rho
+  - sha3-256-armv8
+refs:
+  - FIPS 202, Section 3.1 (State, lanes, conversion between strings and state arrays)
+  - FIPS 202, Section 3.2.1 (θ, Algorithm 1)
+  - FIPS 202, Section 3.2.2 (ρ, Algorithm 2, Table 2 — rotation offsets)
+  - FIPS 202, Section 3.2.3 (π, Algorithm 3)
+  - FIPS 202, Section 3.2.4 (χ, Algorithm 4)
+  - FIPS 202, Section 3.2.5 (ι, Algorithms 5 and 6)
+  - FIPS 202, Sections 3.3 and 3.4 (Keccak-p[b, nr], Keccak-f[b] with 12 + 2ℓ rounds)
+  - FIPS 202, Section 6.1 (SHA3-256, capacity 512) and Appendix B.1 (bit and byte order)
+  - FIPS 180-4, Section 3.1 (big-endian convention of SHA-2)
+  - NIST CSRC, Examples with Intermediate Values, SHA3-256_Msg0.pdf and SHA3 "abc" test vector
+  - Bertoni, Daemen, Peeters, Van Assche (2011), The Keccak reference, version 3.0, Section 1.2 (round constants RC[i])
+  - Arm Architecture Reference Manual for A-profile (DDI 0487), FEAT_SHA3 (EOR3, RAX1, XAR, BCAX)
+  - Guo, Liao, Liu, Liu, Qiao, Song (2020), Practical Collision Attacks against Round-Reduced SHA-3, Journal of Cryptology 33, 228–270
+---
+
+import Lab from '../../../../components/Lab.astro';
+import CheckQuestion from '../../../../components/lesson/CheckQuestion.astro';
+import Formula from '../../../../components/lesson/Formula.astro';
+import KeyFact from '../../../../components/lesson/KeyFact.astro';
+import KeyFacts from '../../../../components/lesson/KeyFacts.astro';
+import Lens from '../../../../components/lesson/Lens.astro';
+import LessonSection from '../../../../components/lesson/LessonSection.astro';
+import WhyBox from '../../../../components/lesson/WhyBox.astro';
+
+<LessonSection part="concept">
+
+## 1600 bits, five step mappings
+
+The [sponge](../sponge/) of SHA-3 calls one fixed permutation, **Keccak-f[1600]**. Its state `A`
+is a 5 × 5 array of **lanes**, each a 64-bit word `A[x, y]` (FIPS 202, §3.1). A round applies
+five step mappings, `ι ∘ χ ∘ π ∘ ρ ∘ θ` (§3.3), and Keccak-f[1600] runs 12 + 2ℓ = **24 rounds**
+with ℓ = log₂ 64 = 6 (§3.4).
+
+<KeyFacts>
+  <KeyFact label="State" value="1600 bit" kind="state" />
+  <KeyFact label="Lane" value="64 bit" kind="state" />
+  <KeyFact label="Rounds" value="24" kind="constant" />
+  <KeyFact label="SHA3-256 rate" value="1088 bit" kind="plaintext" />
+</KeyFacts>
+
+<WhyBox constant="RC, ρ, π" title="why these constants">
+  ι's round constants come from an LFSR with polynomial x⁸ + x⁶ + x⁵ + x⁴ + 1 (FIPS 202,
+  Algorithm 5); ρ's offsets are triangular numbers along the walk (x, y) → (y, 2x + 3y)
+  (Algorithm 2); π moves lane (x + 3y, x) to (x, y) (Algorithm 3). No table is chosen by hand.
+</WhyBox>
+
+<Lens only="story">
+
+25 drawers of 64 marbles: each round mixes columns, spins and shuffles the drawers, lets
+neighbours interfere, and drops in one marked marble.
+
+</Lens>
+
+</LessonSection>
+
+<LessonSection part="playground">
+
+## SHA3-256("abc"), step by step
+
+The lab hashes "abc" with SHA3-256, the NIST example (CSRC, Examples with Intermediate Values).
+The message fits one rate block of 136 bytes (FIPS 202, §6.1), so there is one `absorb`, one
+permutation of 24 × 5 step mappings, and one `squeeze`.
+
+It opens at round 0's θ. The sponge view marks the lanes each mapping touches. After round 23's
+ι, the first 32 bytes of the state are the digest `3a985da7 4fe225b2 … 11431532`.
+
+<Lab labId="sha3-256-abc" producerId="sha3" presetId="sha3-256-abc" startAt="op:theta" layout="sponge:60|narration:40" />
+
+</LessonSection>
+
+<LessonSection part="inside">
+
+## θ, ρ, π, χ, ι
+
+<Formula caption="Keccak-f[1600] round on lanes, FIPS 202 §3.2.1–3.2.5 (x, y mod 5; ROT = rotate left on 64 bits; ¬ = NOT, ∧ = AND).">
+{`θ:  C[x] = A[x,0] ⊕ A[x,1] ⊕ A[x,2] ⊕ A[x,3] ⊕ A[x,4]
+    D[x] = C[x−1] ⊕ ROT(C[x+1], 1);   A[x,y] ⊕= D[x]
+ρ:  A[x,y] = ROT(A[x,y], r[x,y])
+π:  A'[x,y] = A[(x + 3y) mod 5, x]
+χ:  A'[x,y] = A[x,y] ⊕ (¬A[x+1,y] ∧ A[x+2,y])
+ι:  A[0,0] ⊕= RC[i]`}
+</Formula>
+
+θ spreads every bit into two columns (§3.2.1); ρ rotates within lanes, π permutes lanes
+(§3.2.2–3.2.3). χ is the only map with an AND (§3.2.4): **degree 2** over GF(2), the sole
+non-linear step. ι breaks the symmetry between rounds (§3.2.5).
+
+The 24 RC words: `RC[i]` takes LFSR bits `rc(7i + j)` as bit `2ʲ − 1`, j = 0 … 6 (Algorithm 6).
+FIPS 202 does not print them; the Keccak reference 3.0 (§1.2) lists `RC[0] = 0x1`,
+`RC[1] = 0x8082`, … `RC[23] = 0x8000000080008008`.
+
+<Lab labId="keccak-rc" producerId="keccak-constants" presetId="rc" layout="wordops:50|state:30|narration:20" />
+
+ρ's walk starts at (1, 0) and gives step t the offset (t + 1)(t + 2)/2 mod 64. The matrix
+[[0, 1], [2, 3]] mod 5 visits all 24 lanes except (0, 0), and the 24 triangular numbers are
+distinct mod 64 (Algorithm 2; FIPS 202 Table 2).
+
+<Lab labId="keccak-rho" producerId="keccak-constants" presetId="rho" layout="state:60|narration:40" />
+
+</LessonSection>
+
+<LessonSection part="memory">
+
+## Little-endian lanes and ARMv8.2
+
+FIPS 202 maps string bit `w(5y + x) + z` to `A[x, y, z]` (§3.1.2), and bit 0 of each byte is its
+least significant (Appendix B.1). A lane is thus eight bytes read as a **little-endian** 64-bit
+integer: ι's `RC[1] = 0x8082` changes the state bytes `82 80`. SHA-2 is big-endian (FIPS 180-4,
+§3.1), so a little-endian core loads Keccak lanes without a byte swap.
+
+Armv8.2-A adds FEAT_SHA3 (Arm ARM): `EOR3` XORs three registers (θ's column parity), `RAX1`
+computes `a ⊕ ROT(b, 1)` (θ's D), `XAR` XORs and rotates right (θ's ⊕ D fused with ρ), and `BCAX`
+computes `a ⊕ (b ∧ ¬c)` (χ in one instruction). The lab derives a clang-compiled round loop; every
+register value is read from the trace above.
+
+<Lab labId="sha3-256-armv8" producerId="sha3" presetId="sha3-256-abc" variant="aarch64-armv8-sha3" startAt="op:theta" layout="instructions:50|registers:50" />
+
+</LessonSection>
+
+<LessonSection part="break">
+
+## Why 24 rounds
+
+Remove χ and every step is linear or affine over GF(2) (FIPS 202, §3.2.1–3.2.5): the permutation
+becomes one matrix plus a constant, and linear algebra inverts any output. Remove ι and every round
+is the same map, and θ, ρ, π and χ treat all bit positions z alike (§3.2.1–3.2.4): rotating every
+lane by the same amount would commute with the whole permutation.
+
+Twenty-four rounds are a safety margin. Guo, Liao, Liu, Liu, Qiao and Song (J. Cryptology 33,
+2020) found **actual collisions for 5-round** SHA3-224 and SHA3-256; full SHA-3 runs 24 rounds
+(§3.4). Reduced-round results measure the margin; they do not break the standard.
+
+<Lens level="cryptographer">
+
+χ has algebraic degree 2 and the other maps are affine, so n rounds have degree at most 2ⁿ.
+Guo et al. exploit this low degree by linearizing the first two rounds.
+
+</Lens>
+
+</LessonSection>
+
+<LessonSection part="check">
+
+## Check yourself
+
+<CheckQuestion
+  id="keccak-nonlinear-step"
+  number={1}
+  question="Which step mapping of Keccak-f is non-linear?"
+  options={['θ', 'ρ', 'χ', 'ι']}
+  answer={2}
+>
+  χ combines two neighbouring lanes with AND (FIPS 202, §3.2.4), which makes it degree 2. θ, ρ and
+  π only XOR, rotate and move bits; ι XORs a constant (§3.2.1–3.2.3, §3.2.5).
+</CheckQuestion>
+
+<CheckQuestion
+  id="keccak-round-count"
+  number={2}
+  question="How many rounds does Keccak-f[1600] run?"
+  options={['12', '18', '24', '80']}
+  answer={2}
+>
+  Keccak-f[b] has 12 + 2ℓ rounds with ℓ = log₂(b/25) (FIPS 202, §3.4). For b = 1600 the lanes are
+  64 bits, ℓ = 6, so 24 rounds.
+</CheckQuestion>
+
+<CheckQuestion
+  id="keccak-lane-byte-order"
+  number={3}
+  question="In which byte order are the 64-bit lanes of the SHA-3 state stored?"
+  options={[
+    'Big-endian, like SHA-2',
+    'Little-endian, unlike SHA-2',
+    'It depends on the processor',
+    'Lanes are not byte-aligned',
+  ]}
+  answer={1}
+>
+  FIPS 202 maps string bit `w(5y + x) + z` to lane bit z (§3.1.2) with the least significant bit of
+  each byte first (Appendix B.1), so a lane's first byte is its low byte. SHA-2 words are
+  big-endian (FIPS 180-4, §3.1).
+</CheckQuestion>
+
+</LessonSection>

@@ -1,4 +1,4 @@
-import { facetKey, toHex, utf8Bytes, type HashFamily, type HashFunction, type ParamField, type TraceBundle } from '@cryventure/core';
+import { facetKey, toHex, utf8Bytes, type HashFamily, type HashFunction, type ParamField, type TraceBundle, type XofCustomization, type XofFunction } from '@cryventure/core';
 import { describe, expect, it } from 'vitest';
 import { checksHashRuns, hashRunProblems, publishedMessage, type HashRunCase, type HashRunManifest } from './hashRunChecks.ts';
 
@@ -36,10 +36,13 @@ function honestCase(name: string, algorithm: string, message: number[], digestFn
 describe('checksHashRuns', () => {
   it('applies to Hash producers with a digest output and an algorithm select param', () => expect(checksHashRuns(manifest)).toBe(true));
 
+  it('also applies without an algorithm select (a single-function producer such as md5 or sha1)', () => {
+    expect(checksHashRuns({ ...manifest, paramFields: FIELDS.slice(1) })).toBe(true);
+  });
+
   it('does not apply otherwise', () => {
     expect(checksHashRuns({ ...manifest, implements: [] })).toBe(false);
     expect(checksHashRuns({ ...manifest, outputs: {} })).toBe(false);
-    expect(checksHashRuns({ ...manifest, paramFields: FIELDS.slice(1) })).toBe(false);
   });
 });
 
@@ -82,5 +85,67 @@ describe('hashRunProblems', () => {
 
   it('reports a missing digest output', () => {
     expect(hashRunProblems(family, [{ name: 'no digest', params: { algorithm: 'toy-a' }, output: {}, message: [1] }])).toEqual(['no digest: run has no "digest" output']);
+  });
+});
+
+describe('hashRunProblems without an algorithm param', () => {
+  const single: HashFamily = { id: 'toy', functions: [toyHash('toy-a', 1)] };
+  const message = Array.from(utf8Bytes('abc'));
+
+  it('uses the only function of a single-function family', () => {
+    const honest: HashRunCase = { name: 'honest', params: { input: 'abc' }, output: { digest: hashWith('toy-a', utf8Bytes('abc')) }, message };
+    const wrong: HashRunCase = { name: 'wrong', params: { input: 'abc' }, output: { digest: hashWith('toy-b', utf8Bytes('abc')) }, message };
+    expect(hashRunProblems(single, [honest])).toEqual([]);
+    expect(hashRunProblems(single, [wrong])).toEqual([`wrong: run digest ${toHex(wrong.output.digest!)}, but Hash port "toy-a" gives ${toHex(hashWith('toy-a', utf8Bytes('abc')))}`]);
+  });
+
+  it('skips a case without an algorithm when the family has several functions', () => {
+    expect(hashRunProblems(family, [{ name: 'ambiguous', params: { input: 'abc' }, output: { digest: [1, 2, 3, 4] }, message }])).toEqual([]);
+  });
+});
+
+describe('hashRunProblems with a key param', () => {
+  const message = [0x61];
+
+  it('skips a keyed case (a MAC, not the unkeyed port function) but checks an empty key', () => {
+    const keyed: HashRunCase = { name: 'keyed', params: { algorithm: 'toy-a', key: '000102' }, output: { digest: [1, 2, 3, 4] }, message };
+    const unkeyed: HashRunCase = { name: 'unkeyed', params: { algorithm: 'toy-a', key: '' }, output: { digest: [1, 2, 3, 4] }, message };
+    expect(hashRunProblems(family, [keyed])).toEqual([]);
+    expect(hashRunProblems(family, [unkeyed])).toHaveLength(1);
+  });
+});
+
+describe('hashRunProblems for XOFs', () => {
+  /** Toy XOF: every output byte is the XOR of the data, N, S and the output index. */
+  const toyXof: XofFunction = {
+    id: 'toy-xof',
+    blockSize: 8,
+    securityBits: 64,
+    customizable: true,
+    xof: (data: Uint8Array, outputLength: number, custom?: XofCustomization) => {
+      const fold = [...data, ...(custom?.functionName ?? []), ...(custom?.customization ?? [])].reduce((acc, byte) => acc ^ byte, 0);
+      return Uint8Array.from({ length: outputLength }, (_, i) => fold ^ i);
+    },
+    create: () => {
+      throw new Error('toy: hashRunProblems uses xof() only');
+    },
+  };
+  const withXof: HashFamily = { ...family, xofs: [toyXof] };
+  const message = [0x61, 0x62];
+  const params = { algorithm: 'toy-xof', outputLength: '6', functionName: 'N', customization: 'Email' };
+  const expected = toyXof.xof(Uint8Array.from(message), 6, { functionName: utf8Bytes('N'), customization: utf8Bytes('Email') });
+
+  it('compares an XOF run with xof(message, outputLength, { functionName, customization })', () => {
+    expect(hashRunProblems(withXof, [{ name: 'xof', params, output: { digest: Array.from(expected) }, message }])).toEqual([]);
+  });
+
+  it('reports an XOF run with the wrong output or length', () => {
+    const short = Array.from(expected.slice(0, 4));
+    expect(hashRunProblems(withXof, [{ name: 'short', params, output: { digest: short }, message }])).toEqual([`short: run digest ${toHex(short)}, but Hash port XOF "toy-xof" gives ${toHex(expected)}`]);
+  });
+
+  it('defaults to an empty customization and the run length when the params carry none', () => {
+    const plain = toyXof.xof(Uint8Array.from(message), 3);
+    expect(hashRunProblems(withXof, [{ name: 'plain', params: { algorithm: 'toy-xof' }, output: { digest: Array.from(plain) }, message }])).toEqual([]);
   });
 });

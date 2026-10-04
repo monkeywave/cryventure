@@ -55,5 +55,21 @@
   "view.wordops.glyph.Sigma1": "Σ1",
   "view.wordops.glyph.sigma0": "σ0",
   "view.wordops.glyph.sigma1": "σ1",
-  "view.wordops.glyph.root": "ⁿ√"
+  "view.wordops.glyph.root": "ⁿ√",
+  "view.wordops.shift.term": "{{to}} ← {{term}}",
+  "view.wordops.touched": "wird in diesem Schritt gelesen und geschrieben",
+  "view.wordops.touchedLegend": "◆ = wird in diesem Schritt gelesen und geschrieben",
+  "view.wordops.storyNone": "In diesem Schritt gibt es nichts hervorzuheben – die Perspektive Technik zeigt alle Terme.",
+  "view.wordops.op.or": "ODER-verknüpfen",
+  "view.wordops.op.parity": "Parität (x ⊕ y ⊕ z)",
+  "view.wordops.op.md5G": "MD5-Funktion G",
+  "view.wordops.op.md5I": "MD5-Funktion I",
+  "view.wordops.op.root2": "Nachkommastellen einer Quadratwurzel",
+  "view.wordops.op.root3": "Nachkommastellen einer Kubikwurzel",
+  "view.wordops.glyph.or": "∨",
+  "view.wordops.glyph.parity": "Parity",
+  "view.wordops.glyph.md5G": "G",
+  "view.wordops.glyph.md5I": "I",
+  "view.wordops.glyph.root2": "√",
+  "view.wordops.glyph.root3": "∛"
 }

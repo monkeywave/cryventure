@@ -67,6 +67,13 @@ describe('compressDetailed agrees with the independent reference compression', (
     }
   });
 
+  it('keeps hKW = h + K_t + W_t (the SHA512H input) for every round', () => {
+    const detail = compressDetailed(SHA512_PARAMS, SHA512_IV, sha2Padding([0x61, 0x62, 0x63], 128).padded);
+    const rounds = detail.events.filter((event) => event.kind === 'round');
+    expect(rounds.every((round) => round.hKW === WORD64.add(round.before[7]!, round.k, round.w))).toBe(true);
+    expect(WORD64.toHex(rounds[0]!.hKW)).toBe('ffcd6031eaa6cf9b');
+  });
+
   it('records schedule t (t ≥ 16) right before round t, with consistent partial sums', () => {
     const detail = compressDetailed(SHA256_PARAMS, SHA256_IV, sha2Padding([0x61, 0x62, 0x63], 64).padded);
     expect(detail.events.map((event) => `${event.kind[0]}${event.t}`).slice(15, 20)).toEqual(['r15', 's16', 'r16', 's17', 'r17']);

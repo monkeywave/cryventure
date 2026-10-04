@@ -11,7 +11,9 @@ import {
   validateMathFacet,
   validateMemoryFacet,
   validateRegistersFacet,
+  validateSpongeFacet,
   validateTableFacet,
+  validateWordopsFacet,
   type AlignSpan,
   type AnyStateFacet,
   type DeriverManifest,
@@ -21,7 +23,6 @@ import {
   type TraceBundle,
   type ValuesFacet,
 } from '@cryventure/core';
-import { wordopsShapeProblems } from './checks.ts';
 import { isRecord } from './jsonValues.ts';
 
 /**
@@ -65,10 +66,7 @@ export function derivedKindProblems(provides: readonly FacetKind[], facets: Deri
 
 type FacetValidator = (facet: never) => string[];
 
-/**
- * Schema validators by facet kind: core's, or a kit superset wrapping it where core is shallow
- * (`wordops`); kinds without one are only checked by the generic walks.
- */
+/** Core's schema validators by facet kind; kinds without one are only checked by the generic walks. */
 export const FACET_VALIDATORS: Readonly<Partial<Record<FacetKind, FacetValidator>>> = {
   instructions: validateInstructionsFacet,
   registers: validateRegistersFacet,
@@ -76,7 +74,8 @@ export const FACET_VALIDATORS: Readonly<Partial<Record<FacetKind, FacetValidator
   field: validateFieldFacet,
   math: validateMathFacet,
   table: validateTableFacet,
-  wordops: wordopsShapeProblems,
+  wordops: validateWordopsFacet,
+  sponge: validateSpongeFacet,
 };
 
 /** Lowercase hex address as a bigint, or undefined for anything else. */
@@ -237,6 +236,7 @@ export const KNOWN_REF_FIELDS: Readonly<Partial<Record<FacetKind, readonly strin
   field: ['steps[].formula', 'steps[].terms[].label'],
   table: ['title'],
   wordops: ['steps[].formula', 'steps[].terms[].label'],
+  sponge: ['label'],
   chain: ['formula', 'nodes[].label'],
   wire: ['segments[].label'],
 };

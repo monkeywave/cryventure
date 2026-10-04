@@ -1,0 +1,450 @@
+/*
+ * Sponge state view styles. Imported by the view component, so it ships in the view's lazy chunk.
+ * Colours come only from the semantic tokens (--cv-*); fallbacks keep it usable standalone.
+ * Rate lanes: plaintext-blue tint; capacity lanes: state-slate hatching (a pattern, so the two parts
+ * never differ by colour alone). Story lens: each lane's tone grows with its top byte
+ * (--cv-sponge-level, 0 … 1). Changed lanes: a heavier key-amber border plus a • glyph, and a short
+ * flash unless the reader prefers reduced motion. Selection: a solid focus outline for the lane,
+ * dashed outlines for the θ column and the χ row.
+ *
+ * Phones: the grid (and the θ rows) scroll horizontally inside their region, never the page. π shows
+ * arrows on wide panels and "← (x, y)" badges on narrow ones (container query).
+ */
+
+.cv-sponge {
+  --cv-sponge-lane: 5.5rem;
+  --cv-sponge-rate: color-mix(in srgb, var(--cv-plaintext, CanvasText) 14%, var(--cv-surface, Canvas));
+  --cv-sponge-hatch: color-mix(in srgb, var(--cv-state, CanvasText) 30%, transparent);
+  container-type: inline-size;
+  display: grid;
+  gap: 0.5rem;
+  min-width: 0;
+  max-width: 100%;
+  color: var(--cv-text, CanvasText);
+}
+
+.cv-sponge[data-lens='story'] {
+  --cv-sponge-lane: 3.5rem;
+}
+
+.cv-sponge p {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.cv-sponge__header {
+  display: grid;
+  gap: 0.125rem;
+}
+
+.cv-sponge__sizes,
+.cv-sponge__note,
+.cv-sponge__hint {
+  font-size: 0.85em;
+  color: var(--cv-text-muted, GrayText);
+}
+
+.cv-sponge__hint {
+  font-style: italic;
+}
+
+.cv-sponge__formula {
+  font-weight: 600;
+}
+
+.cv-sponge sup {
+  font-size: 0.75em;
+  line-height: 0;
+}
+
+.cv-sponge__scroll {
+  display: grid;
+  gap: 0.5rem;
+  min-width: 0;
+  max-width: 100%;
+  overflow-x: auto;
+  padding-block: 0.25rem;
+}
+
+.cv-sponge__scroll:focus-visible {
+  outline: 2px solid var(--cv-cell-focus-border, Highlight);
+  outline-offset: 2px;
+}
+
+/* ---------- the lane grid ---------- */
+
+.cv-sponge__grid,
+.cv-sponge__thetarow {
+  display: grid;
+  grid-template-columns: 2.5rem repeat(var(--cv-sponge-cols, 5), var(--cv-sponge-lane));
+  gap: 4px;
+  inline-size: max-content;
+  font-variant-numeric: tabular-nums;
+}
+
+.cv-sponge__grid {
+  position: relative;
+  padding: 2px;
+}
+
+.cv-sponge__gridrow {
+  display: contents;
+}
+
+.cv-sponge__colhead,
+.cv-sponge__rowhead {
+  align-self: center;
+  font-size: 0.8em;
+  color: var(--cv-text-muted, GrayText);
+  white-space: nowrap;
+}
+
+.cv-sponge__colhead {
+  text-align: center;
+}
+
+.cv-sponge__colhead[data-selected-col],
+.cv-sponge__rowhead[data-selected-row] {
+  font-weight: 700;
+  color: var(--cv-text, CanvasText);
+}
+
+.cv-sponge__lane,
+.cv-sponge__parity {
+  position: relative;
+  display: grid;
+  align-content: start;
+  gap: 0.125rem;
+  min-block-size: 3.25rem;
+  padding: 0.25rem 0.3rem;
+  font-size: 0.8em;
+  background-color: var(--cv-surface-elevated, Canvas);
+  border: 1px solid var(--cv-border-subtle, GrayText);
+  border-radius: 0.25rem;
+  overflow: hidden;
+}
+
+.cv-sponge__lane[data-part='rate'] {
+  background-color: var(--cv-sponge-rate);
+}
+
+.cv-sponge__lane[data-part='capacity'] {
+  background-image: repeating-linear-gradient(135deg, var(--cv-sponge-hatch) 0 2px, transparent 2px 8px);
+}
+
+/* Story: tone from the lane value on top of the rate tint / capacity hatching. */
+.cv-sponge[data-lens='story'] .cv-sponge__lane,
+.cv-sponge[data-lens='story'] .cv-sponge__parity {
+  --cv-sponge-tone: var(--cv-state, CanvasText);
+  background-color: color-mix(in srgb, var(--cv-sponge-tone) calc(var(--cv-sponge-level, 0) * 80%), var(--cv-surface-elevated, Canvas));
+}
+
+.cv-sponge[data-lens='story'] .cv-sponge__lane[data-part='rate'] {
+  --cv-sponge-tone: var(--cv-plaintext, CanvasText);
+}
+
+.cv-sponge[data-lens='story'] .cv-sponge__coord {
+  padding-inline: 0.125rem;
+  background: var(--cv-surface, Canvas);
+  border-radius: 0.125rem;
+  justify-self: start;
+}
+
+.cv-sponge__lane:focus-visible {
+  outline: 3px solid var(--cv-cell-focus-border, Highlight);
+  outline-offset: 1px;
+}
+
+.cv-sponge__lane[data-changed] {
+  border: 2px solid var(--cv-key, CanvasText);
+}
+
+.cv-sponge__lane[data-selected] {
+  outline: 3px solid var(--cv-cell-focus-border, Highlight);
+  outline-offset: 1px;
+}
+
+.cv-sponge__lane[data-in-column],
+.cv-sponge__lane[data-in-row] {
+  outline: 2px dashed var(--cv-text, CanvasText);
+  outline-offset: 1px;
+}
+
+.cv-sponge__lanehead {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.125rem 0.25rem;
+}
+
+.cv-sponge__dot {
+  margin-inline-start: auto;
+}
+
+.cv-sponge__coord {
+  font-size: 0.8em;
+  color: var(--cv-text-muted, GrayText);
+  white-space: nowrap;
+}
+
+.cv-sponge__dot {
+  font-weight: 700;
+  color: var(--cv-key, CanvasText);
+}
+
+.cv-sponge__hex {
+  display: grid;
+  font-family: var(--sl-font-mono, ui-monospace, monospace);
+  font-size: 0.95em;
+  line-height: 1.25;
+  color: inherit;
+  background: none;
+  padding: 0;
+}
+
+.cv-sponge__hexline {
+  white-space: nowrap;
+}
+
+.cv-sponge__badge {
+  padding: 0 0.25rem;
+  font-size: 0.75em;
+  font-weight: 700;
+  line-height: 1.4;
+  white-space: nowrap;
+  color: var(--cv-text, CanvasText);
+  background: var(--cv-surface, Canvas);
+  border: 1px solid var(--cv-border, GrayText);
+  border-radius: 0.25rem;
+}
+
+.cv-sponge__badge[data-badge='absorb'],
+.cv-sponge__badge[data-badge='output'] {
+  border-color: var(--cv-plaintext, CanvasText);
+}
+
+.cv-sponge__badge[data-badge='iota'],
+.cv-sponge__badge[data-badge='rho'] {
+  border-color: var(--cv-constant, CanvasText);
+}
+
+.cv-sponge__badge[data-badge^='chi'] {
+  border-color: var(--cv-key, CanvasText);
+  font-style: italic;
+}
+
+/* π: arrows on wide panels; "← (x, y)" badges on narrow ones. */
+.cv-sponge__badge[data-badge='pi'] {
+  display: none;
+}
+
+.cv-sponge__arrows {
+  grid-column: 2 / span var(--cv-sponge-cols, 5);
+  grid-row: 2 / span var(--cv-sponge-rows, 5);
+  position: relative;
+  z-index: 1;
+  inline-size: 100%;
+  block-size: 100%;
+  overflow: visible;
+  pointer-events: none;
+}
+
+.cv-sponge__arrow {
+  stroke: var(--cv-text-muted, GrayText);
+  stroke-width: 1.25;
+  opacity: 0.35;
+}
+
+.cv-sponge__arrow[data-selected] {
+  stroke: var(--cv-key, CanvasText);
+  stroke-width: 3;
+  opacity: 1;
+}
+
+.cv-sponge__arrowhead path {
+  fill: context-stroke;
+}
+
+@container (max-width: 40rem) {
+  .cv-sponge__arrows {
+    display: none;
+  }
+
+  .cv-sponge__badge[data-badge='pi'] {
+    display: inline;
+  }
+}
+
+/* Changed lanes flash once per step (the element is re-keyed per step). */
+.cv-sponge__flash {
+  display: none;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .cv-sponge__flash {
+    display: block;
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    background: var(--cv-key, Highlight);
+    opacity: 0;
+    animation: cv-sponge-flash 900ms ease-out;
+  }
+}
+
+@keyframes cv-sponge-flash {
+  from {
+    opacity: 0.55;
+  }
+
+  to {
+    opacity: 0;
+  }
+}
+
+/* ---------- θ: C and D under the grid ---------- */
+
+.cv-sponge__theta {
+  display: grid;
+  gap: 4px;
+  padding-inline: 2px;
+}
+
+.cv-sponge__thetarow .cv-sponge__rowhead {
+  font-weight: 700;
+}
+
+.cv-sponge__parity {
+  min-block-size: 2.5rem;
+}
+
+.cv-sponge__parity[data-mark='selected'] {
+  border: 2px solid var(--cv-key, CanvasText);
+}
+
+.cv-sponge__parity[data-mark='left'],
+.cv-sponge__parity[data-mark='right'] {
+  border: 2px dashed var(--cv-key, CanvasText);
+}
+
+.cv-sponge__parity .cv-sponge__coord {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem;
+  align-items: center;
+}
+
+/* ---------- detail, output, legend ---------- */
+
+.cv-sponge__detail {
+  display: grid;
+  gap: 0.375rem;
+  min-width: 0;
+}
+
+.cv-sponge__equation {
+  display: grid;
+  gap: 0.25rem;
+}
+
+.cv-sponge__selected {
+  font-weight: 600;
+}
+
+.cv-sponge__values {
+  display: grid;
+  grid-template-columns: max-content max-content;
+  gap: 0.125rem 0.75rem;
+  margin: 0;
+}
+
+.cv-sponge__value {
+  display: contents;
+}
+
+.cv-sponge__value dt {
+  color: var(--cv-text-muted, GrayText);
+}
+
+.cv-sponge__value dd {
+  margin: 0;
+}
+
+.cv-sponge__value code,
+.cv-sponge__bytes {
+  font-family: var(--sl-font-mono, ui-monospace, monospace);
+  white-space: nowrap;
+  background: none;
+  padding: 0;
+}
+
+.cv-sponge__output {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.cv-sponge__group {
+  display: grid;
+  gap: 0.125rem;
+  padding: 0.125rem 0.375rem;
+  font-size: 0.8em;
+  background: var(--cv-sponge-rate);
+  border: 1px solid var(--cv-border-subtle, GrayText);
+  border-radius: 0.25rem;
+}
+
+.cv-sponge__group[data-selected] {
+  outline: 3px solid var(--cv-cell-focus-border, Highlight);
+  outline-offset: 1px;
+}
+
+.cv-sponge__swatches {
+  display: flex;
+  gap: 1px;
+}
+
+.cv-sponge__swatch {
+  inline-size: 0.75rem;
+  block-size: 0.75rem;
+  background: color-mix(in srgb, var(--cv-plaintext, CanvasText) calc(var(--cv-sponge-level, 0) * 80%), var(--cv-surface, Canvas));
+  border: 1px solid var(--cv-border-subtle, GrayText);
+}
+
+.cv-sponge__legend {
+  display: grid;
+  gap: 0.25rem;
+}
+
+.cv-sponge__keys {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem 1rem;
+  font-size: 0.85em;
+}
+
+.cv-sponge__keyitem {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+}
+
+.cv-sponge__key {
+  display: inline-block;
+  inline-size: 1rem;
+  block-size: 0.875rem;
+  vertical-align: middle;
+  border: 1px solid var(--cv-border-subtle, GrayText);
+  border-radius: 0.125rem;
+}
+
+.cv-sponge__key[data-part='rate'] {
+  background: var(--cv-sponge-rate);
+}
+
+.cv-sponge__key[data-part='capacity'] {
+  background: var(--cv-surface-elevated, Canvas) repeating-linear-gradient(135deg, var(--cv-sponge-hatch) 0 2px, transparent 2px 6px);
+}

@@ -1,10 +1,10 @@
 /**
- * Pure role annotator for compiled SHA-256 compression functions (dev-only, used by `generate.ts`;
- * docs/M5.md §5b).
+ * Pure role annotator for compiled SHA-256 and SHA-512 compression functions (dev-only, used by
+ * `generate.ts`; docs/M5.md §5b, docs/M6.md §5b).
  *
  * Round and schedule instructions are numbered by occurrence order: the k-th round instruction
  * runs rounds from `roundsPerInstruction * k`, the k-th msg1/msg2 (su0/su1) produces the schedule
- * group starting at W[16 + 4k]. Everything else is classified with a small register dataflow:
+ * group starting at W[16 + wordsPerScheduleInstruction * k]. Everything else is classified with a small register dataflow:
  * what each vector register holds (state, message words, W+K, a constant from the literal pool).
  */
 import type { ShaListingInstruction, ShaListingRole } from '@cryventure/derivers/listing';
@@ -12,7 +12,6 @@ import { canonicalRegister, isArmLoad, isArmStore, isMemory, isX86Load, isX86Sto
 import type { ParsedInstruction } from './parse.ts';
 
 const FIRST_SCHEDULED_WORD = 16;
-const WORDS_PER_GROUP = 4;
 
 /** Per-ISA knowledge: ABI argument registers, the SHA mnemonics and operand conventions. */
 export interface ShaAnnotateProfile {
@@ -25,6 +24,8 @@ export interface ShaAnnotateProfile {
   roundsPerInstruction: number;
   msg1Mnemonic: string;
   msg2Mnemonic: string;
+  /** Schedule words one msg1/msg2 instruction produces (SHA-256: 4, SHA-512: 2). */
+  wordsPerScheduleInstruction: number;
   byteSwapMnemonic: string;
   addMnemonic: string;
   shuffleMnemonics: readonly string[];
@@ -33,6 +34,17 @@ export interface ShaAnnotateProfile {
   destructiveMnemonics: readonly string[];
   isLoad: (instruction: ParsedInstruction) => boolean;
   isStore: (instruction: ParsedInstruction) => boolean;
+  /**
+   * Role of every shuffle of state registers; unset: `packState` before the first round
+   * instruction, `unpackState` after it (SHA-256). SHA-512 repacks (f,g)/(d,e) for each `sha512h`.
+   */
+  stateShuffleRole?: ShaListingRole;
+  /**
+   * SHA-512: an `add` reading a `roundsMnemonic` result is the round pair's new (e,f) (role
+   * `rounds`, with the `round` of that instruction), unless it also reads a feed-forward sum (clang
+   * may reassociate the last (e,f) add into the feed-forward).
+   */
+  roundsOutputAdd?: boolean;
 }
 
 /** System V x86-64 (rdi = state, rsi = block); Intel syntax (destination first). */
@@ -43,6 +55,7 @@ export const X86_SHA_ANNOTATE: ShaAnnotateProfile = {
   roundsPerInstruction: 2,
   msg1Mnemonic: 'sha256msg1',
   msg2Mnemonic: 'sha256msg2',
+  wordsPerScheduleInstruction: 4,
   byteSwapMnemonic: 'pshufb',
   addMnemonic: 'paddd',
   shuffleMnemonics: ['pshufd', 'palignr', 'pblendw'],
@@ -69,6 +82,7 @@ export const ARMV8_SHA_ANNOTATE: ShaAnnotateProfile = {
   roundsPerInstruction: 4,
   msg1Mnemonic: 'sha256su0',
   msg2Mnemonic: 'sha256su1',
+  wordsPerScheduleInstruction: 4,
   byteSwapMnemonic: 'rev32',
   addMnemonic: 'add',
   shuffleMnemonics: ['ext', 'zip1', 'zip2', 'uzp1', 'uzp2', 'trn1', 'trn2'],
@@ -78,9 +92,27 @@ export const ARMV8_SHA_ANNOTATE: ShaAnnotateProfile = {
   isStore: isArmStore,
 };
 
-/** What a vector register holds; a constant remembers the load that produced it. */
+/** AAPCS64 (x0 = state, x1 = block), ARMv8.2 SHA512 (docs/M6.md §5b). */
+export const ARMV8_SHA512_ANNOTATE: ShaAnnotateProfile = {
+  ...ARMV8_SHA_ANNOTATE,
+  roundsMnemonic: 'sha512h',
+  rounds2Mnemonic: 'sha512h2',
+  roundsPerInstruction: 2,
+  msg1Mnemonic: 'sha512su0',
+  msg2Mnemonic: 'sha512su1',
+  wordsPerScheduleInstruction: 2,
+  byteSwapMnemonic: 'rev64',
+  destructiveMnemonics: ['sha512h', 'sha512h2', 'sha512su0', 'sha512su1'],
+  stateShuffleRole: 'packState',
+  roundsOutputAdd: true,
+};
+
+/**
+ * What a vector register holds; a constant remembers the load that produced it. State may remember
+ * the round instruction that produced it (`hashedRound`) or that it is a feed-forward sum (`fed`).
+ */
 type RegisterContent =
-  | { kind: 'state' }
+  | { kind: 'state'; hashedRound?: number; fed?: boolean }
   | { kind: 'message' }
   | { kind: 'wk' }
   | { kind: 'constant'; loadIndex: number };
@@ -166,18 +198,22 @@ function annotateRounds(
   tracker: ShaTracker,
 ): ShaListingInstruction {
   const round = tracker.next(instruction.mnemonic) * profile.roundsPerInstruction;
-  tracker.write(instruction.operands[0], { kind: 'state' });
-  tracker.roundsSeen = true;
   const role = instruction.mnemonic === profile.rounds2Mnemonic ? 'rounds2' : 'rounds';
+  const tracksOutput = profile.roundsOutputAdd === true && role === 'rounds';
+  tracker.write(instruction.operands[0], tracksOutput ? { kind: 'state', hashedRound: round } : { kind: 'state' });
+  tracker.roundsSeen = true;
   return { ...instruction, role, round };
 }
 
 function annotateSchedule(
   instruction: ShaListingInstruction,
+  profile: ShaAnnotateProfile,
   tracker: ShaTracker,
   role: 'msg1' | 'msg2',
 ): ShaListingInstruction {
-  const w = FIRST_SCHEDULED_WORD + tracker.next(instruction.mnemonic) * WORDS_PER_GROUP;
+  const w =
+    FIRST_SCHEDULED_WORD +
+    tracker.next(instruction.mnemonic) * profile.wordsPerScheduleInstruction;
   tracker.write(instruction.operands[0], { kind: 'message' });
   return { ...instruction, role, w };
 }
@@ -197,11 +233,26 @@ function memoryContents(operands: readonly string[], profile: ShaAnnotateProfile
   });
 }
 
-/** Adds: + K (a constant or literal-pool operand), state + state (feed-forward) or schedule (msg2 term). */
+/** SHA-512: the round of the `sha512h` result an (e,f) add reads, unless it is a feed-forward. */
+function roundsOutputRound(
+  sources: readonly RegisterContent[],
+  profile: ShaAnnotateProfile,
+): number | undefined {
+  if (profile.roundsOutputAdd !== true) return undefined;
+  const states = sources.flatMap((content) => (content.kind === 'state' ? [content] : []));
+  if (states.some((content) => content.fed === true)) return undefined;
+  return states.find((content) => content.hashedRound !== undefined)?.hashedRound;
+}
+
+/**
+ * Adds: + K (a constant or literal-pool operand), schedule (msg2 term), SHA-512's (e,f) update
+ * after `sha512h` (`roundsOutputAdd`) or state + state (feed-forward).
+ */
 function annotateAdd(
   instruction: ShaListingInstruction,
   sources: readonly RegisterContent[],
   hasMemoryConstant: boolean,
+  profile: ShaAnnotateProfile,
   tracker: ShaTracker,
   pending: PendingRoles,
 ): ShaListingInstruction {
@@ -214,22 +265,30 @@ function annotateAdd(
     tracker.write(instruction.operands[0], { kind: 'message' });
     return { ...instruction, role: 'msg2' };
   }
-  tracker.write(instruction.operands[0], { kind: 'state' });
-  return { ...instruction, role: hasKind(sources, 'state') ? 'feedForward' : 'other' };
+  const round = roundsOutputRound(sources, profile);
+  if (round !== undefined) {
+    tracker.write(instruction.operands[0], { kind: 'state' });
+    return { ...instruction, role: 'rounds', round };
+  }
+  const fed = hasKind(sources, 'state');
+  tracker.write(instruction.operands[0], profile.roundsOutputAdd === true ? { kind: 'state', fed } : { kind: 'state' });
+  return { ...instruction, role: fed ? 'feedForward' : 'other' };
 }
 
 /** Shuffles: W+K lane moves (addK), schedule alignment (msg2), or the state's (un)packing. */
 function annotateShuffle(
   instruction: ShaListingInstruction,
   sources: readonly RegisterContent[],
+  profile: ShaAnnotateProfile,
   tracker: ShaTracker,
 ): ShaListingInstruction {
+  const stateRole = profile.stateShuffleRole ?? (tracker.roundsSeen ? 'unpackState' : 'packState');
   const [role, content]: [ShaListingRole, RegisterContent | undefined] = hasKind(sources, 'wk')
     ? ['addK', { kind: 'wk' }]
     : hasKind(sources, 'message')
       ? ['msg2', { kind: 'message' }]
       : hasKind(sources, 'state')
-        ? [tracker.roundsSeen ? 'unpackState' : 'packState', { kind: 'state' }]
+        ? [stateRole, { kind: 'state' }]
         : ['other', undefined];
   tracker.write(instruction.operands[0], content);
   return { ...instruction, role };
@@ -247,8 +306,10 @@ function annotateOne(
   if (profile.isStore(instruction)) return annotateStore(instruction, profile);
   if (mnemonic === profile.roundsMnemonic || mnemonic === profile.rounds2Mnemonic)
     return annotateRounds(instruction, profile, tracker);
-  if (mnemonic === profile.msg1Mnemonic) return annotateSchedule(instruction, tracker, 'msg1');
-  if (mnemonic === profile.msg2Mnemonic) return annotateSchedule(instruction, tracker, 'msg2');
+  if (mnemonic === profile.msg1Mnemonic)
+    return annotateSchedule(instruction, profile, tracker, 'msg1');
+  if (mnemonic === profile.msg2Mnemonic)
+    return annotateSchedule(instruction, profile, tracker, 'msg2');
   const sources = tracker.read(sourcesOf(instruction, profile));
   if (mnemonic === profile.byteSwapMnemonic) {
     resolveConstants(sources, 'byteSwap', pending);
@@ -257,10 +318,17 @@ function annotateOne(
   }
   if (mnemonic === profile.addMnemonic) {
     const allSources = [...sources, ...memoryContents(operands, profile)];
-    return annotateAdd(instruction, allSources, operands.some(isLiteralPool), tracker, pending);
+    return annotateAdd(
+      instruction,
+      allSources,
+      operands.some(isLiteralPool),
+      profile,
+      tracker,
+      pending,
+    );
   }
   if (profile.shuffleMnemonics.includes(mnemonic))
-    return annotateShuffle(instruction, sources, tracker);
+    return annotateShuffle(instruction, sources, profile, tracker);
   if (profile.moveMnemonics.includes(mnemonic)) tracker.write(operands[0], sources[0]);
   else tracker.write(operands[0], undefined);
   return { ...instruction, role: 'other' };

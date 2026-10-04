@@ -35,10 +35,13 @@ export function choiceLabelKey(field: ParamField, value: unknown, producers: rea
 }
 
 /**
- * The param that switches a producer's `text` fields between UTF-8 and hex (docs/EXTENDING.md "Text
- * params"): while it is `'hex'`, `maxLength` counts the decoded bytes, as the producer validates them.
+ * The param that switches a producer's message field between UTF-8 and hex (docs/EXTENDING.md "Text
+ * params"): while it is `'hex'`, the `input` field's `maxLength` counts the decoded bytes, as the producer validates them.
  */
 export const TEXT_ENCODING_PARAM = 'encoding';
+
+/** The one text field (the message) that `encoding` switches to hex; every other text field stays UTF-8 (e.g. cSHAKE N and S). */
+export const HEX_TEXT_FIELD = 'input';
 
 /** How a `text` field's draft measures against `maxLength`; `bytes` is `undefined` for text that is not hex. */
 export interface TextLength {
@@ -46,9 +49,13 @@ export interface TextLength {
   bytes: number | undefined;
 }
 
-/** The bytes `text` stands for: UTF-8, or hex-decoded (complete bytes only) while `params.encoding` is `'hex'`. */
-export function textFieldLength(text: string, params: Readonly<Record<string, unknown>>): TextLength {
-  if (params[TEXT_ENCODING_PARAM] !== 'hex') return { unit: 'utf8', bytes: utf8Bytes(text).length };
+/**
+ * The bytes the text of field `name` stands for: hex-decoded (complete bytes only) when the field is
+ * `input` and `params.encoding` is `'hex'`, else UTF-8. The contract kit mirrors this rule
+ * (`textFieldProblems` in packages/tools/src/contracts/portChecks.ts).
+ */
+export function textFieldLength(name: string, text: string, params: Readonly<Record<string, unknown>>): TextLength {
+  if (name !== HEX_TEXT_FIELD || params[TEXT_ENCODING_PARAM] !== 'hex') return { unit: 'utf8', bytes: utf8Bytes(text).length };
   const parsed = parseHex(text);
   if (parsed.ok) return { unit: 'hex', bytes: parsed.bytes.length };
   const digits = parsed.error.key === 'core.error.hexOddLength' ? parsed.error.params?.['length'] : undefined;

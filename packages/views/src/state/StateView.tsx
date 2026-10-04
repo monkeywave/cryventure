@@ -1,5 +1,5 @@
-import { memo, useCallback, useMemo } from 'react';
-import { stateAt, unwrittenAt, type AnyStateFacet, type Beat, type NodeRef, type RegionSpec, type StateStep, type StepChoreography } from '@cryventure/core';
+import { memo, useCallback, useMemo, useState } from 'react';
+import { stateAt, unwrittenAt, type AnyStateFacet, type Beat, type Lens, type NodeRef, type RegionSpec, type StateStep, type StepChoreography } from '@cryventure/core';
 import {
   ByteGrid,
   INITIAL_STEP,
@@ -20,7 +20,9 @@ import { currentWords } from './currentWords.ts';
 import { RegionDisclosure } from './RegionDisclosure.tsx';
 import { isCollapsibleRegion, regionDensity, regionHighlights, regionLayout } from './regionLayout.ts';
 import { WatchHint, WatchPanel } from './WatchPanel.tsx';
+import { displayIndex, gridInputsToDisplay, hasLittleEndianWords, reversesWords, type WordDisplay } from './wordByteOrder.ts';
 import { wordHeaders } from './wordHeaders.ts';
+import { WordOrderControl } from './WordOrderControl.tsx';
 import './state.css';
 
 const STATUS_KEYS = { loading: 'view.state.loading', missing: 'view.state.missing' } as const;
@@ -38,6 +40,8 @@ interface RegionPanelProps {
   unwritten: ReadonlySet<number> | undefined;
   /** Hide the caption visually (it stays for screen readers) when a disclosure button already names the region. */
   captionHidden?: boolean;
+  /** How little-endian words are drawn (integer value or memory order); other regions ignore it. */
+  wordDisplay: WordDisplay;
 }
 
 /**
@@ -47,7 +51,7 @@ interface RegionPanelProps {
 const LARGE_REGION_MAX_BLOCK = '20rem';
 
 /** One region as a grid, laid out by the producer's hint; re-renders only when its own inputs change. */
-const RegionPanel = memo(function RegionPanel({ region, values, step, motion, beat, selectedIndex, onSelect, unwritten, captionHidden }: RegionPanelProps) {
+const RegionPanel = memo(function RegionPanel({ region, values, step, motion, beat, selectedIndex, onSelect, unwritten, captionHidden, wordDisplay }: RegionPanelProps) {
   const t = useT();
   const label = t(region.labelKey);
   const layout = useMemo(() => regionLayout(region), [region]);
@@ -59,27 +63,42 @@ const RegionPanel = memo(function RegionPanel({ region, values, step, motion, be
   );
   const columnHeaders = useMemo(() => layout.columnLabels?.map((text) => ({ text, label: t('ui.grid.offset', { offset: text }) })), [layout.columnLabels, t]);
   const focus = useMemo(() => focusIn(beat, region.id), [beat, region.id]);
-  const onSelectCell = useCallback((index: number) => onSelect({ region: region.id, index }), [onSelect, region.id]);
+  // Reversed little-endian words: the grid sees displayed positions; selection maps back to the memory byte.
+  const reversedWordSize = reversesWords(words, wordDisplay) ? words?.elemsPerWord : undefined;
+  const shown = useMemo(
+    () => gridInputsToDisplay({ values, highlights, motion, focus, unwritten, selectedIndex }, reversedWordSize),
+    [values, highlights, motion, focus, unwritten, selectedIndex, reversedWordSize],
+  );
+  const onSelectCell = useCallback(
+    (index: number) => onSelect({ region: region.id, index: reversedWordSize === undefined ? index : displayIndex(index, reversedWordSize) }),
+    [onSelect, region.id, reversedWordSize],
+  );
   return (
-    <figure className={words === undefined ? 'cv-region' : 'cv-region cv-region--words'} data-region={region.id} data-density={regionDensity(layout)}>
+    <figure
+      className={words === undefined ? 'cv-region' : 'cv-region cv-region--words'}
+      data-region={region.id}
+      data-density={regionDensity(layout)}
+      data-byte-order={words?.byteOrder}
+      data-word-display={words?.byteOrder === 'little' ? wordDisplay : undefined}
+    >
       <figcaption className={captionHidden ? 'cv-region__title cv-visually-hidden' : 'cv-region__title'}>{label}</figcaption>
       <ByteGrid
-        values={values}
+        values={shown.values}
         shape={layout.shape}
         order={layout.order}
         elem={region.elem}
-        highlights={highlights}
+        highlights={shown.highlights}
         rowOffsets={layout.rowOffsets}
         rowHeaders={rowHeaders}
         columnHeaders={columnHeaders}
         layout={words === undefined ? 'stack' : 'wrap'}
         wrapColumns={words?.wordsPerLine}
         label={label}
-        motion={motion}
-        focus={focus}
-        selectedIndex={selectedIndex}
+        motion={shown.motion}
+        focus={shown.focus}
+        selectedIndex={shown.selectedIndex}
         onSelectCell={onSelectCell}
-        unwritten={unwritten}
+        unwritten={shown.unwritten}
         maxBlockSize={isCollapsibleRegion(region) ? LARGE_REGION_MAX_BLOCK : undefined}
       />
     </figure>
@@ -133,7 +152,17 @@ function WatchArea({ facet }: { facet: AnyStateFacet }) {
   return node === null ? <WatchHint /> : <WatchPanel facet={facet} node={node} />;
 }
 
-function StateRegions({ facet }: { facet: AnyStateFacet }) {
+/** The note on little-endian words and, in the engineer lens, the memory-order toggle (nothing without such words). */
+function useWordDisplay(facet: AnyStateFacet, lens: Lens) {
+  const [display, setDisplay] = useState<WordDisplay>('integer');
+  const hasLittle = useMemo(() => hasLittleEndianWords(facet.regions), [facet.regions]);
+  const engineer = lens === 'engineer';
+  const wordDisplay: WordDisplay = engineer ? display : 'integer';
+  const control = hasLittle ? <WordOrderControl display={wordDisplay} toggleable={engineer} onChange={setDisplay} /> : null;
+  return { wordDisplay, control };
+}
+
+function StateRegions({ facet, lens }: { facet: AnyStateFacet; lens: Lens }) {
   const step = useLab((state) => state.step);
   const selected = useLab((state) => state.selection.node);
   const { selectNode } = useLabActions();
@@ -143,8 +172,10 @@ function StateRegions({ facet }: { facet: AnyStateFacet }) {
   const motions = useRegionMotions(facet, step, choreography, unwritten);
   const snapshot = stateAt(facet, step);
   const current = facet.steps[step];
+  const { wordDisplay, control } = useWordDisplay(facet, lens);
   return (
     <div className="cv-stack">
+      {control}
       {facet.regions.map((region) => (
         <CollapsibleRegionPanel
           key={region.id}
@@ -156,6 +187,7 @@ function StateRegions({ facet }: { facet: AnyStateFacet }) {
           selectedIndex={selected?.region === region.id ? selected.index : undefined}
           onSelect={selectNode}
           unwritten={unwritten.get(region.id)}
+          wordDisplay={wordDisplay}
         />
       ))}
       <WatchArea facet={facet} />
@@ -167,10 +199,11 @@ function StateRegions({ facet }: { facet: AnyStateFacet }) {
  * Every region of the state facet at the playhead, animated by the step's choreography (moves,
  * pulses, value switch, beat focus), with the step's highlights and a debugger watch of one cell.
  * Regions follow the producer's layout hint; those with more than 64 elements are collapsible
- * (collapsed by default on narrow labs).
+ * (collapsed by default on narrow labs). Little-endian words show their integer value (bytes
+ * reversed); the engineer lens can switch them to memory order.
  */
-export default function StateView(_props: ViewProps) {
+export default function StateView({ lens }: ViewProps) {
   const facet = useFacet<AnyStateFacet>('state');
   if (facet.status !== 'ready') return <ViewStatus status={facet.status} keys={STATUS_KEYS} />;
-  return <StateRegions facet={facet.data} />;
+  return <StateRegions facet={facet.data} lens={lens} />;
 }

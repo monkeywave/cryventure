@@ -9,5 +9,19 @@
   "deriver.isa-armv8-sha.note.copyAbcd": "sha256h und sha256h2 arbeiten als Paar: sha256h überschreibt A … D, aber sha256h2 braucht für dieselben Runden noch die alten A … D. Deshalb kopiert der Compiler A … D zuerst; sha256h arbeitet auf der Kopie.",
   "deriver.isa-armv8-sha.note.copyEfgh": "Eine Kopie von E … H, die sha256h2 überschreiben darf: Das Original bleibt für den Feed-Forward am Ende des Blocks unverändert.",
   "deriver.isa-armv8-sha.note.literalK": "Lädt K{{first}}…K{{last}} aus dem Literal-Pool neben dem Code (adrp liefert die Seite, ldr den Offset), oft lange vor den Runden, die sie verwenden.",
-  "deriver.isa-armv8-sha.note.scheduleAhead": "Die Nachrichtenexpansion (Message Schedule) läuft voraus: Dieser Befehl arbeitet an W{{first}}…W{{last}}, einige Runden bevor die Zustandsansicht diese Expansionswörter schreibt. Die vier Nachrichtenregister halten ein gleitendes Fenster aus 16 Expansionswörtern."
+  "deriver.isa-armv8-sha.note.scheduleAhead": "Die Nachrichtenexpansion (Message Schedule) läuft voraus: Dieser Befehl arbeitet an W{{first}}…W{{last}}, einige Runden bevor die Zustandsansicht diese Expansionswörter schreibt. Die vier Nachrichtenregister halten ein gleitendes Fenster aus 16 Expansionswörtern.",
+  "deriver.isa-armv8-sha.sha512.label": "AArch64 · ARMv8.2-SHA512-Erweiterung",
+  "deriver.isa-armv8-sha.sha512.registers.label": "AArch64 · ARMv8.2 SHA512 · Vektorregister",
+  "deriver.isa-armv8-sha.note.sha512h": "Zwei Runden, erste Hälfte: Das Ziel enthält h + K + W beider Runden (Runde t in der oberen Hälfte) und erhält T1 beider Runden; der zweite Operand enthält (f, g), der dritte (d, e) von vor den Runden.",
+  "deriver.isa-armv8-sha.note.sha512h2": "Zwei Runden, zweite Hälfte: Das Ziel enthält die beiden T1-Werte und erhält das neue (a, b); der zweite Operand enthält (c, d), der dritte (a, b) von vor den Runden.",
+  "deriver.isa-armv8-sha.note.newE": "Das neue (e, f) beider Runden: d + T1, Hälfte für Hälfte. Das alte (a, b) ist jetzt (c, d) und das alte (e, f) jetzt (g, h); so rotieren fünf Register ohne Kopie durch den Zustand.",
+  "deriver.isa-armv8-sha.note.addKw512": "Addiert die Rundenkonstanten zu den Expansionswörtern: K + W zweier Runden.",
+  "deriver.isa-armv8-sha.note.addHkw": "Addiert h zu K + W: h + K + W ist die Eingabe, die sha512h erwartet. Für die zweite Runde ist h das aktuelle g, weil die Runde g nach h schiebt.",
+  "deriver.isa-armv8-sha.note.swapKw": "Vertauscht die beiden Hälften von K + W: sha512h erwartet Runde t in der oberen und Runde t+1 in der unteren Hälfte.",
+  "deriver.isa-armv8-sha.note.pairState": "Setzt zwei Zustandswörter aus zwei Registern zu einem Paar zusammen ((d, e) oder (f, g)), den Operanden, die sha512h liest.",
+  "deriver.isa-armv8-sha.note.pairSchedule": "Setzt W[t−7] und W[t−6] aus zwei Nachrichtenregistern zusammen, den Operanden, den sha512su1 addiert.",
+  "deriver.isa-armv8-sha.note.partialFeedForward": "Feed-Forward, zusammengelegt: Der Compiler addiert das alte (e, f) zum (c, d) aus Runde 77, bevor T1 der Runden 78 und 79 vorliegt. Diese Teilsumme ist kein Wert des Traces, deshalb zeigt die Registeransicht weiter den alten Inhalt; die nächste Addition auf dieses Register vervollständigt H.",
+  "deriver.isa-armv8-sha.note.feedForward512": "Feed-Forward: Addiert den Zustand von vor dem Block zum Zustand nach Runde 79 und ergibt zwei Wörter von H.",
+  "deriver.isa-armv8-sha.note.copyT1": "Eine Kopie der beiden T1-Werte: sha512h2 überschreibt sein Ziel, aber der Feed-Forward braucht T1 noch, um (e, f) fertigzustellen.",
+  "deriver.isa-armv8-sha.note.scheduleAhead512": "Die Nachrichtenexpansion (Message Schedule) läuft voraus: Dieser Befehl arbeitet an W{{first}}, W{{last}}, einige Runden bevor die Zustandsansicht diese Expansionswörter schreibt. Die acht Nachrichtenregister halten ein gleitendes Fenster aus 16 Expansionswörtern."
 }

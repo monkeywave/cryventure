@@ -1,21 +1,21 @@
-import { i18nRef, scopeLevels, stateAt, toHex } from '@cryventure/core';
+import { i18nRef, scopeLevels, stateAt, toHex, validateWordopsFacet } from '@cryventure/core';
 import { describe, expect, it } from 'vitest';
 import { SHA256_ALGORITHMS, SHA512_ALGORITHMS, type Sha2Algorithm } from './algorithms.ts';
 import { compressDetailed, type BlockDetail, type RoundDetail, type ScheduleDetail } from './compress.ts';
 import { sha2Padding } from './padding.ts';
-import { sha2InitialSnapshot, sha2Regions, type Sha2Region } from './regions.ts';
-import { chainingValueId, recordCompress, recordFeedForward, recordInit, recordOutput, recordPad, recordRound, recordSchedule, sha2Trace, type Sha2OpName, type Sha2Trace } from './steps.ts';
+import { SHA2_REGISTER_NAMES, sha2InitialSnapshot, sha2Regions, type Sha2Region } from './regions.ts';
+import { chainingValueId, recordCompress, recordFeedForward, recordInit, recordOutput, recordPad, recordRound, recordSchedule, sha2Trace, type Sha2OpName, type Sha2Trace, type Sha2TraceOptions } from './steps.ts';
 import { WordopsRecorder } from './wordopsRecorder.ts';
 import { wordsToBytes, type Word } from './words.ts';
 
 const NS = 'plugin.test';
 const TWO_BLOCK = Array.from('abcdbcdecdefdefgefghfghighijhijkijkljklmklmnlmnomnopnopq', (char) => char.charCodeAt(0));
 
-function setup<W extends Word>(algorithm: Sha2Algorithm<W>, message: number[]) {
+function setup<W extends Word>(algorithm: Sha2Algorithm<W>, message: number[], options: Sha2TraceOptions = {}) {
   const padding = sha2Padding(message, algorithm.params.blockBytes);
   const regions = sha2Regions(NS, algorithm, message.length, padding.padded.length);
   const recorder = new WordopsRecorder<Sha2Region, { op: Sha2OpName }>(regions, sha2InitialSnapshot(regions, message), scopeLevels(NS, 'block', 'op'), i18nRef(`${NS}.step.initial`));
-  const trace: Sha2Trace<W> = sha2Trace(NS, algorithm, recorder);
+  const trace: Sha2Trace<W> = sha2Trace(NS, algorithm, recorder, options);
   const { blockBytes } = algorithm.params;
   const blocks: BlockDetail<W>[] = [];
   let h = [...algorithm.iv];
@@ -23,7 +23,7 @@ function setup<W extends Word>(algorithm: Sha2Algorithm<W>, message: number[]) {
     blocks.push(compressDetailed(algorithm.params, h, padding.padded.subarray(offset, offset + blockBytes)));
     h = blocks.at(-1)!.hOut;
   }
-  return { trace, padding, blocks, state: () => recorder.stateFacet(), wordops: () => recorder.wordopsFacet(algorithm.params.arith.bits) };
+  return { trace, padding, blocks, state: () => recorder.stateFacet(), wordops: (registerNames?: readonly string[]) => recorder.wordopsFacet(algorithm.params.arith.bits, registerNames) };
 }
 
 const roundOf = <W extends Word>(block: BlockDetail<W>, t: number) => block.events.find((event): event is RoundDetail<W> => event.kind === 'round' && event.t === t)!;
@@ -108,6 +108,31 @@ describe('recordSchedule and recordRound', () => {
     expect(step.writes).toEqual([{ region: 'vars', offset: 0, values: wordsToBytes(run.trace.algorithm.params.arith, round.after) }]);
     expect(step.narration.params).toMatchObject({ t: 0, a: '5d6aebcd', e: 'fa2a4622', kw: 'a3ec9318', wordBits: 32 });
     expect(run.wordops().steps[0]!.registers?.after.slice(0, 1)).toEqual(['5d6aebcd']);
+  });
+
+  it('a round step names where every register comes from: the shift, e ← d + T1 and a ← T1 + T2', () => {
+    const run = setup(SHA512_ALGORITHMS['sha-512'], [0x61, 0x62, 0x63]);
+    recordRound(run.trace, roundOf(run.blocks[0]!, 5));
+    expect(run.wordops().steps[0]!.registers?.transfers).toEqual([
+      { to: 0, from: { term: 'a' } },
+      { to: 1, from: { register: 0 } },
+      { to: 2, from: { register: 1 } },
+      { to: 3, from: { register: 2 } },
+      { to: 4, from: { term: 'e' } },
+      { to: 5, from: { register: 4 } },
+      { to: 6, from: { register: 5 } },
+      { to: 7, from: { register: 6 } },
+    ]);
+    expect(validateWordopsFacet(run.wordops(SHA2_REGISTER_NAMES))).toEqual([]);
+  });
+
+  it('adds the hKW term to rounds only when the trace asks for it', () => {
+    const plain = setup(SHA512_ALGORITHMS['sha-512'], [0x61, 0x62, 0x63]);
+    recordRound(plain.trace, roundOf(plain.blocks[0]!, 0));
+    expect(plain.wordops().steps[0]!.terms.some((term) => term.id === 'hKW')).toBe(false);
+    const withHKW = setup(SHA512_ALGORITHMS['sha-512'], [0x61, 0x62, 0x63], { hKW: true });
+    recordRound(withHKW.trace, roundOf(withHKW.blocks[0]!, 0));
+    expect(withHKW.wordops().steps[0]!.terms.find((term) => term.id === 'hKW')?.hex).toBe('ffcd6031eaa6cf9b');
   });
 });
 

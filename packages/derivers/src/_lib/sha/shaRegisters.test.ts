@@ -40,6 +40,27 @@ describe('lane bytes from the trace (memory order, little-endian lanes)', () => 
   });
 });
 
+describe('64-bit lane bytes from a SHA-512 trace', () => {
+  const trace512 = shaTrace(sharedShaFixtureBundle('sha-512-abc'));
+  const context512: ShaBlockContext = { trace: trace512, block: trace512.blocks[0]! };
+  const hex512 = (lane: Parameters<typeof laneBytes>[1]) => toHex(laneBytes(context512, lane));
+
+  it('reverses 8-byte words and reads hKW and T1 from the round terms', () => {
+    expect(hex512(word.var('a', -1))).toBe('08c9bcf367e6096a');
+    expect(hex512(word.wBytes(0))).toBe('6162638000000000');
+    expect(hex512(word.hKW(0))).toBe('9bcfa6ea3160cdff');
+    expect(hex512(word.T1(0))).toBe('a0e8971bfa0c7bb3');
+    expect(hex512(word.w(79))).toHaveLength(16);
+  });
+
+  it('has no bytes for an untraced partial sum', () => {
+    const partial = { kind: 'partial' as const, left: word.var('c', 77), right: word.var('e', -1) };
+    expect(() => laneBytes(context512, partial)).toThrow(
+      'the trace records no value for (c@77+e@-1)',
+    );
+  });
+});
+
 describe('ShaRegisterFile and expectLanes', () => {
   it('throws on a read before any write', () => {
     const registers = new ShaRegisterFile();

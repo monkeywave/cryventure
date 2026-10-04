@@ -1,4 +1,4 @@
-import { i18nRef, type MathTermRole, type WordOp, type WordTerm } from '@cryventure/core';
+import { i18nRef, type MathTermRole, type RegisterTransfer, type WordOp, type WordTerm } from '@cryventure/core';
 import type { RoundDetail, ScheduleDetail } from './compress.ts';
 import type { Word, WordArith } from './words.ts';
 
@@ -7,7 +7,7 @@ import type { Word, WordArith } from './words.ts';
  * and schedule terms include K_t + W_t, p1 and p2: the lane values SHA-NI and ARMv8 SHA2 hold.
  */
 export interface TermFactory<W extends Word> {
-  (id: string, label: string, word: W, role: MathTermRole, extra?: { op?: WordOp; params?: Record<string, number | string>; valueRef?: string }): WordTerm;
+  (id: string, label: string, word: W, role: MathTermRole, extra?: { op?: WordOp; params?: Record<string, number | string>; valueRef?: string; emphasis?: WordTerm['emphasis'] }): WordTerm;
 }
 
 /** A term factory for one namespace and word size. */
@@ -19,11 +19,25 @@ export function termFactory<W extends Word>(ns: string, arith: WordArith<W>): Te
     role,
     ...(extra.op === undefined ? {} : { op: extra.op }),
     ...(extra.valueRef === undefined ? {} : { valueRef: extra.valueRef }),
+    ...(extra.emphasis === undefined ? {} : { emphasis: extra.emphasis }),
   });
 }
 
-/** Round t in dataflow order: Σ1(e), Ch(e,f,g), K_t, W_t, K_t + W_t, T1, Σ0(a), Maj(a,b,c), T2. */
-export function roundTerms<W extends Word>(term: TermFactory<W>, round: RoundDetail<W>): WordTerm[] {
+/** Optional round terms: `hKW` = h + K_t + W_t, the SHA512H input (docs/M6.md §2f; `sha512` only). */
+export interface RoundTermOptions {
+  hKW?: boolean;
+}
+
+/** Register indices of the SHA-2 working variables the round computes anew (the others shift). */
+const A = 0;
+const E = 4;
+
+/**
+ * Round t in dataflow order: Σ1(e), Ch(e,f,g), K_t, W_t, K_t + W_t, (h + K_t + W_t), T1, Σ0(a),
+ * Maj(a,b,c), T2, then the round's results e = d + T1 and a = T1 + T2 (ids `e`, `a`, the sources
+ * of `ROUND_TRANSFERS`). T1 and T2 carry the story emphasis.
+ */
+export function roundTerms<W extends Word>(term: TermFactory<W>, round: RoundDetail<W>, options: RoundTermOptions = {}): WordTerm[] {
   const t = { params: { t: round.t } };
   return [
     term('Sigma1', 'Sigma1', round.Sigma1, 'intermediate', { op: 'Sigma1' }),
@@ -31,12 +45,22 @@ export function roundTerms<W extends Word>(term: TermFactory<W>, round: RoundDet
     term('k', 'k', round.k, 'constant', t),
     term('w', 'w', round.w, 'operand', t),
     term('kw', 'kw', round.kw, 'intermediate', { op: 'add', ...t }),
-    term('T1', 'T1', round.T1, 'intermediate', { op: 'add' }),
+    ...(options.hKW === true ? [term('hKW', 'hKW', round.hKW, 'intermediate', { op: 'add', ...t })] : []),
+    term('T1', 'T1', round.T1, 'intermediate', { op: 'add', emphasis: 'story' }),
     term('Sigma0', 'Sigma0', round.Sigma0, 'intermediate', { op: 'Sigma0' }),
     term('maj', 'maj', round.maj, 'intermediate', { op: 'maj' }),
-    term('T2', 'T2', round.T2, 'intermediate', { op: 'add' }),
+    term('T2', 'T2', round.T2, 'intermediate', { op: 'add', emphasis: 'story' }),
+    term('e', 'newE', round.after[E]!, 'result', { op: 'add' }),
+    term('a', 'newA', round.after[A]!, 'result', { op: 'add' }),
   ];
 }
+
+/** The SHA-2 register shift (wordops v2): a ← term a (T1 + T2), e ← term e (d + T1), every other register from its left neighbour. */
+export const ROUND_TRANSFERS: readonly RegisterTransfer[] = Array.from({ length: 8 }, (_, to): RegisterTransfer => {
+  if (to === A) return { to, from: { term: 'a' } };
+  if (to === E) return { to, from: { term: 'e' } };
+  return { to, from: { register: to - 1 } };
+});
 
 /** Schedule t: σ1(W_{t−2}), W_{t−7}, σ0(W_{t−15}), W_{t−16}, p1 = W_{t−16} + σ0, p2 = p1 + W_{t−7}, W_t = p2 + σ1. */
 export function scheduleTerms<W extends Word>(term: TermFactory<W>, schedule: ScheduleDetail<W>): WordTerm[] {

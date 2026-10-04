@@ -1,5 +1,5 @@
 import { primitiveManifests } from '@cryventure/primitives';
-import type { DeriverManifest, PrimitiveManifest, RunOptions, TraceBundle } from '@cryventure/core';
+import { validateSpongeFacet, type DeriverManifest, type PrimitiveManifest, type RunOptions, type SpongeFacet, type TraceBundle } from '@cryventure/core';
 import { beforeAll, describe, expect, it } from 'vitest';
 import { ASSEMBLED, facetKindsOf, fixtureBundlesFor, primitiveFixtureBundles, representativeSteps, withDerivedFacets, type NamedBundle } from './facetFixtures.ts';
 
@@ -131,6 +131,56 @@ describe('fixtureBundlesFor (wordops)', () => {
     const sources = [bundleWith('aes', ['state', 'math']), bundleWith('sha256', ['state', 'wordops'])];
     const selection = fixtureBundlesFor(['wordops', 'math'], [], sources);
     expect(selection.ok && selection.bundles[0]!.bundle.facets['wordops@default']).toEqual({ kind: 'wordops', from: 'sha256' });
+  });
+});
+
+describe('fixtureBundlesFor (sponge)', () => {
+  /** A real-shaped sponge producer: `primitiveFixtureBundles` keeps whatever facets its run emits. */
+  const sponge: SpongeFacet = {
+    kind: 'sponge',
+    schemaVersion: 1,
+    label: { key: 'plugin.sponge-fixture.label' },
+    width: 2,
+    height: 1,
+    laneBits: 8,
+    rounds: 1,
+    rateLanes: 1,
+    steps: [{ step: 0, phase: 'absorb', lanes: ['01', '00'], input: ['01'] }],
+  };
+  const xor = primitiveManifests.find((manifest) => manifest.id === 'xor')!;
+  const spongeProducer = {
+    ...xor,
+    id: 'sponge-fixture',
+    facets: [...xor.facets, 'sponge'],
+    load: async () => {
+      const module = await xor.load();
+      return {
+        ...module,
+        run: (params: unknown, options?: RunOptions) => {
+          const result = module.run(params as never, options);
+          return result.ok ? { ok: true as const, trace: { ...result.trace, producer: { ...result.trace.producer, id: 'sponge-fixture' }, facets: { ...result.trace.facets, 'sponge@default': sponge } } } : result;
+        },
+      };
+    },
+  } as PrimitiveManifest;
+
+  it('serves a view requiring sponge from the real producer that emits it, without a fallback', async () => {
+    const sources = await primitiveFixtureBundles([xor, spongeProducer]);
+    const selection = fixtureBundlesFor(['sponge'], ['state', 'values'], sources);
+    if (!selection.ok) throw new Error(selection.problem);
+    expect(names(selection.bundles)).toEqual(['sponge-fixture']);
+    expect(selection.bundles[0]!.bundle.facets['sponge@default']).toEqual(sponge);
+    expect(validateSpongeFacet(sponge, 1)).toEqual([]);
+  });
+
+  it('assembles sponge into a bundle for a view that also requires a kind its producer lacks', async () => {
+    const sources = [bundleWith('aes', ['state', 'math']), ...(await primitiveFixtureBundles([spongeProducer]))];
+    const selection = fixtureBundlesFor(['sponge', 'math'], [], sources);
+    expect(selection.ok && selection.bundles[0]!.bundle.facets['sponge@default']).toEqual(sponge);
+  });
+
+  it('fails naming sponge while no producer emits it', () => {
+    expect(fixtureBundlesFor(['sponge'], [], [bundleWith('aes', ['state'])])).toEqual({ ok: false, problem: 'no fixture provides facet kind(s) sponge: emit them from a primitive or add a fallback in facetFixtures' });
   });
 });
 

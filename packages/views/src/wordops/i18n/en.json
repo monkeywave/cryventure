@@ -55,5 +55,21 @@
   "view.wordops.glyph.Sigma1": "Σ1",
   "view.wordops.glyph.sigma0": "σ0",
   "view.wordops.glyph.sigma1": "σ1",
-  "view.wordops.glyph.root": "ⁿ√"
+  "view.wordops.glyph.root": "ⁿ√",
+  "view.wordops.shift.term": "{{to}} ← {{term}}",
+  "view.wordops.touched": "read and written by this step",
+  "view.wordops.touchedLegend": "◆ = read and written by this step",
+  "view.wordops.storyNone": "Nothing to highlight in this step – the Engineer lens shows every term.",
+  "view.wordops.op.or": "OR",
+  "view.wordops.op.parity": "parity (x ⊕ y ⊕ z)",
+  "view.wordops.op.md5G": "MD5 function G",
+  "view.wordops.op.md5I": "MD5 function I",
+  "view.wordops.op.root2": "fractional part of a square root",
+  "view.wordops.op.root3": "fractional part of a cube root",
+  "view.wordops.glyph.or": "∨",
+  "view.wordops.glyph.parity": "Parity",
+  "view.wordops.glyph.md5G": "G",
+  "view.wordops.glyph.md5I": "I",
+  "view.wordops.glyph.root2": "√",
+  "view.wordops.glyph.root3": "∛"
 }
