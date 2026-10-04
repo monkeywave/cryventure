@@ -389,7 +389,7 @@ describe('startLab / rerunLab with ports and a runner', () => {
     const session = await toyStart({ runner, labHref });
     if (session.status !== 'ready') throw new Error('expected ready');
     expect(session.runner).toBe(runner);
-    expect(session.store.getState().labHref?.('toy', {})).toBe('/en/lab/toy/');
+    expect(session.store.getState().labHref?.({ producerId: 'toy', params: {} })).toBe('/en/lab/toy/');
   });
 });
 

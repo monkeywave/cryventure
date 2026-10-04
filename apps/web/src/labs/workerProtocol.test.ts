@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import type { PrimitiveManifest, ProducerLookup } from '@cryventure/core';
 import { answerRunRequest, handleRunRequest, readRunResponse } from './workerProtocol.ts';
-import { toyComposite, toyProducers } from './testProducers.ts';
+import { toyComposite, toyMemberProducers, toyProducers } from './testProducers.ts';
 
 /** A producer whose bundle cannot be serialized (a BigInt in its output). */
 const unserializable = { ...toyComposite, load: async () => ({ run: () => ({ ok: true, trace: { output: { n: 1n } } }) }) } as unknown as PrimitiveManifest;
@@ -18,6 +18,17 @@ describe('handleRunRequest (worker side)', () => {
   it('answers an unknown producer with the unknown-producer error', async () => {
     const response = await handleRunRequest({ producerId: 'ghost', params: {} }, toyProducers);
     expect(JSON.parse(response.resultJson)).toEqual({ ok: false, error: { key: 'ui.lab.error.unknownProducer', params: { id: 'ghost' } } });
+  });
+
+  it("prepares a member port from its member ref's producer part and runs with the named member", async () => {
+    const response = await handleRunRequest({ producerId: 'toy-kdf', params: { hash: 'toy-hash:toy-1' } }, toyMemberProducers);
+    expect(JSON.parse(response.resultJson)).toMatchObject({ ok: true, trace: { output: { member: 'toy-1', digest: [3] } } });
+  });
+
+  it('answers a member the family does not offer, or a ref to an unknown producer, with the run error', async () => {
+    const run = async (hash: string) => JSON.parse((await handleRunRequest({ producerId: 'toy-kdf', params: { hash } }, toyMemberProducers)).resultJson) as unknown;
+    expect(await run('toy-hash:toy-9')).toEqual({ ok: false, error: { key: 'core.error.portMemberMissing', params: { id: 'toy-hash:toy-9' } } });
+    expect(await run('ghost:toy-1')).toEqual({ ok: false, error: { key: 'core.error.portMissing', params: { id: 'ghost' } } });
   });
 
   it('answers a malformed request with a failed load', async () => {

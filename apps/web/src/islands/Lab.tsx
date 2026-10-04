@@ -3,6 +3,7 @@ import { i18nRef, type I18nRef, type Lens, type Messages } from '@cryventure/cor
 import { ErrorBoundary, I18nProvider, LabRoot, Workspace, useT, type LabMode, type ParamsRequestHandler } from '@cryventure/viz';
 import type { LabParams, ReadySession } from '../labs/labSession.ts';
 import { useLabLens } from '../progress/useLabLens.ts';
+import { ComputingStatus } from './lab/ComputingStatus.tsx';
 import { InvalidLinkNotice, LabError } from './lab/LabMessages.tsx';
 import { viewsToShow, type LabViewsOption } from './lab/labViews.ts';
 import { OutputPanel } from './lab/OutputPanel.tsx';
@@ -60,12 +61,14 @@ interface ReadyLabProps {
   onRequestParams: ParamsRequestHandler;
   /** Why the last view request was rejected, shown in the ParamPanel. */
   requestError: I18nRef | null;
+  /** Whether the latest re-run is still pending (`ComputingStatus`). */
+  computing: boolean;
   toolbar?: ComponentType<LabToolbarProps>;
   views?: LabViewsOption;
   paramPanel: boolean;
 }
 
-function ReadyLab({ labId, layout, lens, session, params, onParams, onRequestParams, requestError, toolbar: Toolbar, views: viewsOption, paramPanel }: ReadyLabProps) {
+function ReadyLab({ labId, layout, lens, session, params, onParams, onRequestParams, requestError, computing, toolbar: Toolbar, views: viewsOption, paramPanel }: ReadyLabProps) {
   const t = useT();
   const views = useMemo(() => viewsToShow(session.views, layout, viewsOption), [session.views, layout, viewsOption]);
   useHashSync(labId, session.store, session.params, { clearLink: session.notice });
@@ -75,6 +78,7 @@ function ReadyLab({ labId, layout, lens, session, params, onParams, onRequestPar
       {session.notice && <InvalidLinkNotice />}
       {Toolbar && <Toolbar params={params} />}
       {paramPanel && <ParamPanel producer={session.producer} params={params} onApply={onParams} requestError={requestError} />}
+      <ComputingStatus computing={computing} />
       <PlayerBar />
       <Workspace views={views} layout={layout} labId={labId} lens={lens} />
       <OutputPanel producer={session.producer} />
@@ -83,12 +87,12 @@ function ReadyLab({ labId, layout, lens, session, params, onParams, onRequestPar
 }
 
 function LabBody({ labId, producerId, presetId, startAt, mode, variant, locale, layout, lens, toolbar, views, paramPanel = true, children }: Omit<LabProps, 'messages' | 'lens'> & { lens: Lens }) {
-  const { session, pendingParams, applyParams, requestParams, requestError, reset } = useLabSession({ labId, producerId, presetId, startAt, mode, variant, locale });
+  const { session, pendingParams, applyParams, requestParams, requestError, computing, reset } = useLabSession({ labId, producerId, presetId, startAt, mode, variant, locale });
   if (session.status === 'loading') return <>{children}</>;
   if (session.status === 'error') return <LabError error={session.error} onReset={reset} />;
   return (
     <ErrorBoundary fallback={(resetBoundary) => <LabError error={i18nRef('ui.lab.error.crashed')} onReset={() => { reset(); resetBoundary(); }} />}>
-      <ReadyLab labId={labId} layout={layout} lens={lens} session={session} params={pendingParams ?? session.params} onParams={applyParams} onRequestParams={requestParams} requestError={requestError} toolbar={toolbar} views={views} paramPanel={paramPanel} />
+      <ReadyLab labId={labId} layout={layout} lens={lens} session={session} params={pendingParams ?? session.params} onParams={applyParams} onRequestParams={requestParams} requestError={requestError} computing={computing} toolbar={toolbar} views={views} paramPanel={paramPanel} />
     </ErrorBoundary>
   );
 }

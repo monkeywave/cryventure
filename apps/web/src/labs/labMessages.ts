@@ -52,17 +52,21 @@ function producerMessages(locale: string, producer: Pick<PrimitiveManifest, 'id'
 
 /**
  * The namespaces of every producer a `port` param can name (docs/M3.md §2): the learner can switch
- * the cipher on the client, so the server cannot know which one ends up resolved.
+ * the cipher on the client, so the server cannot know which one ends up resolved. A member field's
+ * option labels (docs/M7.md §1b) live in their producers' namespaces, so they are covered too.
  */
-function portProducerMessages(locale: string, producer: LabMessagesProducer): Messages {
-  const registered = producerRegistry.list();
+function portProducerMessages(locale: string, producer: LabMessagesProducer, registered: readonly PrimitiveManifest[]): Messages {
   const namespaces = new Set(portNamespaces(producer, registered));
   const options = registered.filter((candidate) => namespaces.has(candidate.i18nNamespace));
   return Object.assign({}, ...options.map((option) => producerMessages(locale, option)));
 }
 
-/** viz `ui.*` + offered views' `view.*` + offered derivers' `deriver.*` + app `ui.lab.*` + `core.*` errors + port options' namespaces + the producer's own `i18nNamespace`. */
-export function labMessages(lang: string | undefined, producer: LabMessagesProducer): Messages {
+/**
+ * viz `ui.*` + offered views' `view.*` + offered derivers' `deriver.*` + app `ui.lab.*` + `core.*`
+ * errors + port options' namespaces (among `registered`, default: the app's registry) + the
+ * producer's own `i18nNamespace`.
+ */
+export function labMessages(lang: string | undefined, producer: LabMessagesProducer, registered: readonly PrimitiveManifest[] = producerRegistry.list()): Messages {
   const locale = toLocale(lang);
   return {
     ...loadVizMessages(locale),
@@ -70,7 +74,7 @@ export function labMessages(lang: string | undefined, producer: LabMessagesProdu
     ...offeredDeriverMessages(locale, producer),
     ...pickPrefix(loadMessages(locale, ['ui']), APP_LAB_PREFIX),
     ...loadCoreMessages(locale),
-    ...portProducerMessages(locale, producer),
+    ...portProducerMessages(locale, producer, registered),
     ...producerMessages(locale, producer),
   };
 }

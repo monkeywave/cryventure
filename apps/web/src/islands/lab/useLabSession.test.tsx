@@ -190,11 +190,38 @@ describe('useLabSession wiring', () => {
     await waitFor(() => expect(labSession.startLab).toHaveBeenCalled());
     const options = labSession.startLab.mock.calls[0]?.[0] as {
       runner: { run: unknown };
-      labHref: (id: string, params: unknown) => string | undefined;
+      labHref: (zoom: { producerId: string; params: Record<string, string> }) => string | undefined;
       blockLabHref: (id: string, keyHex: string, blockHex: string) => string | undefined;
     };
     expect(options.runner.run).toBeTypeOf('function');
-    expect(options.labHref('aes', {})).toMatch(/^\/de\/lab\/aes\/#lab=aes&/);
+    expect(options.labHref({ producerId: 'aes', params: {} })).toMatch(/^\/de\/lab\/aes\/#lab=aes&/);
     expect(options.blockLabHref('aes', '00'.repeat(16), '11'.repeat(16))).toMatch(/^\/de\/lab\/aes\/#lab=aes&/);
+  });
+});
+
+describe('useLabSession computing', () => {
+  it('is true while the latest re-run is pending and false once it settles, either way', async () => {
+    const { result } = await renderReady();
+    expect(result.current.computing).toBe(false);
+    const first = deferred<RunOutcome>();
+    const second = deferred<RunOutcome>();
+    labSession.rerunLab.mockReturnValueOnce(first.promise).mockReturnValueOnce(second.promise);
+    act(() => result.current.applyParams({ n: 1 }));
+    expect(result.current.computing).toBe(true);
+    act(() => result.current.requestParams({ n: 2 }));
+    await act(async () => first.resolve(ran('superseded')));
+    expect(result.current.computing).toBe(true);
+    await act(async () => second.resolve({ ok: false, error: { key: 'failed' } }));
+    expect(result.current.computing).toBe(false);
+  });
+
+  it('is false after a reset drops a pending re-run', async () => {
+    const { result } = await renderReady();
+    labSession.rerunLab.mockReturnValueOnce(new Promise(() => undefined));
+    labSession.startLab.mockResolvedValueOnce(ready('restarted'));
+    act(() => result.current.applyParams({ n: 1 }));
+    await act(async () => result.current.reset());
+    await waitFor(() => expect(tagOf(result.current.session)).toBe('restarted'));
+    expect(result.current.computing).toBe(false);
   });
 });

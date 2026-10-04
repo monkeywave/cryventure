@@ -36,6 +36,8 @@ export interface LabSessionApi {
   requestParams: (patch: ParamsPatch) => void;
   /** Why the last re-run or view request failed (invalid params or a run error); `null` once params are applied again. The ready session keeps the last good bundle meanwhile. */
   requestError: I18nRef | null;
+  /** Whether the latest re-run or view request is still running (`ComputingStatus` shows it once it takes a while). */
+  computing: boolean;
   /** Forgets the deep link and starts over from the preset. */
   reset: () => void;
 }
@@ -104,6 +106,8 @@ interface ParamRuns {
   requestParams: (patch: ParamsPatch) => void;
   requestError: I18nRef | null;
   setRequestError: (error: I18nRef | null) => void;
+  computing: boolean;
+  setComputing: (computing: boolean) => void;
 }
 
 /**
@@ -113,6 +117,7 @@ interface ParamRuns {
  */
 function useParamRuns(session: LabSession, setSession: (session: LabSession) => void, beginRun: () => IsCurrentRun, pending: PendingParams): ParamRuns {
   const [requestError, setRequestError] = useState<I18nRef | null>(null);
+  const [computing, setComputing] = useState(false);
   const { latestPendingParams, setPendingParams } = pending;
 
   const run = useCallback(
@@ -120,8 +125,10 @@ function useParamRuns(session: LabSession, setSession: (session: LabSession) => 
       const isCurrent = beginRun();
       setPendingParams(params);
       setRequestError(null);
+      setComputing(true);
       void rerunLab(ready, params, isCurrent).then((outcome) => {
         if (!isCurrent()) return;
+        setComputing(false);
         if (outcome.ok) setSession(outcome.session);
         else setRequestError(outcome.error);
       });
@@ -146,7 +153,7 @@ function useParamRuns(session: LabSession, setSession: (session: LabSession) => 
     [session, run, latestPendingParams],
   );
 
-  return { applyParams, requestParams, requestError, setRequestError };
+  return { applyParams, requestParams, requestError, setRequestError, computing, setComputing };
 }
 
 /** Client-only lifecycle: read the hash, load + run the producer, then re-run on param edits. */
@@ -159,7 +166,7 @@ export function useLabSession({ labId, producerId, presetId, startAt, mode, vari
   const blockLabHref = useMemo(() => createBlockLabHref({ base: import.meta.env.BASE_URL ?? '/', lang: locale }), [locale]);
   const pending = usePendingParams();
   const { pendingParams, setPendingParams } = pending;
-  const { applyParams, requestParams, requestError, setRequestError } = useParamRuns(session, setSession, beginRun, pending);
+  const { applyParams, requestParams, requestError, setRequestError, computing, setComputing } = useParamRuns(session, setSession, beginRun, pending);
   const settleStart = useCallback(
     (next: LabSession) => {
       setPendingParams(next.status === 'ready' ? next.params : null);
@@ -176,8 +183,9 @@ export function useLabSession({ labId, producerId, presetId, startAt, mode, vari
     setPendingParams(null);
     setSession({ status: 'loading' });
     setRequestError(null);
+    setComputing(false);
     setGeneration((current) => current + 1);
-  }, [labId, beginRun, setPendingParams, setRequestError]);
+  }, [labId, beginRun, setPendingParams, setRequestError, setComputing]);
 
-  return { session, pendingParams, applyParams, requestParams, requestError, reset };
+  return { session, pendingParams, applyParams, requestParams, requestError, computing, reset };
 }

@@ -3,7 +3,7 @@ import type { PrimitiveManifest } from '@cryventure/core';
 import { fakeWorkers, type FakeWorker } from './fakeWorker.testing.ts';
 import { createLabRunner } from './labRunner.ts';
 import { handleRunRequest, type WorkerRunRequest } from './workerProtocol.ts';
-import { toyComposite, toyProducers } from './testProducers.ts';
+import { toyComposite, toyMemberComposite, toyMemberProducers, toyProducers } from './testProducers.ts';
 
 const LOAD_FAILED = { ok: false, error: { key: 'ui.lab.error.loadFailed' } };
 const inWorker = { ...toyComposite, runIn: 'worker' } as PrimitiveManifest;
@@ -39,6 +39,32 @@ describe('createLabRunner', () => {
     expect(await first).toEqual(LOAD_FAILED);
     await answer(workers[1]);
     expect((await second).ok).toBe(true);
+  });
+
+  it('terminates every superseded worker run and answers only the latest', async () => {
+    const { workers, factory } = fakeWorkers<WorkerRunRequest>();
+    const runner = createLabRunner({ createWorker: factory, producers: toyProducers });
+    const runs = [1, 2, 3].map(() => runner.run(inWorker, { cipher: 'toy' }));
+    expect(workers.map((worker) => worker.terminated)).toEqual([true, true, false]);
+    await answer(workers[2]);
+    expect(await Promise.all(runs)).toMatchObject([LOAD_FAILED, LOAD_FAILED, { ok: true }]);
+  });
+
+  it('terminates a worker run superseded by a main-thread run', async () => {
+    const { workers, factory } = fakeWorkers<WorkerRunRequest>();
+    const runner = createLabRunner({ createWorker: factory, producers: toyProducers });
+    const first = runner.run(inWorker, { cipher: 'toy' });
+    expect((await runner.run(toyComposite, { cipher: 'toy' })).ok).toBe(true);
+    expect(workers[0]?.terminated).toBe(true);
+    expect(await first).toEqual(LOAD_FAILED);
+  });
+
+  it('runs a producer with a member port field in the worker', async () => {
+    const { workers, factory } = fakeWorkers<WorkerRunRequest>();
+    const kdfInWorker = { ...toyMemberComposite, runIn: 'worker' } as PrimitiveManifest;
+    const pending = createLabRunner({ createWorker: factory, producers: toyMemberProducers }).run(kdfInWorker, { hash: 'toy-hash:toy-1' });
+    workers[0]?.respond(await handleRunRequest(workers[0].requests[0], toyMemberProducers));
+    expect(await pending).toMatchObject({ ok: true, trace: { output: { member: 'toy-1', digest: [3] } } });
   });
 
   it('turns a worker error (e.g. its chunk failed to load) into a failed load', async () => {

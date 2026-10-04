@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
+import type { LabZoom } from '@cryventure/core';
 import { createFixtureBundle } from '../testing/fixtureBundle.ts';
 import { createLabStore } from './createLabStore.ts';
 import { selectStepCount } from './labReducers.ts';
@@ -238,11 +239,12 @@ describe('createLabStore labHref', () => {
   });
 
   it('exposes the host link builder and keeps it across a new bundle', () => {
-    const labHref = vi.fn((producerId: string) => `/en/lab/${producerId}/`);
+    const labHref = vi.fn(({ producerId }: LabZoom) => `/en/lab/${producerId}/`);
     const store = createLabStore(createFixtureBundle(), { labHref });
     store.getState().setBundle(createFixtureBundle(), { preserveDebugContext: true });
-    expect(store.getState().labHref?.('aes', { keyHex: '00' }, 3)).toBe('/en/lab/aes/');
-    expect(labHref).toHaveBeenCalledWith('aes', { keyHex: '00' }, 3);
+    const zoom = { producerId: 'aes', params: { keyHex: '00' } };
+    expect(store.getState().labHref?.(zoom)).toBe('/en/lab/aes/');
+    expect(labHref).toHaveBeenCalledWith(zoom);
   });
 });
 

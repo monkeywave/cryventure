@@ -5,6 +5,7 @@
   "ui.notFound.back": "Zur deutschen Startseite",
   "ui.educationalOnly": "Nur zu Lernzwecken: Diese Implementierungen dienen dem Verständnis, nicht dem Schutz echter Daten.",
   "ui.lab.loading": "Das interaktive Lab wird geladen …",
+  "ui.lab.computing": "Wird berechnet …",
   "ui.lab.posterPreset": "Beispiel: {{preset}}",
   "ui.lab.error.unknownProducer": "Dieses Lab kann nicht starten: Es ist kein Algorithmus namens „{{id}}“ registriert.",
   "ui.lab.error.loadFailed": "Das Lab konnte nicht geladen werden. Prüfe deine Verbindung und versuche es erneut.",

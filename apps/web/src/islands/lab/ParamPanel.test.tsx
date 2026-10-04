@@ -337,3 +337,115 @@ describe('ParamPanel text fields measured by a sibling encoding', () => {
     expect(screen.getByText('3 / 128 Byte (hex)')).toBeTruthy();
   });
 });
+
+/** Two hash families declaring their members (docs/M7.md §1b), labelled in their own namespaces. */
+const memberProducers = [
+  { id: 'zeta-hash', implements: ['Hash', 'Mac'], titleKey: 'plugin.zeta-hash.title', i18nNamespace: 'plugin.zeta-hash', portMembers: { Hash: [{ id: 'zeta-1', labelKey: 'plugin.zeta-hash.member.zeta-1' }], Mac: [{ id: 'hmac-zeta-1', labelKey: 'plugin.zeta-hash.mac.hmac-zeta-1', construction: 'hmac' }] } },
+  { id: 'alpha-hash', implements: ['Hash', 'Mac'], titleKey: 'plugin.alpha-hash.title', i18nNamespace: 'plugin.alpha-hash', portMembers: { Hash: [{ id: 'alpha-256', labelKey: 'plugin.alpha-hash.member.alpha-256' }, { id: 'alpha-512', labelKey: 'plugin.alpha-hash.member.alpha-512' }], Mac: [{ id: 'keyed', labelKey: 'plugin.alpha-hash.mac.keyed', construction: 'keyed-hash' }] } },
+] as unknown as PrimitiveManifest[];
+
+const memberMessages = {
+  'ui.lab.params.title': 'Inputs',
+  'ui.lab.params.preset': 'Example',
+  'ui.lab.params.custom': 'Custom input',
+  'plugin.toy-kdf.param.hash': 'Hash function',
+  'plugin.toy-kdf.param.mac': 'MAC',
+  'plugin.zeta-hash.member.zeta-1': 'Zeta-1',
+  'plugin.zeta-hash.mac.hmac-zeta-1': 'HMAC-Zeta-1',
+  'plugin.alpha-hash.member.alpha-256': 'Alpha-256',
+  'plugin.alpha-hash.member.alpha-512': 'Alpha-512',
+  'plugin.alpha-hash.mac.keyed': 'Keyed Alpha',
+};
+
+/** A KDF-like composite with a Hash member field and a Mac member field restricted to HMAC. */
+const memberComposite = {
+  ...aes,
+  id: 'toy-kdf',
+  i18nNamespace: 'plugin.toy-kdf',
+  presets: [],
+  defaults: { hash: 'alpha-hash:alpha-512', mac: 'zeta-hash:hmac-zeta-1' },
+  paramFields: [
+    { name: 'hash', kind: 'port', port: 'Hash', member: true, labelKey: 'plugin.toy-kdf.param.hash' },
+    { name: 'mac', kind: 'port', port: 'Mac', member: true, constructions: ['hmac'], labelKey: 'plugin.toy-kdf.param.mac' },
+  ],
+  validate: (input: unknown) => ({ ok: true, value: input }),
+} as unknown as PrimitiveManifest<LabParams>;
+
+describe('ParamPanel member port fields', () => {
+  function renderMembers(onApply = vi.fn()) {
+    render(
+      <I18nProvider messages={memberMessages}>
+        <ParamPanel producer={memberComposite} params={memberComposite.defaults as LabParams} onApply={onApply} producers={memberProducers} />
+      </I18nProvider>,
+    );
+    return onApply;
+  }
+
+  it('offers one option per declared member, as member refs sorted by producer id, labelled from the producers’ namespaces', () => {
+    renderMembers();
+    const select = screen.getByLabelText('Hash function') as HTMLSelectElement;
+    expect(select.value).toBe('alpha-hash:alpha-512');
+    expect([...select.options].map((option) => [option.value, option.textContent])).toEqual([
+      ['alpha-hash:alpha-256', 'Alpha-256'],
+      ['alpha-hash:alpha-512', 'Alpha-512'],
+      ['zeta-hash:zeta-1', 'Zeta-1'],
+    ]);
+  });
+
+  it('filters Mac members by the field’s constructions', () => {
+    renderMembers();
+    const select = screen.getByLabelText('MAC') as HTMLSelectElement;
+    expect([...select.options].map((option) => option.value)).toEqual(['zeta-hash:hmac-zeta-1']);
+  });
+
+  it('applies a picked member ref', () => {
+    const onApply = renderMembers();
+    fireEvent.change(screen.getByLabelText('Hash function'), { target: { value: 'zeta-hash:zeta-1' } });
+    expect(onApply).toHaveBeenCalledWith({ hash: 'zeta-hash:zeta-1', mac: 'zeta-hash:hmac-zeta-1' });
+  });
+});
+
+/** A text field other than `input` measured by its own declared sibling (`encodingParam`), e.g. a PBKDF2 password. */
+describe('ParamPanel text fields with a declared encodingParam', () => {
+  const kdf = {
+    ...aes,
+    id: 'toy-pbkdf',
+    i18nNamespace: 'plugin.toy-pbkdf',
+    presets: [],
+    defaults: { password: 'pw', passwordEncoding: 'utf8', input: 'abc' },
+    paramFields: [
+      { name: 'password', kind: 'text', maxLength: 4, encodingParam: 'passwordEncoding', labelKey: 'plugin.toy-pbkdf.param.password' },
+      { name: 'passwordEncoding', kind: 'select', labelKey: 'plugin.toy-pbkdf.param.passwordEncoding', options: [{ value: 'utf8', labelKey: 'plugin.toy-pbkdf.utf8' }, { value: 'hex', labelKey: 'plugin.toy-pbkdf.hex' }] },
+      { name: 'input', kind: 'text', maxLength: 8, labelKey: 'plugin.toy-pbkdf.param.input' },
+    ],
+    validate: (input: unknown) => ({ ok: true, value: input }),
+  } as unknown as PrimitiveManifest<LabParams>;
+  const messages = {
+    'ui.lab.params.byteCount': '{{count}} / {{max}} bytes (UTF-8)',
+    'ui.lab.params.byteCountHex': '{{count}} / {{max}} bytes (hex)',
+    'plugin.toy-pbkdf.param.password': 'Password',
+    'plugin.toy-pbkdf.param.input': 'Salt',
+  };
+
+  function renderKdf(params: LabParams) {
+    render(
+      <I18nProvider messages={messages}>
+        <ParamPanel producer={kdf} params={params} onApply={vi.fn()} />
+      </I18nProvider>,
+    );
+    return screen.getByLabelText('Password');
+  }
+
+  it('counts UTF-8 bytes while its encoding is utf8', () => {
+    renderKdf(kdf.defaults as LabParams);
+    expect(screen.getByText('2 / 4 bytes (UTF-8)')).toBeTruthy();
+  });
+
+  it('counts hex-decoded bytes while its own encoding is hex, independently of a field named `input`', () => {
+    const input = renderKdf({ ...(kdf.defaults as LabParams), passwordEncoding: 'hex', password: '00010203' });
+    expect(screen.getByText('4 / 4 bytes (hex)').getAttribute('data-over')).toBe('false');
+    typeInto(input, '00 01 02 03 04');
+    expect(screen.getByText('5 / 4 bytes (hex)').getAttribute('data-over')).toBe('true');
+    expect(screen.getByText('3 / 8 bytes (UTF-8)')).toBeTruthy();
+  });
+});

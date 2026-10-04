@@ -11,6 +11,17 @@
   color: var(--cv-text);
 }
 
+/* "Computing…" for a slow re-run; while empty it takes no space (no layout gap) but stays a live region. */
+.cv-lab__computing {
+  margin: 0;
+  color: var(--cv-text-muted);
+  font-size: var(--sl-text-sm, 0.875rem);
+}
+
+.cv-lab__computing:empty {
+  display: contents;
+}
+
 /* ---------- Static poster (server-rendered until hydration) ---------- */
 .cv-lab-poster {
   display: grid;

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { extractParams } from '@cryventure/core';
+import { extractParams, portOptions, type ParamField, type PrimitiveManifest } from '@cryventure/core';
 import { loadCoreMessages } from '@cryventure/core/messages';
 import { producerRegistry, viewRegistry, viewsForProducer } from './registry.ts';
 import { deriversApplicableToAny, sampleBundles } from './sampleDerivers.ts';
@@ -75,5 +75,34 @@ describe('labMessages for a producer with a port param', () => {
 
   it('keeps EN/DE parity for the added namespaces', () => {
     expect(Object.keys(labMessages('de', composite)).sort()).toEqual(Object.keys(labMessages('en', composite)).sort());
+  });
+});
+
+describe('labMessages for a producer with member port fields (docs/M7.md §1b)', () => {
+  const hashField = { name: 'hash', kind: 'port', port: 'Hash', member: true, labelKey: 'plugin.xor.title' } as const satisfies ParamField;
+  const macField = { name: 'mac', kind: 'port', port: 'Mac', member: true, constructions: ['hmac'], labelKey: 'plugin.xor.title' } as const satisfies ParamField;
+  const composite = { id: 'xor', i18nNamespace: 'plugin.xor', facets: AES.facets, defaults: {}, paramFields: [hashField, macField] };
+
+  /** Real producers re-declared with members whose labels live in their own namespaces. */
+  const withMembers = (id: string, members: Record<string, string>) =>
+    ({ ...producerRegistry.require(id), implements: ['Hash'], portMembers: { Hash: Object.entries(members).map(([memberId, labelKey]) => ({ id: memberId, labelKey })) } }) as PrimitiveManifest;
+  const registered = [withMembers('sha256', { 'sha-224': 'plugin.sha256.param.algorithmOption.sha-224', 'sha-256': 'plugin.sha256.param.algorithmOption.sha-256' }), withMembers('sha1', { 'sha-1': 'plugin.sha1.title' }), AES];
+
+  it("ships every member option's label from its producer's namespace, in EN and DE", () => {
+    const options = portOptions(registered, hashField);
+    expect(options.map((option) => option.value)).toEqual(['sha1:sha-1', 'sha256:sha-224', 'sha256:sha-256']);
+    for (const lang of ['en', 'de']) {
+      const messages = labMessages(lang, composite, registered);
+      for (const option of options) expect(messages).toHaveProperty([option.labelKey]);
+      expect(Object.keys(messages).some((key) => key.startsWith('plugin.aes.'))).toBe(false);
+    }
+  });
+
+  it('labels every member option of the registered producers (once they declare members)', () => {
+    const options = [hashField, macField].flatMap((field) => portOptions(producerRegistry.list(), field));
+    for (const lang of ['en', 'de']) {
+      const messages = labMessages(lang, composite);
+      for (const option of options) expect(messages).toHaveProperty([option.labelKey]);
+    }
   });
 });

@@ -1,6 +1,6 @@
 import { createStore, type StoreApi } from 'zustand/vanilla';
 import { motionValue, type MotionValue } from 'motion/react';
-import type { FacetKey, NodeRef, TraceBundle } from '@cryventure/core';
+import type { FacetKey, LabZoom, NodeRef, TraceBundle } from '@cryventure/core';
 import {
   INITIAL_STEP,
   clampSpeed,
@@ -38,10 +38,11 @@ export type ParamsPatch = Record<string, unknown>;
 export type ParamsRequestHandler = (patch: ParamsPatch) => void;
 
 /**
- * The host's link to a standalone lab for `producerId` opened with `params` (and `step`), e.g. a
- * chain view's "zoom into block i"; `undefined` when the host cannot link to that producer.
+ * The host's link to the standalone lab of `zoom.producerId` opened with `zoom.params` (docs/M7.md §4),
+ * e.g. a derivation node's "Open in the HMAC lab"; `undefined` when the host cannot link to that
+ * producer (unregistered, or params too long for a deep link).
  */
-export type LabHrefBuilder = (producerId: string, params: unknown, step?: number) => string | undefined;
+export type LabHrefBuilder = (zoom: LabZoom) => string | undefined;
 
 /**
  * The host's link to the standalone lab of block cipher `producerId` encrypting one block (hex) under

@@ -95,13 +95,13 @@ describe('LabRoot onRequestParams', () => {
 });
 
 function ZoomLink() {
-  const href = useLabActions().labHref?.('aes', { keyHex: '00' });
+  const href = useLabActions().labHref?.({ producerId: 'aes', params: { keyHex: '00' } });
   return href === undefined ? <span data-testid="zoom">none</span> : <a href={href}>zoom</a>;
 }
 
 describe('useLabActions().labHref', () => {
   it('gives views the host link on their first render', () => {
-    renderLab(<ZoomLink />, { labHref: (producerId) => `/en/lab/${producerId}/#lab=${producerId}` });
+    renderLab(<ZoomLink />, { labHref: ({ producerId }) => `/en/lab/${producerId}/#lab=${producerId}` });
     expect(screen.getByRole('link', { name: 'zoom' }).getAttribute('href')).toBe('/en/lab/aes/#lab=aes');
   });
 

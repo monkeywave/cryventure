@@ -15,12 +15,15 @@ export interface LabHrefContext {
 /** Path of the standalone lab route `src/pages/[lang]/lab/[id].astro`, without the base. */
 export const labRoutePath = (lang: string, producerId: string): string => `${lang}/lab/${producerId}/`;
 
+/** A link to the standalone lab of `producerId` opened with `params` (and `step`); `undefined` when it cannot link. */
+export type LabLinkBuilder = (producerId: string, params: unknown, step?: number) => string | undefined;
+
 /**
- * `useLabActions().labHref` for the web app (docs/M3.md §5): `<base><lang>/lab/<id>/#lab=<id>&p=…`,
+ * The web app's link to a standalone lab (docs/M3.md §5): `<base><lang>/lab/<id>/#lab=<id>&p=…`,
  * a deep link the standalone lab (whose `labId` is the producer id) opens with `params` and `step`.
  * `undefined` for an unregistered producer or a hash the lab would reject as too long.
  */
-export function createLabHref({ base, lang, producers = producerRegistry }: LabHrefContext): LabHrefBuilder {
+export function createLabLink({ base, lang, producers = producerRegistry }: LabHrefContext): LabLinkBuilder {
   const locale = toLocale(lang);
   return (producerId, params, step) => {
     if (producers.get(producerId) === undefined) return undefined;
@@ -32,15 +35,24 @@ export function createLabHref({ base, lang, producers = producerRegistry }: LabH
 }
 
 /**
+ * `useLabActions().labHref` for the web app (docs/M7.md §4): the standalone lab of a view's zoom
+ * target (`LabZoom`, e.g. a derivation node's "Open in the HMAC lab"), via `createLabLink`.
+ */
+export function createLabHref(context: LabHrefContext): LabHrefBuilder {
+  const labLink = createLabLink(context);
+  return ({ producerId, params }) => labLink(producerId, params);
+}
+
+/**
  * `useLabActions().blockLabHref` for the web app: the cipher's own lab encrypting one block, with the
  * params its manifest names (`blockLabParams`). `undefined` when the manifest has no such hook (or
- * `createLabHref` cannot link).
+ * `createLabLink` cannot link).
  */
 export function createBlockLabHref(context: LabHrefContext): BlockLabHrefBuilder {
   const { producers = producerRegistry } = context;
-  const labHref = createLabHref(context);
+  const labLink = createLabLink(context);
   return (producerId, keyHex, blockHex) => {
     const params = producers.get(producerId)?.blockLabParams?.(keyHex, blockHex);
-    return params === undefined ? undefined : labHref(producerId, params);
+    return params === undefined ? undefined : labLink(producerId, params);
   };
 }

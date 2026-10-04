@@ -5,6 +5,7 @@
   "ui.notFound.back": "Go to the English start page",
   "ui.educationalOnly": "Educational only: these implementations are built for understanding, not for protecting real data.",
   "ui.lab.loading": "Loading the interactive lab…",
+  "ui.lab.computing": "Computing…",
   "ui.lab.posterPreset": "Example: {{preset}}",
   "ui.lab.error.unknownProducer": "This lab cannot start: no algorithm named “{{id}}” is registered.",
   "ui.lab.error.loadFailed": "The lab could not be loaded. Check your connection and try again.",
