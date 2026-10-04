@@ -3,13 +3,13 @@ import type { ViewComponent } from '@cryventure/viz';
 
 export default defineView<ViewComponent>({
   kind: 'view',
-  id: 'key-schedule',
+  id: 'derivation',
   apiVersion: 1,
-  titleKey: 'view.key-schedule.title',
+  titleKey: 'view.derivation.title',
   icon: 'tree',
   requires: ['derivation'],
   optional: ['state'],
   defaultSlot: 'side',
   order: 20,
-  load: () => import('./KeyScheduleView.tsx'),
+  load: () => import('./DerivationView.tsx'),
 });

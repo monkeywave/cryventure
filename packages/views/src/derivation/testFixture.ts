@@ -15,7 +15,7 @@ export const aesDerivation = fixture.derivation as DerivationFacet;
 export const aesStepCount = fixture.stepCount;
 
 /** A bundle with the fixture derivation plus an empty-write state facet so the playhead can move. */
-export function keyScheduleBundle(): TraceBundle {
+export function aesDerivationBundle(): TraceBundle {
   const tracer = new RecordingTracer<'s', { op: 'tick' }>(
     [{ id: 's', labelKey: 'fixture.region.s', elem: 'u8', shape: [1] }],
     { s: [0] },
@@ -42,10 +42,12 @@ export const derivationLabels: Record<'en' | 'de', Messages> = {
     'plugin.aes.derivation.rcon': 'Round constant Rcon[{{i}}]',
     'plugin.aes.derivation.xorRcon': '⊕ Rcon for w[{{i}}]',
     'plugin.aes.derivation.roundKey': 'Round key {{n}}',
+    'plugin.aes.derivation.title': 'Key schedule',
   },
   de: {
     'plugin.aes.derivation.keyWord': 'Schlüsselwort w[{{i}}]',
     'plugin.aes.derivation.word': 'Wort w[{{i}}]',
     'plugin.aes.derivation.roundKey': 'Rundenschlüssel {{n}}',
+    'plugin.aes.derivation.title': 'Schlüsselplan',
   },
 };

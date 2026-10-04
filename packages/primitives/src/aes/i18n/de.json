@@ -88,5 +88,6 @@
   "plugin.aes.derivation.subWord": "SubWord für w[{{i}}]",
   "plugin.aes.derivation.rcon": "Rundenkonstante Rcon[{{i}}]",
   "plugin.aes.derivation.xorRcon": "⊕ Rcon für w[{{i}}]",
-  "plugin.aes.derivation.roundKey": "Rundenschlüssel {{n}}"
+  "plugin.aes.derivation.roundKey": "Rundenschlüssel {{n}}",
+  "plugin.aes.derivation.title": "Schlüsselplan"
 }

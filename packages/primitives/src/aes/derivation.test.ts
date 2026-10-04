@@ -124,6 +124,10 @@ describe('keyScheduleDerivation structure', () => {
     expect(new Set(primary(facet).map((node) => node.group))).toEqual(new Set(facet.groups?.map((group) => group.id)));
   });
 
+  it('titles the facet "Key schedule" (plugin.aes.derivation.title), so the derivation view keeps the AES heading', () => {
+    expect(schedule(KEY_128).title).toEqual({ key: 'plugin.aes.derivation.title' });
+  });
+
   it('sets step to the state step that first uses the round key', () => {
     const facet = schedule(KEY_128, new Map(Array.from({ length: 10 }, (_, i) => [i + 1, (i + 1) * 10])));
     expect(derivationNode(facet, wordNodeId(1))?.step).toBeUndefined();

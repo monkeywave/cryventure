@@ -12,42 +12,48 @@ import {
   type ReactNode,
   type Ref,
 } from 'react';
-import { derivationNode, type DerivationFacet, type DerivationNode } from '@cryventure/core';
+import { derivationNode, type DerivationFacet, type DerivationNode, type LabZoom } from '@cryventure/core';
 import { ViewStatus, useFacet, useLab, useLabActions, useT, type ViewProps } from '@cryventure/viz';
 import {
+  chainLineCount,
   currentGroup,
   derivationChain,
   groupLabel,
   hostRows,
+  LONG_CHAIN_LINES,
+  operandGlyph,
+  opLabelKey,
   resultGroups,
   rowStatus,
   wordHex,
   type ChainLink,
   type ResultGroup,
   type RowStatus,
-} from './keyScheduleModel.ts';
+} from './derivationModel.ts';
 import { createSourceMarks, type SourceMarks } from './sourceMarks.ts';
-import './keySchedule.css';
+import './derivation.css';
 
 /**
- * Key schedule (any `derivation` facet): result words grouped into rows headed by the producer's
+ * Derivation (any `derivation` facet: the AES key schedule, HKDF, PBKDF2, TLS PRFs …), headed by the
+ * facet's `title` (else the view title): result values grouped into rows headed by the producer's
  * group labels (wrapping at narrow widths), the most recently used group marked. Selecting a word
  * (click / Enter / Space) discloses its derivation chain inline, directly beneath the row that lists
  * it; selecting it again or Escape closes it. Hover and focus never change the layout: they only
  * mark the word's source words (`data-source`), re-rendering just the words whose mark flips.
- * Styled by `keySchedule.css` (class names only, no inline styles).
+ * Chain lines name their op from the view's catalog (raw op name otherwise); a node with a `zoom`
+ * links to that lab via the host's `labHref` (no link without one). Long chains scroll in the panel.
+ * Styled by `derivation.css` (class names only, no inline styles).
  */
-const XOR_GLYPH = '⊕';
 const ARROW_GLYPH = '→';
 const CURRENT_GLYPH = '▸';
 
-const STATUS_KEYS = { loading: 'view.key-schedule.loading', missing: 'view.key-schedule.missing' } as const;
+const STATUS_KEYS = { loading: 'view.derivation.loading', missing: 'view.derivation.missing' } as const;
 
 /** Row heading per status; `{{group}}` is the group's label. Used rows show the label alone. */
 const STATUS_LABEL_KEY: Readonly<Record<RowStatus, string | undefined>> = {
-  current: 'view.key-schedule.groupCurrent',
+  current: 'view.derivation.groupCurrent',
   used: undefined,
-  upcoming: 'view.key-schedule.groupUpcoming',
+  upcoming: 'view.derivation.groupUpcoming',
 };
 
 interface WordButtonProps {
@@ -68,10 +74,10 @@ const WordButton = memo(function WordButton({ word, expanded, chainId, onToggle,
   return (
     <button
       type="button"
-      className="cv-keyschedule__word"
+      className="cv-derivation__word"
       aria-expanded={expanded}
       aria-controls={expanded ? chainId : undefined}
-      aria-label={t('view.key-schedule.word', { name, hex })}
+      aria-label={t('view.derivation.word', { name, hex })}
       title={name}
       data-node={word.id}
       data-source={isSource ? '' : undefined}
@@ -91,7 +97,7 @@ function useGroupName(facet: DerivationFacet, group: number | undefined): string
   const t = useT();
   const label = groupLabel(facet, group);
   if (label !== undefined) return t(label);
-  return group === undefined ? t('view.key-schedule.ungrouped') : t('view.key-schedule.group', { n: group });
+  return group === undefined ? t('view.derivation.ungrouped') : t('view.derivation.group', { n: group });
 }
 
 interface GroupItemProps {
@@ -114,12 +120,12 @@ const GroupItem = memo(function GroupItem({ facet, row, status, selectedId, chai
   const statusKey = STATUS_LABEL_KEY[status];
   const current = status === 'current';
   return (
-    <li className="cv-keyschedule__row" data-status={status} aria-current={current ? 'step' : undefined}>
-      <span id={labelId} className="cv-keyschedule__label">
+    <li className="cv-derivation__row" data-status={status} aria-current={current ? 'step' : undefined}>
+      <span id={labelId} className="cv-derivation__label">
         {current && <span aria-hidden="true">{CURRENT_GLYPH} </span>}
         {statusKey === undefined ? name : t(statusKey, { group: name })}
       </span>
-      <ul className="cv-keyschedule__words" aria-labelledby={labelId}>
+      <ul className="cv-derivation__words" aria-labelledby={labelId}>
         {row.words.map((word) => (
           <li key={word.id}>
             <WordButton word={word} expanded={selectedId === word.id} chainId={chainId} onToggle={onToggle} marks={marks} />
@@ -131,42 +137,84 @@ const GroupItem = memo(function GroupItem({ facet, row, status, selectedId, chai
   );
 });
 
-/** One line of the chain: a glyph column, the value's name and its hex (FIPS 197 Appendix A layout). */
-function ChainRow({ glyph, node, ...rest }: { glyph: string; node: DerivationNode } & Omit<ComponentProps<'li'>, 'children'>) {
+/** The op's name from the view's catalog, else the raw op (e.g. a producer-specific `pbkdf2Iteration`). */
+function useOpLabel(op: string): string {
+  const t = useT();
+  const key = opLabelKey(op);
+  return key === undefined ? op : t(key);
+}
+
+/** The host's link to the lab computing a node (`useLabActions().labHref`); `undefined` = no link. */
+function useZoomHref(zoom: LabZoom | undefined): string | undefined {
+  const { labHref } = useLabActions();
+  return zoom === undefined ? undefined : labHref?.(zoom);
+}
+
+function ZoomLink({ node }: { node: DerivationNode }) {
+  const t = useT();
+  const href = useZoomHref(node.zoom);
+  if (href === undefined) return null;
+  return (
+    <a className="cv-derivation__zoom" href={href} aria-label={t('view.derivation.zoomLabel', { name: t(node.label) })}>
+      {t('view.derivation.zoom')}
+    </a>
+  );
+}
+
+interface ChainRowProps extends Omit<ComponentProps<'li'>, 'children'> {
+  glyph: string;
+  node: DerivationNode;
+  /** The op that produced `node`, shown before its name (omitted for the chain's starting value). */
+  op?: string;
+}
+
+/** One line of the chain: a glyph column, the op, the value's name and its hex (FIPS 197 Appendix A layout). */
+function ChainRow({ glyph, node, op, ...rest }: ChainRowProps) {
   const t = useT();
   return (
-    <li className="cv-keyschedule__link" {...rest}>
-      <span className="cv-keyschedule__glyph" aria-hidden="true">
+    <li className="cv-derivation__link" {...rest}>
+      <span className="cv-derivation__glyph" aria-hidden="true">
         {glyph}
       </span>
-      <span className="cv-keyschedule__name">{t(node.label)}</span> <code className="cv-keyschedule__hex">{wordHex(node.bytes)}</code>
+      <span className="cv-derivation__name">
+        {op !== undefined && <OpTag op={op} />}
+        {t(node.label)}
+      </span>{' '}
+      <code className="cv-derivation__hex">{wordHex(node.bytes)}</code>
+      <ZoomLink node={node} />
     </li>
   );
 }
 
-function OperandRow({ node }: { node: DerivationNode }) {
-  const t = useT();
-  const label = t('view.key-schedule.xorWith', { name: t(node.label), hex: wordHex(node.bytes) });
-  return <ChainRow glyph={XOR_GLYPH} node={node} aria-label={label} data-operand="" />;
+function OpTag({ op }: { op: string }) {
+  return <span className="cv-derivation__op">{useOpLabel(op)}</span>;
 }
 
-/** XOR operands on their own lines, then the value they produce (`→`); the first link has no glyph. */
+/** An operand combined into `into` (e.g. XORed), announced as "XOR with Rcon[1] (01000000)". */
+function OperandRow({ node, into }: { node: DerivationNode; into: string }) {
+  const t = useT();
+  const label = t('view.derivation.operand', { op: useOpLabel(into), name: t(node.label), hex: wordHex(node.bytes) });
+  return <ChainRow glyph={operandGlyph(into)} node={node} aria-label={label} data-operand="" />;
+}
+
+/** Operands on their own lines, then the value they produce (`→`, with its op); the first link has neither. */
 function LinkRows({ link, first, last }: { link: ChainLink; first: boolean; last: boolean }) {
+  const { node } = link;
   return (
     <>
       {link.operands.map((operand) => (
-        <OperandRow key={operand.id} node={operand} />
+        <OperandRow key={operand.id} node={operand} into={node.op} />
       ))}
-      <ChainRow glyph={first ? '' : ARROW_GLYPH} node={link.node} data-op={link.node.op} data-result={last ? '' : undefined} />
+      <ChainRow glyph={first ? '' : ARROW_GLYPH} node={node} op={first ? undefined : node.op} data-op={node.op} data-result={last ? '' : undefined} />
     </>
   );
 }
 
 function ChainBody({ links, name }: { links: ChainLink[]; name: string }) {
   const t = useT();
-  if (links.length <= 1) return <p>{t('view.key-schedule.fromKey', { name })}</p>;
+  if (links.length <= 1) return <p>{t('view.derivation.input', { name })}</p>;
   return (
-    <ol className="cv-keyschedule__links">
+    <ol className="cv-derivation__links">
       {links.map((link, index) => (
         <LinkRows key={link.node.id} link={link} first={index === 0} last={index === links.length - 1} />
       ))}
@@ -186,10 +234,20 @@ function ChainPanel({ id, word, links, ref }: ChainPanelProps) {
   const t = useT();
   const titleId = useId();
   const name = t(word.label);
+  // A long chain scrolls inside its own box; as a scroll container it must be reachable by keyboard.
+  const long = chainLineCount(links) > LONG_CHAIN_LINES;
   return (
-    <div id={id} ref={ref} className="cv-keyschedule__chain" role="region" aria-labelledby={titleId}>
-      <p id={titleId} className="cv-keyschedule__chain-title">
-        {t('view.key-schedule.chainTitle', { name })}
+    <div
+      id={id}
+      ref={ref}
+      className="cv-derivation__chain"
+      role="region"
+      aria-labelledby={titleId}
+      data-long={long ? '' : undefined}
+      tabIndex={long ? 0 : undefined}
+    >
+      <p id={titleId} className="cv-derivation__chain-title">
+        {t('view.derivation.chainTitle', { name })}
       </p>
       <ChainBody links={links} name={name} />
     </div>
@@ -200,9 +258,9 @@ function ChainPanel({ id, word, links, ref }: ChainPanelProps) {
 function SelectionAnnouncer({ facet, word, host }: { facet: DerivationFacet; word: DerivationNode | undefined; host: ResultGroup | undefined }) {
   const t = useT();
   const group = useGroupName(facet, host?.group);
-  const text = word === undefined ? '' : t('view.key-schedule.announceOpen', { name: t(word.label), group });
+  const text = word === undefined ? '' : t('view.derivation.announceOpen', { name: t(word.label), group });
   return (
-    <p className="cv-keyschedule__announcer" aria-live="polite">
+    <p className="cv-derivation__announcer" aria-live="polite">
       {text}
     </p>
   );
@@ -262,9 +320,10 @@ function useCarrySelectionToNewFacet(facet: DerivationFacet, selectedRef: { read
   }, [facet, selectedRef, choose]);
 }
 
-function KeySchedule({ facet }: { facet: DerivationFacet }) {
+function Derivation({ facet }: { facet: DerivationFacet }) {
   const t = useT();
   const chainId = useId();
+  const titleId = useId();
   const step = useLab((state) => state.step);
   const rows = useMemo(() => resultGroups(facet), [facet]);
   const hosts = useMemo(() => hostRows(rows), [rows]);
@@ -281,9 +340,12 @@ function KeySchedule({ facet }: { facet: DerivationFacet }) {
     close();
   };
   return (
-    <section className="cv-keyschedule" aria-label={t('view.key-schedule.title')} onKeyDown={onKeyDown}>
-      <p className="cv-keyschedule__hint">{t('view.key-schedule.hint')}</p>
-      <ol className="cv-keyschedule__rows">
+    <section className="cv-derivation" aria-labelledby={titleId} onKeyDown={onKeyDown}>
+      <p id={titleId} className="cv-derivation__title">
+        {t(facet.title ?? 'view.derivation.title')}
+      </p>
+      <p className="cv-derivation__hint">{t('view.derivation.hint')}</p>
+      <ol className="cv-derivation__rows">
         {rows.map((row) => (
           <GroupItem
             key={row.group ?? 'ungrouped'}
@@ -304,9 +366,9 @@ function KeySchedule({ facet }: { facet: DerivationFacet }) {
   );
 }
 
-/** Result words of the `derivation` facet grouped into rows, with the derivation of one word. */
-export default function KeyScheduleView(_props: ViewProps) {
+/** Result values of the `derivation` facet grouped into rows, with the derivation of one value. */
+export default function DerivationView(_props: ViewProps) {
   const facet = useFacet<DerivationFacet>('derivation');
   if (facet.status !== 'ready') return <ViewStatus status={facet.status} keys={STATUS_KEYS} />;
-  return <KeySchedule facet={facet.data} />;
+  return <Derivation facet={facet.data} />;
 }

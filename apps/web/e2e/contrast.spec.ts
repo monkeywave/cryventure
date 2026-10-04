@@ -31,12 +31,12 @@ const LAB_LABELS = [
   '.cv-caption__text',
 ].join(', ');
 const KEY_SCHEDULE_TEXT = [
-  '.cv-keyschedule__hint',
-  '.cv-keyschedule__label',
-  '.cv-keyschedule__word',
-  '.cv-keyschedule__chain-title',
-  '.cv-keyschedule__name',
-  '.cv-keyschedule__hex',
+  '.cv-derivation__hint',
+  '.cv-derivation__label',
+  '.cv-derivation__word',
+  '.cv-derivation__chain-title',
+  '.cv-derivation__name',
+  '.cv-derivation__hex',
 ].join(', ');
 
 interface TextSample {
@@ -113,7 +113,7 @@ async function openKeyScheduleChain(page: Page): Promise<Locator> {
   const lab = labLocator(page, KEY_SCHEDULE_LAB.labId);
   await lab.scrollIntoViewIfNeeded();
   await lab.getByRole('button', { name: /a0fafe17$/ }).click();
-  await expect(lab.locator('.cv-keyschedule__chain')).toBeVisible();
+  await expect(lab.locator('.cv-derivation__chain')).toBeVisible();
   return lab;
 }
 
@@ -137,7 +137,7 @@ for (const scheme of SCHEMES) {
         await expectLegible(lab, KEY_SCHEDULE_TEXT);
         await expectLegible(lab, LAB_LABELS);
         expect(await colorContrastViolations(page, KEY_SCHEDULE_LAB.labId)).toEqual([]);
-        await lab.locator('.cv-keyschedule__chain').scrollIntoViewIfNeeded();
+        await lab.locator('.cv-derivation__chain').scrollIntoViewIfNeeded();
         await page.screenshot({ path: `test-results/contrast-keyschedule-${scheme}-${device}.png` });
       });
     });

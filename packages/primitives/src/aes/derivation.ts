@@ -116,5 +116,5 @@ export function keyScheduleDerivation(schedule: KeySchedule, roundKeySteps: Roun
     const temp = tempFor(builder, words[i - 1]!, i, nk);
     words.push(builder.word(i, 'xor', bytes, [temp.id, words[i - nk]!.id], 'word'));
   });
-  return { kind: 'derivation', schemaVersion: 1, nodes: builder.nodes, groups: roundKeyGroups(rounds) };
+  return { kind: 'derivation', schemaVersion: 1, title: i18nRef(`${LABEL_PREFIX}title`), nodes: builder.nodes, groups: roundKeyGroups(rounds) };
 }

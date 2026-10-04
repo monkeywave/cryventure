@@ -1,5 +1,5 @@
 import type { DerivationFacet } from '@cryventure/core';
-import { sourceWordIds } from './keyScheduleModel.ts';
+import { sourceWordIds } from './derivationModel.ts';
 
 /**
  * Which words are marked as sources of the previewed (hovered / focused) or else selected word.

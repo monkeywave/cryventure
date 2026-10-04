@@ -2,6 +2,7 @@ import { useMemo, type ComponentType, type ReactNode } from 'react';
 import { i18nRef, type I18nRef, type Lens, type Messages } from '@cryventure/core';
 import { ErrorBoundary, I18nProvider, LabRoot, Workspace, useT, type LabMode, type ParamsRequestHandler } from '@cryventure/viz';
 import type { LabParams, ReadySession } from '../labs/labSession.ts';
+import { migrateStoredLayout, resolveLayoutAliases } from '../labs/viewAliases.ts';
 import { useLabLens } from '../progress/useLabLens.ts';
 import { ComputingStatus } from './lab/ComputingStatus.tsx';
 import { InvalidLinkNotice, LabError } from './lab/LabMessages.tsx';
@@ -68,8 +69,18 @@ interface ReadyLabProps {
   paramPanel: boolean;
 }
 
-function ReadyLab({ labId, layout, lens, session, params, onParams, onRequestParams, requestError, computing, toolbar: Toolbar, views: viewsOption, paramPanel }: ReadyLabProps) {
+/**
+ * The layout preset with renamed view ids resolved (`VIEW_ID_ALIASES`). Saved panel sizes are migrated
+ * first, during render, so the workspace (rendered below) already reads them under the current ids.
+ */
+function useResolvedLayout(labId: string, layout: string | undefined): string | undefined {
+  useMemo(() => migrateStoredLayout(labId), [labId]);
+  return useMemo(() => resolveLayoutAliases(layout), [layout]);
+}
+
+function ReadyLab({ labId, layout: authoredLayout, lens, session, params, onParams, onRequestParams, requestError, computing, toolbar: Toolbar, views: viewsOption, paramPanel }: ReadyLabProps) {
   const t = useT();
+  const layout = useResolvedLayout(labId, authoredLayout);
   const views = useMemo(() => viewsToShow(session.views, layout, viewsOption), [session.views, layout, viewsOption]);
   useHashSync(labId, session.store, session.params, { clearLink: session.notice });
   return (

@@ -105,3 +105,31 @@ export function sourceWordIds(facet: DerivationFacet, id: string): string[] {
 export function hostRows(rows: readonly ResultGroup[]): ReadonlyMap<string, ResultGroup> {
   return new Map(rows.flatMap((row) => row.words.map((word) => [word.id, row] as const)));
 }
+
+/**
+ * Ops the view names from its own catalog (`view.derivation.op.<op>`): the AES key schedule's and the
+ * MAC/KDF producers'. Any other op is shown by its raw name.
+ */
+export const OP_CATALOG = ['input', 'rotWord', 'subWord', 'rcon', 'xor', 'hmac', 'concat', 'counter', 'truncate', 'hkdfLabel', 'split'] as const;
+
+const CATALOGUED_OPS: ReadonlySet<string> = new Set(OP_CATALOG);
+
+/** The catalog key naming `op`, or `undefined` for an op outside the catalog. */
+export function opLabelKey(op: string): string | undefined {
+  return CATALOGUED_OPS.has(op) ? `view.derivation.op.${op}` : undefined;
+}
+
+/** Glyph in front of an operand combined into a node by `op` (`⊕` for XOR, `‖` for concatenation). */
+export function operandGlyph(op: string): string {
+  if (op === 'xor') return '⊕';
+  if (op === 'concat') return '‖';
+  return '+';
+}
+
+/** Chains with more lines than this scroll inside their panel (PBKDF2 iterations, P_hash rounds). */
+export const LONG_CHAIN_LINES = 12;
+
+/** Lines a chain renders: every link's operands plus the link itself. */
+export function chainLineCount(links: readonly ChainLink[]): number {
+  return links.reduce((count, link) => count + link.operands.length + 1, 0);
+}

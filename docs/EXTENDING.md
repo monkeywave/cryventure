@@ -223,12 +223,15 @@ the op's `ops[op]` short label instead of the level template when the manifest d
 Mark the nodes that views should list with `result: true`; intermediates (RotWord, SubWord, …)
 leave it unset. Producers that only set `group` still work: `isResultNode(node)` is
 `node.result ?? node.group !== undefined`. The optional `DerivationFacet.groups`
-(`{ id, label: I18nRef }[]`) names each `group` value, for example "Round key 3"; the key-schedule
+(`{ id, label: I18nRef }[]`) names each `group` value, for example "Round key 3"; the derivation
 view lists results under these labels (generic "Group n" otherwise). The optional
-`DerivationFacet.title` (an `I18nRef`, e.g. "HKDF", "Key schedule") is the view's heading. A node may
+`DerivationFacet.title` (an `I18nRef`, e.g. "HKDF", "Key schedule") is the view's heading (else
+"Derivation"). The view names each chain line's `op` from its catalog (`view.derivation.op.*`: the
+AES ops plus `hmac`, `concat`, `xor`, `counter`, `truncate`, `hkdfLabel`, `split`; any other op shows
+its raw name). A node may
 carry `zoom: LabZoom` (`{ producerId, params }`, every param a string): a link to another
 producer's lab computing that node, e.g. the hash call inside an HMAC via that producer's
-`hashLabParams`. `validateDerivationFacet` (core) checks `kind`, labels, `title` and every `zoom`
+`hashLabParams`; the view renders it via the host's `useLabActions().labHref` (no link without one). `validateDerivationFacet` (core) checks `kind`, labels, `title` and every `zoom`
 (kebab-case `producerId`, string params); the contract kit runs it and checks the `title` and group
 label keys and `{{params}}` in EN and DE.
 
@@ -328,6 +331,10 @@ under `view.<id>.*`.
   narrow labs the viz `Workspace` leaves `'caption'` views out of the stacked panels, because the
   player's caption shows the same content there (the narration view does this). Views are ordered
   by `order` (unset last), then id; `viewsFor` applies this order (`compareViews` in core).
+
+Renaming a view id (as `key-schedule` → `derivation` in M7) adds the old id to `VIEW_ID_ALIASES`
+(`apps/web/src/labs/viewAliases.ts`): lesson `layout` presets and the panel sizes a reader saved
+are resolved through it. Deep links never carry view ids.
 
 ### Layout presets
 

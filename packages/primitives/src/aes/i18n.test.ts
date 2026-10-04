@@ -83,10 +83,10 @@ describe('i18n coverage', () => {
     }
   });
 
-  it('every derivation node and group label ref (AES-128 and AES-256) exists in both locales with matching params', () => {
+  it('every derivation node, group label and title ref (AES-128 and AES-256) exists in both locales with matching params', () => {
     const labels = [16, 32].flatMap((length) => {
       const facet = keyScheduleDerivation(keySchedule(new Array<number>(length).fill(0)));
-      return [...facet.nodes.map((node) => node.label), ...(facet.groups ?? []).map((group) => group.label)];
+      return [...facet.nodes.map((node) => node.label), ...(facet.groups ?? []).map((group) => group.label), ...(facet.title === undefined ? [] : [facet.title])];
     });
     for (const [locale, messages] of Object.entries(LOCALES)) {
       for (const ref of labels) expect(extractParams(messages[ref.key] ?? '').sort(), `${locale}:${ref.key}`).toEqual(Object.keys(ref.params ?? {}).sort());

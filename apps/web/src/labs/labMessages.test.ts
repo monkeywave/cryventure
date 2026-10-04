@@ -41,7 +41,7 @@ describe('labMessages', () => {
       expect([...viewNamespaces(labMessages('en', producer))].sort()).toEqual([...offered].sort());
     }
     const xorViews = viewNamespaces(labMessages('en', producerRegistry.require('xor')));
-    for (const hidden of ['key-schedule', 'memory', 'instructions', 'registers']) expect(xorViews).not.toContain(hidden);
+    for (const hidden of ['derivation', 'memory', 'instructions', 'registers']) expect(xorViews).not.toContain(hidden);
     expect(viewNamespaces(labMessages('en', AES))).toContain('memory');
   });
 

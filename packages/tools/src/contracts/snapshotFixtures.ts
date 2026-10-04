@@ -20,7 +20,7 @@ import {
   GCM_CHAIN_VIEW_FIXTURE,
   GCM_WIRE_VIEW_FIXTURE,
 } from './gcmViewFixtures.ts';
-import { buildKeyScheduleViewFixture, KEY_SCHEDULE_VIEW_FIXTURE } from './keyScheduleFixture.ts';
+import { buildDerivationViewFixture, DERIVATION_VIEW_FIXTURE } from './derivationViewFixture.ts';
 import { buildMathViewFixture, MATH_VIEW_FIXTURE } from './mathViewFixture.ts';
 import { buildModeViewFixture, MODE_VIEW_FIXTURE } from './modeViewFixture.ts';
 import { buildStateViewFixture, STATE_VIEW_FIXTURE } from './stateViewFixture.ts';
@@ -45,7 +45,7 @@ export const SNAPSHOT_FIXTURES: readonly SnapshotFixture[] = [
   { path: FIELD_VIEW_FIXTURE, build: buildFieldViewFixture },
   { path: GCM_CHAIN_VIEW_FIXTURE, build: buildGcmChainViewFixture },
   { path: GCM_WIRE_VIEW_FIXTURE, build: buildGcmWireViewFixture },
-  { path: KEY_SCHEDULE_VIEW_FIXTURE, build: buildKeyScheduleViewFixture },
+  { path: DERIVATION_VIEW_FIXTURE, build: buildDerivationViewFixture },
   { path: MATH_VIEW_FIXTURE, build: buildMathViewFixture },
   { path: MODE_VIEW_FIXTURE, build: buildModeViewFixture },
   { path: STATE_VIEW_FIXTURE, build: buildStateViewFixture },

@@ -43,4 +43,5 @@ export { parseLayoutPreset } from './workspace/planPanels.ts';
 export { ViewStatus, type ViewStatusKind, type ViewStatusProps } from './workspace/ViewStatus.tsx';
 export { ErrorBoundary, type ErrorBoundaryProps } from './workspace/ErrorBoundary.tsx';
 export { safeStorage } from './workspace/safeStorage.ts';
+export { layoutStorageKey } from './workspace/layoutStorage.ts';
 export { useWidthObserver } from './workspace/useContainerWidth.ts';

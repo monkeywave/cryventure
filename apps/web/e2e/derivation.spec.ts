@@ -1,6 +1,6 @@
 import { expect, test, type Locator, type Page } from '@playwright/test';
-import viewsEn from '../../../packages/views/src/key-schedule/i18n/en.json' with { type: 'json' };
-import viewsDe from '../../../packages/views/src/key-schedule/i18n/de.json' with { type: 'json' };
+import viewsEn from '../../../packages/views/src/derivation/i18n/en.json' with { type: 'json' };
+import viewsDe from '../../../packages/views/src/derivation/i18n/de.json' with { type: 'json' };
 import aesEn from '../../../packages/primitives/src/aes/i18n/en.json' with { type: 'json' };
 import aesDe from '../../../packages/primitives/src/aes/i18n/de.json' with { type: 'json' };
 import { interpolate } from '@cryventure/core';
@@ -16,22 +16,22 @@ const W4_CHAIN = ['cf4f3c09', '8a84eb01', '01000000', '8b84eb01', '2b7e1516', W4
 /** "How Word w[i] is derived" / "So entsteht Wort w[i]" from the shipped catalogs. */
 function chainTitle(lang: Lang, i: number): string {
   const { view, aes } = MESSAGES[lang];
-  return interpolate(view['view.key-schedule.chainTitle'], { name: interpolate(aes['plugin.aes.derivation.word'], { i }) });
+  return interpolate(view['view.derivation.chainTitle'], { name: interpolate(aes['plugin.aes.derivation.word'], { i }) });
 }
 
 async function openKeySchedule(page: Page, lang: Lang): Promise<Locator> {
   await page.goto(`${lang}/${KEY_SCHEDULE_LAB.path}`);
   const lab = labLocator(page, KEY_SCHEDULE_LAB.labId);
   await lab.scrollIntoViewIfNeeded();
-  const schedule = lab.locator('section.cv-keyschedule');
-  await expect(schedule.locator('.cv-keyschedule__word')).toHaveCount(44);
+  const schedule = lab.locator('section.cv-derivation');
+  await expect(schedule.locator('.cv-derivation__word')).toHaveCount(44);
   return schedule;
 }
 
 const word = (schedule: Locator, hex: string) =>
   schedule.getByRole('button', { name: new RegExp(`${hex}$`) });
 const rowOf = (chain: Locator) =>
-  chain.locator('xpath=ancestor::li[contains(@class, "cv-keyschedule__row")][1]');
+  chain.locator('xpath=ancestor::li[contains(@class, "cv-derivation__row")][1]');
 
 /** Round index of the row that contains `chain`, and whether the next row follows it directly. */
 async function hostRow(chain: Locator): Promise<{ index: number; nextIsRow: boolean }> {
@@ -39,15 +39,15 @@ async function hostRow(chain: Locator): Promise<{ index: number; nextIsRow: bool
     index: [...row.parentElement!.children].indexOf(row),
     nextIsRow:
       row.nextElementSibling === null ||
-      row.nextElementSibling.classList.contains('cv-keyschedule__row'),
+      row.nextElementSibling.classList.contains('cv-derivation__row'),
   }));
 }
 
 /** Every chain line keeps its hex on one line, inside the panel. */
 async function expectHexFits(chain: Locator): Promise<void> {
-  const fits = await chain.locator('.cv-keyschedule__link').evaluateAll((lines) =>
+  const fits = await chain.locator('.cv-derivation__link').evaluateAll((lines) =>
     lines.every((line) => {
-      const hex = line.querySelector('.cv-keyschedule__hex')!.getBoundingClientRect();
+      const hex = line.querySelector('.cv-derivation__hex')!.getBoundingClientRect();
       const box = line.getBoundingClientRect();
       const lineHeight = parseFloat(getComputedStyle(line).lineHeight) || 20;
       return hex.right <= box.right + 0.5 && hex.height < lineHeight * 1.5;
@@ -77,10 +77,10 @@ for (const lang of ['en', 'de'] as const) {
       const last = schedule.getByRole('region', { name: chainTitle(lang, 40) });
       await expect(last).toBeInViewport();
       expect((await hostRow(last)).index).toBe(10);
-      await expect(schedule.locator('.cv-keyschedule__chain')).toHaveCount(1);
+      await expect(schedule.locator('.cv-derivation__chain')).toHaveCount(1);
 
       await page.keyboard.press('Escape');
-      await expect(schedule.locator('.cv-keyschedule__chain')).toHaveCount(0);
+      await expect(schedule.locator('.cv-derivation__chain')).toHaveCount(0);
       await expectNoHorizontalOverflow(page);
     });
   }
@@ -93,7 +93,7 @@ test('hover marks the source words and never opens a chain', async ({ page }) =>
   await expect(schedule.locator('[data-source]')).toHaveCount(2);
   await expect(word(schedule, '09cf4f3c')).toHaveAttribute('data-source', '');
   await expect(word(schedule, '2b7e1516')).toHaveAttribute('data-source', '');
-  await expect(schedule.locator('.cv-keyschedule__chain')).toHaveCount(0);
+  await expect(schedule.locator('.cv-derivation__chain')).toHaveCount(0);
   expect((await schedule.boundingBox())?.height).toBe(before?.height);
 });
 
@@ -101,7 +101,7 @@ test('an open chain has no serious or critical axe violations (EN, dark)', async
   await page.emulateMedia({ colorScheme: 'dark' });
   const schedule = await openKeySchedule(page, 'en');
   await word(schedule, W4).click();
-  await expect(schedule.locator('.cv-keyschedule__chain')).toBeVisible();
+  await expect(schedule.locator('.cv-derivation__chain')).toBeVisible();
   expect(await blockingViolations(page)).toEqual([]);
 });
 
@@ -112,7 +112,7 @@ test('an open chain has no serious or critical axe violations on the whole page 
   await page.emulateMedia({ colorScheme: 'light' });
   const schedule = await openKeySchedule(page, 'de');
   await word(schedule, W4).click();
-  await expect(schedule.locator('.cv-keyschedule__chain')).toBeVisible();
+  await expect(schedule.locator('.cv-derivation__chain')).toBeVisible();
   expect(await blockingViolations(page)).toEqual([]);
 });
 
@@ -127,7 +127,7 @@ test.describe('screenshots', () => {
       const schedule = await openKeySchedule(page, lang);
       await word(schedule, W4).click();
       await word(schedule, W4).hover();
-      await expect(schedule.locator('.cv-keyschedule__chain')).toBeInViewport();
+      await expect(schedule.locator('.cv-derivation__chain')).toBeInViewport();
       await schedule.screenshot({ path: `test-results/${file}`, animations: 'disabled' });
     });
   }

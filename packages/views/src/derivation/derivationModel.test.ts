@@ -1,15 +1,19 @@
 import { isResultNode, type DerivationFacet, type DerivationNode } from '@cryventure/core';
 import { describe, expect, it } from 'vitest';
 import {
+  chainLineCount,
   currentGroup,
   derivationChain,
   groupLabel,
   hostRows,
+  OP_CATALOG,
+  operandGlyph,
+  opLabelKey,
   resultGroups,
   rowStatus,
   sourceWordIds,
   wordHex,
-} from './keyScheduleModel.ts';
+} from './derivationModel.ts';
 import { aesDerivation } from './testFixture.ts';
 
 const ids = (nodes: { node: DerivationNode }[]) => nodes.map((link) => link.node.id);
@@ -189,5 +193,27 @@ describe('resultGroups without groups', () => {
       [2, ['b']],
       [undefined, ['a']],
     ]);
+  });
+});
+
+describe('op catalog', () => {
+  it('names the AES and MAC/KDF ops from view keys and leaves other ops to their raw name', () => {
+    for (const op of ['hmac', 'concat', 'xor', 'counter', 'truncate', 'hkdfLabel', 'split', 'input', 'rotWord', 'subWord', 'rcon']) {
+      expect(OP_CATALOG).toContain(op);
+      expect(opLabelKey(op)).toBe(`view.derivation.op.${op}`);
+    }
+    expect(opLabelKey('frobnicate')).toBeUndefined();
+    expect(opLabelKey('toString')).toBeUndefined();
+  });
+
+  it('marks operands by how the op combines them', () => {
+    expect(operandGlyph('xor')).toBe('⊕');
+    expect(operandGlyph('concat')).toBe('‖');
+    expect(operandGlyph('hmac')).toBe('+');
+  });
+
+  it('counts the lines of a chain (operands plus links)', () => {
+    expect(chainLineCount(derivationChain(aesDerivation, 'w/4'))).toBe(7);
+    expect(chainLineCount([])).toBe(0);
   });
 });

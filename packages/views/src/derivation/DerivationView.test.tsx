@@ -6,24 +6,24 @@ import { createLabStore } from '@cryventure/viz';
 import { renderLab } from '@cryventure/viz/testing';
 import { loadVizMessages } from '@cryventure/viz/messages';
 import { loadViewMessages } from '../messages.ts';
-import KeyScheduleView from './KeyScheduleView.tsx';
-import type { DerivationFacet, DerivationNode, TraceBundle } from '@cryventure/core';
-import { aesDerivation, derivationLabels, keyScheduleBundle } from './testFixture.ts';
+import DerivationView from './DerivationView.tsx';
+import type { DerivationFacet, DerivationNode, LabZoom, TraceBundle } from '@cryventure/core';
+import { aesDerivation, derivationLabels, aesDerivationBundle } from './testFixture.ts';
 
-const view = <KeyScheduleView labId="fixture" lens="engineer" />;
+const view = <DerivationView labId="fixture" lens="engineer" />;
 
 function renderEnglish() {
   return renderLab(view, {
-    bundle: keyScheduleBundle(),
+    bundle: aesDerivationBundle(),
     messages: { ...loadViewMessages('en'), ...derivationLabels.en },
   });
 }
 
 const live = () => document.querySelector('[aria-live="polite"]') as HTMLElement;
 const word = (hex: string) => screen.getByRole('button', { name: new RegExp(`${hex}$`) });
-const chain = () => document.querySelector<HTMLElement>('.cv-keyschedule__chain');
+const chain = () => document.querySelector<HTMLElement>('.cv-derivation__chain');
 const roundItem = (round: number) =>
-  document.querySelectorAll('.cv-keyschedule__row')[round] as HTMLElement;
+  document.querySelectorAll('.cv-derivation__row')[round] as HTMLElement;
 const sources = () =>
   [...document.querySelectorAll('[data-source]')]
     .map((node) => node.getAttribute('data-node'))
@@ -31,7 +31,7 @@ const sources = () =>
 
 /** `bundle` with its derivation facet replaced (a re-run of the lab with new params). */
 function withDerivation(derivation: DerivationFacet): TraceBundle {
-  const bundle = keyScheduleBundle();
+  const bundle = aesDerivationBundle();
   return { ...bundle, facets: { ...bundle.facets, 'derivation@default': derivation } };
 }
 
@@ -65,7 +65,7 @@ function sameShapeDerivation(): DerivationFacet {
 
 const nodeButton = (id: string) => document.querySelector<HTMLElement>(`[data-node="${id}"]`)!;
 
-describe('KeyScheduleView selection across a new derivation facet', () => {
+describe('DerivationView selection across a new derivation facet', () => {
   const render = (derivation: DerivationFacet) =>
     renderLab(view, { bundle: withDerivation(derivation), messages: { ...loadViewMessages('en'), ...derivationLabels.en } });
 
@@ -93,16 +93,16 @@ describe('KeyScheduleView selection across a new derivation facet', () => {
   });
 
   it('does not touch an existing lab selection on mount', () => {
-    const store = createLabStore(keyScheduleBundle());
+    const store = createLabStore(aesDerivationBundle());
     store.getState().select('3/roundKey');
     renderLab(view, { store, messages: { ...loadViewMessages('en'), ...derivationLabels.en } });
     expect(store.getState().selection.valueRefId).toBe('3/roundKey');
   });
 });
 
-describe('KeyScheduleView', () => {
+describe('DerivationView', () => {
   it('falls back to generic group headings without producer group labels', () => {
-    const bundle = keyScheduleBundle();
+    const bundle = aesDerivationBundle();
     const derivation = { ...aesDerivation, groups: undefined };
     renderLab(view, {
       bundle: { ...bundle, facets: { ...bundle.facets, 'derivation@default': derivation } },
@@ -118,7 +118,7 @@ describe('KeyScheduleView', () => {
       <Profiler id="ks" onRender={(_id, _phase, actual) => renders(actual)}>
         {view}
       </Profiler>,
-      { bundle: keyScheduleBundle(), messages: { ...loadViewMessages('en'), ...derivationLabels.en } },
+      { bundle: aesDerivationBundle(), messages: { ...loadViewMessages('en'), ...derivationLabels.en } },
     );
     renders.mockClear();
     fireEvent.mouseEnter(word('a0fafe17'));
@@ -127,12 +127,12 @@ describe('KeyScheduleView', () => {
     expect(renders).toHaveBeenCalledTimes(1);
   });
 
-  it('is styled by cv-keyschedule classes only (no inline styles)', () => {
+  it('is styled by cv-derivation classes only (no inline styles)', () => {
     renderEnglish();
-    expect(document.querySelector('section.cv-keyschedule')).toBeTruthy();
-    expect(document.querySelectorAll('.cv-keyschedule__row')).toHaveLength(11);
-    expect(document.querySelectorAll('button.cv-keyschedule__word')).toHaveLength(44);
-    expect(document.querySelectorAll('.cv-keyschedule [style]')).toHaveLength(0);
+    expect(document.querySelector('section.cv-derivation')).toBeTruthy();
+    expect(document.querySelectorAll('.cv-derivation__row')).toHaveLength(11);
+    expect(document.querySelectorAll('button.cv-derivation__word')).toHaveLength(44);
+    expect(document.querySelectorAll('.cv-derivation [style]')).toHaveLength(0);
   });
 
   it('lists 11 round keys of 4 focusable words', () => {
@@ -180,6 +180,7 @@ describe('KeyScheduleView', () => {
       expect(text).toContain(part);
     }
     expect(within(panel).getByLabelText('XOR with Round constant Rcon[1] (01000000)')).toBeTruthy();
+    expect([...panel.querySelectorAll('.cv-derivation__op')].map((tag) => tag.textContent)).toEqual(['RotWord', 'SubWord', 'XOR', 'XOR']);
     expect(panel.querySelector('[data-result]')?.textContent).toContain('a0fafe17');
   });
 
@@ -201,14 +202,14 @@ describe('KeyScheduleView', () => {
     renderEnglish();
     await userEvent.click(word('a0fafe17'));
     await userEvent.click(word('d014f9a8'));
-    expect(document.querySelectorAll('.cv-keyschedule__chain')).toHaveLength(1);
+    expect(document.querySelectorAll('.cv-derivation__chain')).toHaveLength(1);
     expect(roundItem(10).contains(chain())).toBe(true);
     await userEvent.click(word('d014f9a8'));
     expect(chain()).toBeNull();
     expect(live().textContent).toBe('');
     word('2b7e1516').focus();
     await userEvent.keyboard('{Enter}');
-    expect(chain()?.textContent).toContain('Key word w[0] is copied straight from the cipher key.');
+    expect(chain()?.textContent).toContain('Key word w[0] is an input: it is not computed from other values.');
     await userEvent.keyboard('{Escape}');
     expect(chain()).toBeNull();
     expect(document.activeElement).toBe(word('2b7e1516'));
@@ -246,7 +247,7 @@ describe('KeyScheduleView', () => {
 
   it('renders German', () => {
     renderLab(view, {
-      bundle: keyScheduleBundle(),
+      bundle: aesDerivationBundle(),
       messages: { ...loadVizMessages('de'), ...loadViewMessages('de'), ...derivationLabels.de },
     });
     expect(screen.getByRole('region', { name: 'Schlüsselplan' })).toBeTruthy();
@@ -255,16 +256,134 @@ describe('KeyScheduleView', () => {
   });
 
   it('explains when the derivation facet is missing', () => {
-    const bundle = keyScheduleBundle();
+    const bundle = aesDerivationBundle();
     renderLab(view, {
       bundle: { ...bundle, facets: { 'state@default': bundle.facets['state@default'] } },
       messages: loadViewMessages('en'),
     });
-    expect(screen.getByRole('status').textContent).toBe('This lab does not record a key schedule.');
+    expect(screen.getByRole('status').textContent).toBe('This lab does not record a derivation.');
   });
 
   it('shows a loading status without a bundle', () => {
     renderLab(view, { bundle: null, messages: loadViewMessages('en') });
-    expect(screen.getByRole('status').textContent).toBe('Preparing the key schedule…');
+    expect(screen.getByRole('status').textContent).toBe('Preparing the derivation…');
+  });
+});
+
+/** A two-step HMAC-style derivation: key ‖ counter → HMAC (zoomed into a hash lab) → truncated result. */
+function macDerivation(title?: DerivationFacet['title']): DerivationFacet {
+  const node = (id: string, op: string, inputs: string[], extra: Partial<DerivationNode> = {}): DerivationNode => ({
+    id,
+    label: { key: `fixture.${id}` },
+    bytes: [0xab, 0xcd],
+    op,
+    inputs,
+    ...extra,
+  });
+  return {
+    kind: 'derivation',
+    schemaVersion: 1,
+    ...(title === undefined ? {} : { title }),
+    nodes: [
+      node('prk', 'input', [], { result: true }),
+      node('info', 'hkdfLabel', []),
+      node('block', 'concat', ['prk', 'info']),
+      node('mac', 'hmac', ['block'], { zoom: { producerId: 'sha256', params: { message: 'abcd' } } }),
+      node('okm', 'pbkdf2Mix', ['mac'], { result: true }),
+    ],
+  };
+}
+
+const MAC_MESSAGES = {
+  ...loadViewMessages('en'),
+  'fixture.prk': 'PRK',
+  'fixture.info': 'Info',
+  'fixture.block': 'Block',
+  'fixture.mac': 'T(1)',
+  'fixture.okm': 'OKM',
+  'fixture.title': 'HKDF-Expand',
+};
+
+function renderMac(options: { title?: DerivationFacet['title']; labHref?: (zoom: LabZoom) => string | undefined } = {}) {
+  return renderLab(view, { bundle: withDerivation(macDerivation(options.title)), messages: MAC_MESSAGES, labHref: options.labHref });
+}
+
+describe('DerivationView heading', () => {
+  it("shows the facet's title (AES: Key schedule) and names the region by it", () => {
+    renderEnglish();
+    expect(document.querySelector('.cv-derivation__title')?.textContent).toBe('Key schedule');
+    expect(screen.getByRole('region', { name: 'Key schedule' })).toBeTruthy();
+  });
+
+  it('falls back to the view title without a facet title', () => {
+    renderMac();
+    expect(screen.getByRole('region', { name: 'Derivation' })).toBeTruthy();
+  });
+
+  it('renders a producer title such as HKDF-Expand', () => {
+    renderMac({ title: { key: 'fixture.title' } });
+    expect(screen.getByRole('region', { name: 'HKDF-Expand' })).toBeTruthy();
+  });
+});
+
+describe('DerivationView op labels and zoom links', () => {
+  it('names catalogued ops, falls back to the raw op name and marks operands by their op', async () => {
+    renderMac();
+    await userEvent.click(nodeButton('okm'));
+    const panel = screen.getByRole('region', { name: 'How OKM is derived' });
+    expect([...panel.querySelectorAll('.cv-derivation__op')].map((tag) => tag.textContent)).toEqual(['Concatenate', 'HMAC', 'pbkdf2Mix']);
+    expect(within(panel).getByLabelText('Concatenate with Info (abcd)')).toBeTruthy();
+    expect(panel.querySelector('[data-operand] .cv-derivation__glyph')?.textContent).toBe('‖');
+  });
+
+  it("links a node with a zoom to the host's lab", async () => {
+    const labHref = vi.fn((zoom: LabZoom) => `/en/lab/${zoom.producerId}/#p=${zoom.params.message}`);
+    renderMac({ labHref });
+    await userEvent.click(nodeButton('okm'));
+    const link = screen.getByRole('link', { name: 'Open the lab that computes T(1)' });
+    expect(link.getAttribute('href')).toBe('/en/lab/sha256/#p=abcd');
+    expect(link.textContent).toBe('Open this step’s lab');
+    expect(labHref).toHaveBeenCalledWith({ producerId: 'sha256', params: { message: 'abcd' } });
+  });
+
+  it('renders no link without a host labHref or when the host cannot link', async () => {
+    renderMac();
+    await userEvent.click(nodeButton('okm'));
+    expect(screen.queryByRole('link')).toBeNull();
+  });
+
+  it('renders no link when the host cannot link to that producer', async () => {
+    renderMac({ labHref: () => undefined });
+    await userEvent.click(nodeButton('okm'));
+    expect(screen.queryByRole('link')).toBeNull();
+  });
+
+  it('never links AES nodes (no zoom)', async () => {
+    renderLab(view, { bundle: aesDerivationBundle(), messages: { ...loadViewMessages('en'), ...derivationLabels.en }, labHref: () => '/x' });
+    await userEvent.click(word('a0fafe17'));
+    expect(screen.queryByRole('link')).toBeNull();
+  });
+});
+
+describe('DerivationView long chains', () => {
+  /** A chain of `length` counter steps after one input (PBKDF2-like). */
+  function chainOf(length: number): DerivationFacet {
+    const nodes: DerivationNode[] = [{ id: 'n/0', label: { key: 'fixture.prk' }, bytes: [0], op: 'input', inputs: [], result: true }];
+    for (let i = 1; i <= length; i++) nodes.push({ id: `n/${i}`, label: { key: 'fixture.block' }, bytes: [i], op: 'counter', inputs: [`n/${i - 1}`], result: i === length });
+    return { kind: 'derivation', schemaVersion: 1, nodes };
+  }
+
+  it('lets a long chain scroll inside its own focusable box; a short one does not', async () => {
+    renderLab(view, { bundle: withDerivation(chainOf(20)), messages: MAC_MESSAGES });
+    await userEvent.click(nodeButton('n/20'));
+    expect(chain()?.hasAttribute('data-long')).toBe(true);
+    expect(chain()?.getAttribute('tabindex')).toBe('0');
+  });
+
+  it('keeps the AES chain unboxed', async () => {
+    renderEnglish();
+    await userEvent.click(word('a0fafe17'));
+    expect(chain()?.hasAttribute('data-long')).toBe(false);
+    expect(chain()?.hasAttribute('tabindex')).toBe(false);
   });
 });

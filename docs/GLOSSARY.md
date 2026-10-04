@@ -18,7 +18,7 @@ Status: drafted in an AI editorial review (2026-10). A native-speaker sign-off i
 | ciphertext | **Geheimtext** (der) | One term only. „Geheimtext“ forms a transparent pair with „Klartext“ and is the common term in German teaching material (Beutelspacher, Wikipedia). „Chiffrat“ (BSI) is correct but opaque for beginners; „Chiffretext“ is an anglicism. Both are rejected by the lint. |
 | cipher | **Chiffre** (die), **Verschlüsselungsverfahren** | „die Chiffre“ for the algorithm (AES as a whole). |
 | cipher key | **Schlüssel**; „Chiffrierschlüssel“ only where it must be set apart from round keys | |
-| key schedule (the result: all round-key words `w[i]`) | **Schlüsselplan** (der) | The data structure. Used in the key-schedule view and wherever memory dumps are discussed. „Schlüsselablaufplan“ is rejected (long, rare). |
+| key schedule (the result: all round-key words `w[i]`) | **Schlüsselplan** (der) | The data structure. Heading of the derivation view in AES labs (`plugin.aes.derivation.title`) and used wherever memory dumps are discussed. „Schlüsselablaufplan“ is rejected (long, rare). |
 | KeyExpansion (the process, FIPS 197 §5.2) | **Schlüsselexpansion** (die), with the FIPS name `KeyExpansion` in parentheses on first use | Process ≠ result: the expansion *produces* the schedule. Never use „strecken“ (key stretching is a different concept: password KDFs). |
 | round key | **Rundenschlüssel** (der) | |
 | round / final round | **Runde** / **Schlussrunde** | „letzte Runde“ is fine in running text. |

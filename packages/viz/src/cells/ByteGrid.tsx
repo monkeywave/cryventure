@@ -28,7 +28,7 @@ export interface ByteGridProps {
   rowHeaders?: readonly GridRowHeader[];
   /** Optional column headers (already translated), e.g. per-byte addresses `+0`, `+1`, … above a memory row. */
   columnHeaders?: readonly GridRowHeader[];
-  /** `wrap`: rows flow side by side and wrap to the available width (e.g. key-schedule words). */
+  /** `wrap`: rows flow side by side and wrap to the available width (e.g. AES key schedule words). */
   layout?: GridLayoutMode;
   /**
    * `wrap` layout: rows per visual line when the container is wide enough (e.g. a producer's
