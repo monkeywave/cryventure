@@ -14,7 +14,6 @@ import {
   type DerivationFacet,
   type FacetKind,
   type I18nRef,
-  type MathTermRole,
   type Messages,
   type NarrationFacet,
   type ParamField,
@@ -24,9 +23,10 @@ import {
   type TableFacet,
   type TraceBundle,
   type ValuesFacet,
-  type WordOp,
   type WordopsFacet,
   validateWordopsFacet,
+  WORD_OPS,
+  WORD_TERM_ROLES,
 } from '@cryventure/core';
 import { CONTRACT_LOCALES, type LocaleCatalogs } from './catalogs.ts';
 import { isRecord } from './jsonValues.ts';
@@ -218,11 +218,8 @@ export function facetStepRangeProblems(kind: string, facet: { steps: readonly { 
   });
 }
 
-/** One entry per role/op; the `Record` makes a new `MathTermRole` or `WordOp` without an entry a type error. */
-const MATH_TERM_ROLES: Record<MathTermRole, true> = { operand: true, intermediate: true, constant: true, carry: true, result: true };
-const WORD_OPS: Record<WordOp, true> = { rotr: true, rotl: true, shr: true, xor: true, and: true, not: true, add: true, ch: true, maj: true, Sigma0: true, Sigma1: true, sigma0: true, sigma1: true, root: true };
-
-const isKeyOf = (table: object, value: unknown): boolean => typeof value === 'string' && Object.hasOwn(table, value);
+/** Whether `value` is one of `table`'s strings (core's `WORD_TERM_ROLES` / `WORD_OPS`). */
+const isOneOf = (table: readonly string[], value: unknown): boolean => typeof value === 'string' && table.includes(value);
 
 function wordTermShapeProblems(term: unknown, index: number, where: string): string[] {
   if (!isRecord(term)) return [`${where} term ${index}: not an object`];
@@ -230,8 +227,8 @@ function wordTermShapeProblems(term: unknown, index: number, where: string): str
   const hasId = typeof id === 'string' && id !== '';
   const problems = hasId ? [] : [`${where} term ${index}: id is not a non-empty string`];
   const at = hasId ? `${where} term "${id}"` : `${where} term ${index}`;
-  if (!isKeyOf(MATH_TERM_ROLES, role)) problems.push(`${at}: role "${String(role)}" is not a MathTermRole`);
-  if (op !== undefined && !isKeyOf(WORD_OPS, op)) problems.push(`${at}: op "${String(op)}" is not a WordOp`);
+  if (!isOneOf(WORD_TERM_ROLES, role)) problems.push(`${at}: role "${String(role)}" is not a MathTermRole`);
+  if (op !== undefined && !isOneOf(WORD_OPS, op)) problems.push(`${at}: op "${String(op)}" is not a WordOp`);
   return problems;
 }
 

@@ -23,6 +23,7 @@ describe('public API', () => {
       'blockCount', 'blockIndices', 'padStep', 'unpadStep', 'assertMatchesReference', 'BlockOpRecorder', 'blockModeOutputs', 'MODE_DIRECTIONS', 'MODE_PADDINGS', 'MODE_MAX_INPUT_BYTES',
       'encryptInputLength', 'unpaddedInputRegion', 'recordPadding', 'cipherName', 'laneNodeId', 'chainLabel', 'cipherZoom', 'addPadNode', 'addUnpadNode', 'blockModeValues',
       'xorBytesToArray', 'u8Regions', 'recordPaddedMode', 'processedBytes', 'laneNodes', 'blockSegmentId', 'addBlockSegment', 'runPaddedMode',
+      'hashFunction', 'xofFunction', 'latestStepAt', 'validateSpongeFacet', 'validateWordopsFacet', 'WORD_OPS', 'WORD_TERM_ROLES', 'isWordOp', 'isWordTermRole',
     ];
     for (const name of expected) expect(core).toHaveProperty(name);
   });

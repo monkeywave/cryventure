@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { applyWrites, elemBits, elemBytes, elemMax, regionSize, type ElemType, type Snapshot } from './state.ts';
+import { applyWrites, elemBits, elemBytes, elemMax, regionSize, type ElemType, type RegionLayout, type Snapshot, type WordByteOrder } from './state.ts';
 
 type R = 'state' | 'key';
 const base: Snapshot<R> = { state: [0, 0, 0, 0], key: [9, 9] };
@@ -46,5 +46,17 @@ describe('element helpers', () => {
     expect(elemMax('u8')).toBe(0xff);
     expect(elemMax('i16')).toBe(0x7fff);
     expect(elemMax('u64')).toBe(Number.MAX_SAFE_INTEGER);
+  });
+});
+
+describe('RegionLayout words byteOrder (docs/M6.md §3c)', () => {
+  it('admits big and little byte order, defaulting to absent (big)', () => {
+    const layouts: RegionLayout[] = [
+      { kind: 'words', wordBytes: 8, byteOrder: 'little' },
+      { kind: 'words', wordBytes: 4, byteOrder: 'big' },
+      { kind: 'words', wordBytes: 4 },
+    ];
+    const orders: (WordByteOrder | undefined)[] = layouts.map((layout) => (layout.kind === 'words' ? layout.byteOrder : undefined));
+    expect(orders).toEqual(['little', 'big', undefined]);
   });
 });

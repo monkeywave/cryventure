@@ -25,9 +25,14 @@ export function elemMax(elem: ElemType): number {
  * - `grid`: one cell per element, laid out by `shape`/`order` (the default without a hint).
  * - `words`: a list of `wordBytes`-byte words (e.g. AES key schedule `w0 … w43`), optionally named
  *   `<labelPrefix><index>` (a symbol, not translated) and grouped `wordsPerGroup` per row
- *   (e.g. 4 words per AES round key). `wordBytes` must divide the region's byte size.
+ *   (e.g. 4 words per AES round key). `wordBytes` must divide the region's byte size. `byteOrder`
+ *   (default `big`) says how a word's bytes form its integer value: `little` for Keccak lanes,
+ *   BLAKE2 and MD5 words (docs/M6.md §3c); the state view then shows the integer value.
  */
-export type RegionLayout = { kind: 'grid' } | { kind: 'words'; wordBytes: number; labelPrefix?: string; wordsPerGroup?: number };
+export type RegionLayout = { kind: 'grid' } | { kind: 'words'; wordBytes: number; labelPrefix?: string; wordsPerGroup?: number; byteOrder?: WordByteOrder };
+
+/** How a `words` layout's bytes form each word's integer value. */
+export type WordByteOrder = 'big' | 'little';
 
 export interface RegionSpec<R extends string> {
   id: R;

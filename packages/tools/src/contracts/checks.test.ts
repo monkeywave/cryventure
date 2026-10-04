@@ -279,7 +279,7 @@ describe('wordops facet checks', () => {
       'wordops step 0 term "s": op "rotr2" is not a WordOp',
     ]);
     const noAfter = wordops([{ step: 0, formula: { key: 'plugin.x.t1' }, terms: [], registers: { before: ['00000000', '00000001'] } as never }]);
-    expect(() => validateWordopsFacet(noAfter)).toThrow(TypeError);
+    expect(validateWordopsFacet(noAfter)).toEqual(['wordops step 0: registers.after is not an array']);
     expect(wordopsShapeProblems(noAfter)).toEqual(['wordops step 0: registers.after is not an array']);
     expect(wordopsShapeProblems({ kind: 'wordops', wordBits: 32, steps: {} })).toEqual(['wordops: steps is not an array']);
     expect(wordopsShapeProblems(wordops([{ step: 0, formula: { key: 'plugin.x.t1' }, terms: 'w' as never }]))).toEqual(['wordops step 0: terms is not an array']);
