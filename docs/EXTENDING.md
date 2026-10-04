@@ -320,11 +320,21 @@ never on a producer's code:
   positive `maxLength` that `defaults` and presets fit, and `runIn` is `main` or `worker`
 - with `implements`: every declared port is exposed on the module and passes its sanity check
   (`BlockCipher`: id, sizes, round trip, wrong lengths throw; `Hash`: family id = producer id,
-  unique function ids, `blockSize` 64 or 128, and every function is deterministic and returns
-  `outputSize` bytes for inputs of 0, 1 and `blockSize` bytes)
-- when a run emits a `wordops` facet: it passes `validateWordopsFacet`, its steps lie within the
-  state steps (−1 only with an `initialNarration`), its term `valueRef`s exist in the `values`
-  facet, and its formula and term-label keys and `{{params}}` exist in EN and DE
+  unique function ids, `blockSize` 64 or 128, and every function is deterministic, leaves its
+  input unchanged and returns `outputSize` bytes for inputs of 0, 1 and `blockSize` bytes, those
+  three digests pairwise distinct)
+- a `Hash` producer with a `digest` output and an `algorithm` select param: for `defaults` and
+  every preset whose `algorithm` is a function id of its family, the port's `hash(message)` equals
+  `run(params).output.digest` (algorithms outside the family, e.g. an IV-generation mode, are
+  skipped). The message is read generically from the params: the manifest's one `text` param, as
+  UTF-8, or as hex when an `encoding` param is `"hex"`; a `Hash` producer whose params do not fit
+  that convention fails this check
+- when a run emits a `wordops` facet: its shape holds (steps and terms are arrays, term ids
+  non-empty, `role` a `MathTermRole`, `op` absent or a `WordOp`, `registers` with `before` and
+  `after` arrays) and it then passes `validateWordopsFacet` (a validator throw is a reported
+  problem), its steps lie within the state steps (−1 only with an `initialNarration`), its term
+  `valueRef`s exist in the `values` facet, and its formula and term-label keys and `{{params}}`
+  exist in EN and DE
 - when a run emits `chain` or `wire` facets: `chainIssues`/`wireIssues` against the state facet's
   step count are empty, and their label keys and `{{params}}` exist in EN and DE
 - `vectors/conformance.json` exists, is well-formed, has at least one case, and `run(params)`
@@ -354,7 +364,9 @@ never on a producer's code:
   deterministically, with JSON-serializable facets
 - returns exactly its `provides` kinds (every one, keyed `kind@variant`)
 - each facet passes its core validator when its kind has one (`instructions`, `registers`,
-  `memory`, `field`, `math`, `table`, `wordops`); memory writes lie in their allocation's lifetime
+  `memory`, `field`, `math`, `table`, `wordops`; for `wordops` the primitive's shape checks run
+  first), a validator that throws being a reported problem; memory writes lie in their
+  allocation's lifetime
 - every array of steps with `align` spans is monotonic and within the bundle's state steps
   (`alignIssues`), and none of its items lacks an `align` span
 - every `valueRef` (operands, register writes, memory allocations, refs and writes, field and
@@ -365,6 +377,12 @@ never on a producer's code:
   `deriver.<id>.*`
 - at least one `fixtures/*.golden.json` exists, and each matches the derived output for its
   producer and preset
+
+**Assembly listings** (`packages/tools/src/asm/generate.test.ts`, no clang needed): a fake compiler
+replays the committed AES and SHA-256 listings as assembly and disassembly with the recorded
+compiler version; `buildListings` must rebuild every one, and each must serialize through the
+repo's Prettier to the committed `isa-*/data/*.json` byte for byte, so editing the C source, the
+parser or the annotators without running `pnpm asm:generate` fails the test.
 
 ## i18n rules
 

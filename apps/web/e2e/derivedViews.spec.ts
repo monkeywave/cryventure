@@ -1,6 +1,6 @@
-import { expect, test, type Page } from '@playwright/test';
+import { expect, test, type Locator, type Page } from '@playwright/test';
 import type { Lens } from '@cryventure/core';
-import { mountLabs, PHONE, setLens } from './labPage.ts';
+import { DESKTOP, mountLabs, PHONE, setLens, waitForLab } from './labPage.ts';
 
 /**
  * Derived views (instructions, registers, memory) on a phone: wide listings, byte grids and hex
@@ -34,4 +34,35 @@ for (const { path, views } of PAGES) {
       expect(await pageOverflow(page)).toBe(0);
     });
   }
+}
+
+/** SHA-2 round labs: every register word fits its cell (64-bit words wrap onto two lines), on a phone and a desktop. */
+const ROUND_LABS = [
+  { path: 'hash/sha256/', labId: 'sha256-abc', lines: 1 },
+  { path: 'hash/sha512/', labId: 'sha512-abc', lines: 2 },
+] as const;
+
+/** Distinct line tops of each register word's chunks (32-bit: one line; 64-bit: two lines of two chunks). */
+const wordLineCounts = (cells: Locator) =>
+  cells.evaluateAll((nodes) =>
+    nodes.map((node) => new Set([...node.querySelectorAll('.cv-wordops__chunk')].map((chunk) => Math.round(chunk.getBoundingClientRect().top))).size),
+  );
+
+for (const viewport of [PHONE, DESKTOP]) {
+  test.describe(`register cells at ${viewport.width}px`, () => {
+    test.use({ viewport });
+    for (const { path, labId, lines } of ROUND_LABS) {
+      test(`${labId}: no register word overflows its cell, each word on ${lines} line(s)`, async ({ page }) => {
+        await page.goto(`en/${path}`);
+        const lab = await waitForLab(page, labId);
+        const cells = lab.locator('.cv-wordops__reg');
+        await expect(cells.first()).toBeVisible();
+        const overflowing = await cells.evaluateAll((nodes) =>
+          nodes.filter((node) => node.scrollWidth > node.clientWidth).map((node) => node.getAttribute('data-register')),
+        );
+        expect(overflowing).toEqual([]);
+        expect(new Set(await wordLineCounts(cells))).toEqual(new Set([lines]));
+      });
+    }
+  });
 }

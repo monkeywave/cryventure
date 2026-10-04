@@ -26,14 +26,15 @@ refs:
   - FIPS 180-4, Abschnitte 6.4–6.7 (SHA-512, SHA-384, SHA-512/224, SHA-512/256 hash computation)
   - FIPS 180-4, Abschnitt 7 (Truncation of a message digest)
   - NIST CSRC, Examples with Intermediate Values, SHA512.pdf, SHA384.pdf, SHA512_256.pdf
-  - NIST SP 800-107 Rev. 1, Abschnitt 4.2, Tabelle 1 (Sicherheitsniveaus) und Abschnitt 5.1 (gekürzte Hashwerte)
+  - NIST SP 800-107 Rev. 1 (2022 zurückgezogen), Abschnitt 4.2, Tabelle 1 (Sicherheitsniveaus) und Abschnitt 5.1 (gekürzte Hashwerte)
   - Gueron, Johnson, Walker (2011), SHA-512/256, ITNG 2011, IEEE
   - Arm Architecture Reference Manual for A-profile, FEAT_SHA512 (SHA512H, SHA512H2, SHA512SU0, SHA512SU1)
   - Menezes, van Oorschot, Vanstone (1996), Handbook of Applied Cryptography, Abschnitt 9.5.2
   - Duong, Rizzo (2009), Flickr's API Signature Forgery Vulnerability
   - Coron, Dodis, Malinaud, Puniya (2005), Merkle–Damgård Revisited, CRYPTO 2005, LNCS 3621
+  - Maurer, Renner, Holenstein (2004), Indifferentiability, Impossibility Results on Reductions, and Applications to the Random Oracle Methodology, TCC 2004, LNCS 2951
   - RFC 2104 (HMAC)
-sourceHash: sha256:6998f1e618d27415890ce7753406a126b4191dbe297c9191db20e7d360cfd5a7
+sourceHash: sha256:56f5fd0016a510b7bbca154109a84c0e898f47c59f3a15ca0c38df6970fd3a79
 translation:
   status: ai-reviewed
   reviewedAt: '2026-10-04'
@@ -96,7 +97,7 @@ entstehen, jetzt mit 64-Bit-Additionen mod 2⁶⁴ (§6.4.2, Schritt 3).
 Geh durch die 80 Runden, dann durch den Feed-Forward: Die acht Wörter von `H⁽¹⁾` sind der Hashwert
 `ddaf35a1 93617aba … a54ca49f`.
 
-<Lab labId="sha512-abc" producerId="sha512" presetId="sha-512-abc" startAt="op:round" layout="wordops:55|state:20|narration:25" />
+<Lab labId="sha512-abc" producerId="sha512" presetId="sha-512-abc" startAt="op:round" layout="wordops:50|state:30|narration:20" />
 
 </LessonSection>
 
@@ -117,12 +118,12 @@ vs. §4.1.3):
 | Funktion | Anfangswert | Ausgabe |
 |---|---|---|
 | SHA-512 | √ der Primzahlen 2 … 19 (§5.3.5) | alle 512 Bit |
-| SHA-384 | √ der Primzahlen 23 … 53 (§5.3.4) | linke 384 Bit (§6.5) |
-| SHA-512/256 | erzeugt, §5.3.6.2 | linke 256 Bit (§6.7) |
-| SHA-512/224 | erzeugt, §5.3.6.1 | linke 224 Bit (§6.6) |
+| SHA-384 | √ der Primzahlen 23 … 53 (§5.3.4) | die ersten 384 Bit (§6.5) |
+| SHA-512/256 | erzeugt, §5.3.6.2 | die ersten 256 Bit (§6.7) |
+| SHA-512/224 | erzeugt, §5.3.6.1 | die ersten 224 Bit (§6.6) |
 
-§5.3.6 erzeugt den SHA-512/t-IV mit SHA-512 selbst: XOR-verknüpfe jedes Wort des SHA-512-IV mit
-`a5a5a5a5a5a5a5a5` und hashe dann ab diesem Zustand den ASCII-Text „SHA-512/256“. Das Ergebnis ist
+§5.3.6 erzeugt den SHA-512/t-IV mit SHA-512 selbst: Jedes Wort des SHA-512-IV wird mit
+`a5a5a5a5a5a5a5a5` XOR-verknüpft, dann wird ab diesem Zustand der ASCII-Text „SHA-512/256“ gehasht. Das Ergebnis ist
 `22312194fc2bf72c …`, die Tabelle aus §5.3.6.2. Weil jedes `t` mit seinem eigenen IV startet, ist
 ein SHA-512/256-Hashwert nie einfach der Anfang eines SHA-512-Hashwerts: Die Varianten sind
 eigenständige Funktionen (§5.3.6). Die Kürzung selbst liefert einen kürzeren Hashwert bei
@@ -136,7 +137,7 @@ Der SHA-384-IV stammt von der 9. bis 16. Primzahl (§5.3.4):
 
 <Lens level="engineer">
 
-Eine nachprüfbare Beobachtung, keine Aussage der Norm: Jedes Wort des SHA-224-IV (§5.3.2) ist
+Eine nachprüfbare Beobachtung, keine Aussage des Standards: Jedes Wort des SHA-224-IV (§5.3.2) ist
 gleich den unteren 32 Bit des entsprechenden SHA-384-IV-Worts, z. B. `c1059ed8` in
 `cbbb9d5d c1059ed8`. FIPS 180-4 listet die SHA-224-Wörter ohne Herleitung.
 
@@ -168,14 +169,14 @@ abgebildet werden.
 ## Mallory verlängert die Kette
 
 Bei Merkle–Damgård **ist** der SHA-256- oder SHA-512-Hashwert der letzte Verkettungswert `H⁽ᴺ⁾`
-([Hashfunktionen](../)). Wer `H(m)` kennt, kennt den ganzen Zustand und könnte von dort aus
+([Hashfunktionen](../)). Wer `H(m)` kennt, kennt den ganzen Zustand und könnte einfach
 weiterhashen. Deshalb ist `H(key ‖ m)` **kein MAC**: Die Konstruktion mit geheimem Präfix ist
 unsicher (HAC §9.5.2). Duong und Rizzo haben das in „Flickr's API Signature Forgery
 Vulnerability“ (2009) an einem echten Dienst gezeigt; der Hash mit Präfix war dort MD5.
 
 Gekürzte Varianten geben nur einen Teil des Zustands aus (FIPS 180-4, §6.5–6.7):
 
-| Funktion | Zustand | Ausgabe | Zurückgehaltener Zustand |
+| Funktion | Zustand | Ausgabe | Zurückgehaltene Zustandsbits |
 |---|---|---|---|
 | SHA-512 / SHA-256 | 512 / 256 | 512 / 256 | 0 Bit |
 | SHA-384 | 512 | 384 | 128 Bit |
@@ -184,14 +185,14 @@ Gekürzte Varianten geben nur einen Teil des Zustands aus (FIPS 180-4, §6.5–6
 | SHA-224 | 256 | 224 | nur 32 Bit |
 
 Um die Kette fortzusetzen, muss Mallory die fehlenden Bits raten: 2¹²⁸ Versuche bei SHA-384, aber
-nur 2³² bei SHA-224. Die Lösung ist **HMAC** (RFC 2104), das in einem späteren Kapitel kommt.
+nur 2³² bei SHA-224. Die Lösung ist **HMAC** (RFC 2104, ein späteres Kapitel).
 
 <Lens level="cryptographer">
 
 Coron, Dodis, Malinaud und Puniya (CRYPTO 2005) beweisen, dass „chop-MD“, Merkle–Damgård mit
-gekürzter Ausgabe, von einem Random Oracle ununterscheidbar (indifferentiable) ist, wenn genug Bits
-abgeschnitten werden, das einfache Merkle–Damgård dagegen nicht, und zwar gerade wegen der
-Längenerweiterung.
+gekürzter Ausgabe, *indifferentiable* von einem Random Oracle ist (im Sinne von Maurer et al.,
+TCC 2004), wenn genug Bits abgeschnitten werden, das einfache Merkle–Damgård dagegen nicht, gerade
+wegen der Längenerweiterung.
 
 </Lens>
 
@@ -219,7 +220,7 @@ Längenerweiterung.
   options={['0', '32', '128', '256']}
   answer={2}
 >
-  SHA-384 gibt die linken 384 von 512 Bit aus (FIPS 180-4, §6.5), also bleiben 128 Bit des Zustands
+  SHA-384 gibt die ersten 384 von 512 Bit aus (FIPS 180-4, §6.5), also bleiben 128 Bit des Zustands
   verborgen. SHA-224 hält nur 32 von 256 zurück.
 </CheckQuestion>
 

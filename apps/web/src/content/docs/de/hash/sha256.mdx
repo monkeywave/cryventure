@@ -26,7 +26,7 @@ refs:
   - Mendel, Nad, Schläffer (2013), Improving Local Collisions — New Attacks on Reduced SHA-256, EUROCRYPT 2013, LNCS 7881
   - Handschuh, Naccache (2001), SHACAL, NESSIE submission
   - Bernstein, Chou, Chuengsatiansup, Hülsing, Lambooij, Lange, Niederhagen, van Vredendaal (2015), How to Manipulate Curve Standards — a White Paper for the Black Hat, SSR 2015, LNCS 9497
-sourceHash: sha256:f46aa4732930b52de5966beb0cb8e2f0270f9f723d2d7772b04426cdc5db3cc4
+sourceHash: sha256:379d692299f11a04315a785bc3097f40c32604a91d34ed8e773b4d439aebfa94
 translation:
   status: ai-reviewed
   reviewedAt: '2026-10-04'
@@ -93,7 +93,7 @@ genau die Werte von NIST für `t = 0`. Geh weiter: Ab Runde 16 berechnet ein Exp
 jedes neue `Wₜ` direkt vor seiner Runde. Die letzte Runde hinterlässt `a = 506e3058`, und der
 Feed-Forward ergibt `ba7816bf … f20015ad`.
 
-<Lab labId="sha256-abc" producerId="sha256" presetId="sha-256-abc" startAt="op:round" layout="wordops:55|state:20|narration:25" />
+<Lab labId="sha256-abc" producerId="sha256" presetId="sha-256-abc" startAt="op:round" layout="wordops:50|state:30|narration:20" />
 
 </LessonSection>
 
@@ -147,13 +147,12 @@ Intels SHA-Erweiterungen (SHA-NI) packen den Zustand als `ABEF` und `CDGH` (Gull
 (Intel SDM Vol. 2B). `SHA256MSG1` berechnet `Wₜ₋₁₆ + σ₀(Wₜ₋₁₅)`, ein `PADDD` addiert `Wₜ₋₇`, und
 `SHA256MSG2` addiert `σ₁(Wₜ₋₂)`, für vier Wörter.
 
-Die SHA2-Befehle von ARMv8 (FEAT_SHA256) führen **vier Runden** pro Befehl aus: `SHA256H` liefert
-die neuen `a … d`, `SHA256H2` die neuen `e … h`; `SHA256SU0`/`SU1` setzen die Nachrichtenexpansion
-fort (Arm ARM).
+ARMv8-SHA2 (FEAT_SHA256) rechnet **vier Runden** pro Befehl: `SHA256H` liefert die neuen `a … d`,
+`SHA256H2` die neuen `e … h`; `SHA256SU0`/`SU1` setzen die Nachrichtenexpansion fort (Arm ARM).
 
 Beide berechnen Expansionswörter **vor** ihren Runden, in einem gleitenden Fenster aus 16 Wörtern.
 Das Lab zeigt x86-Ausgabe von clang `-O2` (wie auf der [AES-NI-Seite](../../symmetric/aes/aes-ni/));
-die Auswahl „Befehlssatz“ wechselt zwischen den ISAs.
+die Auswahl „Befehlssatz“ wechselt zwischen den Befehlssätzen.
 
 <Lab labId="sha256-sha-ni" producerId="sha256" presetId="sha-256-abc" variant="x86_64-sha-ni" startAt="op:round" layout="instructions:50|registers:50" />
 
@@ -171,16 +170,16 @@ zwei Summen nach unten (Gulley et al. 2013). Für „abc“ ist `K₁ + W₁ = K
 ## Nichts im Ärmel
 
 Konstanten aus einer kurzen öffentlichen Regel, etwa ∛2 für `K₀` (FIPS 180-4, §4.2.2), lassen einem
-Designer wenig Spielraum, schwache Werte unterzubringen: „Nothing up my sleeve“-Zahlen („nichts im
-Ärmel“). FIPS nennt keine Begründung.
+Designer wenig Spielraum, schwache Werte unterzubringen: „Nothing up my sleeve“-Zahlen. FIPS nennt
+keine Begründung.
 
 Ohne den Feed-Forward (Schritt 4) ließe sich jede Runde umkehren: Die neuen `b, c, d, f, g, h` sind
 die alten `a, b, c, e, f, g`, und daraus folgen `T₂`, `T₁ = a − T₂`, das alte `d` und das alte `h`
-(§6.2.2, Schritt 3). Mallory könnte Blöcke von einem Hashwert aus rückwärts durchrechnen.
+(§6.2.2, Schritt 3). Mallory könnte Blöcke rückwärts durchrechnen.
 
-Angriffe zielen auf Versionen mit **reduzierter Rundenzahl**: Mendel, Nad und Schläffer
-(EUROCRYPT 2013) geben einen Kollisionsangriff auf **31 von 64** Schritten an; für das volle SHA-256
-ist keine Kollision bekannt.
+Angriffe zielen auf **rundenreduzierte** Versionen: Mendel, Nad und Schläffer (EUROCRYPT 2013)
+geben einen Kollisionsangriff auf **31 von 64** Schritten (Runden) mit Aufwand 2⁶⁵·⁵ an; für das
+volle SHA-256 ist keine Kollision bekannt.
 
 <Lens level="cryptographer">
 
@@ -208,7 +207,7 @@ Wahlmöglichkeiten (Bernstein et al., SSR 2015).
   ]}
   answer={1}
 >
-  FIPS 180-4, §4.2.2: die ersten 32 Bit der Nachkommastellen der Kubikwurzeln der ersten 64
+  FIPS 180-4, §4.2.2: die ersten 32 Nachkommabits der Kubikwurzeln der ersten 64
   Primzahlen, z. B. ergibt ∛2 = 1,428a2f98… `K₀ = 428a2f98`. Die Quadratwurzeln von 8 Primzahlen
   ergeben den IV (§5.3.3).
 </CheckQuestion>
@@ -232,7 +231,7 @@ Wahlmöglichkeiten (Bernstein et al., SSR 2015).
   answer={1}
 >
   Zwei Runden, mit beiden Summen `Kₜ + Wₜ` in `xmm0` (Intel SDM Vol. 2B, SHA256RNDS2). Die
-  ARMv8-Befehle `SHA256H`/`SHA256H2` decken je vier Runden ab.
+  ARMv8-Befehle `SHA256H`/`SHA256H2` decken zusammen vier Runden ab.
 </CheckQuestion>
 
 </LessonSection>

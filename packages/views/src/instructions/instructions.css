@@ -150,6 +150,7 @@ button.cv-instructions__operand {
   border-radius: 2px;
 }
 
+.cv-instructions__scroll:focus-visible,
 button.cv-instructions__operand:focus-visible {
   outline: 2px solid var(--sl-color-accent, Highlight);
   outline-offset: 1px;

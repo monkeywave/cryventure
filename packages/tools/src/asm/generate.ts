@@ -211,9 +211,27 @@ function outputPath(target: KernelTarget, file: string): string {
   return join(REPO_ROOT, 'packages/derivers/src', target.directory, 'data', file);
 }
 
+/** The repo's Prettier (a root dev dependency, so present wherever tests run). */
+const PRETTIER_BIN = join(REPO_ROOT, 'node_modules/.bin/prettier');
+
 /** Runs the repo's Prettier over the written JSON so a regeneration is format-stable. */
 function formatWithPrettier(run: CommandRunner, paths: readonly string[]): void {
-  run(join(REPO_ROOT, 'node_modules/.bin/prettier'), ['--write', '--log-level', 'warn', ...paths]);
+  run(PRETTIER_BIN, ['--write', '--log-level', 'warn', ...paths]);
+}
+
+/** The JSON a listing is written as, before Prettier. */
+export function listingJson(listing: AsmListing<ListingInstruction>): string {
+  return `${JSON.stringify(listing, null, 2)}\n`;
+}
+
+/**
+ * `json` as the repo's Prettier formats it at `path` (same package and config resolution as the
+ * `--write` pass, in-process so a test needs no subprocess per file): the bytes `generateListings` leaves there.
+ */
+export async function formatListingJson(path: string, json: string): Promise<string> {
+  const prettier = await import('prettier');
+  const config = await prettier.resolveConfig(path);
+  return prettier.format(json, { ...config, filepath: path });
 }
 
 export interface GeneratedListing {
@@ -248,7 +266,7 @@ export function buildListings({
 export function generateListings(options: GenerateOptions = {}): string[] {
   const paths = buildListings(options).map(({ path, listing }) => {
     mkdirSync(dirname(path), { recursive: true });
-    writeFileSync(path, `${JSON.stringify(listing, null, 2)}\n`);
+    writeFileSync(path, listingJson(listing));
     return path;
   });
   formatWithPrettier(options.run ?? runCommand, paths);

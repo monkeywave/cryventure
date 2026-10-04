@@ -16,6 +16,7 @@ import {
   type FieldFacet,
   type I18nRef,
   type MathFacet,
+  type MathTermRole,
   type Messages,
   type NarrationFacet,
   type ParamField,
@@ -25,7 +26,9 @@ import {
   type TableFacet,
   type TraceBundle,
   type ValuesFacet,
+  type WordOp,
   type WordopsFacet,
+  validateWordopsFacet,
 } from '@cryventure/core';
 import { CONTRACT_LOCALES, type LocaleCatalogs } from './catalogs.ts';
 
@@ -243,6 +246,60 @@ export function wordopsFacetRefs(facet: WordopsFacet): I18nRef[] {
 /** Wordops term `valueRef`s that the bundle's `values` facet does not declare. */
 export function wordopsValueRefProblems(facet: WordopsFacet, values: Pick<ValuesFacet, 'values'> | undefined): string[] {
   return termValueRefProblems('wordops', facet, values);
+}
+
+/** One entry per role/op; the `Record` makes a new `MathTermRole` or `WordOp` without an entry a type error. */
+const MATH_TERM_ROLES: Record<MathTermRole, true> = { operand: true, intermediate: true, constant: true, carry: true, result: true };
+const WORD_OPS: Record<WordOp, true> = { rotr: true, rotl: true, shr: true, xor: true, and: true, not: true, add: true, ch: true, maj: true, Sigma0: true, Sigma1: true, sigma0: true, sigma1: true, root: true };
+
+const isRecord = (value: unknown): value is Record<string, unknown> => typeof value === 'object' && value !== null && !Array.isArray(value);
+const isKeyOf = (table: object, value: unknown): boolean => typeof value === 'string' && Object.hasOwn(table, value);
+
+function wordTermShapeProblems(term: unknown, index: number, where: string): string[] {
+  if (!isRecord(term)) return [`${where} term ${index}: not an object`];
+  const { id, role, op } = term;
+  const hasId = typeof id === 'string' && id !== '';
+  const problems = hasId ? [] : [`${where} term ${index}: id is not a non-empty string`];
+  const at = hasId ? `${where} term "${id}"` : `${where} term ${index}`;
+  if (!isKeyOf(MATH_TERM_ROLES, role)) problems.push(`${at}: role "${String(role)}" is not a MathTermRole`);
+  if (op !== undefined && !isKeyOf(WORD_OPS, op)) problems.push(`${at}: op "${String(op)}" is not a WordOp`);
+  return problems;
+}
+
+function wordRegistersShapeProblems(registers: unknown, where: string): string[] {
+  if (registers === undefined) return [];
+  if (!isRecord(registers)) return [`${where}: registers is not an object`];
+  return (['before', 'after'] as const).filter((side) => !Array.isArray(registers[side])).map((side) => `${where}: registers.${side} is not an array`);
+}
+
+function wordopsStepShapeProblems(step: unknown, index: number): string[] {
+  if (!isRecord(step)) return [`wordops steps[${index}]: not an object`];
+  const where = `wordops step ${String(step['step'])}`;
+  const { terms } = step;
+  const termProblems = Array.isArray(terms) ? terms.flatMap((term, termIndex) => wordTermShapeProblems(term, termIndex, where)) : [`${where}: terms is not an array`];
+  return [...termProblems, ...wordRegistersShapeProblems(step['registers'], where)];
+}
+
+/** Core's `validateWordopsFacet`, a throw reported as a problem rather than a TypeError. */
+function coreWordopsProblems(facet: WordopsFacet): string[] {
+  try {
+    return validateWordopsFacet(facet);
+  } catch (error) {
+    return [`wordops: validator threw (${error instanceof Error ? error.message : String(error)}); malformed facet`];
+  }
+}
+
+/**
+ * Wordops shape problems the core validator does not check (core is shallow and frozen): steps and
+ * terms are arrays, term ids non-empty, `role` a `MathTermRole`, `op` (if any) a `WordOp`,
+ * `registers` with `before` and `after` arrays. Only a well-shaped facet goes on to the core
+ * validator (which assumes the shape); if that still throws, the throw is reported as a problem.
+ */
+export function wordopsShapeProblems(facet: unknown): string[] {
+  if (!isRecord(facet)) return ['wordops: facet is not an object'];
+  if (!Array.isArray(facet['steps'])) return ['wordops: steps is not an array'];
+  const shape = facet['steps'].flatMap(wordopsStepShapeProblems);
+  return shape.length > 0 ? shape : coreWordopsProblems(facet as unknown as WordopsFacet);
 }
 
 /**

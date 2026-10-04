@@ -1,6 +1,7 @@
 import {
   getFacet,
   stateAt,
+  toHex,
   type AnyStateFacet,
   type TraceBundle,
   type ValuesFacet,
@@ -12,7 +13,9 @@ import {
  * Reads the SHA-256 producer's **published facet contract** (docs/M5.md §2c–2d, §5c), never its code:
  * state regions `vars` (a … h), `w` (W_0 … W_63) and `h` (H), all 4-byte big-endian words; ops `init`,
  * `schedule`, `round`, `feedForward` (per block) and `output`; the `wordops` terms `k`, `kw` (round t)
- * and `p1`, `p2` (schedule t); the values `iv` and `h/<n>`. A broken contract throws.
+ * and `p1`, `p2` (schedule t); the values `iv` and `h/<n>`. A broken contract throws, and so do
+ * facets that disagree: the derivers take K+W, p1, p2 from `wordops` but a … h, W and H from `state`,
+ * so each round's `w` term must be word t of `w` and its `registers.after` the `vars` region.
  */
 
 export const SHA_WORD_BYTES = 4;
@@ -108,6 +111,37 @@ function locateBlocks(facet: AnyStateFacet): { blocks: ShaBlockSteps[]; output: 
   return { blocks, output };
 }
 
+/** Throws unless round `t` of `block` records the same W_t and a … h in `wordops` as in `state`. */
+function checkRoundAgrees(trace: ShaTrace, block: ShaBlockSteps, t: number): void {
+  const step = roundStep(block, t);
+  const where = `block ${block.index} round ${t}`;
+  const termW = toHex(termWord(trace, step, 'w'));
+  const stateW = toHex(regionWord(trace, 'w', step, t));
+  if (termW !== stateW)
+    throw contractError(`${where}: wordops w ${termW} ≠ state W_${t} ${stateW}`);
+  const after = trace.wordops.steps.find((entry) => entry.step === step)?.registers?.after;
+  if (after === undefined) throw contractError(`${where}: no wordops registers`);
+  SHA_VAR_NAMES.forEach((name, index) => {
+    const stateVar = toHex(regionWord(trace, 'vars', step, index));
+    if (after[index] !== stateVar)
+      throw contractError(`${where}: wordops ${name} ${after[index]} ≠ state ${name} ${stateVar}`);
+  });
+}
+
+/** Throws unless the wordops register names are a … h, in order (the order of `registers.after`). */
+function checkRegisterNames(wordops: WordopsFacet): void {
+  const names = wordops.registerNames?.join(',');
+  if (names !== SHA_VAR_NAMES.join(','))
+    throw contractError(`wordops register names ${names ?? '(none)'}, not a … h`);
+}
+
+/** Throws where `wordops` and `state` disagree on a round (comparing recorded bytes, not computing). */
+function checkFacetsAgree(trace: ShaTrace): void {
+  checkRegisterNames(trace.wordops);
+  for (const block of trace.blocks)
+    for (let t = 0; t < SHA256_ROUNDS; t++) checkRoundAgrees(trace, block, t);
+}
+
 const traces = new WeakMap<TraceBundle, ShaTrace>();
 
 /** The bundle's SHA trace, read once per bundle (bundles are immutable once recorded); throws on a broken contract. */
@@ -122,6 +156,7 @@ export function shaTrace(bundle: TraceBundle): ShaTrace {
       ...locateBlocks(facet),
       stepCount: facet.steps.length,
     };
+    checkFacetsAgree(trace);
     traces.set(bundle, trace);
   }
   return trace;

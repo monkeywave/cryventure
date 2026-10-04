@@ -3,7 +3,7 @@ import { Group, Panel, Separator, type Layout, type LayoutChangedMeta } from 're
 import { useT } from '../i18n/I18nProvider.tsx';
 import { loadPanelSizes, savePanelSizes, type PanelSizes } from './layoutStorage.ts';
 import { useLabLayout } from '../lab/LabLayout.tsx';
-import { defaultPanelSizes, MAX_PANELS, planPanels, stackedOrder, type PanelPlan } from './planPanels.ts';
+import { defaultPanelSizes, MAX_PANELS, parseLayoutPreset, planPanels, stackedOrder, type PanelPlan } from './planPanels.ts';
 import { TabbedViews } from './TabbedViews.tsx';
 import { ViewHost } from './ViewHost.tsx';
 import { ViewStatus } from './ViewStatus.tsx';
@@ -84,12 +84,16 @@ function ResizablePanels({ plans, byId, labId, lens }: PanelsProps) {
   );
 }
 
-/** Panel plans for the current layout: stacked plans skip `hidden` views and put main-slot views first. */
+/**
+ * Panel plans for the current layout. Stacked plans skip `hidden` views and keep the preset's order
+ * (its first panel is the lesson's primary view); without a preset, main-slot views come first.
+ */
 function usePanelPlans(byId: ReadonlyMap<string, ReactViewManifest>, layout: string | undefined, maxPanels: number, compact: boolean, hidden: readonly string[]) {
   return useMemo(() => {
     if (!compact) return planPanels([...byId.keys()], layout, maxPanels);
     const shown = [...byId.keys()].filter((id) => !hidden.includes(id));
-    return stackedOrder(planPanels(shown, layout, maxPanels), (id) => byId.get(id)?.defaultSlot === 'main');
+    const plans = planPanels(shown, layout, maxPanels);
+    return parseLayoutPreset(layout).length === 0 ? stackedOrder(plans, (id) => byId.get(id)?.defaultSlot === 'main') : plans;
   }, [byId, layout, maxPanels, compact, hidden]);
 }
 

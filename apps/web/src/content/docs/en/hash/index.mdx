@@ -23,9 +23,9 @@ refs:
   - NIST CSRC, Examples with Intermediate Values, SHA256.pdf (two-block message)
   - Merkle (1989), One Way Hash Functions and DES, CRYPTO '89, LNCS 435
   - Damgård (1989), A Design Principle for Hash Functions, CRYPTO '89, LNCS 435
-  - Menezes, van Oorschot, Vanstone (1996), Handbook of Applied Cryptography, Sections 9.2.2, 9.4.1, 9.7.1
+  - Menezes, van Oorschot, Vanstone (1996), Handbook of Applied Cryptography, Sections 9.2.2, 9.3.2 (Fact 9.24, Algorithm 9.26), 9.7.1
   - Rogaway, Shrimpton (2004), Cryptographic Hash-Function Basics, FSE 2004, LNCS 3017
-  - NIST SP 800-107 Rev. 1, Section 4.1 (Hash Function Properties) and Section 4.2, Table 1 (security strengths)
+  - NIST SP 800-107 Rev. 1 (withdrawn 2022), Section 4.2, Table 1 (security strengths)
   - NIST SP 800-57 Part 1 Rev. 5, Section 5.6.1.2, Table 3 (hash function security strengths)
   - Kelsey, Schneier (2005), Second Preimages on n-bit Hash Functions for Much Less than 2^n Work, EUROCRYPT 2005
   - Wang, Yu (2005), How to Break MD5 and Other Hash Functions, EUROCRYPT 2005
@@ -68,7 +68,7 @@ H(m) = H⁽ᴺ⁾`}
 <WhyBox constant="64-bit length" title="why the padding ends with the length">
   The padding ends with the message length `ℓ` in 64 bits (FIPS 180-4 §5.1.1; 128 bits for
   SHA-384/512, §5.1.2). This "strengthening" makes every collision of the hash a collision of the
-  compression function (Damgård 1989; HAC §9.4.1), and caps messages below 2⁶⁴ bits.
+  compression function (Damgård 1989; HAC §9.3.2, Algorithm 9.26), and caps messages below 2⁶⁴ bits.
 </WhyBox>
 
 <Lens only="story">
@@ -118,7 +118,7 @@ with `ℓ + 1 + k ≡ 448 (mod 512)`, then `ℓ` as a 64-bit big-endian integer.
 
 Because the last block encodes `ℓ`, two colliding messages of different lengths differ in that
 block, and equal lengths force a collision at some block along the chain. Either way the compression
-function collides: Damgård's proof (1989; HAC §9.4.1).
+function collides: Damgård's proof (1989; HAC §9.3.2, Fact 9.24).
 
 </Lens>
 
@@ -142,7 +142,7 @@ the ARMv8 SHA2 instructions. The [SHA-256 page](./sha256/) runs them in its hard
 
 ## Mallory's three targets
 
-A hash function should resist three attacks (SP 800-107 Rev. 1, §4.1):
+A hash function should resist three attacks (HAC §9.2.2):
 
 | Notion | Mallory is given | and must find | Generic cost |
 |---|---|---|---|
@@ -151,8 +151,8 @@ A hash function should resist three attacks (SP 800-107 Rev. 1, §4.1):
 | Collision | nothing | any `m ≠ m′` with `H(m) = H(m′)` | about 2ⁿᐟ² |
 
 Collisions are cheapest because of the **birthday bound**: among about 2ⁿᐟ² random digests, two
-probably match (HAC §9.7.1). So SHA-256 offers **128-bit** collision strength and 256-bit
-preimage strength (SP 800-107 Rev. 1, §4.2, Table 1; SP 800-57 Part 1 Rev. 5, Table 3).
+probably match (HAC §9.7.1). So SHA-256 offers **128-bit** collision strength (SP 800-57 Part 1 Rev. 5,
+Table 3) but 256-bit preimage strength (SP 800-107 Rev. 1, Table 1, withdrawn 2022).
 
 History shows collisions fall first: MD5 (Wang & Yu, EUROCRYPT 2005) and SHA-1 ("SHAttered",
 Stevens et al., CRYPTO 2017) both lost collision resistance through cryptanalysis.
@@ -162,7 +162,8 @@ Stevens et al., CRYPTO 2017) both lost collision resistance through cryptanalysi
 Rogaway and Shrimpton (FSE 2004) formalise these as Pre, Sec and Coll, and show how they relate.
 Collision resistance needs care: for a fixed, unkeyed `H`, a collision always *exists*, so it is
 defined as "no one can *find* one". Second preimages of 2ᵏ-block messages cost about 2ⁿ⁻ᵏ for
-Merkle–Damgård (Kelsey & Schneier, EUROCRYPT 2005), hence SP 800-107's range of 201–256 bits.
+Merkle–Damgård (Kelsey & Schneier, EUROCRYPT 2005), hence the 201–256-bit range in SP 800-107
+(withdrawn 2022).
 
 </Lens>
 
@@ -191,7 +192,7 @@ Merkle–Damgård (Kelsey & Schneier, EUROCRYPT 2005), hence SP 800-107's range 
   answer={1}
 >
   By the birthday bound, a generic collision search costs about 2²⁵⁶ᐟ² = 2¹²⁸ hash evaluations
-  (SP 800-107 Rev. 1, §4.2, Table 1).
+  (SP 800-57 Part 1 Rev. 5, Table 3).
 </CheckQuestion>
 
 <CheckQuestion
@@ -202,7 +203,7 @@ Merkle–Damgård (Kelsey & Schneier, EUROCRYPT 2005), hence SP 800-107's range 
   answer={2}
 >
   Choosing both messages is the collision game; in the second-preimage game the first message is
-  given to her (SP 800-107 Rev. 1, §4.1). A hash function has no key.
+  given to her (HAC §9.2.2). A hash function has no key.
 </CheckQuestion>
 
 </LessonSection>

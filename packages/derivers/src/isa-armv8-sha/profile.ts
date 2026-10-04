@@ -2,18 +2,19 @@ import type { I18nRef, OperandRef } from '@cryventure/core';
 import { registerOperand } from '../_lib/isaFacets.ts';
 import { parseMemOperand, type ShaListing, type ShaListingInstruction } from '../_lib/listing.ts';
 import type { ShaEffects, ShaIsaProfile, ShaMachine } from '../_lib/sha/shaDerivation.ts';
+import {
+  laneAt,
+  NO_EFFECTS,
+  operand,
+  scheduleP1,
+  scheduleWord,
+  vectorOperandReader,
+  written,
+} from '../_lib/sha/shaOperands.ts';
 import { expectLanes } from '../_lib/sha/shaRegisters.ts';
 import { isRoundInstruction, requiredShaRound } from '../_lib/sha/shaSpans.ts';
 import { SHA_VAR_NAMES, SHA_WORD_BYTES } from '../_lib/sha/shaTrace.ts';
-import {
-  byteSwapped,
-  laneRun,
-  laneSum,
-  varLanes,
-  word,
-  type Lanes,
-  type ShaWord,
-} from '../_lib/sha/shaWords.ts';
+import { byteSwapped, laneRun, laneSum, varLanes, word, type Lanes } from '../_lib/sha/shaWords.ts';
 import sha256 from './data/sha256.json';
 
 /**
@@ -42,27 +43,7 @@ export function armShaVectorRegister(operand: string): string | undefined {
   return match === null ? undefined : `v${match[1]}`;
 }
 
-function operand(instruction: ShaListingInstruction, index: number): string {
-  const text = instruction.operands[index];
-  if (text === undefined) throw new Error(`no operand ${index}`);
-  return text;
-}
-
-function register(instruction: ShaListingInstruction, index: number): string {
-  const name = armShaVectorRegister(operand(instruction, index));
-  if (name === undefined) throw new Error(`operand ${index} is not a vector register`);
-  return name;
-}
-
-function laneAt(lanes: Lanes, index: number): ShaWord {
-  const lane = lanes[index];
-  if (lane === undefined) throw new Error(`no lane ${index}`);
-  return lane;
-}
-
-function written(reg: string, lanes: Lanes): ShaEffects['written'] {
-  return [{ reg, lanes }];
-}
+const register = vectorOperandReader(armShaVectorRegister, 'a vector register');
 
 /** The 16-byte access `index` (0, 1 for a pair) at `[base, #offset]`, and its first word index. */
 function memoryAccess(text: string, index: number, valueRef?: string) {
@@ -241,19 +222,12 @@ function roundsEfgh(instruction: ShaListingInstruction, machine: ShaMachine): Sh
   return { reads, writes, written: written(target, varLanes(EFGH, t + 3)) };
 }
 
-function scheduleWord(instruction: ShaListingInstruction): number {
-  if (instruction.w === undefined) throw new Error('no schedule word');
-  return instruction.w;
-}
-
 /** `sha256su0 Vd.4S, Vn.4S`: lane i ← W_{s−16+i} + σ0(W_{s−15+i}) = p1 of W_{s+i}. */
 function scheduleUpdate0(instruction: ShaListingInstruction, machine: ShaMachine): ShaEffects {
   const { target, sources, reads, writes } = vectorOperands(instruction, machine, 2);
-  const [before, next] = sources as [Lanes, Lanes];
-  const s = scheduleWord(instruction);
-  expectLanes(before, laneRun(word.w, s - 16), `${target} must hold W${s - 16}…W${s - 13}`);
-  expectLanes(next, [word.w(s - 12)], `${register(instruction, 1)} must hold W${s - 12} in lane 0`);
-  return { reads, writes, written: written(target, laneRun(word.p1, s)) };
+  const [before, other] = sources as [Lanes, Lanes];
+  const source = register(instruction, 1);
+  return scheduleP1(instruction, { target, source, before, other, reads, writes });
 }
 
 /**
@@ -278,8 +252,6 @@ function scheduleUpdate1(instruction: ShaListingInstruction, machine: ShaMachine
   );
   return { reads, writes, written: written(target, laneRun(word.w, s)) };
 }
-
-const NO_EFFECTS: ShaEffects = { reads: [], writes: [], written: [] };
 
 const SEMANTICS: Readonly<
   Record<string, (instruction: ShaListingInstruction, machine: ShaMachine) => ShaEffects>

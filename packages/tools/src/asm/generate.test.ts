@@ -1,13 +1,15 @@
 /**
  * `buildListings` with an injected compiler runner: the fake compiler replays the committed
- * listings as assembly and disassembly (each function placed at a non-zero `.text` offset), so the
- * whole parse → address → annotate pipeline runs without clang.
+ * listings as assembly and disassembly (each function placed at a non-zero `.text` offset) and
+ * reports the recorded compiler version, so the whole parse → address → annotate pipeline runs
+ * without clang. The rebuilt listings must then serialize, through the repo's Prettier, to the
+ * committed files byte for byte: what `pnpm asm:generate` would write given the same compiler output.
  */
 import { readFileSync } from 'node:fs';
 import { basename, join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { REPO_ROOT } from '../fs/repoRoot.ts';
-import { buildListings, type AsmListing, type ListingInstruction } from './generate.ts';
+import { buildListings, formatListingJson, listingJson, type AsmListing, type ListingInstruction } from './generate.ts';
 
 /** Each C source → the functions it defines and their committed listing (deriver folder, file). */
 const SOURCES: Record<string, readonly { name: string; isa: string; file: string }[]> = {
@@ -26,10 +28,14 @@ const SOURCES: Record<string, readonly { name: string; isa: string; file: string
 };
 const FUNCTION_STRIDE = 0x400;
 
+const committedPath = (isa: string, file: string): string => join(REPO_ROOT, 'packages/derivers/src', isa, 'data', file);
+
 function committed(isa: string, file: string): AsmListing<ListingInstruction> {
-  const path = join(REPO_ROOT, 'packages/derivers/src', isa, 'data', file);
-  return JSON.parse(readFileSync(path, 'utf8')) as AsmListing<ListingInstruction>;
+  return JSON.parse(readFileSync(committedPath(isa, file), 'utf8')) as AsmListing<ListingInstruction>;
 }
+
+/** The compiler line every committed listing records (they come from one pinned LLVM). */
+const RECORDED_COMPILER = committed('isa-x86', 'aes128.json').compiler;
 
 /** Instructions with addresses relative to the function's first instruction. */
 function rebased(instructions: readonly ListingInstruction[]): ListingInstruction[] {
@@ -67,7 +73,7 @@ function fakeCompiler() {
   const sourceByObject = new Map<string, string>();
   const run = (command: string, args: readonly string[]) => {
     commands.push(command);
-    if (args[0] === '--version') return 'Homebrew clang version 23.1.0\n';
+    if (args[0] === '--version') return `${RECORDED_COMPILER}\n`;
     if (command.endsWith('objdump')) return fakeDump(sourceByObject.get(args.at(-1)!)!);
     const sourceFile = basename(args.find((arg) => arg.endsWith('.c'))!);
     if (args.includes('-c')) sourceByObject.set(args[args.indexOf('-o') + 1]!, sourceFile);
@@ -92,9 +98,15 @@ describe('buildListings (injected compiler runner)', () => {
       const { path, listing } = listings[index]!;
       expect(path).toContain(join(isa, 'data', file));
       expect(listing.function).toBe(name);
-      expect(listing.compiler).toBe('Homebrew clang version 23.1.0');
+      expect(listing.compiler).toBe(RECORDED_COMPILER);
       expect(listing.instructions[0]!.address).toBe('0x0');
       expect(listing.instructions).toEqual(rebased(committed(isa, file).instructions));
     });
+  });
+
+  it('regenerates every committed listing (AES and SHA-256) byte for byte', async () => {
+    const formatted = await Promise.all(listings.map(({ path, listing }) => formatListingJson(path, listingJson(listing))));
+    const drifted = listings.filter(({ path }, index) => formatted[index] !== readFileSync(path, 'utf8'));
+    expect(drifted.map(({ path }) => path.slice(REPO_ROOT.length))).toEqual([]);
   });
 });

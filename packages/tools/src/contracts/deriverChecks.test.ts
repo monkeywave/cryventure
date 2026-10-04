@@ -78,6 +78,15 @@ describe('wordops in derived facets', () => {
     expect(derivedSchemaProblems({ 'wordops@x': wordops([term('k', { hex: '428a2f9' })]) })).toEqual(['wordops@x: wordops step 0 term "k": hex "428a2f9" is not 8 lowercase hex digits']);
   });
 
+  it('checks wordops term shapes beyond the core validator (empty id, role, op)', () => {
+    const facet = wordops([term(''), term('r', { role: 'bogus' }), term('o', { op: 'rotr2' })]);
+    expect(derivedSchemaProblems({ 'wordops@x': facet })).toEqual([
+      'wordops@x: wordops step 0 term 0: id is not a non-empty string',
+      'wordops@x: wordops step 0 term "r": role "bogus" is not a MathTermRole',
+      'wordops@x: wordops step 0 term "o": op "rotr2" is not a WordOp',
+    ]);
+  });
+
   it('flags malformed refs in the wordops formula and term labels', () => {
     const facet = wordops([term('k'), { ...term('w'), label: 'W' }], { key: 'deriver.demo.f', params: { n: [] } });
     expect(malformedRefProblems({ 'wordops@x': facet })).toEqual([

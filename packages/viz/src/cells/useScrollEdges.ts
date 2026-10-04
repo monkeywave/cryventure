@@ -12,12 +12,24 @@ export function scrollEdges({
   return { start: scrollLeft > 1, end: scrollLeft + clientWidth < scrollWidth - 1 };
 }
 
+/** Whether content hides above / below the edges of a vertical scroller (1px tolerance for subpixels). */
+export function blockScrollEdges({
+  scrollTop,
+  scrollHeight,
+  clientHeight,
+}: Pick<HTMLElement, 'scrollTop' | 'scrollHeight' | 'clientHeight'>): {
+  top: boolean;
+  bottom: boolean;
+} {
+  return { top: scrollTop > 1, bottom: scrollTop + clientHeight < scrollHeight - 1 };
+}
+
 const setFlag = (element: HTMLElement, name: string, on: boolean) =>
   on ? element.setAttribute(name, '') : element.removeAttribute(name);
 
 /**
- * Marks the element behind `ref` with `data-overflow-start` / `data-overflow-end` while content hides
- * past that edge, so CSS can fade the edge (a scroll affordance). Writes the attributes directly: no
+ * Marks the element behind `ref` with `data-overflow-start` / `-end` (inline) and `data-overflow-top`
+ * / `-bottom` (block) while content hides past that edge, so CSS can fade the edge (a scroll affordance). Writes the attributes directly: no
  * re-render on scroll. Re-measures on scroll, on resize and when `contentKey` changes.
  */
 export function useScrollEdges(ref: RefObject<HTMLElement | null>, contentKey: unknown): void {
@@ -28,6 +40,9 @@ export function useScrollEdges(ref: RefObject<HTMLElement | null>, contentKey: u
       const { start, end } = scrollEdges(element);
       setFlag(element, 'data-overflow-start', start);
       setFlag(element, 'data-overflow-end', end);
+      const { top, bottom } = blockScrollEdges(element);
+      setFlag(element, 'data-overflow-top', top);
+      setFlag(element, 'data-overflow-bottom', bottom);
     };
     update();
     element.addEventListener('scroll', update, { passive: true });

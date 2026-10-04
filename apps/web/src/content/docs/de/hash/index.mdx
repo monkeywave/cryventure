@@ -23,14 +23,14 @@ refs:
   - NIST CSRC, Examples with Intermediate Values, SHA256.pdf (Nachricht aus zwei Blöcken)
   - Merkle (1989), One Way Hash Functions and DES, CRYPTO '89, LNCS 435
   - Damgård (1989), A Design Principle for Hash Functions, CRYPTO '89, LNCS 435
-  - Menezes, van Oorschot, Vanstone (1996), Handbook of Applied Cryptography, Abschnitte 9.2.2, 9.4.1, 9.7.1
+  - Menezes, van Oorschot, Vanstone (1996), Handbook of Applied Cryptography, Abschnitte 9.2.2, 9.3.2 (Fact 9.24, Algorithmus 9.26), 9.7.1
   - Rogaway, Shrimpton (2004), Cryptographic Hash-Function Basics, FSE 2004, LNCS 3017
-  - NIST SP 800-107 Rev. 1, Abschnitt 4.1 (Hash Function Properties) und Abschnitt 4.2, Tabelle 1 (Sicherheitsniveaus)
+  - NIST SP 800-107 Rev. 1 (2022 zurückgezogen), Abschnitt 4.2, Tabelle 1 (Sicherheitsniveaus)
   - NIST SP 800-57 Part 1 Rev. 5, Abschnitt 5.6.1.2, Tabelle 3 (Sicherheitsniveaus von Hashfunktionen)
   - Kelsey, Schneier (2005), Second Preimages on n-bit Hash Functions for Much Less than 2^n Work, EUROCRYPT 2005
   - Wang, Yu (2005), How to Break MD5 and Other Hash Functions, EUROCRYPT 2005
   - Stevens, Bursztein, Karpman, Albertini, Markov (2017), The First Collision for Full SHA-1, CRYPTO 2017
-sourceHash: sha256:02fe157cf381b2483cded6f46e2954eb68620ab3f71a3286540e97e18a62c337
+sourceHash: sha256:908207f704afb5567a986b4eb796ee8327133c168dffa9a339c6975ebee85053
 translation:
   status: ai-reviewed
   reviewedAt: '2026-10-04'
@@ -60,9 +60,9 @@ kann `H(m)` nachrechnen (FIPS 180-4, §1, Abbildung 1).
   <KeyFact label="SHA-256-Hashwert" value="256 Bit" kind="ciphertext" />
 </KeyFacts>
 
-SHA-2 ist eine **Merkle–Damgård**-Konstruktion (Merkle 1989; Damgård 1989): Fülle die Nachricht
-mit **Padding** auf ganze 512-Bit-Blöcke auf (§5.1.1) und gib die Blöcke dann einzeln in eine
-**Kompressionsfunktion**. Ihre Ausgabe, der **Verkettungswert** `H⁽ⁱ⁾`, geht in den nächsten Block
+SHA-2 ist eine **Merkle–Damgård**-Konstruktion (Merkle 1989; Damgård 1989): Die Nachricht wird
+mit **Padding** auf ganze 512-Bit-Blöcke aufgefüllt (§5.1.1) und Block für Block in eine
+**Kompressionsfunktion** gegeben. Ihre Ausgabe, der **Verkettungswert** `H⁽ⁱ⁾`, geht in den nächsten Block
 ein; Schritt 4 von §6.2.2 addiert den alten Wert wieder hinzu: der **Feed-Forward**.
 
 <Formula caption="Merkle–Damgård-Verkettung in SHA-256, FIPS 180-4 §5.3.3 und §6.2.2 (+ ist die Addition mod 2³² pro Wort).">
@@ -73,9 +73,9 @@ H(m) = H⁽ᴺ⁾`}
 
 <WhyBox constant="64-Bit-Länge" title="warum das Padding mit der Länge endet">
   Das Padding endet mit der Nachrichtenlänge `ℓ` in 64 Bit (FIPS 180-4 §5.1.1; 128 Bit bei
-  SHA-384/512, §5.1.2). Diese „Verstärkung“ (engl. *strengthening*) macht jede Kollision der Hashfunktion
-  zu einer Kollision der Kompressionsfunktion (Damgård 1989; HAC §9.4.1) und begrenzt Nachrichten
-  auf weniger als 2⁶⁴ Bit.
+  SHA-384/512, §5.1.2). Diese **MD-Verstärkung** (engl. *MD strengthening*) macht jede Kollision der
+  Hashfunktion zu einer Kollision der Kompressionsfunktion (Damgård 1989; HAC §9.3.2, Algorithmus
+  9.26) und begrenzt Nachrichten auf weniger als 2⁶⁴ Bit.
 </WhyBox>
 
 <Lens only="story">
@@ -106,13 +106,13 @@ Achte auf den Verkettungswert: Nach Block 1 ist `H⁽¹⁾` der Startzustand von
 
 ## Padding für „abc“
 
-FIPS 180-4, §5.1.1 füllt eine Nachricht von `ℓ` Bit so auf: Häng ein `1`-Bit an, dann `k` Nullbits
-mit `ℓ + 1 + k ≡ 448 (mod 512)`, dann `ℓ` als 64-Bit-Big-Endian-Ganzzahl. Das Beispiel der Norm
+FIPS 180-4, §5.1.1 hängt an eine Nachricht von `ℓ` Bit ein Einsbit an, dann `k` Nullbits mit
+`ℓ + 1 + k ≡ 448 (mod 512)`, dann `ℓ` als 64-Bit-Big-Endian-Ganzzahl. Das Beispiel des Standards
 selbst ist „abc“: `ℓ = 24`, also `k = 448 − 25 = 423`.
 
 <Formula caption="Der aufgefüllte 512-Bit-Block von „abc“ (FIPS 180-4 §5.1.1), in Hex.">
 {`61 62 63                 „abc“ (24 Bit)
-80                       1-Bit, dann 7 Nullbits
+80                       Einsbit, dann 7 Nullbits
 00 × 52                  416 weitere Nullbits (insgesamt 423)
 00 00 00 00 00 00 00 18  ℓ = 24 = 0x18 als 64 Bit`}
 </Formula>
@@ -126,7 +126,7 @@ selbst ist „abc“: `ℓ = 24`, also `k = 448 − 25 = 423`.
 Weil der letzte Block `ℓ` codiert, unterscheiden sich zwei kollidierende Nachrichten
 unterschiedlicher Länge in diesem Block, und bei gleicher Länge muss irgendwo entlang der Kette eine
 Kollision auftreten. So oder so kollidiert die Kompressionsfunktion: Damgårds Beweis (1989; HAC
-§9.4.1).
+§9.3.2, Fact 9.24).
 
 </Lens>
 
@@ -150,7 +150,7 @@ SHA2-Befehle von ARMv8. Die [SHA-256-Seite](./sha256/) führt sie in ihrem Hardw
 
 ## Mallorys drei Ziele
 
-Eine Hashfunktion soll drei Angriffen standhalten (SP 800-107 Rev. 1, §4.1):
+Eine Hashfunktion soll drei Angriffen standhalten (HAC §9.2.2):
 
 | Eigenschaft | Mallory bekommt | und muss finden | Generischer Aufwand |
 |---|---|---|---|
@@ -160,20 +160,20 @@ Eine Hashfunktion soll drei Angriffen standhalten (SP 800-107 Rev. 1, §4.1):
 
 Kollisionen sind am billigsten wegen der **Geburtstagsschranke**: Unter etwa 2ⁿᐟ² zufälligen
 Hashwerten stimmen wahrscheinlich zwei überein (HAC §9.7.1). Daher bietet SHA-256 ein
-Sicherheitsniveau von **128 Bit** gegen Kollisionen und 256 Bit gegen Urbilder (SP 800-107 Rev. 1,
-§4.2, Tabelle 1; SP 800-57 Part 1 Rev. 5, Tabelle 3).
+Sicherheitsniveau von **128 Bit** gegen Kollisionen (SP 800-57 Part 1 Rev. 5, Tabelle 3), aber
+256 Bit gegen Urbilder (SP 800-107 Rev. 1, Tabelle 1, 2022 zurückgezogen).
 
-Die Geschichte zeigt: Kollisionen fallen zuerst. MD5 (Wang & Yu, EUROCRYPT 2005) und SHA-1
-(„SHAttered“, Stevens et al., CRYPTO 2017) haben beide ihre Kollisionsresistenz durch Kryptoanalyse
-verloren.
+Kollisionen fallen zuerst: MD5 (Wang & Yu, EUROCRYPT 2005) und SHA-1 („SHAttered“, Stevens et al.,
+CRYPTO 2017) verloren ihre Kollisionsresistenz durch Kryptoanalyse.
 
 <Lens level="cryptographer">
 
-Rogaway und Shrimpton (FSE 2004) formalisieren diese Begriffe als Pre, Sec und Coll und zeigen, wie
-sie zusammenhängen. Kollisionsresistenz braucht Sorgfalt: Für ein festes `H` ohne Schlüssel
+Rogaway und Shrimpton (FSE 2004) formalisieren sie als Pre, Sec und Coll und zeigen ihre
+Zusammenhänge. Kollisionsresistenz braucht Sorgfalt: Für ein festes `H` ohne Schlüssel
 *existiert* immer eine Kollision, deshalb ist sie definiert als „niemand kann eine *finden*“.
 Zweite Urbilder zu Nachrichten aus 2ᵏ Blöcken kosten bei Merkle–Damgård etwa 2ⁿ⁻ᵏ (Kelsey &
-Schneier, EUROCRYPT 2005), daher die Spanne von 201–256 Bit in SP 800-107.
+Schneier, EUROCRYPT 2005), daher die Spanne von 201–256 Bit in SP 800-107
+(2022 zurückgezogen).
 
 </Lens>
 
@@ -186,7 +186,7 @@ Schneier, EUROCRYPT 2005), daher die Spanne von 201–256 Bit in SP 800-107.
 <CheckQuestion
   id="hash-padding-zero-bits"
   number={1}
-  question="Wie viele Nullbits fügt das SHA-256-Padding für die 24-Bit-Nachricht „abc“ nach dem 1-Bit ein?"
+  question="Wie viele Nullbits fügt das SHA-256-Padding für die 24-Bit-Nachricht „abc“ nach dem Einsbit ein?"
   options={['7', '423', '424', '448']}
   answer={1}
 >
@@ -202,7 +202,7 @@ Schneier, EUROCRYPT 2005), daher die Spanne von 201–256 Bit in SP 800-107.
   answer={1}
 >
   Wegen der Geburtstagsschranke kostet eine generische Kollisionssuche etwa 2²⁵⁶ᐟ² = 2¹²⁸
-  Hashberechnungen (SP 800-107 Rev. 1, §4.2, Tabelle 1).
+  Hashberechnungen (SP 800-57 Part 1 Rev. 5, Tabelle 3).
 </CheckQuestion>
 
 <CheckQuestion
@@ -213,7 +213,7 @@ Schneier, EUROCRYPT 2005), daher die Spanne von 201–256 Bit in SP 800-107.
   answer={2}
 >
   Beide Nachrichten zu wählen ist das Kollisionsspiel; im Spiel um zweite Urbilder ist ihr die erste
-  Nachricht vorgegeben (SP 800-107 Rev. 1, §4.1). Eine Hashfunktion hat keinen Schlüssel.
+  Nachricht vorgegeben (HAC §9.2.2). Eine Hashfunktion hat keinen Schlüssel.
 </CheckQuestion>
 
 </LessonSection>

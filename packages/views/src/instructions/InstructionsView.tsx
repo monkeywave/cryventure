@@ -1,6 +1,6 @@
 import { memo, useCallback, useEffect, useMemo, useRef, type ReactNode } from 'react';
-import type { I18nRef, Instruction, InstructionsFacet, Lens, ValuesFacet } from '@cryventure/core';
-import { ViewStatus, useFacet, useLab, useT, type ViewProps } from '@cryventure/viz';
+import type { I18nRef, Instruction, InstructionsFacet, Lens } from '@cryventure/core';
+import { ViewStatus, useLab, useT, type ViewProps } from '@cryventure/viz';
 import {
   listingProgress,
   operandValueRefs,
@@ -8,7 +8,9 @@ import {
   type RowStatus,
 } from './instructionsModel.ts';
 import { VariantPicker, useVariantChoice } from '../_lib/VariantPicker.tsx';
-import { useSelectionPreview } from '../_lib/useSelectionPreview.ts';
+import { useScrollFocusable } from '../_lib/useScrollFocusable.ts';
+import { useSelectionPreviewHandlers } from '../_lib/useSelectionPreview.ts';
+import { useValueLabel } from '../_lib/useValueLabel.ts';
 import './instructions.css';
 
 /**
@@ -33,37 +35,16 @@ const NOTE_GLYPH = '※';
 const OPERAND_SEPARATOR = ', ';
 
 /** Translated names of the ValueRefs (from the optional `values` facet; the id when it is absent). */
-function useValueLabel(): (id: string) => string {
+function useOperandLabel(): (id: string) => string {
   const t = useT();
-  const values = useFacet<ValuesFacet>('values');
-  const labelKeys = useMemo(
-    () =>
-      new Map<string, string>(
-        values.status === 'ready' ? values.data.values.map((value) => [value.id, value.labelKey]) : [],
-      ),
-    [values],
-  );
+  const valueLabel = useValueLabel();
   return useCallback(
     (id: string) => {
-      const labelKey = labelKeys.get(id);
-      return labelKey === undefined ? id : t('view.instructions.valueRef', { label: t(labelKey), id });
+      const label = valueLabel(id);
+      return label === undefined ? id : t('view.instructions.valueRef', { label, id });
     },
-    [labelKeys, t],
+    [valueLabel, t],
   );
-}
-
-/** Hover/focus publishes the operand's ValueRef; leaving clears it unless another view changed it meanwhile. */
-function useOperandSelection(valueRef: string) {
-  const { preview, release } = useSelectionPreview();
-  const enter = useCallback(() => preview(valueRef), [preview, valueRef]);
-  const leave = useCallback(() => release(valueRef), [release, valueRef]);
-  return {
-    onMouseEnter: enter,
-    onFocus: enter,
-    onClick: enter,
-    onMouseLeave: leave,
-    onBlur: leave,
-  };
 }
 
 type ValueLabel = (id: string) => string;
@@ -78,7 +59,7 @@ interface OperandProps {
 }
 
 function LinkedOperand({ text, valueRefs, showLabels, selected, valueLabel }: OperandProps) {
-  const handlers = useOperandSelection(valueRefs[0] ?? '');
+  const handlers = useSelectionPreviewHandlers(valueRefs[0] ?? '');
   const names = valueRefs.map(valueLabel).join(OPERAND_SEPARATOR);
   return (
     <button
@@ -313,10 +294,12 @@ function Listing({
   const t = useT();
   const step = useLab((state) => state.step);
   const selected = useLab((state) => state.selection.valueRefId);
-  const valueLabel = useValueLabel();
+  const valueLabel = useOperandLabel();
   const operandRefs = useMemo(() => facet.instructions.map((instruction) => operandValueRefs(instruction)), [facet]);
   const progress = listingProgress(facet, step);
   const scrollerRef = useRevealCurrent(progress.current);
+  // The story lens has no operand buttons, so the scroller itself must take focus to be keyboard-scrollable.
+  const scrollerFocusable = useScrollFocusable(scrollerRef);
   return (
     <section
       className="cv-view cv-instructions"
@@ -325,7 +308,13 @@ function Listing({
     >
       {picker}
       {lens !== 'story' && <Source source={facet.source} />}
-      <div ref={scrollerRef} className="cv-instructions__scroll">
+      <div
+        ref={scrollerRef}
+        className="cv-instructions__scroll"
+        role="region"
+        aria-label={t('view.instructions.listing')}
+        tabIndex={scrollerFocusable ? 0 : undefined}
+      >
         <table role="table" className="cv-instructions__table">
           <caption className="cv-visually-hidden">
             {t('view.instructions.caption', {

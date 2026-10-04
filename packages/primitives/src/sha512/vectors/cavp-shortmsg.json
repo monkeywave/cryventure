@@ -1,6 +1,6 @@
 {
  "source": "NIST CAVP, SHAVS byte-oriented test vectors (CAVS 11.0, generated 2011-03-15), https://csrc.nist.gov/CSRC/media/Projects/Cryptographic-Algorithm-Validation-Program/documents/shs/shabytetestvectors.zip (SHA-256 of the zip: 929ef80b7b3418aca026643f6f248815913b60e01741a44bba9e118067f4c9b8)",
- "filter": "Every ShortMsg case with a message of at most 128 bytes (Len ≤ 1024 bits), copied unchanged; the Len = 0 case's placeholder \"Msg = 00\" is stored as the empty message.",
+ "filter": "No filtering: every SHA-384, SHA-512, SHA-512/224 and SHA-512/256 ShortMsg message is at most 128 bytes (Len 0 … 1024 bits), so all 129 cases of each file are included, copied unchanged; the Len = 0 case's placeholder \"Msg = 00\" is stored as the empty message.",
  "files": {
   "sha-384": {
    "file": "SHA384ShortMsg.rsp",

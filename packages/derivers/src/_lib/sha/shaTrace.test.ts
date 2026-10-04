@@ -11,6 +11,15 @@ import {
 } from './shaTrace.ts';
 
 type MutableState = { regions: { id: string }[]; steps: { op: string }[] };
+type MutableWordops = {
+  steps: { step: number; terms: { id: string; hex: string }[]; registers?: { after: string[] } }[];
+};
+
+/** The wordops entry of state step `step` in a (mutable) fixture bundle. */
+function wordopsEntry(bundle: TraceBundle, step: number): MutableWordops['steps'][number] {
+  const wordops = bundle.facets['wordops@default'] as MutableWordops;
+  return wordops.steps.find((entry) => entry.step === step)!;
+}
 
 function withoutFacet(bundle: TraceBundle, key: string): TraceBundle {
   const facets = { ...bundle.facets };
@@ -76,5 +85,24 @@ describe('shaTrace', () => {
     const noOutput = shaFixtureBundle('sha-256-abc');
     (noOutput.facets['state@default'] as MutableState).steps.at(-1)!.op = 'done';
     expect(() => shaTrace(noOutput)).toThrow(/no output step/);
+  });
+
+  it('throws when the wordops W term of a round disagrees with word t of the "w" region', () => {
+    const tampered = shaFixtureBundle('sha-256-two-block');
+    const step = roundStep(shaTrace(shaFixtureBundle('sha-256-two-block')).blocks[1]!, 20);
+    wordopsEntry(tampered, step).terms.find((term) => term.id === 'w')!.hex = 'deadbeef';
+    expect(() => shaTrace(tampered)).toThrow(
+      /block 1 round 20: wordops w deadbeef ≠ state W_20 00000000/,
+    );
+  });
+
+  it('throws when the wordops registers.after of a round disagree with the "vars" region', () => {
+    const tampered = shaFixtureBundle('sha-256-abc');
+    const step = roundStep(shaTrace(shaFixtureBundle('sha-256-abc')).blocks[0]!, 5);
+    wordopsEntry(tampered, step).registers!.after[6] = 'deadbeef';
+    expect(() => shaTrace(tampered)).toThrow(/block 0 round 5: wordops g deadbeef ≠ state g/);
+    const missing = shaFixtureBundle('sha-256-abc');
+    delete wordopsEntry(missing, step).registers;
+    expect(() => shaTrace(missing)).toThrow(/block 0 round 5: no wordops registers/);
   });
 });

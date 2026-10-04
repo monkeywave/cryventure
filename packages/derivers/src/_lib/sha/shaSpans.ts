@@ -32,6 +32,20 @@ export function requiredShaRound(instruction: ShaListingInstruction): number {
   return instruction.round;
 }
 
+/** Per instruction, the first round t of the next round instruction after it (`undefined` after the last one). */
+export function nextRoundStarts(
+  instructions: readonly ShaListingInstruction[],
+): (number | undefined)[] {
+  const next: (number | undefined)[] = [];
+  let upcoming: number | undefined;
+  for (let index = instructions.length - 1; index >= 0; index--) {
+    next[index] = upcoming;
+    const instruction = instructions[index]!;
+    if (isRoundInstruction(instruction)) upcoming = requiredShaRound(instruction);
+  }
+  return next;
+}
+
 /** Where one block sits: its op steps and the step its final stores align to. */
 export interface ShaBlockTimeline {
   block: ShaBlockSteps;
@@ -54,14 +68,9 @@ function nextRoundFirsts(
   instructions: readonly ShaListingInstruction[],
   timeline: ShaBlockTimeline,
 ): (number | undefined)[] {
-  const next: (number | undefined)[] = [];
-  let upcoming: number | undefined;
-  for (let index = instructions.length - 1; index >= 0; index--) {
-    next[index] = upcoming;
-    const instruction = instructions[index]!;
-    if (isRoundInstruction(instruction)) upcoming = roundSpan(instruction, timeline).first;
-  }
-  return next;
+  return nextRoundStarts(instructions).map((t) =>
+    t === undefined ? undefined : roundStep(timeline.block, t),
+  );
 }
 
 /** The zero-width target of a non-round, non-copy instruction, before the monotonic guard. */

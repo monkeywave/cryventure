@@ -66,31 +66,56 @@ export function blockCipherProblems(cipher: BlockCipher, producerId: string): st
 
 const HASH_BLOCK_SIZES: readonly number[] = [64, 128];
 
-/** Digests of the same input twice, or the reason hashing threw. */
+const HASH_INPUT_SEED = 5;
+
+/** Digests of the same input twice (the given buffer, then a pristine copy), or the reason hashing threw. */
 function digestPair(fn: HashFunction, data: Uint8Array): [Uint8Array, Uint8Array] | string {
+  const pristine = data.slice();
   try {
-    return [fn.hash(data.slice()), fn.hash(data.slice())];
+    return [fn.hash(data), fn.hash(pristine.slice())];
   } catch (error) {
     return errorMessage(error);
   }
 }
 
-/** Deterministic, `outputSize` bytes, for one input length. */
-function digestProblems(fn: HashFunction, length: number): string[] {
-  const where = `Hash ${fn.id}: ${length}-byte input`;
-  const digests = digestPair(fn, testBytes(length, 5));
-  if (typeof digests === 'string') return [`${where} threw: ${digests}`];
-  const [first, second] = digests;
-  const problems: string[] = [];
-  if (!(first instanceof Uint8Array) || first.length !== fn.outputSize) problems.push(`${where}: digest is not ${fn.outputSize} bytes`);
-  else if (!(second instanceof Uint8Array) || !bytesEqual(first, second)) problems.push(`${where}: hash is not deterministic`);
-  return problems;
+interface DigestCheck {
+  problems: string[];
+  /** The digest, when it is well-formed and deterministic. */
+  digest?: Uint8Array;
 }
 
+/** Deterministic, `outputSize` bytes and leaves its input unchanged, for one input length. */
+function digestCheck(fn: HashFunction, length: number): DigestCheck {
+  const where = `Hash ${fn.id}: ${length}-byte input`;
+  const input = testBytes(length, HASH_INPUT_SEED);
+  const digests = digestPair(fn, input);
+  if (typeof digests === 'string') return { problems: [`${where} threw: ${digests}`] };
+  const [first, second] = digests;
+  const mutated = bytesEqual(input, testBytes(length, HASH_INPUT_SEED)) ? [] : [`${where}: hash mutates its input`];
+  if (!(first instanceof Uint8Array) || first.length !== fn.outputSize) return { problems: [`${where}: digest is not ${fn.outputSize} bytes`, ...mutated] };
+  if (!(second instanceof Uint8Array) || !bytesEqual(first, second)) return { problems: [`${where}: hash is not deterministic`, ...mutated] };
+  return { problems: mutated, digest: first };
+}
+
+/** Pairs of input lengths whose digests are equal (a constant or length-blind function). */
+function collisionProblems(fn: HashFunction, lengths: readonly number[], digests: readonly Uint8Array[]): string[] {
+  return lengths.flatMap((length, i) =>
+    lengths.slice(i + 1).flatMap((other, offset) => (bytesEqual(digests[i]!, digests[i + 1 + offset]!) ? [`Hash ${fn.id}: ${length}-byte and ${other}-byte inputs have the same digest`] : [])),
+  );
+}
+
+/**
+ * Sizes, then per 0-, 1- and block-sized input: deterministic, `outputSize` bytes, input unchanged;
+ * once all three digests are well-formed, they must be pairwise distinct.
+ */
 function hashFunctionProblems(fn: HashFunction): string[] {
   if (!HASH_BLOCK_SIZES.includes(fn.blockSize)) return [`Hash ${fn.id}: blockSize ${fn.blockSize} is not 64 or 128`];
   if (!isPositiveInteger(fn.outputSize)) return [`Hash ${fn.id}: outputSize ${fn.outputSize} is not a positive integer`];
-  return [0, 1, fn.blockSize].flatMap((length) => digestProblems(fn, length));
+  const lengths = [0, 1, fn.blockSize];
+  const checks = lengths.map((length) => digestCheck(fn, length));
+  const problems = checks.flatMap((check) => check.problems);
+  const digests = checks.map((check) => check.digest).filter((digest) => digest !== undefined);
+  return digests.length === lengths.length ? [...problems, ...collisionProblems(fn, lengths, digests)] : problems;
 }
 
 function duplicateIds(functions: readonly HashFunction[]): string[] {

@@ -19,6 +19,7 @@ import {
   NIST_SHA224_ABC,
   NIST_SHA256_ABC,
   NIST_SHA256_TWO_BLOCK,
+  SHA256_THREE_BLOCK,
   type NistShaExample,
 } from '../_lib/sha/fixtures/nistSha256.ts';
 import {
@@ -36,6 +37,7 @@ const LISTING_LENGTH = 167;
 const NIST: Record<ShaFixturePreset, NistShaExample> = {
   'sha-256-abc': NIST_SHA256_ABC,
   'sha-256-two-block': NIST_SHA256_TWO_BLOCK,
+  'sha-256-three-block': SHA256_THREE_BLOCK,
   'sha-224-abc': NIST_SHA224_ABC,
 };
 
@@ -196,6 +198,38 @@ describe('isa-x86-sha on the two-block message', () => {
     expect(second.reads[0]).toMatchObject({ kind: 'mem', base: 'rdi', valueRef: 'h/1' });
     expect(second.align.first).toBeGreaterThan(instructions[LISTING_LENGTH - 1]!.align.last);
     expect(instructions[0]!.reads[0]).toMatchObject({ valueRef: 'iv' });
+  });
+});
+
+describe('isa-x86-sha on the 128-byte three-block message', () => {
+  const bundle = shaFixtureBundle('sha-256-three-block');
+  const facets = isaFacets(derive(bundle), VARIANT);
+  const instructions = facets.instructions.instructions;
+  const block = (n: number) => instructions.slice(n * LISTING_LENGTH, (n + 1) * LISTING_LENGTH);
+
+  it('derives three blocks with clean alignIssues and spans that never go back', () => {
+    expect(isaFacetProblems(facets, bundle)).toEqual([]);
+    expect(instructions).toHaveLength(3 * LISTING_LENGTH);
+    const firsts = instructions.map((instruction) => instruction.align.first);
+    expect(firsts).toEqual([...firsts].sort((a, b) => a - b));
+    [1, 2].forEach((n) => {
+      expect(block(n)[0]!.align.first).toBeGreaterThan(block(n - 1).at(-1)!.align.last);
+    });
+  });
+
+  it('loads block n+1 from H^(n) and stores H^(3) = the digest last', () => {
+    expect([0, 1, 2].map((n) => block(n)[0]!.reads[0]!.valueRef)).toEqual(['iv', 'h/1', 'h/2']);
+    const lastStores = instructions
+      .flatMap((instruction, index) =>
+        instruction.mnemonic === 'movdqu' && instruction.writes[0]?.kind === 'mem' ? [index] : [],
+      )
+      .slice(-2);
+    const stored = lastStores.flatMap((index) => {
+      const source = instructions[index]!.reads[0]!;
+      return lanes(registerAfter(facets, index, source.kind === 'reg' ? source.name : ''));
+    });
+    expect(stored.join('')).toBe(SHA256_THREE_BLOCK.digest);
+    expect(instructions[lastStores[0]!]!.writes[0]!.valueRef).toBe('h/3');
   });
 });
 

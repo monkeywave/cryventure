@@ -6,7 +6,6 @@ import {
   validateFieldFacet,
   validateMathFacet,
   validateTableFacet,
-  validateWordopsFacet,
   type DerivationFacet,
   type FieldFacet,
   type I18nRef,
@@ -46,9 +45,11 @@ import {
   tableSelectParamProblems,
   unknownParamFields,
   wordopsFacetRefs,
+  wordopsShapeProblems,
   wordopsValueRefProblems,
   type AnyStateFacet,
 } from './checks.ts';
+import { checksHashRuns, hashRunProblems, type HashRunCase } from './hashRunChecks.ts';
 import { modeFacetIssues, modeFacetRefs } from './modeFacetChecks.ts';
 import { implementedPortProblems, portFieldProblems, runInProblems, textFieldProblems } from './portChecks.ts';
 import { runOptionsFor, type ProducerSet } from './runWithPorts.ts';
@@ -122,6 +123,22 @@ function manifestSuite<P>(manifest: PrimitiveManifest<P>, catalogs: LocaleCatalo
   if (manifest.implements.length > 0) {
     it('exposes every declared port, each passing its sanity check', async () => expect(implementedPortProblems(manifest, await manifest.load())).toEqual([]));
   }
+  if (checksHashRuns(manifest)) {
+    it('reproduces every default/preset digest with its own Hash port (algorithms outside the family skipped)', async () => {
+      expect(await hashPortRunProblems(manifest, producers)).toEqual([]);
+    });
+  }
+}
+
+/** `hashRunProblems` over defaults and presets, each run with its port options. */
+async function hashPortRunProblems<P>(manifest: PrimitiveManifest<P>, producers: ProducerSet): Promise<string[]> {
+  const module = await manifest.load();
+  const family = module.ports?.Hash;
+  if (family === undefined) return ['no Hash port to cross-check'];
+  const cases: HashRunCase[] = await Promise.all(
+    runCases(manifest).map(async ({ name, params }) => ({ name, params, output: runOrThrow(module, params, await runOptionsFor(manifest, params, producers.lookup)).output })),
+  );
+  return hashRunProblems(manifest, family, cases);
 }
 
 function runSuite<P>(manifest: PrimitiveManifest<P>, catalogs: LocaleCatalogs, producers: ProducerSet, testCase: RunCase<P>): void {
@@ -177,7 +194,7 @@ function optionalRunChecks<P>(manifest: PrimitiveManifest<P>, catalogs: LocaleCa
     fieldCrossChecks(bundle);
   }
   if (manifest.facets.includes('wordops')) {
-    facetChecks<WordopsFacet>('wordops', validateWordopsFacet, wordopsFacetRefs, catalogs, bundle);
+    facetChecks<WordopsFacet>('wordops', wordopsShapeProblems, wordopsFacetRefs, catalogs, bundle);
     wordopsCrossChecks(bundle);
   }
 }

@@ -5,6 +5,8 @@ import { mismatchedWords, recordConstants, wordValueId } from './constantsTrace.
 import { FIPS_TABLES } from './fipsTables.ts';
 import { SHA2_CONSTANT_IDS, SHA2_CONSTANTS_PRESETS, validateSha2ConstantsParams, type Sha2ConstantId } from './manifest.ts';
 import { run } from './module.ts';
+import de from './i18n/de.json';
+import en from './i18n/en.json';
 import vectors from './vectors/conformance.json';
 
 const NS = 'plugin.sha2-constants';
@@ -121,5 +123,21 @@ describe('validateSha2ConstantsParams', () => {
   it('rejects unknown tables and non-objects', () => {
     expect(validateSha2ConstantsParams({ constant: 'md5-k' })).toEqual({ ok: false, error: { key: `${NS}.error.constant`, params: { constant: 'md5-k' } } });
     expect(validateSha2ConstantsParams(null)).toEqual({ ok: false, error: { key: `${NS}.error.invalidParams` } });
+  });
+});
+
+describe('sha2-constants catalogs', () => {
+  const initialKeys = SHA2_CONSTANT_IDS.map((id) => `${NS}.step.initial.${id}` as const);
+
+  it('says „Nachkommabits“ in the DE intro of every table, never „Bit der Nachkommastellen“', () => {
+    for (const key of initialKeys) {
+      expect(de[key], key).toContain('Nachkommabits');
+      expect(de[key], key).not.toContain('Nachkommastellen');
+    }
+  });
+
+  it('uses the full imperative in DE and typographic quotes in EN', () => {
+    expect(de[`${NS}.error.invalidParams`]).toBe('Wähle eine Konstantentabelle.');
+    expect(en[`${NS}.error.constant`]).toBe('Unknown constant table “{{constant}}”.');
   });
 });

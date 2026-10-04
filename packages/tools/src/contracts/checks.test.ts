@@ -26,6 +26,7 @@ import {
   tableSelectParamProblems,
   unknownParamFields,
   wordopsFacetRefs,
+  wordopsShapeProblems,
   wordopsValueRefProblems,
 } from './checks.ts';
 
@@ -271,6 +272,24 @@ describe('wordops facet checks', () => {
     expect(validateWordopsFacet(valid)).toEqual([]);
     expect(validateWordopsFacet(broken)).toEqual(['wordops step 2 term "w": hex "6A09E667" is not 8 lowercase hex digits', 'wordops: step 1 does not increase (after 2)']);
   });
+
+  it('checks term and register shapes the core validator does not (and never throws)', () => {
+    expect(wordopsShapeProblems(valid)).toEqual([]);
+    const badTerms = wordops([{ step: 0, formula: { key: 'plugin.x.t1' }, terms: [{ ...term('w'), id: '' }, { ...term('k'), role: 'input' as never }, { ...term('s'), op: 'rotr2' as never }] }]);
+    expect(wordopsShapeProblems(badTerms)).toEqual([
+      'wordops step 0 term 0: id is not a non-empty string',
+      'wordops step 0 term "k": role "input" is not a MathTermRole',
+      'wordops step 0 term "s": op "rotr2" is not a WordOp',
+    ]);
+    const noAfter = wordops([{ step: 0, formula: { key: 'plugin.x.t1' }, terms: [], registers: { before: ['00000000', '00000001'] } as never }]);
+    expect(() => validateWordopsFacet(noAfter)).toThrow(TypeError);
+    expect(wordopsShapeProblems(noAfter)).toEqual(['wordops step 0: registers.after is not an array']);
+    expect(wordopsShapeProblems({ kind: 'wordops', wordBits: 32, steps: {} })).toEqual(['wordops: steps is not an array']);
+    expect(wordopsShapeProblems(wordops([{ step: 0, formula: { key: 'plugin.x.t1' }, terms: 'w' as never }]))).toEqual(['wordops step 0: terms is not an array']);
+    expect(wordopsShapeProblems(null)).toEqual(['wordops: facet is not an object']);
+  });
+
+  it('includes the core validator problems', () => expect(wordopsShapeProblems(broken)).toEqual(validateWordopsFacet(broken)));
 
   it('reports wordops steps outside the state steps', () => {
     const state = { steps: new Array(2).fill(undefined) };

@@ -1,24 +1,14 @@
 import type { Lens, WordBits, WordOp, WordopsFacet, WordopsStep, WordTerm } from '@cryventure/core';
+import { latestStepAt } from '../_lib/latestStepAt.ts';
 
 /**
  * Pure helpers of the wordops view: step lookup at the playhead, hex chunking, bit strips, the
  * story-lens term filter and the SHA-2 register shift. No React, no i18n: the component translates.
  */
 
-/** The latest wordops step whose `step ≤ step` (binary search), or `undefined` before the first (as `mathStepAt`). */
+/** The latest wordops step whose `step ≤ step`, or `undefined` before the first (as `mathStepAt`). */
 export function wordopsStepAt(facet: WordopsFacet, step: number): WordopsStep | undefined {
-  let low = 0;
-  let high = facet.steps.length - 1;
-  let found: WordopsStep | undefined;
-  while (low <= high) {
-    const mid = (low + high) >> 1;
-    const candidate = facet.steps[mid]!;
-    if (candidate.step <= step) {
-      found = candidate;
-      low = mid + 1;
-    } else high = mid - 1;
-  }
-  return found;
+  return latestStepAt(facet.steps, step);
 }
 
 const HEX_CHUNK = 4;
@@ -46,7 +36,20 @@ export const OP_GLYPHS: Readonly<Record<WordOp, string>> = {
   Sigma1: 'Σ1',
   sigma0: 'σ0',
   sigma1: 'σ1',
-  root: '√∛',
+  /* Neutral: the facet has no root degree (square for IVs, cube for K); the term label names the root. */
+  root: 'ⁿ√',
+};
+
+/**
+ * Non-colour cue per term role, next to the role colour (the role is also named in words for screen
+ * readers): ◇ operand (an input), ○ intermediate, ■ constant, ↷ carry, ● result.
+ */
+export const TERM_ROLE_GLYPHS: Readonly<Record<WordTerm['role'], string>> = {
+  operand: '◇',
+  intermediate: '○',
+  constant: '■',
+  carry: '↷',
+  result: '●',
 };
 
 /** Ops whose result is a rotation/shift mix, worth a bit strip (engineer lens). */
@@ -63,6 +66,15 @@ export function wordBitsOf(hex: string): boolean[] {
     const nibble = Number.parseInt(digit, 16);
     return [8, 4, 2, 1].map((weight) => (nibble & weight) !== 0);
   });
+}
+
+const NIBBLE = 4;
+
+/** Bits as 0/1 text grouped by nibble ("1010 0001"), so a screen reader reads short groups. */
+export function nibbleGroups(bits: readonly boolean[]): string {
+  const groups: string[] = [];
+  for (let start = 0; start < bits.length; start += NIBBLE) groups.push(bits.slice(start, start + NIBBLE).map((bit) => (bit ? '1' : '0')).join(''));
+  return groups.join(' ');
 }
 
 /** Term ids the story lens keeps besides the results: SHA-2's two temporaries. */

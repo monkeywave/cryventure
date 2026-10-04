@@ -26,12 +26,13 @@ refs:
   - FIPS 180-4, Sections 6.4–6.7 (SHA-512, SHA-384, SHA-512/224, SHA-512/256 hash computation)
   - FIPS 180-4, Section 7 (Truncation of a message digest)
   - NIST CSRC, Examples with Intermediate Values, SHA512.pdf, SHA384.pdf, SHA512_256.pdf
-  - NIST SP 800-107 Rev. 1, Section 4.2, Table 1 (security strengths) and Section 5.1 (truncated message digests)
+  - NIST SP 800-107 Rev. 1 (withdrawn 2022), Section 4.2, Table 1 (security strengths) and Section 5.1 (truncated message digests)
   - Gueron, Johnson, Walker (2011), SHA-512/256, ITNG 2011, IEEE
   - Arm Architecture Reference Manual for A-profile, FEAT_SHA512 (SHA512H, SHA512H2, SHA512SU0, SHA512SU1)
   - Menezes, van Oorschot, Vanstone (1996), Handbook of Applied Cryptography, Section 9.5.2
   - Duong, Rizzo (2009), Flickr's API Signature Forgery Vulnerability
   - Coron, Dodis, Malinaud, Puniya (2005), Merkle–Damgård Revisited, CRYPTO 2005, LNCS 3621
+  - Maurer, Renner, Holenstein (2004), Indifferentiability, Impossibility Results on Reductions, and Applications to the Random Oracle Methodology, TCC 2004, LNCS 2951
   - RFC 2104 (HMAC)
 ---
 
@@ -90,7 +91,7 @@ the word-operations view shows how the new `a` and `e` are built from `T₁` and
 Step through the 80 rounds, then the feed-forward: the eight words of `H⁽¹⁾` are the digest
 `ddaf35a1 93617aba … a54ca49f`.
 
-<Lab labId="sha512-abc" producerId="sha512" presetId="sha-512-abc" startAt="op:round" layout="wordops:55|state:20|narration:25" />
+<Lab labId="sha512-abc" producerId="sha512" presetId="sha-512-abc" startAt="op:round" layout="wordops:50|state:30|narration:20" />
 
 </LessonSection>
 

@@ -107,7 +107,7 @@ const row = (id: string) => document.querySelector<HTMLElement>(`[data-term="${i
 const termLabels = () =>
   within(screen.getByRole('table'))
     .getAllByRole('rowheader')
-    .map((cell) => cell.textContent);
+    .map((cell) => cell.querySelector('.cv-wordops__name')?.textContent);
 const formula = () => document.querySelector('.cv-wordops__formula')?.textContent;
 const register = (side: 'before' | 'after', name: string) =>
   within(screen.getByRole('group', { name: side })).getByText(name).closest<HTMLElement>('[data-register]')!;
@@ -162,7 +162,7 @@ describe('WordopsView', () => {
     act(() => store.getState().seek(0));
     expect(formula()).toBeUndefined();
     const strip = within(row('Sigma1')!).getByRole('img');
-    expect(strip.getAttribute('aria-label')).toBe('bits MSB → LSB: 00110101100001110010011100101011');
+    expect(strip.getAttribute('aria-label')).toBe('bits MSB → LSB: 0011 0101 1000 0111 0010 0111 0010 1011');
     expect(within(row('Ch')!).queryByRole('img')).toBeNull();
     expect(within(row('T1')!).queryByRole('img')).toBeNull();
   });
@@ -211,6 +211,70 @@ describe('WordopsView', () => {
     expect(store.getState().selection.valueRefId).toBe('k/0');
     expect(row('K')!.hasAttribute('data-selected')).toBe(true);
     expect(within(row('T1')!).queryByRole('button')).toBeNull();
+  });
+
+  it('moves the published selection with the focused term when the step changes, and releases it on unmount', () => {
+    const nextRound = { ...sha32.steps[0]!, step: 1, terms: ROUND_TERMS.map((each) => (each.id === 'W' ? { ...each, valueRef: 'w/1' } : each)) };
+    const twoRounds: WordopsFacet = { ...sha32, steps: [sha32.steps[0]!, nextRound, sha32.steps[1]!] };
+    const { store } = render('engineer', twoRounds);
+    act(() => store.getState().seek(0));
+    const w = within(row('W')!).getByRole('button');
+    act(() => w.focus());
+    expect(store.getState().selection.valueRefId).toBe('w/0');
+    act(() => store.getState().seek(1));
+    expect(within(row('W')!).getByRole('button')).toBe(w);
+    expect(store.getState().selection.valueRefId).toBe('w/1');
+    act(() => store.getState().seek(2));
+    expect(row('W')).toBeNull();
+    expect(store.getState().selection.valueRefId).toBeNull();
+  });
+
+  it('does not keep a stale selection when the step changes without focus', () => {
+    const nextRound = { ...sha32.steps[0]!, step: 1, terms: ROUND_TERMS.map((each) => (each.id === 'W' ? { ...each, valueRef: 'w/1' } : each)) };
+    const { store } = render('engineer', { ...sha32, steps: [sha32.steps[0]!, nextRound] });
+    act(() => store.getState().seek(0));
+    const w = within(row('W')!).getByRole('button');
+    fireEvent.mouseEnter(w);
+    fireEvent.mouseLeave(w);
+    act(() => store.getState().select('k/0'));
+    act(() => store.getState().seek(1));
+    expect(store.getState().selection.valueRefId).toBe('k/0');
+  });
+
+  it('previews the first step as a labelled, non-interactive frame', () => {
+    const { store } = render('engineer', sha32, { [facetKey('values')]: values });
+    act(() => store.getState().seek(-1));
+    const upcoming = document.querySelector<HTMLElement>('[data-upcoming]')!;
+    expect(upcoming).not.toBeNull();
+    expect(upcoming.textContent).toContain(english['view.wordops.previewTag']!);
+    expect(within(upcoming).queryAllByRole('button')).toHaveLength(0);
+    fireEvent.mouseEnter(within(row('W')!).getByText('W_0'));
+    expect(store.getState().selection.valueRefId).toBeNull();
+  });
+
+  it('names each term role in words, not by colour only', () => {
+    const { store } = render('engineer');
+    act(() => store.getState().seek(0));
+    expect(row('K')!.querySelector('.cv-wordops__label')!.textContent).toContain(english['view.wordops.role.constant']!);
+    expect(row('W')!.querySelector('.cv-wordops__label')!.textContent).toContain(english['view.wordops.role.operand']!);
+    expect(row('a')!.querySelector('.cv-wordops__label')!.textContent).toContain(english['view.wordops.role.result']!);
+  });
+
+  it('makes the scroll regions focusable only when they overflow', () => {
+    const { store } = render('engineer');
+    act(() => store.getState().seek(0));
+    const regions = () => screen.getAllByRole('region').filter((region) => region.classList.contains('cv-wordops__scroll'));
+    expect(regions()).toHaveLength(2);
+    for (const region of regions()) expect(region.hasAttribute('tabindex')).toBe(false);
+    const widths = Object.getOwnPropertyDescriptor(HTMLElement.prototype, 'scrollWidth');
+    Object.defineProperty(HTMLElement.prototype, 'scrollWidth', { configurable: true, get: () => 500 });
+    try {
+      act(() => window.dispatchEvent(new Event('resize')));
+      for (const region of regions()) expect(region.getAttribute('tabindex')).toBe('0');
+    } finally {
+      if (widths) Object.defineProperty(HTMLElement.prototype, 'scrollWidth', widths);
+      else delete (HTMLElement.prototype as { scrollWidth?: number }).scrollWidth;
+    }
   });
 
   it('explains when the facet is missing', () => {

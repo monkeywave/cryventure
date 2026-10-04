@@ -46,5 +46,5 @@
   "plugin.sha2-constants.term.skipped": "first {{bits}} fractional bits (skipped)",
   "plugin.sha2-constants.term.word": "{{symbol}}{{index}} (fractional bits)",
   "plugin.sha2-constants.error.invalidParams": "Choose a constant table.",
-  "plugin.sha2-constants.error.constant": "Unknown constant table \"{{constant}}\"."
+  "plugin.sha2-constants.error.constant": "Unknown constant table “{{constant}}”."
 }

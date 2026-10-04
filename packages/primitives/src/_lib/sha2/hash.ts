@@ -60,13 +60,13 @@ export function sha512tIv(t: number): bigint[] {
   return Array.from({ length: 8 }, (_, index) => view.getBigUint64(index * 8));
 }
 
-function hashFunction(id: Sha2Id): HashFunction {
+function sha2HashFunction(id: Sha2Id): HashFunction {
   const algorithm = ALGORITHMS[id];
   return { id, blockSize: algorithm.params.blockBytes, outputSize: algorithm.outputSize, hash: (data) => sha2Digest(algorithm, data) };
 }
 
 /** The six FIPS 180-4 SHA-2 functions, untraced. */
-export const SHA2_FUNCTIONS: readonly HashFunction[] = SHA2_IDS.map(hashFunction);
+export const SHA2_FUNCTIONS: readonly HashFunction[] = SHA2_IDS.map(sha2HashFunction);
 
 /** A producer's `Hash` port value: the family `producerId` with the functions `ids`. */
 export function sha2HashFamily(producerId: string, ids: readonly Sha2Id[]): HashFamily {

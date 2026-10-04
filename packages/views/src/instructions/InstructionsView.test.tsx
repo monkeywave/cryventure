@@ -269,6 +269,20 @@ describe('InstructionsView', () => {
     expect(scrollTo).not.toHaveBeenCalled();
   });
 
+  it('makes an overflowing listing keyboard-scrollable even in the story lens (no operand buttons)', () => {
+    vi.spyOn(HTMLElement.prototype, 'scrollHeight', 'get').mockReturnValue(800);
+    vi.spyOn(HTMLElement.prototype, 'clientHeight', 'get').mockReturnValue(400);
+    renderView('story');
+    const scroller = screen.getByRole('region', { name: 'Instruction listing' });
+    expect(scroller.querySelector('button')).toBeNull();
+    expect(scroller.getAttribute('tabindex')).toBe('0');
+  });
+
+  it('keeps a listing that fits out of the tab order', () => {
+    renderView('story');
+    expect(screen.getByRole('region', { name: 'Instruction listing' }).hasAttribute('tabindex')).toBe(false);
+  });
+
   it('speaks German', () => {
     renderView('cryptographer', 'de');
     expect(screen.getByRole('region', { name: 'Befehle' })).toBeTruthy();

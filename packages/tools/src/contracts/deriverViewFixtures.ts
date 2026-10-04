@@ -39,7 +39,7 @@ export async function buildAesBundleFixture(presetId: AesFixturePreset): Promise
   return { producerId: 'aes', presetId, bundle: await runPresetKeepingFacets('aes', presetId, DERIVER_INPUT_FACETS) };
 }
 
-export const SHA_FIXTURE_PRESETS = ['sha-256-abc', 'sha-256-two-block', 'sha-224-abc'] as const;
+export const SHA_FIXTURE_PRESETS = ['sha-256-abc', 'sha-256-two-block', 'sha-256-three-block', 'sha-224-abc'] as const;
 export type ShaFixturePreset = (typeof SHA_FIXTURE_PRESETS)[number];
 
 export const shaBundleFixturePath = (preset: ShaFixturePreset): string =>

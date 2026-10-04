@@ -62,6 +62,18 @@
       }
     },
     {
+      "name": "SHA-256, 128-byte message (three blocks, the third padding only; digest cross-checked with Node.js crypto)",
+      "params": {
+        "algorithm": "sha-256",
+        "encoding": "utf8",
+        "input": "This 128-byte message fills exactly two 64-byte blocks, so SHA-256 must add a third block purely for the padding and the length.",
+        "detail": "round"
+      },
+      "outputs": {
+        "digest": "4d2de2740db3da9854d628c496ff1c41ff201308562e81a3a4976fbc6dadd40e"
+      }
+    },
+    {
       "name": "SHA-224, \"abc\" (SHA224.pdf, one block)",
       "params": {
         "algorithm": "sha-224",

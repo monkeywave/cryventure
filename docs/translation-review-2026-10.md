@@ -179,12 +179,12 @@ Fixed in this pass (own draft):
 
 Catalog notes (not changed, for the catalog owner):
 
-- Imperative style: `plugin.sha2-constants.error.invalidParams` „Wähl eine Konstantentabelle.“ vs.
-  „Wähle …“ in the sha256/sha512 errors (23× „Wähle“ elsewhere); `view.wordops.upcoming` „drücke ▶“
-  vs. „Drück …“ in the style guide. Align on one form?
-- `plugin.sha2-constants` mixes „Nachkommastellen“ (initial texts) and „Nachkommabits“ (steps, terms);
+- Imperative style: ~~`plugin.sha2-constants.error.invalidParams` „Wähl eine Konstantentabelle.“ vs.
+  „Wähle …“ in the sha256/sha512 errors~~ **fixed** („Wähle …“). Still open: `view.wordops.upcoming`
+  „drücke ▶“ (as in `view.field`/`view.math`) vs. „Drück …“ in the style guide. Align on one form?
+- ~~`plugin.sha2-constants` mixes „Nachkommastellen“ (initial texts) and „Nachkommabits“ (steps, terms);
   both are correct, but „die ersten 32 Bit der Nachkommastellen“ could simply read „die ersten 32
-  Nachkommabits“.
+  Nachkommabits“.~~ **Fixed**: the catalog now says „Nachkommabits“ throughout.
 
 Open questions for the human reviewer:
 
@@ -272,3 +272,45 @@ Open questions for the human reviewer:
 7. Formula comments translated („x wählt zwischen y und z“, „bitweise Mehrheit“), unlike the M4 code
    listings (see item 15 above); `ROTR`/`SHR` glossed in the caption as „nach rechts rotieren/schieben“.
 8. „ISAs“ (plural acronym) in „wechselt zwischen den ISAs“ vs. „Befehlssatzarchitekturen“.
+
+### M5 – review decisions (2026-10-04)
+
+A verified crypto/German review settled the M5 open questions above. Human review of the three DE
+hash pages is **still pending**; the pages stay `status: ai-reviewed`.
+
+Resolved, kept as drafted:
+
+- index 1, 2, 3, 5, 7: „Resistenz gegen zweite Urbilder“, „Verkettungswert“, „Nachrichtenexpansion
+  (Message Schedule)“, „Anfangswert (IV)“, „Geburtstagsschranke“, „Sicherheitsniveau“, „Feed-Forward“.
+- index 8, sha512 7, sha256 6: the story images (mixer, bowl, conveyor) stay.
+- index 10: ref titles stay English.
+- sha512 3, 5: „Rotationsweiten“, „Konstruktion mit geheimem Präfix“, „weiterhashen“.
+- sha256 2, 4, 5: „31 von 64 Schritten (Runden)“ (now „rundenreduzierte Versionen“),
+  „Davies–Meyer-Feed-Forward“, „Designer“.
+- sha256 7: translated formula comments are a deliberate deviation from the M4 code listings.
+
+Resolved, changed:
+
+- index 4: „MD-Verstärkung (engl. *MD strengthening*)“.
+- index 6: „Einsbit“ replaces „1-Bit“ (text, formula comment, quiz 1).
+- index 9, sha512 6: FIPS 180-4 is a „Standard“, not a „Norm“, on all DE hash pages.
+- sha512 1: „*indifferentiable* von einem Random Oracle (im Sinne von Maurer et al., TCC 2004)“;
+  „ununterscheidbar“ means *indistinguishable*. Maurer–Renner–Holenstein added to the refs (EN+DE).
+- sha512 2: „die ersten 384 Bit“ (table, quiz 2) instead of „linke“.
+- sha512 4: table header „Zurückgehaltene Zustandsbits“.
+- sha512 8: „Random Oracle“ kept English, added to the glossary.
+- sha256 1: English term „Nothing up my sleeve“ kept; the gloss „(„nichts im Ärmel“)“ dropped (the
+  heading already says it; word limit).
+- sha256 8: „wechselt zwischen den Befehlssätzen“.
+- Descriptive text no longer addresses the reader with imperatives (index concept „Die Nachricht wird
+  … aufgefüllt“, index inside „FIPS 180-4 … hängt ein Einsbit an“, sha512 inside IV generation).
+- sha256 quiz 1 feedback: „die ersten 32 Nachkommabits“. Glossary example corrected to
+  „√2 = 1,6a09e667…“.
+
+Content fixes (EN and DE): HAC §9.4.1 → §9.3.2 (Fact 9.24, Algorithm 9.26) for MD strengthening and
+Damgård's proof; SP 800-107 Rev. 1 marked withdrawn (2022) in refs and text, the 128-bit collision
+figure now cites SP 800-57 Part 1 Rev. 5, Table 3 (preimage strength keeps SP 800-107 Table 1), the
+three notions cite HAC §9.2.2; Mendel–Nad–Schläffer with its 2⁶⁵·⁵ work; ARMv8 `SHA256H`/`SHA256H2`
+„together cover four rounds“. All sections ≤ 150 words.
+
+Still open: sha256 3 („Expansionsschritt“ vs. the sha256 catalog step label).

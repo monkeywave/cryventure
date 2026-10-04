@@ -1,6 +1,6 @@
 import type { WordopsFacet, WordopsStep, WordTerm } from '@cryventure/core';
 import { describe, expect, it } from 'vitest';
-import { hexChunks, isStoryTerm, lensParts, sha2RegisterShift, showsBitStrip, wordBitsOf, wordopsStepAt } from './wordopsModel.ts';
+import { OP_GLYPHS, TERM_ROLE_GLYPHS, hexChunks, isStoryTerm, nibbleGroups, lensParts, sha2RegisterShift, showsBitStrip, wordBitsOf, wordopsStepAt } from './wordopsModel.ts';
 
 const step = (index: number, extra: Partial<WordopsStep> = {}): WordopsStep => ({ step: index, formula: { key: 'f' }, terms: [], ...extra });
 const term = (id: string, hex: string, role: WordTerm['role'] = 'intermediate'): WordTerm => ({ id, label: { key: id }, hex, role });
@@ -13,6 +13,18 @@ describe('wordopsModel', () => {
     expect(wordopsStepAt(facet, 5)?.step).toBe(3);
     expect(wordopsStepAt(facet, 99)?.step).toBe(7);
     expect(wordopsStepAt({ ...facet, steps: [] }, 0)).toBeUndefined();
+  });
+
+  it('shows a neutral root glyph (the facet carries no root degree)', () => {
+    expect(OP_GLYPHS.root).toBe('ⁿ√');
+  });
+
+  it('gives every term role a distinct non-colour glyph', () => {
+    expect(new Set(Object.values(TERM_ROLE_GLYPHS)).size).toBe(5);
+  });
+
+  it('groups bits by nibble for the accessible name', () => {
+    expect(nibbleGroups(wordBitsOf('a1'))).toBe('1010 0001');
   });
 
   it('chunks hex into lowercase 4-digit groups', () => {

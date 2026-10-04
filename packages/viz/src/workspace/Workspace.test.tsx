@@ -122,6 +122,16 @@ describe('Workspace inside a lab layout', () => {
     expect(screen.queryByText('view narration (aes/engineer)')).toBeNull();
   });
 
+  it('stacks panels in the order of the layout preset when narrow (the first listed panel comes first)', () => {
+    renderInLab(true, { layout: 'memory:55|state:20|narration:25' });
+    expect(stackedIds()).toEqual(['memory', 'state']);
+  });
+
+  it('stacks main-slot views first when the lab gives no layout preset', () => {
+    renderInLab(true, { layout: undefined, views: [captionNarration, fakeView('memory'), mainState] });
+    expect(stackedIds()).toEqual(['state', 'memory']);
+  });
+
   it('is wide outside a lab', () => {
     renderWorkspace({ layout: 'state|narration', views: views.slice(0, 2) });
     expect(screen.getByRole('group', { name: 'Lab workspace' }).dataset['layout']).toBe('columns');

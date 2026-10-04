@@ -1,5 +1,6 @@
 {
   "view.instructions.title": "Instructions",
+  "view.instructions.listing": "Instruction listing",
   "view.instructions.loading": "Deriving the instruction listing…",
   "view.instructions.missing": "This lab has no instruction listing (it needs an AES run with one step per operation).",
   "view.instructions.variant": "Instruction set",

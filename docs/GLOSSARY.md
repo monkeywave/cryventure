@@ -123,7 +123,7 @@ and `packages/views/src/wordops/i18n/de.json` (2026-10-04): they already use the
 | hash value / digest | **Hashwert** (der); first use may add „(engl. *digest*)“ | One term for both; „Digest“/„Hash“ alone avoided in prose. Compounds: „SHA-256-Hashwert“, „256-Bit-Hashwert“. |
 | compression function | **Kompressionsfunktion** (die) | |
 | chaining value | **Verkettungswert** (der) | `H⁽ⁱ⁾`; „Merkle–Damgård-Verkettung“ for the chaining itself. |
-| Merkle–Damgård (construction), MD strengthening | **Merkle–Damgård-Konstruktion**; **Verstärkung** with „(engl. *strengthening*)“ | En dash between the names as in EN. |
+| Merkle–Damgård (construction), MD strengthening | **Merkle–Damgård-Konstruktion**; **MD-Verstärkung** with „(engl. *MD strengthening*)“ on first use | En dash between the names as in EN. HAC §9.3.2 (Algorithm 9.26) calls it „MD-strengthening“. |
 | message schedule | **Nachrichtenexpansion** (die), first use „Nachrichtenexpansion (Message Schedule)“ | Parallels „Schlüsselexpansion“. Short label for one schedule word: „Expansionswort“. |
 | working variables | **Arbeitsvariablen** (die, plural) `a … h` | |
 | round constant | **Rundenkonstante** (die), as for AES | `K₀ … K₆₃`. |
@@ -137,11 +137,17 @@ and `packages/views/src/wordops/i18n/de.json` (2026-10-04): they already use the
 | feed-forward | **Feed-Forward** (der) | Established; no German equivalent in the literature. |
 | padding | **Padding** (das), as in M3; verb „auffüllen“ | „Nachricht mit Padding“, „aufgefüllter Block“. |
 | zero bit | **Nullbit** (das), one word like „Nullbyte“ | „7 Nullbits“. |
+| one bit (the padding's leading `1`) | **Einsbit** (das), one word like „Nullbit“ | „hängt ein Einsbit an“. Not „1-Bit“ (reads as „1-bit“, a width). |
 | word operations (wordops view) | **Wortoperationen** (die) | View title. Ops: „nach rechts rotieren/schieben“, „XOR-/UND-verknüpfen“, „bitweise invertieren (NICHT)“, „modulo 2ⁿ addieren“. |
 | Ch, Maj, Σ0/Σ1, σ0/σ1 | **unchanged** (FIPS names), glossed „auswählen (Ch)“, „Mehrheit bilden (Maj)“, „großes/kleines Sigma“ | |
 | prime / square root / cube root | **Primzahl** / **Quadratwurzel** / **Kubikwurzel** (die) | „Primzahl Nr. 9“ for the ninth prime. |
-| fractional bits / fractional part | **Nachkommabits** (die, plural) / **Nachkommastellen** | „die ersten 32 Nachkommabits“; the hex fraction is written with a decimal comma („6,a09e…“) in the DE narration. |
+| fractional bits / fractional part | **Nachkommabits** (die, plural) / **Nachkommastellen** | „die ersten 32 Nachkommabits“; the hex fraction is written with a decimal comma („√2 = 1,6a09e667…“) in the DE narration. |
 | SHA-NI, SHA extensions | **SHA-Erweiterungen (SHA-NI)**; „die SHA2-Befehle von ARMv8“ | Product names stay English. |
+| random oracle | **Random Oracle** (das), unchanged | Established English term in German literature; no translation. |
+| indifferentiable (Maurer et al.) | **unchanged, in italics**: „*indifferentiable* von einem Random Oracle (im Sinne von Maurer et al.)“ | „ununterscheidbar“ is rejected: it means *indistinguishable*, a different notion. |
+| standard (FIPS, SP, RFC as documents) | **Standard** (der): „das Beispiel des Standards“ | Not „Norm“ (reserved for DIN/ISO norms). |
+| left-most n bits (truncation) | **die ersten n Bit** | Not „die linken n Bit“. |
+| ISA, instruction set | **Befehlssatz** (der), plural **Befehlssätze** | „ISA“ alone avoided in prose. |
 
 ## Style guide
 

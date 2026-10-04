@@ -6,8 +6,9 @@
  * result, a rule above it). The computed shift arrows (e ← d + T1, a ← T1 + T2) are bold and dashed
  * and carry text labels, so colour is never the only cue.
  *
- * Phones: the register row and the term table scroll horizontally inside their own focusable regions
- * (edge shadows from the shared `.cv-scroll-shadow` utility), never the page.
+ * Phones: the register row and the term table scroll horizontally inside their own regions (edge
+ * shadows from the shared `.cv-scroll-shadow` utility; focusable while they overflow), never the page.
+ * Term roles also carry a glyph (and a hidden word), so colour is never the only cue.
  */
 
 .cv-wordops {
@@ -44,19 +45,23 @@
   line-height: 0;
 }
 
-/* Before the first wordops step: the first step, muted and dashed-framed, under a start hint. */
+/*
+ * Before the first wordops step: the first step in a dashed frame under a "Preview – not computed
+ * yet" tag (full contrast, no opacity: the frame and the words carry the cue; its terms are not links).
+ */
 .cv-wordops__upcoming {
   display: grid;
   gap: 0.5rem;
   min-width: 0;
   padding: 0.5rem;
-  border: 1px dashed var(--cv-border, GrayText);
+  border: 2px dashed var(--cv-text-muted, GrayText);
   border-radius: 0.375rem;
 }
 
-.cv-wordops__upcoming .cv-wordops__formula,
-.cv-wordops__upcoming .cv-wordops__scroll {
-  opacity: 0.6;
+.cv-wordops__tag {
+  font-style: normal;
+  font-weight: 700;
+  color: var(--cv-text, CanvasText);
 }
 
 .cv-wordops__scroll {
@@ -70,7 +75,7 @@
   outline-offset: 2px;
 }
 
-/* Hex words: monospace, 4-digit chunks; 64-bit words wrap after two chunks inside a register cell. */
+/* Hex words: monospace, 4-digit chunks that never break inside; spaces between them may wrap. */
 .cv-wordops__word {
   font-family: var(--sl-font-mono, ui-monospace, monospace);
   background: none;
@@ -79,7 +84,14 @@
 }
 
 .cv-wordops__chunk {
-  white-space: pre;
+  white-space: nowrap;
+}
+
+/* 64-bit register words wrap onto two lines of two chunks, so the columns (and arrows) keep 32-bit width. */
+.cv-wordops[data-bits='64'] .cv-wordops__reg .cv-wordops__word {
+  display: block;
+  /* "6a09 e667" is 9ch; the extra half ch absorbs sub-pixel rounding, a third chunk (14ch) never fits. */
+  inline-size: 9.5ch;
 }
 
 /* ---------- registers ---------- */
@@ -223,6 +235,13 @@
   outline: 2px solid var(--cv-cell-focus-border, Highlight);
   outline-offset: -2px;
   font-weight: 700;
+}
+
+.cv-wordops__roleglyph {
+  display: inline-block;
+  inline-size: 1.25em;
+  color: var(--cv-wordops-role);
+  font-weight: 400;
 }
 
 .cv-wordops__label {

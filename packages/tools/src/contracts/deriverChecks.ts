@@ -12,7 +12,6 @@ import {
   validateMemoryFacet,
   validateRegistersFacet,
   validateTableFacet,
-  validateWordopsFacet,
   type AlignSpan,
   type AnyStateFacet,
   type DeriverManifest,
@@ -22,6 +21,7 @@ import {
   type TraceBundle,
   type ValuesFacet,
 } from '@cryventure/core';
+import { wordopsShapeProblems } from './checks.ts';
 
 /**
  * Pure checks for deriver plugins (docs/M4.md §7); each returns human-readable problems
@@ -64,7 +64,10 @@ export function derivedKindProblems(provides: readonly FacetKind[], facets: Deri
 
 type FacetValidator = (facet: never) => string[];
 
-/** Core schema validators by facet kind; kinds without one are only checked by the generic walks. */
+/**
+ * Schema validators by facet kind: core's, or a kit superset wrapping it where core is shallow
+ * (`wordops`); kinds without one are only checked by the generic walks.
+ */
 export const FACET_VALIDATORS: Readonly<Partial<Record<FacetKind, FacetValidator>>> = {
   instructions: validateInstructionsFacet,
   registers: validateRegistersFacet,
@@ -72,7 +75,7 @@ export const FACET_VALIDATORS: Readonly<Partial<Record<FacetKind, FacetValidator
   field: validateFieldFacet,
   math: validateMathFacet,
   table: validateTableFacet,
-  wordops: validateWordopsFacet,
+  wordops: wordopsShapeProblems,
 };
 
 /** Lowercase hex address as a bigint, or undefined for anything else. */

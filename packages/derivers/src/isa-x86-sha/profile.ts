@@ -2,8 +2,18 @@ import type { I18nRef, OperandRef } from '@cryventure/core';
 import { registerOperand } from '../_lib/isaFacets.ts';
 import { parseMemOperand, type ShaListing, type ShaListingInstruction } from '../_lib/listing.ts';
 import type { ShaEffects, ShaIsaProfile, ShaMachine } from '../_lib/sha/shaDerivation.ts';
+import {
+  laneAt,
+  NO_EFFECTS,
+  operand,
+  scheduleP1,
+  scheduleWord,
+  vectorOperandReader,
+  written,
+  type BinaryOperands,
+} from '../_lib/sha/shaOperands.ts';
 import { expectLanes } from '../_lib/sha/shaRegisters.ts';
-import { isRoundInstruction, requiredShaRound } from '../_lib/sha/shaSpans.ts';
+import { isRoundInstruction, nextRoundStarts, requiredShaRound } from '../_lib/sha/shaSpans.ts';
 import { SHA_VAR_NAMES, SHA_WORD_BYTES } from '../_lib/sha/shaTrace.ts';
 import {
   byteSwapped,
@@ -13,7 +23,6 @@ import {
   varLanes,
   word,
   type Lanes,
-  type ShaWord,
 } from '../_lib/sha/shaWords.ts';
 import sha256 from './data/sha256.json';
 
@@ -45,17 +54,7 @@ const LITERAL = /\[\s*rip\s*\+\s*\.?[A-Za-z_][\w.]*\s*\]/;
 
 const xmm = (operand: string): string | undefined => (XMM.test(operand) ? operand : undefined);
 
-function operand(instruction: ShaListingInstruction, index: number): string {
-  const text = instruction.operands[index];
-  if (text === undefined) throw new Error(`no operand ${index}`);
-  return text;
-}
-
-function register(instruction: ShaListingInstruction, index: number): string {
-  const name = xmm(operand(instruction, index));
-  if (name === undefined) throw new Error(`operand ${index} is not an xmm register`);
-  return name;
-}
+const register = vectorOperandReader(xmm, 'an xmm register');
 
 function immediate(instruction: ShaListingInstruction, index: number): number {
   const value = Number(operand(instruction, index));
@@ -78,10 +77,6 @@ function memory(text: string, valueRef?: string): OperandRef {
 /** The first word index a 16-byte state/block access at `[base + offset]` touches. */
 function wordIndex(text: string): number {
   return (parseMemOperand(text)?.offset ?? 0) / SHA_WORD_BYTES;
-}
-
-function written(reg: string, lanes: Lanes): ShaEffects['written'] {
-  return [{ reg, lanes }];
 }
 
 /** K_t … K_{t+3} for the next round instruction (a W+K literal). */
@@ -148,7 +143,7 @@ function move(instruction: ShaListingInstruction, machine: ShaMachine): ShaEffec
 }
 
 /** Destination and register source of a two-operand RMW instruction (`op xmm1, xmm2`). */
-function binary(instruction: ShaListingInstruction, machine: ShaMachine) {
+function binary(instruction: ShaListingInstruction, machine: ShaMachine): BinaryOperands {
   const target = register(instruction, 0);
   const source = register(instruction, 1);
   return {
@@ -159,12 +154,6 @@ function binary(instruction: ShaListingInstruction, machine: ShaMachine) {
     reads: [registerOperand(target), registerOperand(source)],
     writes: [registerOperand(target)],
   };
-}
-
-function laneAt(lanes: Lanes, index: number): ShaWord {
-  const lane = lanes[index];
-  if (lane === undefined) throw new Error(`no lane ${index}`);
-  return lane;
 }
 
 /** `pshufd xmm1, xmm2, imm`: lane i ← source lane (imm >> 2i) & 3. */
@@ -266,18 +255,9 @@ function rounds(instruction: ShaListingInstruction, machine: ShaMachine): ShaEff
   };
 }
 
-function scheduleWord(instruction: ShaListingInstruction): number {
-  if (instruction.w === undefined) throw new Error('no schedule word');
-  return instruction.w;
-}
-
 /** `sha256msg1 xmm1, xmm2`: lane i ← W_{s−16+i} + σ0(W_{s−15+i}) = p1 of W_{s+i}. */
 function message1(instruction: ShaListingInstruction, machine: ShaMachine): ShaEffects {
-  const { target, source, before, other, reads, writes } = binary(instruction, machine);
-  const s = scheduleWord(instruction);
-  expectLanes(before, laneRun(word.w, s - 16), `${target} must hold W${s - 16}…W${s - 13}`);
-  expectLanes(other, [word.w(s - 12)], `${source} must hold W${s - 12} in lane 0`);
-  return { reads, writes, written: written(target, laneRun(word.p1, s)) };
+  return scheduleP1(instruction, binary(instruction, machine));
 }
 
 /** `sha256msg2 xmm1, xmm2`: lane i ← p2 of W_{s+i} + σ1(W_{s+i−2}) = W_{s+i}. */
@@ -292,8 +272,6 @@ function message2(instruction: ShaListingInstruction, machine: ShaMachine): ShaE
   );
   return { reads, writes, written: written(target, laneRun(word.w, s)) };
 }
-
-const NO_EFFECTS: ShaEffects = { reads: [], writes: [], written: [] };
 
 const SEMANTICS: Readonly<
   Record<string, (instruction: ShaListingInstruction, machine: ShaMachine) => ShaEffects>
@@ -315,15 +293,6 @@ export function x86ShaExecute(instruction: ShaListingInstruction, machine: ShaMa
   const semantics = SEMANTICS[instruction.mnemonic];
   if (semantics === undefined) throw new Error('no semantics for this mnemonic');
   return semantics(instruction, machine);
-}
-
-/** The next round instruction's first round after `index`, if any. */
-function nextRoundAfter(
-  instructions: readonly ShaListingInstruction[],
-  index: number,
-): number | undefined {
-  const next = instructions.slice(index + 1).find(isRoundInstruction);
-  return next === undefined ? undefined : requiredShaRound(next);
 }
 
 function lastRoundIndex(instructions: readonly ShaListingInstruction[]): number {
@@ -349,7 +318,7 @@ export function x86ShaNote(
     };
   }
   if (instruction.role === 'addK' && instruction.mnemonic === 'pshufd') {
-    const t = nextRoundAfter(instructions, index);
+    const t = nextRoundStarts(instructions)[index];
     return t === undefined
       ? undefined
       : { key: `${NS}.note.nextWk`, params: { first: t, last: t + 1 } };

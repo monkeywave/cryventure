@@ -18,6 +18,8 @@ import { SHA2_OP_NAMES } from '../_lib/sha2/steps.ts';
 import { WORD64, wordsHex } from '../_lib/sha2/words.ts';
 import { sha512Manifest, SHA512_OP_NAMES, SHA512_PRESETS, validateSha512Params, type Sha512Params } from './manifest.ts';
 import { ports, run } from './module.ts';
+import de from './i18n/de.json';
+import en from './i18n/en.json';
 import cavp from './vectors/cavp-shortmsg.json';
 import intermediate from './vectors/nist-intermediate-abc.json';
 
@@ -197,7 +199,7 @@ describe('sha512 validate', () => {
   });
 });
 
-describe('sha512 against NIST CAVP SHAVS ShortMsg (filtered copy)', () => {
+describe('sha512 against NIST CAVP SHAVS ShortMsg (every case)', () => {
   it('holds the recorded number of cases per file', () => {
     for (const [algorithm, { cases: count }] of Object.entries(cavp.files)) expect(cavp.cases.filter((testCase) => testCase.algorithm === algorithm).length).toBe(count);
   });
@@ -207,5 +209,44 @@ describe('sha512 against NIST CAVP SHAVS ShortMsg (filtered copy)', () => {
     const bundle = trace({ algorithm, encoding: 'hex', input: testCase.msg, detail: 'block' });
     expect(toHex(bundle.output['digest']!)).toBe(testCase.md);
     expect(toHex(hashFunction(ports.Hash, algorithm)!.hash(Uint8Array.from(parseHexToArray(testCase.msg))))).toBe(testCase.md);
+  });
+});
+
+describe('sha512 run: stale schedule words from block 2 on', () => {
+  it('leaves W16 … W79 of block 1 in place at the init of block 2 (round detail)', () => {
+    const bundle = trace({ ...ABC, input: TWO_BLOCK });
+    const steps = state(bundle).steps;
+    const init2 = steps.findLastIndex((step) => step.op === 'init');
+    expect(steps[init2]!.narration.key).toBe('plugin.sha512.step.init');
+    const block1W = words(stateAt(state(bundle), init2 - 1)['w']!);
+    const atInit2 = words(stateAt(state(bundle), init2)['w']!);
+    expect(atInit2.slice(16)).toEqual(block1W.slice(16));
+    expect(atInit2.slice(0, 16)).not.toEqual(block1W.slice(0, 16));
+  });
+
+  it('says so in the init narration of block n ≥ 2, in EN and DE', () => {
+    expect(en['plugin.sha512.step.init']).toContain('W₁₆ … W₇₉ still hold the words of block {{prev}}');
+    expect(de['plugin.sha512.step.init']).toContain('enthalten W₁₆ … W₇₉ noch die Wörter von Block {{prev}}');
+  });
+});
+
+describe('sha512 catalogs', () => {
+  it('pluralises the DE zero-byte count', () => {
+    for (const key of ['plugin.sha512.step.pad_one', 'plugin.sha512.step.pad_other'] as const) expect(de[key]).toContain('{{zeros}} Nullbytes und');
+  });
+
+  it('words the DE op labels as actions, like EN', () => {
+    expect([en['plugin.sha512.op.round'], en['plugin.sha512.op.compress']]).toEqual(['Run one compression round', 'Run all rounds of the block']);
+    expect(de['plugin.sha512.op.round']).toBe('Eine Runde der Kompressionsfunktion ausführen');
+    expect(de['plugin.sha512.op.compress']).toBe('Alle Runden des Blocks ausführen');
+  });
+});
+
+describe('sha512 CAVP vector file', () => {
+  it('describes its copy accurately: every ShortMsg case (all at most 128 bytes), 129 per file', () => {
+    expect(Object.values(cavp.files).map((file) => file.cases)).toEqual(Object.values(cavp.files).map(() => 129));
+    expect(Math.max(...cavp.cases.map((testCase) => testCase.bytes))).toBe(128);
+    expect(cavp.filter).toContain('all 129 cases of each file');
+    expect(cavp.filter).toContain('at most 128 bytes');
   });
 });

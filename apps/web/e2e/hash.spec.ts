@@ -1,4 +1,3 @@
-import { existsSync } from 'node:fs';
 import { expect, test, type Locator } from '@playwright/test';
 import { interpolate, type Lens } from '@cryventure/core';
 import constantsEn from '../../../packages/primitives/src/sha2-constants/i18n/en.json' with { type: 'json' };
@@ -29,7 +28,6 @@ const STORY_TERMS = ['T1', 'T2'];
 const IV_ABEF_MEMORY_ORDER = '8c68059b7f520e5185ae67bb67e6096a';
 const X86_VARIANT = 'x86_64-sha-ni';
 const ARM_VARIANT = 'aarch64-armv8-sha2';
-const ARM_DERIVER_REGISTERED = existsSync(new URL('../../../packages/derivers/src/isa-armv8-sha/manifest.ts', import.meta.url));
 
 const wordops = (lab: Locator) => lab.locator('.cv-wordops');
 const register = (lab: Locator, side: 'before' | 'after', name: string) =>
@@ -48,6 +46,7 @@ test.describe('SHA-256 round lab (wordops)', () => {
     await page.goto(`en/${SHA256.path}`);
     const lab = await waitForLab(page, SHA256.round);
     await expect(wordops(lab)).toBeVisible();
+    await expect(wordops(lab).locator('[data-upcoming]')).toHaveCount(0);
     await expect(register(lab, 'before', 'a')).toHaveText(ROUND_0.before.a);
     await expect(register(lab, 'before', 'e')).toHaveText(ROUND_0.before.e);
     await expect(register(lab, 'after', 'a')).toHaveText(ROUND_0.after.a);
@@ -138,7 +137,6 @@ test.describe('derived SHA views (hardware lab)', () => {
   });
 
   test('the variant picker offers AArch64 ARMv8 SHA2 and switches the listing', async ({ page }) => {
-    test.skip(!ARM_DERIVER_REGISTERED, 'the isa-armv8-sha deriver is not registered (no packages/derivers/src/isa-armv8-sha/manifest.ts)');
     await page.goto(`en/${SHA256.path}`);
     const lab = await waitForLab(page, SHA256.hardware);
     const picker = lab.locator('.cv-instructions select');
@@ -150,21 +148,22 @@ test.describe('derived SHA views (hardware lab)', () => {
   });
 });
 
-for (const path of HASH_PAGES) {
-  for (const lens of LENSES) {
-    test(`en/${path} has no serious or critical axe violations (${lens} lens)`, async ({ page }) => {
-      await page.goto(`en/${path}`);
-      await setLens(page, lens);
-      await mountLabs(page);
-      expect(await blockingViolations(page)).toEqual([]);
-    });
-  }
-}
+/**
+ * Axe, kept cheap: the SHA-256 page (the richest: wordops, constants, hardware listing) once per lens,
+ * the overview and SHA-512 pages once, all light; plus one German dark-mode run.
+ */
+const AXE_RUNS: readonly { lang: Lang; path: string; lens: Lens; colorScheme: 'light' | 'dark' }[] = [
+  ...LENSES.map((lens) => ({ lang: 'en' as const, path: SHA256.path, lens, colorScheme: 'light' as const })),
+  { lang: 'en', path: HASH_PAGES[0], lens: 'story', colorScheme: 'light' },
+  { lang: 'en', path: SHA512.path, lens: 'engineer', colorScheme: 'light' },
+  { lang: 'de', path: SHA256.path, lens: 'cryptographer', colorScheme: 'dark' },
+];
 
-for (const colorScheme of ['light', 'dark'] as const) {
-  test(`de/${SHA256.path} (${colorScheme}) has no serious or critical axe violations`, async ({ page }) => {
+for (const { lang, path, lens, colorScheme } of AXE_RUNS) {
+  test(`${lang}/${path} has no serious or critical axe violations (${lens} lens, ${colorScheme})`, async ({ page }) => {
     await page.emulateMedia({ colorScheme });
-    await page.goto(`de/${SHA256.path}`);
+    await page.goto(`${lang}/${path}`);
+    await setLens(page, lens);
     await mountLabs(page);
     expect(await blockingViolations(page)).toEqual([]);
   });

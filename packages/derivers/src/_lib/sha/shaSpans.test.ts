@@ -4,6 +4,7 @@ import type { ShaListingInstruction, ShaListingRole } from '../listing.ts';
 import {
   blockSpans,
   isRoundInstruction,
+  nextRoundStarts,
   requiredShaRound,
   type ShaBlockTimeline,
 } from './shaSpans.ts';
@@ -97,5 +98,19 @@ describe('blockSpans (docs/M5.md §5c)', () => {
       true,
       false,
     ]);
+  });
+});
+
+describe('nextRoundStarts', () => {
+  it('gives each instruction the first round of the next round instruction, none after the last', () => {
+    const listing = [
+      listed('loadState'),
+      listed('rounds', 0),
+      listed('addK'),
+      listed('msg1'),
+      listed('rounds2', 4),
+      listed('store'),
+    ];
+    expect(nextRoundStarts(listing)).toEqual([0, 4, 4, 4, undefined, undefined]);
   });
 });

@@ -1,5 +1,6 @@
 {
   "view.instructions.title": "Befehle",
+  "view.instructions.listing": "Befehlsliste",
   "view.instructions.loading": "Die Befehlsliste wird abgeleitet …",
   "view.instructions.missing": "Dieses Lab hat keine Befehlsliste (dafür braucht es einen AES-Lauf mit einem Schritt pro Operation).",
   "view.instructions.variant": "Befehlssatz",

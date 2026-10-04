@@ -153,3 +153,45 @@ export const NIST_SHA256_TWO_BLOCK: NistShaExample = {
   ],
   digest: '248d6a61d20638b8e5c026930c3e6039a33ce45964ff2167f6ecedd419db06c1',
 };
+
+/**
+ * Not a NIST example: the 128-byte preset `sha-256-three-block` (two full blocks plus a padding-only
+ * third block). H^(1) … H^(3) from an independent SHA-256 implementation; the digest cross-checked
+ * with Node.js `crypto.createHash('sha256')`. No round values (`vars`) are pinned for it.
+ */
+export const SHA256_THREE_BLOCK: NistShaExample = {
+  vars: {},
+  h: [
+    [
+      'c8a22d42',
+      'f50210bd',
+      'ab320e7a',
+      '50c0cec8',
+      'f72b4a2b',
+      'e7bdb6ca',
+      'd8f67b6f',
+      'b761e0c8',
+    ],
+    [
+      '50572807',
+      '23cbfb9d',
+      '02806a00',
+      '7c6a3d3e',
+      '65de52b2',
+      '94c65f1c',
+      '26dc7887',
+      '744d11b0',
+    ],
+    [
+      '4d2de274',
+      '0db3da98',
+      '54d628c4',
+      '96ff1c41',
+      'ff201308',
+      '562e81a3',
+      'a4976fbc',
+      '6dadd40e',
+    ],
+  ],
+  digest: '4d2de2740db3da9854d628c496ff1c41ff201308562e81a3a4976fbc6dadd40e',
+};

@@ -103,6 +103,22 @@ describe('hashFamilyProblems', () => {
     expect(hashFamilyProblems(toyFamily([throwing]), 'toy')).toEqual(['Hash toy-256: 0-byte input threw: empty']);
   });
 
+  it('reports a function whose digests of the 0-, 1- and block-sized inputs collide', () => {
+    const constant = toyHash({ hash: () => new Uint8Array(32) });
+    expect(hashFamilyProblems(toyFamily([constant]), 'toy')).toEqual([
+      'Hash toy-256: 0-byte and 1-byte inputs have the same digest',
+      'Hash toy-256: 0-byte and 64-byte inputs have the same digest',
+      'Hash toy-256: 1-byte and 64-byte inputs have the same digest',
+    ]);
+    const lengthOnly = toyHash({ hash: (data) => new Uint8Array(32).fill(data.length === 1 ? 1 : 0) });
+    expect(hashFamilyProblems(toyFamily([lengthOnly]), 'toy')).toEqual(['Hash toy-256: 0-byte and 64-byte inputs have the same digest']);
+  });
+
+  it('reports a function that mutates its input', () => {
+    const mutating = toyHash({ hash(data) { const digest = toyHash().hash(data); data.fill(0xaa); return digest; } });
+    expect(hashFamilyProblems(toyFamily([mutating]), 'toy')).toEqual(['Hash toy-256: 1-byte input: hash mutates its input', 'Hash toy-256: 64-byte input: hash mutates its input']);
+  });
+
   it('is the sanity check implementedPortProblems runs for Hash', () => {
     expect(implementedPortProblems({ id: 'toy', implements: ['Hash'] }, { ports: { Hash: toyFamily() } })).toEqual([]);
     expect(implementedPortProblems({ id: 'other', implements: ['Hash'] }, { ports: { Hash: toyFamily() } })).toEqual(['Hash: family id "toy" is not the producer id "other"']);

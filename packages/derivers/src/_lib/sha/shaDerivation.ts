@@ -16,7 +16,7 @@ import {
 import { INITIAL_SPAN } from '../isaSpans.ts';
 import type { ShaListing, ShaListingInstruction } from '../listing.ts';
 import { registerBytes, ShaRegisterFile, type ShaBlockContext } from './shaRegisters.ts';
-import { blockSpans, isRoundInstruction, requiredShaRound } from './shaSpans.ts';
+import { blockSpans, isRoundInstruction, nextRoundStarts, requiredShaRound } from './shaSpans.ts';
 import { chainingValueId, shaTrace, type ShaTrace } from './shaTrace.ts';
 import type { Lanes } from './shaWords.ts';
 
@@ -87,18 +87,6 @@ export function shaCovers(
   return [];
 }
 
-/** Per instruction, the first round of the next round instruction. */
-function nextRounds(instructions: readonly ShaListingInstruction[]): (number | undefined)[] {
-  const next: (number | undefined)[] = [];
-  let upcoming: number | undefined;
-  for (let index = instructions.length - 1; index >= 0; index--) {
-    next[index] = upcoming;
-    const instruction = instructions[index]!;
-    if (isRoundInstruction(instruction)) upcoming = requiredShaRound(instruction);
-  }
-  return next;
-}
-
 function buildInstruction(
   listed: ShaListingInstruction,
   align: AlignSpan,
@@ -129,7 +117,7 @@ interface ListingPlan {
 function planListing(profile: ShaIsaProfile): ListingPlan {
   const { instructions } = profile.listing;
   return {
-    nextRound: nextRounds(instructions),
+    nextRound: nextRoundStarts(instructions),
     covers: instructions.map((instruction) => shaCovers(profile, instruction)),
     notes: instructions.map((_, index) => profile.note?.(instructions, index)),
   };
