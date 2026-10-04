@@ -1,7 +1,8 @@
 import { stateAt, toHex, utf8Bytes, type AnyStateFacet, type ValuesFacet, type WordopsFacet } from '@cryventure/core';
 import { describe, expect, it } from 'vitest';
 import { SHA256_ALGORITHMS, SHA512_ALGORITHMS, type Sha2Algorithm } from './algorithms.ts';
-import { recordSha2, sha2MessageBytes, type Sha2Detail } from './record.ts';
+import type { Sha2Detail } from './manifestKit.ts';
+import { recordSha2, sha2MessageBytes } from './record.ts';
 import type { Word } from './words.ts';
 
 const NS = 'plugin.test';

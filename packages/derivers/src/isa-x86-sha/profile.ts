@@ -1,6 +1,6 @@
 import type { I18nRef, OperandRef } from '@cryventure/core';
 import { memoryOperand, registerOperand, x86VectorRegister } from '../_lib/isaFacets.ts';
-import { parseMemOperand, type ShaListing, type ShaListingInstruction } from '../_lib/listing.ts';
+import type { ShaListing, ShaListingInstruction } from '../_lib/listing.ts';
 import {
   scheduleAheadNote,
   SHA256_VECTOR_DEFAULTS,
@@ -29,6 +29,7 @@ import {
   laneAt,
   laneRun,
   LANE_COUNT,
+  noLoadSemantics,
   sumLanes,
   varLanes,
   word,
@@ -77,7 +78,7 @@ function memory(text: string, valueRef?: string): OperandRef {
 
 /** The first word index a 16-byte state/block access at `[base + offset]` touches. */
 function wordIndex(text: string): number {
-  return (parseMemOperand(text)?.offset ?? 0) / SHA_WORD_BYTES;
+  return requiredMemOperand(text).offset / SHA_WORD_BYTES;
 }
 
 /** K_t … K_{t+3} for the next round instruction (a W+K literal). */
@@ -93,8 +94,11 @@ function loaded(instruction: ShaListingInstruction, source: string, machine: Sha
       return BYTE_SWAP_LANES;
     case 'addK':
       return roundConstants(machine);
-    default:
+    case 'loadState':
+    case 'loadBlock':
       return blockInputLanes(instruction.role, wordIndex(source));
+    default:
+      throw noLoadSemantics(instruction.role);
   }
 }
 

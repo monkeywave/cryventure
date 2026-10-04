@@ -82,7 +82,7 @@ const pluginIsolationPolicies = [
 /**
  * `packages/<family>/src/_lib/` holds code the plugins of one package share (it has no manifest, so
  * the discovery glob skips it). Only that package's plugins (and `_lib` itself) may import it, and
- * `_lib` may import `@cryventure/core` only (the views' `_lib` also React and viz). Manifests may import only their own package's `_lib/applicability.ts` (see manifestPolicies).
+ * `_lib` may import `@cryventure/core` only (the views' `_lib` also React and viz). Manifests may import only their own package's `_lib/applicability.ts` and `_lib/<group>/manifestKit.ts` (see manifestPolicies).
  */
 const pluginLibPolicies = PLUGIN_FAMILIES.flatMap((family) => [
   {
@@ -123,7 +123,7 @@ const manifestPolicies = [
     from: { element: { type: 'plugin' }, file: { categories: 'manifest' } },
     disallow: { dependency: { kind: '*' } },
     message:
-      'manifest.ts may import only @cryventure/core (and its package\'s _lib/applicability.ts); load the implementation lazily via `load: () => import(\'./module.ts\')` (got {{dependency.source}}).',
+      'manifest.ts may import only @cryventure/core (and its package\'s _lib/applicability.ts or _lib/*/manifestKit.ts); load the implementation lazily via `load: () => import(\'./module.ts\')` (got {{dependency.source}}).',
   },
   {
     from: { element: { type: 'plugin' }, file: { categories: 'manifest' } },
@@ -134,13 +134,21 @@ const manifestPolicies = [
     allow: { dependency: { nodeKind: 'dynamic-import', relationship: { to: 'internal' } } },
   },
   // A manifest may share tiny, core-only applicability rules (`appliesTo`) through its package's
-  // `_lib/applicability.ts`, and nothing else of `_lib` (fixtures and implementation stay lazy).
+  // `_lib/applicability.ts`, or core-only manifest parts through a `_lib/<group>/manifestKit.ts` (e.g.
+  // the SHA-2 param fields and validation), and nothing else of `_lib` (fixtures and implementation stay lazy).
   ...PLUGIN_FAMILIES.map((family) => ({
     from: { element: { type: 'plugin', path: `packages/${family}/**` }, file: { categories: 'manifest' } },
     allow: {
-      to: { element: { type: 'plugin-lib', path: `packages/${family}/**` }, file: { path: '**/_lib/applicability.ts' } },
+      to: { element: { type: 'plugin-lib', path: `packages/${family}/**` }, file: { path: ['**/_lib/applicability.ts', '**/_lib/*/manifestKit.ts'] } },
     },
   })),
+  // A manifest kit is loaded eagerly with the manifests that use it, so it imports core only, never
+  // the rest of its `_lib` (the recorder and implementation stay behind `load()`).
+  {
+    from: { element: { type: 'plugin-lib' }, file: { path: '**/_lib/*/manifestKit.ts' } },
+    disallow: { dependency: { relationship: { to: 'internal' } } },
+    message: 'manifestKit.ts is loaded eagerly by manifests: it may import only @cryventure/core (got {{dependency.source}}).',
+  },
   // View manifests type their component with `ViewComponent` from viz. A type-only import is erased
   // at compile time, so it adds nothing to the eager bundle and keeps the manifest contract typed.
   {

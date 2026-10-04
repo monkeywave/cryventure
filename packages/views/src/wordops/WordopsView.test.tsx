@@ -123,6 +123,17 @@ describe('WordopsView', () => {
     expect(row('Ch')!.querySelector('.cv-wordops__op [aria-hidden]')!.textContent).toBe('Ch');
   });
 
+  it('takes the visible op glyph from the catalog (DE), not from code', () => {
+    const german: Messages = { ...loadViewMessages('de'), ...LABELS, 'view.wordops.glyph.ch': 'Ch-de', 'view.wordops.glyph.Sigma1': 'Σ1-de' };
+    const { store } = renderLab(<WordopsView labId="fixture" lens="engineer" />, {
+      bundle: bundleWith({ [facetKey('wordops')]: sha32 }),
+      messages: german,
+    });
+    act(() => store.getState().seek(0));
+    expect(row('Ch')!.querySelector('.cv-wordops__op [aria-hidden]')!.textContent).toBe('Ch-de');
+    expect(row('Sigma1')!.querySelector('.cv-wordops__op')!.textContent).toBe('Σ1-degroßes Sigma 1 (Σ1)');
+  });
+
   it('draws the SHA-2 register shift as labelled arrows with a text alternative', () => {
     const { store } = render();
     act(() => store.getState().seek(0));

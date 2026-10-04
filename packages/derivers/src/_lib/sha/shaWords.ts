@@ -98,6 +98,11 @@ export function hLanes(first: number): Lanes {
   return laneRun((index) => word.h(SHA_VAR_NAMES[index]!), first);
 }
 
+/** The error for a load whose listing role is neither `loadState` nor `loadBlock`. */
+export function noLoadSemantics(role: ShaListingRole): Error {
+  return new Error(`no load semantics for role ${role}`);
+}
+
 /**
  * What a 16-byte load of words `first` … brings in: the block input H^(n−1) as a … h at round −1
  * (`loadState`) or the block's bytes, not yet swapped (`loadBlock`); throws for any other role.
@@ -109,7 +114,7 @@ export function blockInputLanes(role: ShaListingRole, first: number): Lanes {
     case 'loadBlock':
       return laneRun(word.wBytes, first);
     default:
-      throw new Error(`no load semantics for role ${role}`);
+      throw noLoadSemantics(role);
   }
 }
 

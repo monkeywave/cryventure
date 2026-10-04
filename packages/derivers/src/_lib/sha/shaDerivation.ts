@@ -45,6 +45,9 @@ export interface ShaMachine {
   chainIn: string;
   /** Value id of the chaining value the block stores: `h/<n+1>`. */
   chainOut: string;
+  /** The listing and the instruction's index in it, for semantics that follow a register's dataflow. */
+  listing: readonly ShaListingInstruction[];
+  index: number;
 }
 
 /** What one mnemonic does to the symbolic registers; throws when its sources hold something unexpected. */
@@ -188,10 +191,12 @@ function walkBlock(
   const registers = new ShaRegisterFile();
   const chainIn = chainingValueId(trace, blockIndex);
   const chainOut = chainingValueId(trace, blockIndex + 1);
-  profile.listing.instructions.forEach((listed, index) => {
+  const listing = profile.listing.instructions;
+  listing.forEach((listed, index) => {
     const align = spans[index]!;
     const nextRound = plan.shape.nextRound[index];
-    const effects = execute(profile, listed, { registers, nextRound, chainIn, chainOut });
+    const machine = { registers, nextRound, chainIn, chainOut, listing, index };
+    const effects = execute(profile, listed, machine);
     effects.written.forEach(({ reg, lanes }) => registers.write(reg, lanes));
     walk.instructions.push(
       buildInstruction(listed, align, effects, plan.covers[index]!, plan.notes[index]),

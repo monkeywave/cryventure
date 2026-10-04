@@ -14,9 +14,9 @@ import {
 } from '@cryventure/core';
 import { describe, expect, it } from 'vitest';
 import { SHA512_224_IV, SHA512_256_IV } from '../_lib/sha2/constants.ts';
-import { SHA2_OP_NAMES } from '../_lib/sha2/steps.ts';
+import { SHA2_OP_NAMES } from '../_lib/sha2/manifestKit.ts';
 import { WORD64, wordsHex } from '../_lib/sha2/words.ts';
-import { sha512Manifest, SHA512_OP_NAMES, SHA512_PRESETS, validateSha512Params, type Sha512Params } from './manifest.ts';
+import { sha512Manifest, SHA512_PRESETS, validateSha512Params, type Sha512Params } from './manifest.ts';
 import { ports, run } from './module.ts';
 import de from './i18n/de.json';
 import en from './i18n/en.json';
@@ -85,7 +85,7 @@ describe('sha512 run: steps, scope and facets', () => {
   });
 
   it('records only the ops the manifest declares (shared with _lib/sha2)', () => {
-    expect(SHA512_OP_NAMES).toEqual(SHA2_OP_NAMES);
+    expect(Object.keys(sha512Manifest.ops!)).toEqual([...SHA2_OP_NAMES]);
     const used = new Set([...ops(trace(ABC)), ...ops(trace({ ...ABC, detail: 'block' }))]);
     expect([...used].every((op) => Object.hasOwn(sha512Manifest.ops!, op))).toBe(true);
   });
@@ -159,6 +159,21 @@ describe('sha512 run: the SHA-512/t IV generation function (FIPS 180-4 §5.3.6)'
     expect(entries.filter((entry) => entry.ref.key.endsWith('IvGeneration'))).toHaveLength(3);
   });
 
+  it('labels the start value H(0)″ in IV generation mode, and H(0) otherwise', () => {
+    const ivLabel = (params: Sha512Params) => getFacet<ValuesFacet>(trace(params), 'values')!.values.find((value) => value.id === 'iv')!.labelKey;
+    expect(ivLabel(IV_256)).toBe('plugin.sha512.value.ivIvGeneration');
+    expect(en['plugin.sha512.value.ivIvGeneration']).toContain('H(0)″');
+    expect(de['plugin.sha512.value.ivIvGeneration']).toContain('H(0)″');
+    for (const algorithm of ['sha-384', 'sha-512', 'sha-512/224', 'sha-512/256'] as const) expect(ivLabel({ ...ABC, algorithm })).toBe('plugin.sha512.value.iv');
+  });
+
+  it('describes the generator input as any message, not only ASCII text (EN and DE)', () => {
+    expect(en['plugin.sha512.step.initialIvGeneration']).toContain('{{bytes}}-byte message');
+    expect(en['plugin.sha512.step.initialIvGeneration']).not.toContain('-byte ASCII text');
+    expect(de['plugin.sha512.step.initialIvGeneration']).toContain('{{bytes}}-Byte-Nachricht');
+    expect(de['plugin.sha512.step.initialIvGeneration']).not.toContain('-Byte-ASCII-Text');
+  });
+
   it('narrates the other algorithms without the IV generation keys', () => {
     const keys = getFacet<NarrationFacet>(trace(ABC), 'narration')!.entries.map((entry) => entry.ref.key);
     expect(keys.some((key) => key.endsWith('IvGeneration'))).toBe(false);
@@ -179,6 +194,16 @@ describe('sha512 ports.Hash', () => {
 });
 
 describe('sha512 validate', () => {
+  it('declares the text field limit as the message byte limit validation enforces, in both encodings', () => {
+    const field = sha512Manifest.paramFields!.find((entry) => entry.name === 'input')!;
+    expect(field.maxLength).toBe(128);
+    const max = field.maxLength!;
+    expect(validateSha512Params({ ...ABC, input: 'x'.repeat(max) }).ok).toBe(true);
+    expect(validateSha512Params({ ...ABC, input: 'x'.repeat(max + 1) }).ok).toBe(false);
+    expect(validateSha512Params({ ...ABC, encoding: 'hex', input: '00 '.repeat(max) }).ok).toBe(true);
+    expect(validateSha512Params({ ...ABC, encoding: 'hex', input: '00'.repeat(max + 1) }).ok).toBe(false);
+  });
+
   it('accepts every preset and normalises hex', () => {
     for (const preset of SHA512_PRESETS) expect(validateSha512Params(preset.params).ok).toBe(true);
     expect(validateSha512Params({ ...ABC, encoding: 'hex', input: '61 62 63' })).toEqual({ ok: true, value: { ...ABC, encoding: 'hex', input: '616263' } });

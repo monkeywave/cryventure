@@ -4,7 +4,7 @@
 > `docs/EXTENDING.md` / `docs/AUTHORING.md` as needed. Continue with **Next up** below.
 > Update this file at the end of every milestone or significant change.
 
-_Last updated: 2026-10-03 (M4 complete + /simplify + /code-review)._
+_Last updated: 2026-10-04 (M5 complete + /simplify + /code-review)._
 
 ## Where things live
 
@@ -16,6 +16,8 @@ _Last updated: 2026-10-03 (M4 complete + /simplify + /code-review)._
 | Plan / architecture           | `docs/PLAN.md`                                                                       |
 | M2 design brief (facets etc.) | `docs/M2.md`                                                                         |
 | M3 design brief (ports, modes)| `docs/M3.md`                                                                         |
+| M4 design brief (derivers)    | `docs/M4.md`                                                                         |
+| M5 design brief (hash, SHA-2) | `docs/M5.md`                                                                         |
 | Add plugins                   | `docs/EXTENDING.md` (`pnpm cv new primitive\|view <id>`)                             |
 | Write lessons, EN/DE workflow | `docs/AUTHORING.md`, `docs/GLOSSARY.md`                                              |
 | Deploy                        | `docs/DEPLOY.md`                                                                     |
@@ -31,7 +33,8 @@ _Last updated: 2026-10-03 (M4 complete + /simplify + /code-review)._
 | M2 Foundations + S-box                                   | ✅ done | GF(2⁸)/S-box plugins, math + table facets, foundations lessons, quiz + progress, lens, prologue (see `docs/M2.md`)                |
 | M3 Modes I (ECB/CBC/CTR, penguin, PWA)                   | ✅ done | ports + mode primitives, mode-chain/wire views, PenguinLab, PWA, modes lessons (see `docs/M3.md`); attack labs deferred           |
 | M4 GCM + Memory & Hardware (ISA/memory derivers + views) | ✅ done | ghash/gcm, derivers isa-x86/isa-armv8/memory, views instructions/registers/memory/field, CSP; **no core diff** after wave 1 (see `docs/M4.md`) |
-| M5 Hash I (proposed, see Next up)                        | ⏭ next  | first Phase 2a milestone                                                                                                          |
+| M5 Hash I (SHA-2, Hash port, SHA-NI/ARMv8 SHA2 derivers) | ✅ done | sha256/sha512/sha2-constants, `Hash` port, derivers isa-x86-sha/isa-armv8-sha, view wordops, hash lessons; **no core diff** after wave 1 (see `docs/M5.md`) |
+| M6 Hash II (proposed, see Next up)                       | ⏭ next  | Phase 2a continued: SHA-3/Keccak, BLAKE2                                                                                          |
 | Phases 2–10                                              | ☐       | see `docs/PLAN.md` §6                                                                                                            |
 
 ## What M2 delivered
@@ -111,16 +114,43 @@ _Last updated: 2026-10-03 (M4 complete + /simplify + /code-review)._
   nginx header in Docker (`frame-ancestors 'none'`, no `'unsafe-inline'` in `script-src`), e2e violation
   listener, Docker subpath CI job. `pnpm licenses:check` in CI; `THIRD_PARTY_NOTICES.md` updated.
 
-## Next up — M5 (proposal: Hash I, PLAN §6 Phase 2a)
+## What M5 delivered
 
-Write `docs/M5.md` first. Suggested scope:
-1. `primitives/sha2` (SHA-224/256/384/512, SHA-512/t) with FIPS 180-4 + NIST intermediate values and noble
-   oracles; a `compression` view or reuse of `state`/`math`; "why these constants" (√/∛ of primes,
-   SHA-384 IV, SHA-512/t IV generation).
-2. A `Hash` port in core (the first core change since M4, additive), so HMAC/HKDF can compose later.
-3. A second ISA deriver family (SHA-NI / ARMv8 SHA2) — proves the deriver contract generalises beyond AES.
-4. Lessons `hash/{index,sha256,sha512}` EN then DE; quizzes; T11 security-notions intro if time allows.
-5. Before planning any attack lab (length extension), ask the user (see Deviations).
+- **No-core-diff proof:** core changed only in wave 1 (`07938ff`: the `Hash` port — `HashFunction`,
+  `HashFamily`, `PortMap.Hash`, `hashFunction()` — and the `wordops` facet schema +
+  `validateWordopsFacet`). `git diff 07938ff -- packages/core` stayed empty through derivers, views,
+  lessons, reviews, `/simplify` and `/code-review`.
+- **Primitives:** `sha256` (SHA-224/256), `sha512` (SHA-384/512, SHA-512/224, SHA-512/256 and the
+  SHA-512/t IV generation function) and `sha2-constants` (K and IVs from exact `bigint` √/∛ of
+  primes), on the untraced `_lib/sha2` reference and the core-only `_lib/sha2/manifestKit.ts`.
+  Conformance: FIPS 180-4 / NIST examples incl. intermediate values (a … h, W_t), the full CAVP
+  ShortMsg sets ≤ 128 bytes (65 + 65 for SHA-224/256, 4 × 129 for the SHA-512 family), noble oracles
+  through `run()` and `ports.Hash`.
+- **Derivers:** `isa-x86-sha` (SHA-NI) and `isa-armv8-sha` (ARMv8 SHA2) on the shared `_lib/sha`
+  (trace reader, register/operand/span builders); values read from the trace, bytes only rearranged.
+  The asm generator (`tools/src/asm`) now works from a kernel table (AES listings byte-identical).
+- **View:** `wordops` (two-line 64-bit words, role glyphs, structural SHA-2 register-shift detection,
+  op glyphs from a catalog; publishes `selection.valueRefId`).
+- **Viz:** phone lab panels follow the layout order; wrap grids scroll with edge fades; capped
+  regions reveal the current row; `useScrollRegion` / `ScrollRegion`.
+- **Contract kit:** `PORT_SANITY.Hash` plus a port-vs-published-message check, `wordops` shape checks
+  (primitives, derivers, view fixtures), a byte-identical listing guard, compact bundle fixtures.
+- **Content (EN+DE, ai-reviewed):** `hash/{index,sha256,sha512}` (security notions, constants, SHA-NI,
+  length extension conceptually and historically); GLOSSARY M5 terms.
+- **Tests/CI:** e2e hash and layout specs; axe in legacy mode, `mountLabs` waits for rendered views;
+  CI uploads `test-results` on failure.
+
+## Next up — M6 (proposal: Hash II, PLAN §6 Phase 2a)
+
+Write `docs/M6.md` first. Suggested scope:
+1. Keccak-f[1600], SHA-3, SHAKE, cSHAKE with a sponge view (5 × 5 × 64 lane state, θ ρ π χ ι step
+   choreography, rate/capacity split); Keccak round constants via the LFSR ("why these constants").
+2. BLAKE2s/2b (ARX, reusing `wordops`); optionally MD5/SHA-1 as historical producers.
+3. Extend the ISA family: a SHA-512 hardware deriver (ARMv8.2 SHA512) and ARMv8.2 SHA3
+   (`EOR3`/`RAX1`/`XAR`/`BCAX`).
+4. Consider the incremental `Hash` port (init/update/digest, midstate; a core change needed by
+   Phase 2b HMAC) — decide in `docs/M6.md`.
+5. Before planning any attack lab, ask the user (see Deviations).
 
 ## Deviations from the plan (decided)
 
@@ -151,6 +181,14 @@ Write `docs/M5.md` first. Suggested scope:
   shared between EN and DE; a question counts as solved once answered correctly.
 - **No nanostores:** page-wide prefs (lens) live in the progress store (`useSyncExternalStore`).
 - **Hex convention:** lowercase everywhere in UI; single GF(2⁸) elements in lessons/narration use FIPS `{57}`, `•`.
+- **M5 x86 SHA-NI listing** is verified only against C models of `sha256rnds2`/`sha256msg1`/
+  `sha256msg2` (Rosetta 2 lacks SHA); the ARM listing was verified natively on an M1.
+- **M5 attack labs not planned:** length extension is conceptual/historical prose only (user rule).
+- **SHA-224 IV:** FIPS 180-4 (and RFC 3874/6234) give values only and state no derivation; lessons
+  present "low halves of the SHA-384 IV words" as a verifiable observation.
+- **SHA-512 hardware deferred** (backlog for M6).
+- **SP 800-107r1** is withdrawn but still cited (truncation), with a note saying so.
+- **Hash axe tests** are marked slow (`test.slow()`).
 - **German review** is an AI editorial pass (`translation.status: ai-reviewed`); a human native
   speaker sign-off (`human-reviewed`) is still outstanding.
 
@@ -171,8 +209,8 @@ Write `docs/M5.md` first. Suggested scope:
     them: the worker runner, `pkcs7Check` and the read-only `flip` field on the `wire` facet.
   - `cbc(aes)` id grammar / `defineComposite`.
   - Lazy child traces (`children`).
-  - Narration names the cipher by `id.toUpperCase()`. A producer title would be nicer, but `I18nRef`
-    params can't nest refs.
+  - Narration names the cipher by `id.toUpperCase()` in the M1–M4 producers. A producer title would be
+    nicer, but `I18nRef` params can't nest refs. (M5 producers name the algorithm from their catalog.)
   - Two edge-fade mechanisms: the ByteGrid mask vs `.cv-scroll-shadow`, which is hidden by the opaque
     cells.
   - `runOptionsFor` in tools still defaults to the real registry, because `modeViewFixture` uses it.
@@ -189,10 +227,28 @@ Write `docs/M5.md` first. Suggested scope:
   - LLP64 probe struct, riscv64/Windows triples, zeroization/lifetimes (Phase 8), PCLMULQDQ GHASH (Phase 4).
   - German open questions M4 items in `docs/translation-review-2026-10.md` (e.g. Lane vs. Spur, „das Tag“).
   - Home page on phones has no menu button (splash template); check whether that predates M4.
+- **From M5:**
+  - SHA-512 hardware (x86 `SHA512` extension `vsha512rnds2`…, ARMv8.2 `sha512h`/`sha512h2`/`sha512su0`/
+    `sha512su1`).
+  - `SHA256_CTX` in the memory deriver.
+  - Incremental `Hash` port (init/update/digest, midstate for HMAC/PBKDF2) — a core change.
+  - SHA-512 reference with 64-bit words as 32-bit hi/lo pairs (the `bigint` port is ~37× slower than noble).
+  - `wordops` schema v2: per-term story/emphasis flag; a register-transfer spec instead of the view's
+    structural SHA-2 shift detection; a root-degree field so the view can show √/∛.
+  - Core `validateWordopsFacet` should not throw on malformed input and should export the role/op
+    tables (tools duplicates them).
+  - A generic `latestStepAt` in core (views/_lib holds a third copy).
+  - Deriver applicability by facet contract instead of producer id; listing types generic over the role set.
+  - Runtime listing JSON still carries `source` (≈15 KB); the penguin worker bundles all manifests.
+  - ~1100 px of empty space under `wordops` on desktop (the state column shows one word per line);
+    the sticky player takes ~31% of a phone screen.
+  - Lab panels on phones now follow the layout order, which changed the first panel of the ghash/gf256 labs.
+  - AES bundle fixtures switch to single-line JSON on their next change.
+  - Style point „drücke ▶“ vs „Drück“ in `view.wordops.upcoming`; human German review of the M5 pages.
 - The `key-schedule` view now renders any `derivation` facet generically — consider renaming it to
   `derivation` when HKDF/TLS key schedules arrive.
-- `selection.valueRefId` is published by the key-schedule view but not yet consumed (linked brushing);
-  `MathTerm` has no `valueRef` yet.
+- `selection.valueRefId` is published by the key-schedule and `wordops` views and consumed by
+  `wordops`, `instructions` and `memory`; `MathTerm` has no `valueRef` yet.
 - Lab islands render `data-lens="engineer"` until hydration (`client:visible`), so story/cryptographer learners
   see engineer view content briefly; `<Lens>` blocks in MDX don't flash (inline head script).
 - View-contract renders skip axe (no vitest axe helper); axe runs in Playwright only.

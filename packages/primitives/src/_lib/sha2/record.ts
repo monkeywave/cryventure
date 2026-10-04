@@ -14,6 +14,7 @@ import {
 } from '@cryventure/core';
 import type { AnySha2Algorithm, Sha2Algorithm } from './algorithms.ts';
 import { compressDetailed, type BlockDetail } from './compress.ts';
+import type { Sha2Detail, Sha2Encoding } from './manifestKit.ts';
 import { sha2Digest } from './hash.ts';
 import { sha2Padding, type Sha2Padding } from './padding.ts';
 import { SHA2_REGISTER_NAMES, sha2InitialSnapshot, sha2Regions, type Sha2Region } from './regions.ts';
@@ -39,9 +40,6 @@ import { wordsToBytes, type Word } from './words.ts';
  * `{ digest }` output (docs/M5.md §2b–2d), checked against the untraced reference. Shared by the
  * `sha256` and `sha512` producers; only the namespace and the algorithm differ.
  */
-export type Sha2Detail = 'round' | 'block';
-export type Sha2Encoding = 'utf8' | 'hex';
-
 export interface Sha2Run<W extends Word> {
   /** The producer's i18n namespace, e.g. `plugin.sha256`. */
   ns: string;
@@ -114,15 +112,21 @@ function recordBlocks<W extends Word>(trace: Sha2Trace<W>, run: Sha2Run<W>, padd
   });
 }
 
+/** The start value: H(0), or H(0)″ (labelled `<ns>.value.ivIvGeneration`) for the SHA-512/t IV generation function (§5.3.6). */
+function ivValue<W extends Word>({ ns, algorithm }: Sha2Run<W>): ValueRef {
+  const iv = valueRef(ns, 'iv', 'constant', wordsToBytes(algorithm.params.arith, algorithm.iv), INITIAL_STEP_INDEX);
+  return algorithm.ivGeneration === undefined ? iv : { ...iv, labelKey: `${ns}.value.ivIvGeneration` };
+}
+
 function sha2Values<W extends Word>(run: Sha2Run<W>, chain: readonly ChainingValue[], digest: number[], outputStep: number): ValuesFacet {
-  const { ns, algorithm, message } = run;
+  const { ns, message } = run;
   const chaining: ValueRef[] = chain.map(({ step, bytes }, index) => ({ id: chainingValueId(index + 1), labelKey: `${ns}.value.h`, role: 'public', bytes, createdAt: step }));
   return {
     kind: 'values',
     schemaVersion: 1,
     values: [
       ...(message.length > 0 ? [valueRef(ns, 'message', 'public', [...message], INITIAL_STEP_INDEX)] : []),
-      valueRef(ns, 'iv', 'constant', wordsToBytes(algorithm.params.arith, algorithm.iv), INITIAL_STEP_INDEX),
+      ivValue(run),
       ...chaining,
       valueRef(ns, 'digest', 'public', digest, outputStep),
     ],

@@ -182,7 +182,22 @@ function annotateSchedule(
   return { ...instruction, role, w };
 }
 
-/** Adds: + K (a constant or memory operand), state + state (feed-forward) or schedule (msg2 term). */
+/** A rip-relative literal-pool operand (`[rip + .LCPI0_2]`): the only memory a K add reads. */
+function isLiteralPool(operand: string): boolean {
+  return /\[\s*rip\b/.test(operand);
+}
+
+/** What a memory source operand holds: state/block memory by base register, else nothing known. */
+function memoryContents(operands: readonly string[], profile: ShaAnnotateProfile): RegisterContent[] {
+  return operands.filter(isMemory).flatMap((operand): RegisterContent[] => {
+    const base = parseMemoryOperand(operand)?.base;
+    if (base === profile.stateBase) return [{ kind: 'state' }];
+    if (base === profile.blockBase) return [{ kind: 'message' }];
+    return [];
+  });
+}
+
+/** Adds: + K (a constant or literal-pool operand), state + state (feed-forward) or schedule (msg2 term). */
 function annotateAdd(
   instruction: ShaListingInstruction,
   sources: readonly RegisterContent[],
@@ -240,8 +255,10 @@ function annotateOne(
     tracker.write(operands[0], { kind: 'message' });
     return { ...instruction, role: 'byteSwap' };
   }
-  if (mnemonic === profile.addMnemonic)
-    return annotateAdd(instruction, sources, operands.some(isMemory), tracker, pending);
+  if (mnemonic === profile.addMnemonic) {
+    const allSources = [...sources, ...memoryContents(operands, profile)];
+    return annotateAdd(instruction, allSources, operands.some(isLiteralPool), tracker, pending);
+  }
   if (profile.shuffleMnemonics.includes(mnemonic))
     return annotateShuffle(instruction, sources, tracker);
   if (profile.moveMnemonics.includes(mnemonic)) tracker.write(operands[0], sources[0]);

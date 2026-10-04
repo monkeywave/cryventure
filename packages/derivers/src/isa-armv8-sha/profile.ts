@@ -46,11 +46,12 @@ const NS = `deriver.${DERIVER_ID}`;
 const ABCD = ['a', 'b', 'c', 'd'] as const;
 const EFGH = ['e', 'f', 'g', 'h'] as const;
 const VECTOR_BYTES = 16;
-/** Words per 16-byte vector register. */
-const VECTOR_WORDS = VECTOR_BYTES / SHA_WORD_BYTES;
 
-/** A literal-pool operand, `[x8, :lo12:.LCPI0_3]`: the n-th pool entry, K_{4n} … K_{4n+3}. */
-const LITERAL = /\[\s*\w+\s*,\s*:lo12:\s*\.?LCPI\d+_(\d+)\s*\]/;
+/**
+ * A literal-pool operand, `[x8, :lo12:.LCPI0_3]`. Its label is the compiler's numbering, so which
+ * round constants it holds is read from the dataflow instead (`literalRound`).
+ */
+const LITERAL = /\[\s*\w+\s*,\s*:lo12:\s*\.?LCPI\d+_\d+\s*\]/;
 
 const register = vectorOperandReader(armVectorRegister, 'a vector register');
 
@@ -100,18 +101,47 @@ function storePair(instruction: ShaListingInstruction, machine: ShaMachine): Sha
   };
 }
 
-/** The first round constant a literal-pool operand holds (entry n: K_{4n} … K_{4n+3}). */
-function literalRound(text: string): number | undefined {
-  const entry = LITERAL.exec(text)?.[1];
-  return entry === undefined ? undefined : Number(entry) * VECTOR_WORDS;
+/** The first instruction after `index` that names the register instruction `index` writes, and where. */
+function nextUseOfResult(
+  instructions: readonly ShaListingInstruction[],
+  index: number,
+): { at: number; instruction: ShaListingInstruction } | undefined {
+  const reg = armVectorRegister(instructions[index]?.operands[0] ?? '');
+  const at = instructions.findIndex(
+    (next, position) =>
+      position > index && next.operands.some((text) => armVectorRegister(text) === reg),
+  );
+  return reg === undefined || at === -1 ? undefined : { at, instruction: instructions[at]! };
+}
+
+/**
+ * The first round t whose constants K_t … K_{t+3} the literal load at `index` holds: its register
+ * feeds an `add` (K + W) whose sum is the K+W operand of a round instruction running rounds t … t+3.
+ * Read from the dataflow (loads run several rounds ahead), never from the pool label's number.
+ */
+function literalRound(
+  instructions: readonly ShaListingInstruction[],
+  index: number,
+): number | undefined {
+  const add = nextUseOfResult(instructions, index);
+  if (add?.instruction.mnemonic !== 'add') return undefined;
+  const consumer = nextUseOfResult(instructions, add.at)?.instruction;
+  const sum = armVectorRegister(add.instruction.operands[0] ?? '');
+  const feedsRound =
+    consumer !== undefined &&
+    isRoundInstruction(consumer) &&
+    armVectorRegister(consumer.operands[2] ?? '') === sum;
+  return feedsRound ? consumer.round : undefined;
 }
 
 /** `ldr qN, [x8, :lo12:.LCPI0_n]`: four round constants from the literal pool (a constant, no traced read). */
-function loadLiteral(instruction: ShaListingInstruction): ShaEffects {
+function loadLiteral(instruction: ShaListingInstruction, machine: ShaMachine): ShaEffects {
   const target = register(instruction, 0);
-  const t = literalRound(operand(instruction, 1));
-  if (t === undefined || instruction.role !== 'addK')
+  if (!LITERAL.test(operand(instruction, 1)) || instruction.role !== 'addK')
     throw new Error('only round-constant literals are loaded with ldr');
+  const t = literalRound(machine.listing, machine.index);
+  if (t === undefined)
+    throw new Error(`the round constants in ${target} feed no round instruction through an add`);
   return {
     reads: [],
     writes: [registerOperand(target)],
@@ -295,7 +325,7 @@ export function armShaNote(
   if (instruction.role === 'msg1' || instruction.role === 'msg2')
     return scheduleAheadNote(DERIVER_ID, instruction);
   if (instruction.mnemonic === 'ldr') {
-    const t = literalRound(instruction.operands[1] ?? '');
+    const t = literalRound(instructions, index);
     return t === undefined
       ? undefined
       : { key: `${NS}.note.literalK`, params: { first: t, last: t + 3 } };

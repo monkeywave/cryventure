@@ -1,8 +1,8 @@
 import { useId, useState, type ChangeEvent, type ReactNode } from 'react';
-import { paramFieldsOf, portOptions, utf8Bytes, type I18nRef, type ParamField, type ParamFieldOption, type PrimitiveManifest } from '@cryventure/core';
+import { paramFieldsOf, portOptions, type I18nRef, type ParamField, type ParamFieldOption, type PrimitiveManifest } from '@cryventure/core';
 import { useT } from '@cryventure/viz';
 import type { LabParams } from '../../labs/labSession.ts';
-import { editField, hintKeyOf } from '../../labs/paramFields.ts';
+import { editField, hintKeyOf, textFieldLength } from '../../labs/paramFields.ts';
 import { producerRegistry } from '../../labs/producers.ts';
 import { matchingPresetId } from '../../labs/startParams.ts';
 import { useDebouncedCallback } from '../shared/useDebouncedCallback.ts';
@@ -145,7 +145,10 @@ function HexField(props: FieldProps) {
   );
 }
 
-/** A UTF-8 text param with a live byte counter against `maxLength` (docs/EXTENDING.md "Text params"). */
+/**
+ * A text param with a live byte counter against `maxLength`: UTF-8 bytes, or decoded bytes while the
+ * producer's `encoding` param is `'hex'` (`textFieldLength`, docs/EXTENDING.md "Text params").
+ */
 function TextField(props: FieldProps) {
   const t = useT();
   const id = useId();
@@ -153,15 +156,15 @@ function TextField(props: FieldProps) {
   const { text, error, change: changeText } = useDraft(props);
   const change = (event: ChangeEvent<HTMLInputElement>) => changeText(event.target.value);
   const max = field.maxLength;
-  const bytes = utf8Bytes(text).length;
+  const { unit, bytes } = textFieldLength(text, props.params);
   const counterId = `${id}-count`;
   return (
     <div className="cv-params__field cv-params__field--text">
       <label htmlFor={id}>{t(field.labelKey)}</label>
       <input id={id} name={field.name} type="text" className="cv-params__input" spellCheck={false} autoComplete="off" value={text} onChange={change} aria-invalid={error !== null} aria-describedby={describedBy(id, field, max === undefined ? [] : [counterId])} />
       {max !== undefined && (
-        <span id={counterId} className="cv-params__count" data-over={bytes > max}>
-          {t('ui.lab.params.byteCount', { count: bytes, max })}
+        <span id={counterId} className="cv-params__count" data-over={bytes !== undefined && bytes > max}>
+          {t(unit === 'hex' ? 'ui.lab.params.byteCountHex' : 'ui.lab.params.byteCount', { count: bytes ?? '–', max })}
         </span>
       )}
       <FieldNotes id={id} field={field} error={error} />

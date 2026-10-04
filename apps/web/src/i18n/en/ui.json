@@ -18,6 +18,7 @@
   "ui.lab.params.custom": "Custom input",
   "ui.lab.params.hexHint": "Hex digits; spaces and colons are ignored.",
   "ui.lab.params.byteCount": "{{count}} / {{max}} bytes (UTF-8)",
+  "ui.lab.params.byteCountHex": "{{count}} / {{max}} bytes (hex)",
   "ui.lab.output.title": "Output",
   "ui.pwa.updateAvailable": "A new version of CryVenture is available.",
   "ui.pwa.reload": "Reload",

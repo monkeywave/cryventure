@@ -27,24 +27,13 @@ export function registerChunksPerLine(wordBits: WordBits): number | undefined {
   return wordBits === 64 ? 2 : undefined;
 }
 
-/** Visible operator glyph per op; the accessible name comes from `view.wordops.op.<op>`. */
-export const OP_GLYPHS: Readonly<Record<WordOp, string>> = {
-  rotr: 'ROTR',
-  rotl: 'ROTL',
-  shr: 'SHR',
-  xor: '⊕',
-  and: '∧',
-  not: '¬',
-  add: '+',
-  ch: 'Ch',
-  maj: 'Maj',
-  Sigma0: 'Σ0',
-  Sigma1: 'Σ1',
-  sigma0: 'σ0',
-  sigma1: 'σ1',
-  /* Neutral: the facet has no root degree (square for IVs, cube for K); the term label names the root. */
-  root: 'ⁿ√',
-};
+/**
+ * Catalog key of the visible operator glyph (FIPS 180-4 notation: ROTR, Ch, Σ0, ⊕ …), so the
+ * on-screen text is localizable like every other label; the accessible name is `view.wordops.op.<op>`.
+ */
+export function opGlyphKey(op: WordOp): `view.wordops.glyph.${WordOp}` {
+  return `view.wordops.glyph.${op}`;
+}
 
 /**
  * Non-colour cue per term role, next to the role colour (the role is also named in words for screen

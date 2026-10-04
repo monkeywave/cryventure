@@ -41,5 +41,19 @@
   "view.wordops.op.Sigma1": "großes Sigma 1 (Σ1)",
   "view.wordops.op.sigma0": "kleines Sigma 0 (σ0)",
   "view.wordops.op.sigma1": "kleines Sigma 1 (σ1)",
-  "view.wordops.op.root": "Nachkommastellen einer Wurzel"
+  "view.wordops.op.root": "Nachkommastellen einer Wurzel",
+  "view.wordops.glyph.rotr": "ROTR",
+  "view.wordops.glyph.rotl": "ROTL",
+  "view.wordops.glyph.shr": "SHR",
+  "view.wordops.glyph.xor": "⊕",
+  "view.wordops.glyph.and": "∧",
+  "view.wordops.glyph.not": "¬",
+  "view.wordops.glyph.add": "+",
+  "view.wordops.glyph.ch": "Ch",
+  "view.wordops.glyph.maj": "Maj",
+  "view.wordops.glyph.Sigma0": "Σ0",
+  "view.wordops.glyph.Sigma1": "Σ1",
+  "view.wordops.glyph.sigma0": "σ0",
+  "view.wordops.glyph.sigma1": "σ1",
+  "view.wordops.glyph.root": "ⁿ√"
 }

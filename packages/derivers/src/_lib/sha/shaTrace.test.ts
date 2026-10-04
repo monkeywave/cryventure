@@ -59,6 +59,24 @@ describe('shaTrace', () => {
     expect(() => regionWord(trace, 'vars', block.init, 8)).toThrow(/no word 8/);
   });
 
+  it('keeps only the vars, w and h words of the steps it reads (init, schedule, rounds, feed-forward)', () => {
+    const trace = shaTrace(sharedShaFixtureBundle('sha-256-two-block'));
+    const readSteps = trace.blocks.flatMap((block) => [
+      block.init,
+      ...block.schedule.filter((step) => step !== undefined),
+      ...block.rounds,
+      block.feedForward,
+    ]);
+    const ascending = (steps: number[]) => steps.sort((a, b) => a - b);
+    expect(ascending([...trace.states.keys()])).toEqual(ascending(readSteps));
+    expect(Object.keys(trace.states.get(trace.blocks[1]!.init)!).sort()).toEqual([
+      'h',
+      'vars',
+      'w',
+    ]);
+    expect(() => regionWord(trace, 'vars', trace.output, 0)).toThrow(/no word 0 after step/);
+  });
+
   it('names the chaining values iv, h/1, … and throws for one the values facet lacks', () => {
     const trace = shaTrace(sharedShaFixtureBundle('sha-256-abc'));
     expect([chainingValueId(trace, 0), chainingValueId(trace, 1)]).toEqual(['iv', 'h/1']);
@@ -89,6 +107,18 @@ describe('shaTrace', () => {
     const noOutput = shaFixtureBundle('sha-256-abc');
     (noOutput.facets['state@default'] as MutableState).steps.at(-1)!.op = 'done';
     expect(() => shaTrace(noOutput)).toThrow(/no output step/);
+  });
+
+  it('throws when a block has no feedForward before the next init (or before the trace ends)', () => {
+    const reference = shaTrace(sharedShaFixtureBundle('sha-256-two-block'));
+    const merged = shaFixtureBundle('sha-256-two-block');
+    const steps = (merged.facets['state@default'] as MutableState).steps;
+    steps[reference.blocks[0]!.feedForward]!.op = 'compress';
+    expect(() => shaTrace(merged)).toThrow(/block 0 has no feedForward/);
+    const unterminated = shaFixtureBundle('sha-256-abc');
+    const lastFeedForward = shaTrace(sharedShaFixtureBundle('sha-256-abc')).blocks[0]!.feedForward;
+    (unterminated.facets['state@default'] as MutableState).steps[lastFeedForward]!.op = 'compress';
+    expect(() => shaTrace(unterminated)).toThrow(/block 0 has no feedForward/);
   });
 
   it('throws when the wordops W term of a round disagrees with word t of the "w" region', () => {

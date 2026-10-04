@@ -12,8 +12,8 @@ import {
   type WordopsFacet,
 } from '@cryventure/core';
 import { describe, expect, it } from 'vitest';
-import { SHA2_OP_NAMES } from '../_lib/sha2/steps.ts';
-import { sha256Manifest, SHA256_OP_NAMES, SHA256_PRESETS, validateSha256Params, type Sha256Params } from './manifest.ts';
+import { SHA2_OP_NAMES } from '../_lib/sha2/manifestKit.ts';
+import { sha256Manifest, SHA256_PRESETS, validateSha256Params, type Sha256Params } from './manifest.ts';
 import { ports, run } from './module.ts';
 import de from './i18n/de.json';
 import en from './i18n/en.json';
@@ -87,7 +87,7 @@ describe('sha256 run: steps, scope and facets', () => {
   });
 
   it('records only the ops the manifest declares (shared with _lib/sha2)', () => {
-    expect(SHA256_OP_NAMES).toEqual(SHA2_OP_NAMES);
+    expect(Object.keys(sha256Manifest.ops!)).toEqual([...SHA2_OP_NAMES]);
     const used = new Set([...ops(trace(ABC)), ...ops(trace({ ...ABC, detail: 'block' }))]);
     expect([...used].every((op) => Object.hasOwn(sha256Manifest.ops!, op))).toBe(true);
   });
@@ -144,6 +144,16 @@ describe('sha256 run: steps, scope and facets', () => {
 });
 
 describe('sha256 validate', () => {
+  it('declares the text field limit as the message byte limit validation enforces, in both encodings', () => {
+    const field = sha256Manifest.paramFields!.find((entry) => entry.name === 'input')!;
+    expect(field.maxLength).toBe(128);
+    const max = field.maxLength!;
+    expect(validateSha256Params({ ...ABC, input: 'x'.repeat(max) }).ok).toBe(true);
+    expect(validateSha256Params({ ...ABC, input: 'x'.repeat(max + 1) }).ok).toBe(false);
+    expect(validateSha256Params({ ...ABC, encoding: 'hex', input: '00 '.repeat(max) }).ok).toBe(true);
+    expect(validateSha256Params({ ...ABC, encoding: 'hex', input: '00'.repeat(max + 1) }).ok).toBe(false);
+  });
+
   it('accepts every preset and normalises hex', () => {
     for (const preset of SHA256_PRESETS) expect(validateSha256Params(preset.params).ok).toBe(true);
     expect(validateSha256Params({ ...ABC, encoding: 'hex', input: '61 62 63' })).toEqual({ ok: true, value: { ...ABC, encoding: 'hex', input: '616263' } });

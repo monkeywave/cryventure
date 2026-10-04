@@ -538,12 +538,13 @@ An ESLint rule forbids absolute `href="/…"` literals in JSX/Astro.
 | Over-abstraction before real needs | facets/registries are built only as far as M0–M4 plugins exercise them; packets/filesystem stay schema drafts until Phase 7/8 |
 | Base-path bugs on github.io | `withBase()` + lint rule; E2E against both `/cryventure/` and `/` builds |
 
-## 11. Verification (M0–M4)
+## 11. Verification (M0–M5)
 - `pnpm i && pnpm -r lint typecheck test && pnpm --filter web build` passes. Removing one DE key makes `pnpm i18n:check` fail.
 - `pnpm --filter web preview`: `/en/` and `/de/` render, the theme toggle works, the service worker is active, offline reload works (from M3).
 - Engine:
   - FIPS 197 per-round values match.
   - SP 800-38A / GCM / Wycheproof pass.
+  - FIPS 180-4 examples (incl. intermediate values) and CAVP SHA-2 ShortMsg pass.
   - fast-check vs noble passes.
   - Trace-engine coverage ≥ 90%.
 - **Playwright on the running app**, AES lab with the FIPS key and plaintext:

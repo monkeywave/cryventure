@@ -95,7 +95,14 @@ describe('deriveShaIsaFacets', () => {
 
 describe('shaExecute', () => {
   it('runs the semantics of the mnemonic and throws for a mnemonic the profile has none for', () => {
-    const machine = { registers: { read: () => [] }, nextRound: 0, chainIn: 'iv', chainOut: 'h/1' };
+    const machine = {
+      registers: { read: () => [] },
+      nextRound: 0,
+      chainIn: 'iv',
+      chainOut: 'h/1',
+      listing: [],
+      index: 0,
+    };
     expect(shaExecute(toyProfile(toyExecute), listed({ role: 'store' }), machine)).toEqual({
       reads: [],
       writes: [],

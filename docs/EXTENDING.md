@@ -97,6 +97,17 @@ text input. `maxLength` counts UTF-8 bytes, not characters. In `validate()`, use
 converts the text to bytes. The contract kit checks that `maxLength`
 is a positive integer and that `defaults` and every preset fit it.
 
+- **Hex text:** when the producer also has a sibling param named `encoding` whose value is `'hex'`,
+  the lab's param panel measures the text field in **hex-decoded bytes** instead of UTF-8 bytes
+  (`textFieldLength` in `apps/web/src/labs/paramFields.ts`). Set `maxLength` to the message limit in
+  bytes, the same for both encodings (e.g. `sha256`/`sha512`: 128), and decode/check the hex in
+  `validate()` yourself.
+- **Shared manifest parts (`manifestKit`):** manifests may import only `@cryventure/core`, plus their
+  package's `_lib/applicability.ts` and `_lib/<group>/manifestKit.ts`. A `manifestKit.ts` is loaded
+  eagerly with the manifests, so it may import **only** `@cryventure/core` (ESLint enforces both).
+  Use it for param fields, presets and validation that several producers share, e.g.
+  `primitives/src/_lib/sha2/manifestKit.ts`; keep the recorder behind `load()`.
+
 ### Ports and composites
 
 A primitive never imports another primitive. A composite (a mode of operation, an attack lab) uses
@@ -293,6 +304,21 @@ never on a producer's code:
   known `I18nRef` fields of each core kind (`label`, `note`, `covers[]`, `formula`, `impl.label`,
   `terms[].label`, …) must hold `{ key, params? }` refs. Elsewhere only objects of exactly
   `{ key }` or `{ key, params }` count as refs.
+
+### Second ISA family (SHA derivers)
+
+`isa-x86-sha` and `isa-armv8-sha` (docs/M5.md §5) show how a new instruction family reuses the M4
+pieces without new facets:
+
+- **Listings:** add a kernel to the table in `packages/tools/src/asm/` (C source per ISA, functions,
+  output file, annotator such as `annotateSha.ts` with its own role set) and run `pnpm asm:generate`;
+  existing kernels must regenerate byte-identically.
+- **Profile:** a per-ISA profile on a shared lib (`derivers/src/_lib/sha`) with a semantics table
+  (what each mnemonic reads and writes) drives register values and spans; the deriver files stay
+  thin.
+- **Values:** every register value is read from the producer's trace (state regions and `wordops`
+  terms such as `K_t + W_t`, `p1`, `p2`); the deriver only rearranges bytes (byte swaps, lane
+  order, ABEF/CDGH packing) and computes no hash.
 
 ## What the contract kit checks
 

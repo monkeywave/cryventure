@@ -132,6 +132,13 @@ describe('x86 SHA-NI semantics on lane words', () => {
     ).toThrow(/sum in lane 0/);
   });
 
+  it('throws on a state/block memory operand it cannot parse instead of reading word 0', () => {
+    const lanes = { xmm1: varLanes(['a', 'b', 'c', 'd'], 63) };
+    expect(() =>
+      run(listedSha('paddd', ['xmm1', 'xmmword ptr [rdi + rax]'], 'loadState'), lanes),
+    ).toThrow(/"xmmword ptr \[rdi \+ rax\]" is not a memory operand/);
+  });
+
   it('runs sha256rnds2 with xmm1 = CDGH in / ABEF out, xmm2 = ABEF and K+W in the low half of xmm0', () => {
     const before = { xmm2: varLanes(CDGH, 3), xmm8: varLanes(ABEF, 3), xmm0: laneRun(word.kw, 4) };
     const effects = run(

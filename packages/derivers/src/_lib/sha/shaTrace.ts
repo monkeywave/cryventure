@@ -37,6 +37,7 @@ export const SHA_VAR_NAMES = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h'] as const;
 export type ShaVarName = (typeof SHA_VAR_NAMES)[number];
 
 const REQUIRED_REGIONS = ['vars', 'w', 'h'] as const;
+type ShaRegion = (typeof REQUIRED_REGIONS)[number];
 
 /** Where one block's ops sit on the state timeline. */
 export interface ShaBlockSteps {
@@ -59,8 +60,11 @@ export interface ShaTrace {
   blocks: readonly ShaBlockSteps[];
   /** The `output` step (digest written). */
   output: number;
-  /** The state after each step, replayed once in order (lookups by step never replay again). */
-  states: readonly Snapshot<string>[];
+  /**
+   * The `vars`, `w` and `h` words after each step the derivers read (`init`, `schedule`, `round`,
+   * `feedForward`), from one replay in order (lookups by step never replay again).
+   */
+  states: ReadonlyMap<number, Snapshot<ShaRegion>>;
   /** The `wordops` entry of each state step that has one. */
   wordopsByStep: ReadonlyMap<number, WordopsStep>;
 }
@@ -69,11 +73,6 @@ const CONTRACT = 'SHA-256';
 
 function contractError(message: string): Error {
   return traceContractError(CONTRACT, message);
-}
-
-/** Every state after step 0 … n−1, in order, so `stateAt` applies each step's writes once. */
-function replayStates(facet: AnyStateFacet): Snapshot<string>[] {
-  return facet.steps.map((_, step) => stateAt(facet, step));
 }
 
 /** A block under construction while the steps are scanned in order. */
@@ -99,9 +98,12 @@ function locateBlocks(facet: AnyStateFacet): { blocks: ShaBlockSteps[]; output: 
   const blocks: ShaBlockSteps[] = [];
   let open: OpenBlock | undefined;
   let output: number | undefined;
+  const noFeedForward = (): Error => contractError(`block ${blocks.length} has no feedForward`);
   facet.steps.forEach(({ op }, step) => {
-    if (op === 'init') open = { init: step, rounds: [], schedule: [], scheduled: 0 };
-    else if (op === 'output') output = step;
+    if (op === 'init') {
+      if (open !== undefined) throw noFeedForward();
+      open = { init: step, rounds: [], schedule: [], scheduled: 0 };
+    } else if (op === 'output') output = step;
     else if (open === undefined) return;
     else if (op === 'round') open.rounds.push(step);
     else if (op === 'schedule') open.schedule[SHA256_FIRST_SCHEDULED + open.scheduled++] = step;
@@ -110,9 +112,40 @@ function locateBlocks(facet: AnyStateFacet): { blocks: ShaBlockSteps[]; output: 
       open = undefined;
     }
   });
+  if (open !== undefined) throw noFeedForward();
   if (blocks.length === 0) throw contractError('no init … feedForward block at round detail');
   if (output === undefined) throw contractError('no output step');
   return { blocks, output };
+}
+
+/** The steps whose state the derivers read: every block's init, schedule, round and feed-forward steps. */
+function readSteps(blocks: readonly ShaBlockSteps[]): Set<number> {
+  return new Set(
+    blocks.flatMap((block) => [
+      block.init,
+      ...block.schedule.filter((step) => step !== undefined),
+      ...block.rounds,
+      block.feedForward,
+    ]),
+  );
+}
+
+/**
+ * The `vars`, `w` and `h` regions after each read step. One replay in order up to the last read step,
+ * so `stateAt` applies each step's writes once; the other steps' states are not kept.
+ */
+function replayReadStates(
+  facet: AnyStateFacet,
+  blocks: readonly ShaBlockSteps[],
+): Map<number, Snapshot<ShaRegion>> {
+  const read = readSteps(blocks);
+  const states = new Map<number, Snapshot<ShaRegion>>();
+  const last = Math.max(...read);
+  for (let step = 0; step <= last; step++) {
+    const state = stateAt(facet, step);
+    if (read.has(step)) states.set(step, { vars: state.vars!, w: state.w!, h: state.h! });
+  }
+  return states;
 }
 
 /** Throws unless round `t` of `block` records the same W_t and a … h in `wordops` as in `state`. */
@@ -149,12 +182,14 @@ function checkFacetsAgree(trace: ShaTrace): void {
 function readShaTrace(bundle: TraceBundle): ShaTrace {
   const facet = requiredStateFacet(bundle, REQUIRED_REGIONS, CONTRACT);
   const wordops = requiredFacet<WordopsFacet>(bundle, 'wordops', CONTRACT);
+  const { blocks, output } = locateBlocks(facet);
   const trace: ShaTrace = {
     facet,
     values: requiredFacet<ValuesFacet>(bundle, 'values', CONTRACT),
     wordops,
-    ...locateBlocks(facet),
-    states: replayStates(facet),
+    blocks,
+    output,
+    states: replayReadStates(facet, blocks),
     wordopsByStep: new Map(wordops.steps.map((entry) => [entry.step, entry])),
   };
   checkFacetsAgree(trace);
@@ -166,7 +201,7 @@ export const shaTrace: (bundle: TraceBundle) => ShaTrace = memoizePerBundle(read
 
 /** The big-endian bytes of word `index` of `region` after `step`. */
 export function regionWord(trace: ShaTrace, region: string, step: number, index: number): number[] {
-  const state = trace.states[step];
+  const state = trace.states.get(step);
   const bytes =
     state === undefined
       ? undefined

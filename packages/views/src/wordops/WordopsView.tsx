@@ -7,7 +7,7 @@ import { useSelectionPreviewHandlers } from '../_lib/useSelectionPreview.ts';
 import { useValueLabel } from '../_lib/useValueLabel.ts';
 import {
   NIBBLE,
-  OP_GLYPHS,
+  opGlyphKey,
   TERM_ROLE_GLYPHS,
   hexChunks,
   isStoryTerm,
@@ -344,7 +344,7 @@ const TermRow = memo(function TermRow({ term, bits, linked, selected, valueLabel
       <td role="cell" className="cv-wordops__op">
         {term.op !== undefined && (
           <>
-            <span aria-hidden="true">{OP_GLYPHS[term.op]}</span>
+            <span aria-hidden="true">{t(opGlyphKey(term.op))}</span>
             <span className="cv-visually-hidden">{t(`view.wordops.op.${term.op}`)}</span>
           </>
         )}

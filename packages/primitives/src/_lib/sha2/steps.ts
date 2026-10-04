@@ -1,6 +1,7 @@
 import { allIndices, blockIndices, highlight, i18nRef, toHex, valueId, type Highlight, type I18nRef, type TranslateParams } from '@cryventure/core';
 import type { Sha2Algorithm, Sha2IvGeneration } from './algorithms.ts';
 import type { BlockDetail, RoundDetail, ScheduleDetail } from './compress.ts';
+import type { Sha2OpName } from './manifestKit.ts';
 import type { Sha2Padding } from './padding.ts';
 import { SHA2_REGISTER_NAMES, wordIndices, type Sha2Region } from './regions.ts';
 import { roundTerms, scheduleTerms, termFactory, type TermFactory } from './wordTerms.ts';
@@ -8,13 +9,11 @@ import { wordsHex, wordsToBytes, type Word, type WordArith } from './words.ts';
 import type { WordopsRecorder } from './wordopsRecorder.ts';
 
 /**
- * The recorded SHA-2 ops (docs/M5.md §2c): `pad` once before block 0; per block `init`, then at
- * `round` detail `schedule t` (t ≥ 16) and `round t` for t = 0 … N−1, or at `block` detail one
- * `compress`; then `feedForward`; after the last block `output`. Narration and wordops keys live
- * under the producer's namespace, so `sha256` and `sha512` share this code with their own catalogs.
+ * The recorded SHA-2 ops (docs/M5.md §2c) are `SHA2_OP_NAMES` of `manifestKit.ts` (the manifests
+ * declare their labels from the same list). Narration and wordops keys live under the producer's
+ * namespace, so `sha256` and `sha512` share this code with their own catalogs.
  */
-export const SHA2_OP_NAMES = ['pad', 'init', 'schedule', 'round', 'compress', 'feedForward', 'output'] as const;
-export type Sha2OpName = (typeof SHA2_OP_NAMES)[number];
+export { SHA2_OP_NAMES, type Sha2OpName } from './manifestKit.ts';
 export type Sha2Recorder = WordopsRecorder<Sha2Region, { op: Sha2OpName }>;
 
 /** What every step recorder needs: the namespace, the algorithm, the recorder and its term factory. */

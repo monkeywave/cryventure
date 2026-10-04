@@ -64,8 +64,6 @@ export function blockCipherProblems(cipher: BlockCipher, producerId: string): st
   ];
 }
 
-const HASH_BLOCK_SIZES: readonly number[] = [64, 128];
-
 const HASH_INPUT_SEED = 5;
 
 /** Digests of the same input twice (the given buffer, then a copy taken before hashing), or the reason hashing threw. */
@@ -109,7 +107,7 @@ function collisionProblems(fn: HashFunction, lengths: readonly number[], digests
  * once all three digests are well-formed, they must be pairwise distinct.
  */
 function hashFunctionProblems(fn: HashFunction): string[] {
-  if (!HASH_BLOCK_SIZES.includes(fn.blockSize)) return [`Hash ${fn.id}: blockSize ${fn.blockSize} is not 64 or 128`];
+  if (!isPositiveInteger(fn.blockSize)) return [`Hash ${fn.id}: blockSize ${fn.blockSize} is not a positive integer`];
   if (!isPositiveInteger(fn.outputSize)) return [`Hash ${fn.id}: outputSize ${fn.outputSize} is not a positive integer`];
   const lengths = [0, 1, fn.blockSize];
   const checks = lengths.map((length) => digestCheck(fn, length));

@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { PrimitiveManifest } from '@cryventure/core';
 import { producerRegistry } from './registry.ts';
-import { choiceLabelKey, editField, HEX_HINT_KEY, hintKeyOf, mergeParams, outputLabelKey } from './paramFields.ts';
+import { choiceLabelKey, editField, HEX_HINT_KEY, hintKeyOf, mergeParams, outputLabelKey, textFieldLength } from './paramFields.ts';
 import type { LabParams } from './labSession.ts';
 
 const aes = producerRegistry.require('aes') as PrimitiveManifest<LabParams>;
@@ -74,5 +74,22 @@ describe('choiceLabelKey', () => {
   it('is undefined for unknown values, non-implementers and other kinds', () => {
     expect(choiceLabelKey({ name: 'cipher', kind: 'port', port: 'BlockCipher', labelKey: 'l' }, 'xor', producers)).toBeUndefined();
     expect(choiceLabelKey({ name: 'keyHex', kind: 'hex', labelKey: 'l' }, '00', producers)).toBeUndefined();
+  });
+});
+
+describe('textFieldLength', () => {
+  it('counts UTF-8 bytes unless the producer\'s `encoding` param is hex', () => {
+    expect(textFieldLength('äö', {})).toEqual({ unit: 'utf8', bytes: 4 });
+    expect(textFieldLength('äö', { encoding: 'utf8' })).toEqual({ unit: 'utf8', bytes: 4 });
+  });
+
+  it('counts the decoded bytes of hex text, ignoring separators', () => {
+    expect(textFieldLength('00 '.repeat(100).trim(), { encoding: 'hex' })).toEqual({ unit: 'hex', bytes: 100 });
+    expect(textFieldLength('', { encoding: 'hex' })).toEqual({ unit: 'hex', bytes: 0 });
+  });
+
+  it('counts the complete bytes of odd-length hex and leaves invalid hex uncounted', () => {
+    expect(textFieldLength('616', { encoding: 'hex' })).toEqual({ unit: 'hex', bytes: 1 });
+    expect(textFieldLength('zz', { encoding: 'hex' })).toEqual({ unit: 'hex', bytes: undefined });
   });
 });

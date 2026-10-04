@@ -76,6 +76,16 @@ describe('annotateShaListing (x86)', () => {
       'other',
     ]);
   });
+  it('labels a feed-forward add that folds the state load (paddd reg, [rdi]) feedForward, not addK', () => {
+    expect(
+      summary([
+        'movdqu xmm1, xmmword ptr [rdi]',
+        'sha256rnds2 xmm1, xmm2, xmm0',
+        'paddd xmm1, xmmword ptr [rdi]',
+        'paddd xmm3, xmmword ptr [rip + .LCPI0_4]',
+      ]),
+    ).toEqual(['loadState', 'rounds@0', 'feedForward', 'addK']);
+  });
 });
 
 describe('annotateShaListing (armv8)', () => {

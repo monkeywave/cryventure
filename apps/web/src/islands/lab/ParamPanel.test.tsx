@@ -299,3 +299,41 @@ describe('ParamPanel text fields', () => {
     expect(screen.getByText('2 / 8 Byte (UTF-8)')).toBeTruthy();
   });
 });
+
+/** SHA-256 measures its message in UTF-8 or hex-decoded bytes, depending on its `encoding` param. */
+describe('ParamPanel text fields measured by a sibling encoding', () => {
+  const sha256 = producerRegistry.require('sha256') as PrimitiveManifest<LabParams>;
+
+  function renderSha256(params: LabParams, lang = 'en') {
+    const onApply = vi.fn();
+    render(
+      <I18nProvider messages={labMessages(lang, sha256)}>
+        <ParamPanel producer={sha256} params={params} onApply={onApply} />
+      </I18nProvider>,
+    );
+    return { onApply, input: screen.getByRole('textbox', { name: lang === 'de' ? 'Nachricht' : 'Message' }) };
+  }
+
+  it('flags UTF-8 text over the 128-byte message limit that validation enforces', () => {
+    const { onApply, input } = renderSha256(sha256.defaults as LabParams);
+    typeInto(input, 'x'.repeat(200));
+    expect(onApply).not.toHaveBeenCalled();
+    expect(screen.getByText('200 / 128 bytes (UTF-8)').getAttribute('data-over')).toBe('true');
+  });
+
+  it('counts hex input as decoded bytes, so a valid 100-byte message with separators is not flagged', () => {
+    const params = { ...(sha256.defaults as LabParams), encoding: 'hex', input: '616263' };
+    const { onApply, input } = renderSha256(params);
+    expect(screen.getByText('3 / 128 bytes (hex)')).toBeTruthy();
+    typeInto(input, '00 '.repeat(100).trim());
+    expect(onApply).toHaveBeenCalled();
+    expect(screen.getByText('100 / 128 bytes (hex)').getAttribute('data-over')).toBe('false');
+    typeInto(input, '00'.repeat(129));
+    expect(screen.getByText('129 / 128 bytes (hex)').getAttribute('data-over')).toBe('true');
+  });
+
+  it('is localized in hex mode', () => {
+    renderSha256({ ...(sha256.defaults as LabParams), encoding: 'hex', input: '616263' }, 'de');
+    expect(screen.getByText('3 / 128 Byte (hex)')).toBeTruthy();
+  });
+});

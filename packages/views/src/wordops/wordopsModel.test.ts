@@ -1,6 +1,7 @@
 import type { WordopsFacet, WordopsStep, WordTerm } from '@cryventure/core';
 import { describe, expect, it } from 'vitest';
-import { OP_GLYPHS, TERM_ROLE_GLYPHS, hexChunks, isStoryTerm, nibbleGroups, lensParts, registerChunksPerLine, sha2RegisterShift, showsBitStrip, wordBitsOf, wordopsStepAt } from './wordopsModel.ts';
+import { loadViewMessages } from '../messages.ts';
+import { TERM_ROLE_GLYPHS, opGlyphKey, hexChunks, isStoryTerm, nibbleGroups, lensParts, registerChunksPerLine, sha2RegisterShift, showsBitStrip, wordBitsOf, wordopsStepAt } from './wordopsModel.ts';
 
 const step = (index: number, extra: Partial<WordopsStep> = {}): WordopsStep => ({ step: index, formula: { key: 'f' }, terms: [], ...extra });
 const term = (id: string, hex: string, role: WordTerm['role'] = 'intermediate'): WordTerm => ({ id, label: { key: id }, hex, role });
@@ -15,8 +16,15 @@ describe('wordopsModel', () => {
     expect(wordopsStepAt({ ...facet, steps: [] }, 0)).toBeUndefined();
   });
 
-  it('shows a neutral root glyph (the facet carries no root degree)', () => {
-    expect(OP_GLYPHS.root).toBe('ⁿ√');
+  it('shows a neutral root glyph (the facet carries no root degree), from the catalog in EN and DE', () => {
+    for (const locale of ['en', 'de'] as const) expect(loadViewMessages(locale)[opGlyphKey('root')]).toBe('ⁿ√');
+  });
+
+  it('keeps FIPS 180-4 op notation in the catalog of both languages', () => {
+    for (const locale of ['en', 'de'] as const) {
+      const messages = loadViewMessages(locale);
+      expect([opGlyphKey('rotr'), opGlyphKey('shr'), opGlyphKey('ch'), opGlyphKey('maj')].map((key) => messages[key])).toEqual(['ROTR', 'SHR', 'Ch', 'Maj']);
+    }
   });
 
   it('gives every term role a distinct non-colour glyph', () => {

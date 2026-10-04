@@ -73,8 +73,13 @@ describe('hashFamilyProblems', () => {
     expect(hashFamilyProblems(toyFamily([toyHash(), toyHash(), toyHash()]), 'toy')).toEqual(['Hash: function id "toy-256" is not unique']);
   });
 
-  it('reports a block size other than 64 or 128', () => {
-    expect(hashFamilyProblems(toyFamily([toyHash({ blockSize: 32 })]), 'toy')).toEqual(['Hash toy-256: blockSize 32 is not 64 or 128']);
+  it('accepts any positive block size, e.g. the 136-byte rate of SHA3-256', () => {
+    expect(hashFamilyProblems(toyFamily([toyHash({ id: 'toy-sha3', blockSize: 136 })]), 'toy')).toEqual([]);
+  });
+
+  it('reports a block size that is not a positive integer', () => {
+    expect(hashFamilyProblems(toyFamily([toyHash({ blockSize: 0 })]), 'toy')).toEqual(['Hash toy-256: blockSize 0 is not a positive integer']);
+    expect(hashFamilyProblems(toyFamily([toyHash({ blockSize: 1.5 })]), 'toy')).toEqual(['Hash toy-256: blockSize 1.5 is not a positive integer']);
   });
 
   it('reports a bad output size', () => {

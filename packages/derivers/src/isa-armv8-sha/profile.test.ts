@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { ShaListingInstruction } from '../_lib/listing.ts';
-import { shaExecute } from '../_lib/sha/shaDerivation.ts';
+import { deriveShaIsaFacets, shaExecute, type ShaIsaProfile } from '../_lib/sha/shaDerivation.ts';
+import { sharedShaFixtureBundle } from '../_lib/sha/fixtures/shaBundles.ts';
 import { listedSha, shaMachine } from '../_lib/sha/fixtures/shaChecks.ts';
 import { laneRun, varLanes, word, type Lanes } from '../_lib/sha/shaWords.ts';
 import { ARMV8_SHA_PROFILE, armShaNote } from './profile.ts';
@@ -13,6 +14,13 @@ const H = (names: readonly (typeof ABCD)[number][] | readonly (typeof EFGH)[numb
 const run = (instruction: ShaListingInstruction, contents: Record<string, Lanes> = {}) =>
   shaExecute(ARMV8_SHA_PROFILE, instruction, shaMachine(contents));
 const lanesOf = (effects: ReturnType<typeof run>, index = 0) => effects.written[index]!.lanes;
+
+/** `ldr q4, <label>` → `add v5 = W + K` → `sha256h … v5` running rounds `round` … `round + 3`. */
+const literalChain = (label: string, round: number): ShaListingInstruction[] => [
+  listedSha('ldr', ['q4', `[x8, :lo12:${label}]`], 'addK'),
+  listedSha('add', ['v5.4s', 'v2.4s', 'v4.4s'], 'addK'),
+  listedSha('sha256h', ['q16', 'q0', 'v5.4s'], 'rounds', { round }),
+];
 
 describe('ARMv8 SHA2 semantics on lane words', () => {
   it('loads H as two registers a … d, e … h (ldp) and reads the chaining value twice', () => {
@@ -37,13 +45,53 @@ describe('ARMv8 SHA2 semantics on lane words', () => {
     expect(() => run(listedSha('ldp', ['q7', 'q17', '[x1]'], 'msg1'))).toThrow(/no load semantics/);
   });
 
-  it('loads K_{4n} … K_{4n+3} from literal-pool entry n (no traced read)', () => {
-    const effects = run(listedSha('ldr', ['q4', '[x8, :lo12:.LCPI0_15]'], 'addK'));
+  it('loads K_t … K_{t+3} of the round its K+W sum feeds, whatever the pool label (no traced read)', () => {
+    const effectsFor = (label: string, round = 60) => {
+      const listing = literalChain(label, round);
+      return shaExecute(
+        ARMV8_SHA_PROFILE,
+        listing[0]!,
+        shaMachine({}, undefined, { listing, index: 0 }),
+      );
+    };
+    const effects = effectsFor('.LCPI0_15');
     expect([lanesOf(effects), effects.reads]).toEqual([laneRun(word.k, 60), []]);
+    // Renumbered pool labels (clang's numbering) do not move the constants.
+    expect(lanesOf(effectsFor('.LCPI0_16'))).toEqual(laneRun(word.k, 60));
+    expect(lanesOf(effectsFor('.LCPI0_0'))).toEqual(laneRun(word.k, 60));
+    expect(lanesOf(effectsFor('.LCPI0_15', 8))).toEqual(laneRun(word.k, 8));
     expect(() => run(listedSha('ldr', ['q4', '[x8]'], 'addK'))).toThrow(/round-constant literals/);
     expect(() => run(listedSha('ldr', ['q4', '[x8, :lo12:.LCPI0_1]'], 'loadBlock'))).toThrow(
       /round-constant literals/,
     );
+    // A literal no add feeds into a round instruction has no round.
+    expect(() => run(listedSha('ldr', ['q4', '[x8, :lo12:.LCPI0_1]'], 'addK'))).toThrow(
+      /feed no round instruction/,
+    );
+  });
+
+  it('derives the same register writes when every pool label of the listing is renumbered', () => {
+    const bundle = sharedShaFixtureBundle('sha-256-two-block');
+    const relabelled: ShaIsaProfile = {
+      ...ARMV8_SHA_PROFILE,
+      listing: {
+        ...ARMV8_SHA_PROFILE.listing,
+        instructions: ARMV8_SHA_PROFILE.listing.instructions.map((instruction) => ({
+          ...instruction,
+          operands: instruction.operands.map((text) =>
+            text.replace(/LCPI0_(\d+)/, (_, n: string) => `LCPI0_${Number(n) + 1}`),
+          ),
+        })),
+      },
+    };
+    const registersOf = (profile: ShaIsaProfile) =>
+      deriveShaIsaFacets(bundle, profile)['registers@aarch64-armv8-sha2'];
+    const notesOf = (profile: ShaIsaProfile) =>
+      profile.listing.instructions.map((_, index) =>
+        armShaNote(profile.listing.instructions, index),
+      );
+    expect(registersOf(relabelled)).toEqual(registersOf(ARMV8_SHA_PROFILE));
+    expect(notesOf(relabelled)).toEqual(notesOf(ARMV8_SHA_PROFILE));
   });
 
   it('gives adrp and ret no vector effects', () => {

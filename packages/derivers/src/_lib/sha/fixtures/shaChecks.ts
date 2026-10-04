@@ -6,11 +6,15 @@ import type { Lanes } from '../shaWords.ts';
 
 /** Test-only helpers shared by the SHA ISA deriver tests. */
 
-/** A machine whose registers hold `contents`, before a round instruction of round `nextRound`. */
-export function shaMachine(contents: Record<string, Lanes>, nextRound?: number): ShaMachine {
+/** A machine whose registers hold `contents`, before a round instruction of round `nextRound`, at `position` of a listing. */
+export function shaMachine(
+  contents: Record<string, Lanes>,
+  nextRound?: number,
+  position: Pick<ShaMachine, 'listing' | 'index'> = { listing: [], index: 0 },
+): ShaMachine {
   const registers = new ShaRegisterFile();
   Object.entries(contents).forEach(([name, lanes]) => registers.write(name, lanes));
-  return { registers, nextRound, chainIn: 'iv', chainOut: 'h/1' };
+  return { registers, nextRound, chainIn: 'iv', chainOut: 'h/1', ...position };
 }
 
 /** A listed instruction at address 0x0. */
