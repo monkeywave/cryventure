@@ -1,6 +1,7 @@
 import {
   assertManifestBasics,
   getFacet,
+  isMemberPortName,
   paramFieldKeys,
   paramFieldsOf,
   portMemberRef,
@@ -50,8 +51,8 @@ import {
   type AnyStateFacet,
   type TermFacet,
 } from './checks.ts';
-import { checksHashRuns, hashLabProblems, hashRunProblems, publishedMessage, type HashLabRunner, type HashRunCase, type HashRunOptions } from './hashRunChecks.ts';
-import { checksMacLab, HMAC_LAB_ID, macLabProblems, type HmacLabRunner } from './macRunChecks.ts';
+import { checksHashRuns, hashLabProblems, hashRunProblems, publishedMessage, type HashRunCase, type LabRunner, type HashRunOptions } from './hashRunChecks.ts';
+import { checksMacLab, HMAC_LAB_ID, macLabProblems } from './macRunChecks.ts';
 import { modeFacetIssues, modeFacetRefs } from './modeFacetChecks.ts';
 import { implementedPortProblems, portFieldProblems, portMemberProblems, runInProblems, textFieldProblems } from './portChecks.ts';
 import { runOptionsFor, type ProducerSet } from './runWithPorts.ts';
@@ -133,8 +134,8 @@ function portSuite<P>(manifest: PrimitiveManifest<P>, producers: ProducerSet): v
   if (manifest.implements.length > 0) {
     it('exposes every declared port, each passing its sanity check', async () => expect(implementedPortProblems(manifest, await manifest.load())).toEqual([]));
   }
-  if (manifest.portMembers !== undefined) {
-    it('declares port members matching its loaded ports in order', async () => expect(portMemberProblems(manifest, await manifest.load())).toEqual([]));
+  if (manifest.portMembers !== undefined || manifest.implements.some(isMemberPortName)) {
+    it('declares port members for every Hash/Mac port, matching its loaded ports in order', async () => expect(portMemberProblems(manifest, await manifest.load())).toEqual([]));
   }
 }
 
@@ -163,13 +164,17 @@ async function hashLabRunProblems<P>(manifest: PrimitiveManifest<P>, hashLabPara
   const family = module.ports?.Hash;
   if (family === undefined) return ['no Hash port to cross-check'];
   const options = await runOptionsFor(manifest, manifest.defaults, producers.lookup);
-  const runLab: HashLabRunner = (params) => {
+  return hashLabProblems(family, hashLabParams, labRunner(manifest, module, options, 'the hashLabParams params'));
+}
+
+/** A lab runner over `module`: `manifest.validate`s the params (`what` names them in a rejection), then runs with `options`. */
+function labRunner<P>(manifest: PrimitiveManifest<P>, module: PrimitiveModule<P>, options: RunOptions, what: string): LabRunner {
+  return (params) => {
     const valid = manifest.validate(params);
-    if (!valid.ok) return `validate() rejects the hashLabParams params: ${JSON.stringify(valid.error)}`;
+    if (!valid.ok) return `validate() rejects ${what}: ${JSON.stringify(valid.error)}`;
     const result = module.run(valid.value, options);
     return result.ok ? result.trace.output : `run() rejected params: ${JSON.stringify(result.error)}`;
   };
-  return hashLabProblems(family, hashLabParams, runLab);
 }
 
 /** `macLabProblems` with the registered `hmac` lab: params validated by its manifest, then run with its ports resolved. */
@@ -178,16 +183,11 @@ async function macLabRunProblems<P>(manifest: PrimitiveManifest<P>, producers: P
   const lab = producers.lookup.get(HMAC_LAB_ID);
   if (ports?.Hash === undefined || ports.Mac === undefined) return ['no Hash and Mac port to cross-check'];
   if (lab === undefined) return [`no "${HMAC_LAB_ID}" lab registered`];
-  const module = await lab.load();
+  const first = ports.Hash.functions[0];
+  if (first === undefined) return ['no Hash member to run the lab on'];
   // Every lab run names a Hash member of this producer, so one prepared resolver serves them all.
-  const options = await runOptionsFor(lab, { hash: portMemberRef(manifest.id, ports.Hash.functions[0]?.id ?? '') }, producers.lookup);
-  const runLab: HmacLabRunner = (params) => {
-    const valid = lab.validate(params);
-    if (!valid.ok) return `validate() rejects the lab params: ${JSON.stringify(valid.error)}`;
-    const result = module.run(valid.value, options);
-    return result.ok ? result.trace.output : `run() rejected params: ${JSON.stringify(result.error)}`;
-  };
-  return macLabProblems(manifest.id, ports.Hash, ports.Mac, runLab);
+  const options = await runOptionsFor(lab, { hash: portMemberRef(manifest.id, first.id) }, producers.lookup);
+  return macLabProblems(manifest.id, ports.Hash, ports.Mac, labRunner(lab, await lab.load(), options, 'the lab params'));
 }
 
 /** `hashRunProblems` over defaults and presets, each run with its port options and its published message. */

@@ -3,6 +3,7 @@ import {
   isMemberPortName,
   isPortName,
   parsePortMemberRef,
+  portMemberRef,
   type BlockCipher,
   type HashContext,
   type HashFamily,
@@ -447,38 +448,72 @@ function macKeyRangeProblems(fn: MacFunction): string[] {
   });
 }
 
-/** Options a function does not accept throw (in `mac` and `create`); a variable output length is honoured. */
-function macOptionProblems(fn: MacFunction): string[] {
+/** Options a function does not accept throw (in `mac` and `create`). */
+function unsupportedOptionProblems(fn: MacFunction): string[] {
   const [key, data] = [testBytes(fn.keySizes.min, MAC_KEY_SEED), testBytes(3, HASH_INPUT_SEED)];
   const unsupported: [string, MacOptions][] = [
     ...(fn.customizable ? [] : [['a customization', { customization: Uint8Array.of(0x53) }] as [string, MacOptions]]),
     ...(fn.variableOutput ? [] : [['an outputLength', { outputLength: fn.outputSize + 1 }] as [string, MacOptions]]),
   ];
   const accepted = unsupported.filter(([, options]) => !throws(() => fn.mac(key, data, options)) || !throws(() => fn.create(key, options)));
-  const problems = accepted.map(([what]) => `Mac ${fn.id}: accepts ${what} it does not support`);
-  if (!fn.variableOutput) return problems;
+  return accepted.map(([what]) => `Mac ${fn.id}: accepts ${what} it does not support`);
+}
+
+/** A variable output length is honoured (`mac` and `create`), and L + 1 bytes are not the L-byte tag zero-padded. */
+function outputLengthProblems(fn: MacFunction): string[] {
+  if (!fn.variableOutput) return [];
+  const [key, data] = [testBytes(fn.keySizes.min, MAC_KEY_SEED), testBytes(3, HASH_INPUT_SEED)];
   const outputLength = fn.outputSize + 1;
   const where = `Mac ${fn.id}: outputLength ${outputLength}`;
-  const lengths = guarded(where, () => ([fn.mac(key, data, { outputLength }), fn.create(key, { outputLength }).mac()].every((tag) => tag.length === outputLength) ? [] : [`${where} is not honoured`]));
-  return [...problems, ...lengths];
+  return guarded(where, () => {
+    const [longer, context] = [fn.mac(key, data, { outputLength }), fn.create(key, { outputLength }).mac()];
+    if (![longer, context].every((tag) => tag.length === outputLength)) return [`${where} is not honoured`];
+    const padded = longer[fn.outputSize] === 0 && bytesEqual(longer.subarray(0, fn.outputSize), fn.mac(key, data, { outputLength: fn.outputSize }));
+    return padded ? [`${where} is the ${fn.outputSize}-byte tag zero-padded`] : [];
+  });
+}
+
+/** A customizable function accepts a customization S, and two different S give different tags. */
+function customizationProblems(fn: MacFunction): string[] {
+  if (!fn.customizable) return [];
+  const [key, data] = [testBytes(fn.keySizes.min, MAC_KEY_SEED), testBytes(3, HASH_INPUT_SEED)];
+  const where = `Mac ${fn.id}: customization`;
+  return guarded(where, () => {
+    const [s, t] = [Uint8Array.of(0x53), Uint8Array.of(0x54)].map((customization) => fn.mac(key, data, { customization }));
+    return bytesEqual(s!, t!) ? [`${where}: different S give the same tag`] : [];
+  });
+}
+
+/** Whether two `length`-byte keys differing only in byte `index` give the same tag (the key, or that byte, is ignored). */
+function sameTagForFlippedKey(fn: MacFunction, length: number, index: number): boolean {
+  const key = testBytes(length, MAC_KEY_SEED);
+  const other = Uint8Array.from(key, (byte, i) => (i === index ? byte ^ 1 : byte));
+  const data = testBytes(3, HASH_INPUT_SEED);
+  return bytesEqual(fn.mac(key, data), fn.mac(other, data));
+}
+
+/** The key matters: for every exercised key length 1..B, two keys differing only in byte 0 give different tags. */
+function keySensitivityProblems(fn: MacFunction): string[] {
+  return macKeyLengths(fn)
+    .filter((length) => length >= 1 && length <= fn.blockSize)
+    .flatMap((length) => {
+      const where = `Mac ${fn.id}: two ${length}-byte keys`;
+      return guarded(where, () => (sameTagForFlippedKey(fn, length, 0) ? [`${where} differing only in byte 0 give the same tag (the key is ignored)`] : []));
+    });
 }
 
 /** HMAC hashes a key longer than B (RFC 2104 §2): two such keys differing only in byte B give different tags. */
 function hmacLongKeyProblems(fn: MacFunction): string[] {
   if (fn.construction.kind !== 'hmac' || !keyAllowed(fn, fn.blockSize + 1)) return [];
   const where = `Mac ${fn.id}: a ${fn.blockSize + 1}-byte key`;
-  return guarded(where, () => {
-    const key = testBytes(fn.blockSize + 1, MAC_KEY_SEED);
-    const other = Uint8Array.from(key, (byte, i) => (i === fn.blockSize ? byte ^ 1 : byte));
-    const data = testBytes(3, HASH_INPUT_SEED);
-    return bytesEqual(fn.mac(key, data), fn.mac(other, data)) ? [`${where}: keys differing only after byte ${fn.blockSize} give the same tag (the long key is not hashed)`] : [];
-  });
+  return guarded(where, () => (sameTagForFlippedKey(fn, fn.blockSize + 1, fn.blockSize) ? [`${where}: keys differing only after byte ${fn.blockSize} give the same tag (the long key is not hashed)`] : []));
 }
 
 /**
  * Shape first; then per allowed key length {min, 1, B, B + 1} and message length {0, 1, B, 2B + 3}
  * well-formed tags; once those hold, the incremental context per key length, out-of-range keys,
- * unsupported options and HMAC's long-key branch (docs/M7.md §1a).
+ * key sensitivity, unsupported options, a real variable output length, a customization that
+ * matters and HMAC's long-key branch (docs/M7.md §1a).
  */
 function macFunctionProblems(fn: MacFunction): string[] {
   const shape = macShapeProblems(fn);
@@ -488,7 +523,15 @@ function macFunctionProblems(fn: MacFunction): string[] {
   const tags = keyLengths.flatMap((keyLength) => messageLengths.flatMap((length) => tagProblems(fn, keyLength, length)));
   if (tags.length > 0) return tags;
   if (typeof fn.create !== 'function') return [`Mac ${fn.id}: create is not a function`];
-  return [...keyLengths.flatMap((keyLength) => macContextProblems(fn, keyLength)), ...macKeyRangeProblems(fn), ...macOptionProblems(fn), ...hmacLongKeyProblems(fn)];
+  return [
+    ...keyLengths.flatMap((keyLength) => macContextProblems(fn, keyLength)),
+    ...macKeyRangeProblems(fn),
+    ...keySensitivityProblems(fn),
+    ...unsupportedOptionProblems(fn),
+    ...outputLengthProblems(fn),
+    ...customizationProblems(fn),
+    ...hmacLongKeyProblems(fn),
+  ];
 }
 
 /** Family id = producer id, at least one function, unique ids, every function sane (docs/M7.md §1a). */
@@ -563,15 +606,35 @@ function memberListProblems(port: MemberPortName, declared: readonly PortMemberD
   });
 }
 
-/** Every declared `portMembers` port is a family port in `implements` whose loaded members match the declaration (docs/M7.md §1b). */
-export function portMemberProblems(manifest: Pick<PrimitiveManifest, 'implements' | 'portMembers'>, module: Pick<PrimitiveModule<unknown>, 'ports'>): string[] {
-  return Object.entries(manifest.portMembers ?? {}).flatMap(([port, declared]) => {
+/** Every declared member id forms a member ref `parsePortMemberRef` accepts (no `:`, not empty; docs/M7.md §1b). */
+function memberIdProblems(port: MemberPortName, producerId: string, declared: readonly PortMemberDecl[]): string[] {
+  return declared.flatMap(({ id }) => {
+    const ref = portMemberRef(producerId, id);
+    return parsePortMemberRef(ref) === undefined ? [`portMembers.${port}: member id "${id}" gives the ref "${ref}", which parsePortMemberRef rejects`] : [];
+  });
+}
+
+/** Hash and Mac ports in `implements` without a `portMembers` entry: their members would appear in no picker (docs/M7.md §1c). */
+function undeclaredMemberPortProblems(manifest: Pick<PrimitiveManifest, 'implements' | 'portMembers'>): string[] {
+  return manifest.implements
+    .filter((port) => isMemberPortName(port) && manifest.portMembers?.[port] === undefined)
+    .map((port) => `portMembers: "${port}" is implemented but declares no members (they appear in no member picker)`);
+}
+
+/**
+ * Every Hash/Mac port in `implements` declares its members; every declared `portMembers` port is a
+ * family port in `implements` whose loaded members match the declaration, with parsable ids (docs/M7.md §1b).
+ */
+export function portMemberProblems(manifest: Pick<PrimitiveManifest, 'id' | 'implements' | 'portMembers'>, module: Pick<PrimitiveModule<unknown>, 'ports'>): string[] {
+  const declaredProblems = Object.entries(manifest.portMembers ?? {}).flatMap(([port, declared]) => {
     if (!isMemberPortName(port)) return [`portMembers: "${port}" is not Hash or Mac`];
     if (!manifest.implements.includes(port)) return [`portMembers: "${port}" is not in implements`];
     const implementation = module.ports?.[port];
     if (implementation === undefined) return [`portMembers: port "${port}" is missing from module.ports`];
-    return memberListProblems(port, declared ?? [], loadedMembers(port, implementation));
+    const members = declared ?? [];
+    return [...memberListProblems(port, members, loadedMembers(port, implementation)), ...memberIdProblems(port, manifest.id, members)];
   });
+  return [...undeclaredMemberPortProblems(manifest), ...declaredProblems];
 }
 
 interface ParamCase {

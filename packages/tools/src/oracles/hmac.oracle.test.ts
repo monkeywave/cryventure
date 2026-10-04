@@ -1,8 +1,8 @@
 import { hmac } from '@noble/hashes/hmac.js';
-import { toHex, type MacFunction } from '@cryventure/core';
+import { toHex } from '@cryventure/core';
 import fc from 'fast-check';
 import { describe, expect, it } from 'vitest';
-import { hmacMembers, pieces, runOutputHex } from './macOracleKit.ts';
+import { contextTags, hashMembers, hmacMembers, LAB_ONLY_NOBLE_HASHES, NOBLE_HASHES, runOutputHex, type NobleHash } from './macOracleKit.ts';
 
 /**
  * Oracle (docs/M7.md §2g): the traced `hmac` lab and every HMAC member of the `Mac` ports must agree
@@ -14,28 +14,14 @@ const MAX_BYTES = 256;
 const RUNS = 20;
 
 const HMAC_MEMBERS = await hmacMembers();
+const HASH_MEMBERS = await hashMembers();
+const nobleFor = (ref: string): NobleHash | undefined => NOBLE_HASHES[ref] ?? LAB_ONLY_NOBLE_HASHES[ref];
+/** Hash members the `hmac` lab offers without an HMAC `Mac` member to cross-check them (keccak-256, BLAKE2). */
+const LAB_ONLY_MEMBERS = HASH_MEMBERS.filter(({ ref }) => !HMAC_MEMBERS.some((member) => member.hashRef === ref)).map((member) => ({ ...member, noble: LAB_ONLY_NOBLE_HASHES[member.ref] }));
 
 const keyArb = fc.uint8Array({ minLength: 0, maxLength: MAX_BYTES });
 const messageArb = fc.uint8Array({ minLength: 0, maxLength: MAX_BYTES });
 const cutsArb = fc.array(fc.nat(), { maxLength: 4 });
-
-/**
- * Feeds `message` in pieces; after the first `cloneAt mod (pieces + 1)` pieces it reads the tag
- * (which must not change the context) and clones, then feeds the rest to both. Returns both tags.
- */
-function contextTags(fn: MacFunction, key: Uint8Array, message: Uint8Array, cuts: readonly number[], cloneAt: number): string[] {
-  const parts = pieces(message, cuts);
-  const split = cloneAt % (parts.length + 1);
-  const context = fn.create(key);
-  parts.slice(0, split).forEach((part) => context.update(part));
-  context.mac();
-  const clone = context.clone();
-  parts.slice(split).forEach((part) => {
-    context.update(part);
-    clone.update(part);
-  });
-  return [toHex(context.mac()), toHex(clone.mac())];
-}
 
 it('finds an HMAC member for every hash with a noble oracle', () => expect(HMAC_MEMBERS.length).toBeGreaterThanOrEqual(12));
 
@@ -59,5 +45,25 @@ describe.each(HMAC_MEMBERS)('hmac $ref oracle (@noble/hashes)', ({ fn, hashRef, 
       }),
       { numRuns: RUNS * 4 },
     );
+  });
+});
+
+describe('hmac lab over every Hash member (the lab\'s hash picker lists them all)', () => {
+  it('has a noble oracle for every Hash member, with noble blockLen = HashFunction.blockSize', () => {
+    expect(HASH_MEMBERS.map(({ ref }) => ref).filter((ref) => nobleFor(ref) === undefined)).toEqual([]);
+    expect(HASH_MEMBERS.filter(({ ref, fn }) => nobleFor(ref)?.blockLen !== fn.blockSize).map(({ ref, fn }) => `${ref}: ${fn.blockSize} vs ${nobleFor(ref)?.blockLen}`)).toEqual([]);
+    expect(LAB_ONLY_MEMBERS.map(({ ref }) => ref).sort()).toEqual(Object.keys(LAB_ONLY_NOBLE_HASHES).sort());
+  });
+
+  describe.each(LAB_ONLY_MEMBERS)('hmac lab on $ref (no HMAC Mac member)', ({ ref, fn, noble }) => {
+    it(`run() matches noble hmac for random keys and messages of 0–${MAX_BYTES} bytes (${RUNS} runs)`, async () => {
+      await fc.assert(
+        fc.asyncProperty(fc.oneof(keyArb, fc.uint8Array({ minLength: fn.blockSize + 1, maxLength: MAX_BYTES })), messageArb, async (key, message) => {
+          const params = { hash: ref, key: toHex(key), encoding: 'hex', input: toHex(message), tagLength: 'full', expected: '' };
+          expect(await runOutputHex('hmac', params, 'tag')).toBe(toHex(hmac(noble!, key, message)));
+        }),
+        { numRuns: RUNS },
+      );
+    });
   });
 });

@@ -108,16 +108,43 @@ export function hashLabMessage(length: number): Uint8Array {
   return length === 3 ? utf8Bytes('abc') : Uint8Array.from({ length }, (_, i) => (37 * i + 11) & 0xff);
 }
 
-/** Validates and runs lab params: the run's output, or why it was rejected. */
-export type HashLabRunner = (params: Record<string, string>) => Record<string, number[]> | string;
+/** Validates and runs lab params: the run's output, or why it was rejected (shared by the Hash and MAC cross-checks). */
+export type LabRunner = (params: Record<string, string>) => Record<string, number[]> | string;
+
+/** The runner of a Hash producer's own lab. */
+export type HashLabRunner = LabRunner;
 
 /** `PrimitiveManifest.hashLabParams`. */
 type HashLabParamsHook = NonNullable<PrimitiveManifest['hashLabParams']>;
 
+/** The longest message a lab must offer: "abc". */
+const MIN_LAB_BYTES = 3;
+
+/** How far `hashLabParams` is probed for its message limit; a hook that still offers a run there has none. */
+export const HASH_LAB_PROBE_BYTES = 1024;
+
+/** The message lengths 0..`HASH_LAB_PROBE_BYTES` for which `hashLabParams` offers a lab run of `fn`. */
+function offeredLengths(fnId: string, hashLabParams: HashLabParamsHook): number[] {
+  return Array.from({ length: HASH_LAB_PROBE_BYTES + 1 }, (_, length) => length).filter((length) => hashLabParams(fnId, toHex(hashLabMessage(length))) !== undefined);
+}
+
+/**
+ * The hook's message limit for `fn` (the longest offered length), or why the offered lengths are not
+ * exactly 0..limit with limit ≥ 3 and below the probe bound.
+ */
+function labLimit(fnId: string, hashLabParams: HashLabParamsHook): number | string {
+  const offered = offeredLengths(fnId, hashLabParams);
+  if (offered[0] !== 0) return `"${fnId}": hashLabParams offers no lab run for the empty message`;
+  const limit = offered.findIndex((length, index) => length !== index) - 1;
+  if (limit >= 0) return `"${fnId}": hashLabParams offers no lab run for ${limit + 1} bytes but one for ${offered[limit + 1]} (it must accept exactly 0..${limit} bytes)`;
+  const max = offered.at(-1)!;
+  if (max < MIN_LAB_BYTES) return `"${fnId}": hashLabParams offers lab runs only up to ${max} bytes; at least ${MIN_LAB_BYTES} ("abc") are required`;
+  return max === HASH_LAB_PROBE_BYTES ? `"${fnId}": hashLabParams offers lab runs beyond ${HASH_LAB_PROBE_BYTES} bytes (a lab message has a limit)` : max;
+}
+
 function labCaseProblems(fn: HashFamily['functions'][number], hashLabParams: HashLabParamsHook, runLab: HashLabRunner, length: number): string[] {
   const message = hashLabMessage(length);
-  const params = hashLabParams(fn.id, toHex(message));
-  if (params === undefined) return length === 0 ? [`"${fn.id}": hashLabParams offers no lab run for the empty message`] : [];
+  const params = hashLabParams(fn.id, toHex(message))!;
   const where = `"${fn.id}" over ${length} bytes`;
   const output = runLab(params);
   if (typeof output === 'string') return [`${where}: ${output}`];
@@ -127,11 +154,20 @@ function labCaseProblems(fn: HashFamily['functions'][number], hashLabParams: Has
   return bytesEqual(expected, digest) ? [] : [`${where}: lab digest ${toHex(digest)}, but the Hash port gives ${toHex(expected)}`];
 }
 
+/** The hook's limit must be sound; then every `lengths` entry within it, and the limit itself, is cross-checked. */
+function labFunctionProblems(fn: HashFamily['functions'][number], hashLabParams: HashLabParamsHook, runLab: HashLabRunner, lengths: readonly number[]): string[] {
+  const limit = labLimit(fn.id, hashLabParams);
+  if (typeof limit === 'string') return [limit];
+  const checked = [...new Set([...lengths.filter((length) => length < limit), limit])];
+  return checked.flatMap((length) => labCaseProblems(fn, hashLabParams, runLab, length));
+}
+
 /**
- * The port-call cross-check (docs/M7.md §1e): for every fixed-length function of the family and
- * every message length, the lab run `hashLabParams(fn.id, messageHex)` must publish `fn.hash(message)`
- * as its digest. Needs no param names; every port function must at least hash the empty message.
+ * The port-call cross-check (docs/M7.md §1e): for every fixed-length function of the family,
+ * `hashLabParams` must offer exactly the messages of 0..limit bytes (limit ≥ 3, undefined beyond it),
+ * and for every message length up to the limit (and the limit itself) the lab run
+ * `hashLabParams(fn.id, messageHex)` must publish `fn.hash(message)` as its digest. Needs no param names.
  */
 export function hashLabProblems(family: HashFamily, hashLabParams: HashLabParamsHook, runLab: HashLabRunner, lengths: readonly number[] = HASH_LAB_MESSAGE_LENGTHS): string[] {
-  return family.functions.flatMap((fn) => lengths.flatMap((length) => labCaseProblems(fn, hashLabParams, runLab, length)));
+  return family.functions.flatMap((fn) => labFunctionProblems(fn, hashLabParams, runLab, lengths));
 }

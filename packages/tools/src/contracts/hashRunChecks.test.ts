@@ -1,6 +1,6 @@
 import { facetKey, toHex, utf8Bytes, type HashFamily, type HashFunction, type ParamField, type TraceBundle, type XofCustomization, type XofFunction } from '@cryventure/core';
 import { describe, expect, it } from 'vitest';
-import { checksHashRuns, HASH_LAB_MESSAGE_LENGTHS, hashLabMessage, hashLabProblems, hashRunProblems, publishedMessage, type HashLabRunner, type HashRunCase, type HashRunManifest } from './hashRunChecks.ts';
+import { checksHashRuns, HASH_LAB_MESSAGE_LENGTHS, HASH_LAB_PROBE_BYTES, hashLabMessage, hashLabProblems, hashRunProblems, publishedMessage, type HashLabRunner, type HashRunCase, type HashRunManifest } from './hashRunChecks.ts';
 
 /** Toy hash: XOR-folds the input (and its length) into 4 bytes, salted by `salt`. */
 function toyHash(id: string, salt: number): HashFunction {
@@ -185,8 +185,37 @@ describe('hashLabProblems (the port-call hook, docs/M7.md §1e)', () => {
       return honestLab(params);
     };
     expect(hashLabProblems(family, hook, recording)).toEqual([]);
-    const accepted = HASH_LAB_MESSAGE_LENGTHS.filter((length) => length <= 64);
+    const accepted = [...HASH_LAB_MESSAGE_LENGTHS.filter((length) => length < 64), 64];
     expect(seen).toEqual(['toy-a', 'toy-b'].flatMap((fn) => accepted.map((length) => `${fn}:${length}`)));
+  });
+
+  it('reports a hook that offers only the empty message (at least "abc", 3 bytes, is required)', () => {
+    const emptyOnly = (functionId: string, messageHex: string) => (messageHex === '' ? hook(functionId, messageHex) : undefined);
+    expect(hashLabProblems(family, emptyOnly, honestLab)).toEqual([
+      '"toy-a": hashLabParams offers lab runs only up to 0 bytes; at least 3 ("abc") are required',
+      '"toy-b": hashLabParams offers lab runs only up to 0 bytes; at least 3 ("abc") are required',
+    ]);
+  });
+
+  it('reports a hook whose accepted lengths have a gap, or no limit', () => {
+    const gap = (functionId: string, messageHex: string) => (messageHex.length === 200 ? { fn: functionId, msg: messageHex } : hook(functionId, messageHex));
+    expect(hashLabProblems(family, gap, honestLab, [0])).toEqual([
+      '"toy-a": hashLabParams offers no lab run for 65 bytes but one for 100 (it must accept exactly 0..64 bytes)',
+      '"toy-b": hashLabParams offers no lab run for 65 bytes but one for 100 (it must accept exactly 0..64 bytes)',
+    ]);
+    const unbounded = (functionId: string, messageHex: string) => ({ fn: functionId, msg: messageHex });
+    expect(hashLabProblems({ id: 'toy', functions: [family.functions[0]!] }, unbounded, honestLab, [0])).toEqual([
+      `"toy-a": hashLabParams offers lab runs beyond ${HASH_LAB_PROBE_BYTES} bytes (a lab message has a limit)`,
+    ]);
+  });
+
+  it('runs the longest message the hook offers, so a hook that claims more than the lab accepts is caught', () => {
+    const generous = (functionId: string, messageHex: string) => (['toy-a', 'toy-b'].includes(functionId) && messageHex.length <= 200 ? { fn: functionId, msg: messageHex } : undefined);
+    const strictLab: HashLabRunner = (params) => (params['msg']!.length > 128 ? 'validate() rejects the hashLabParams params' : honestLab(params));
+    expect(hashLabProblems(family, generous, strictLab, [0])).toEqual([
+      '"toy-a" over 100 bytes: validate() rejects the hashLabParams params',
+      '"toy-b" over 100 bytes: validate() rejects the hashLabParams params',
+    ]);
   });
 
   it('uses fixed messages ("abc" for 3 bytes)', () => {
@@ -196,7 +225,7 @@ describe('hashLabProblems (the port-call hook, docs/M7.md §1e)', () => {
 
   it('reports a lab digest the port does not reproduce', () => {
     const lying: HashLabRunner = (params) => ({ digest: hashWith(params['fn'] === 'toy-a' ? 'toy-b' : 'toy-a', hexBytes(params['msg']!)) });
-    const problems = hashLabProblems(family, hook, lying, [3]);
+    const problems = hashLabProblems(family, hook, lying, [3]).filter((problem) => problem.includes(' over 3 bytes'));
     expect(problems).toEqual([
       `"toy-a" over 3 bytes: lab digest ${toHex(hashWith('toy-b', utf8Bytes('abc')))}, but the Hash port gives ${toHex(hashWith('toy-a', utf8Bytes('abc')))}`,
       `"toy-b" over 3 bytes: lab digest ${toHex(hashWith('toy-a', utf8Bytes('abc')))}, but the Hash port gives ${toHex(hashWith('toy-b', utf8Bytes('abc')))}`,
@@ -206,7 +235,8 @@ describe('hashLabProblems (the port-call hook, docs/M7.md §1e)', () => {
   it('reports a port function the lab does not offer, a rejected run and a missing digest', () => {
     const onlyA = (functionId: string, messageHex: string) => (functionId === 'toy-a' ? hook(functionId, messageHex) : undefined);
     expect(hashLabProblems(family, onlyA, honestLab, [0])).toEqual(['"toy-b": hashLabParams offers no lab run for the empty message']);
-    expect(hashLabProblems(family, hook, () => 'run() rejected params', [0])).toEqual(['"toy-a" over 0 bytes: run() rejected params', '"toy-b" over 0 bytes: run() rejected params']);
-    expect(hashLabProblems(family, hook, () => ({}), [0])).toEqual(['"toy-a" over 0 bytes: run has no "digest" output', '"toy-b" over 0 bytes: run has no "digest" output']);
+    const overBoth = (problem: string) => ['toy-a', 'toy-b'].flatMap((fn) => [0, 64].map((length) => `"${fn}" over ${length} bytes: ${problem}`));
+    expect(hashLabProblems(family, hook, () => 'run() rejected params', [0])).toEqual(overBoth('run() rejected params'));
+    expect(hashLabProblems(family, hook, () => ({}), [0])).toEqual(overBoth('run has no "digest" output'));
   });
 });

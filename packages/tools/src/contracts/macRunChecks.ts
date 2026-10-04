@@ -1,5 +1,5 @@
 import { bytesEqual, hashFunction, parsePortMemberRef, toHex, type HashFamily, type MacFamily, type MacFunction, type PrimitiveManifest } from '@cryventure/core';
-import { hashLabMessage } from './hashRunChecks.ts';
+import { hashLabMessage, type LabRunner } from './hashRunChecks.ts';
 
 /**
  * The MAC cross-check (docs/M7.md §2g), like the hash cross-check: a producer that implements both
@@ -37,8 +37,8 @@ export function hmacLabParams(hashRef: string, key: Uint8Array, message: Uint8Ar
   return { hash: hashRef, key: toHex(key), encoding: 'hex', input: toHex(message), tagLength: 'full', expected: '' };
 }
 
-/** Validates and runs `hmac` lab params: the run's output, or why it was rejected. */
-export type HmacLabRunner = (params: Record<string, string>) => Record<string, number[]> | string;
+/** The runner of the `hmac` lab. */
+export type HmacLabRunner = LabRunner;
 
 /** Why `fn` is not built on one of `producerId`'s Hash members, or undefined when it is. */
 function constructionProblem(producerId: string, hashFamily: HashFamily, fn: MacFunction, hashRef: string): string | undefined {

@@ -4,6 +4,7 @@ import { hashFunction, toHex, utf8Bytes, xofFunction, type HashFamily, type Prim
 import fc from 'fast-check';
 import { describe, expect, it } from 'vitest';
 import { primitiveProducers, runWithPorts } from '../contracts/runWithPorts.ts';
+import { pieces } from './macOracleKit.ts';
 
 /**
  * Oracle (docs/M6.md §2g): the traced `sha3` producer must agree with @noble/hashes for random
@@ -55,12 +56,6 @@ async function hashPort(): Promise<HashFamily> {
   const family = (await manifest().load()).ports?.Hash;
   if (family === undefined) throw new Error('sha3 exposes no Hash port');
   return family;
-}
-
-/** `data` cut at the sorted `cuts` (positions modulo its length + 1). */
-function pieces(data: Uint8Array, cuts: readonly number[]): Uint8Array[] {
-  const points = [...new Set(cuts.map((cut) => cut % (data.length + 1)))].sort((a, b) => a - b);
-  return [...points, data.length].map((end, index) => data.subarray(index === 0 ? 0 : points[index - 1]!, end));
 }
 
 describe.each(HASHES)('sha3 $id oracle (@noble/hashes)', ({ id, noble }) => {

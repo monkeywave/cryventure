@@ -3,6 +3,7 @@ import { hashFunction, macFunction, toHex, type HashFamily, type MacFamily, type
 import fc from 'fast-check';
 import { describe, expect, it } from 'vitest';
 import { primitiveProducers, runWithPorts } from '../contracts/runWithPorts.ts';
+import { contextTags, pieces } from './macOracleKit.ts';
 
 /**
  * Oracle (docs/M6.md §2g): the traced `blake2` producer must agree with @noble/hashes (blake2s /
@@ -62,11 +63,6 @@ async function macPort(): Promise<MacFamily> {
   return family;
 }
 
-const pieces = (data: Uint8Array, splits: readonly number[]): Uint8Array[] => {
-  const cuts = [0, ...splits.map((at) => Math.min(at, data.length)).sort((a, b) => a - b), data.length];
-  return cuts.slice(1).map((end, index) => data.subarray(cuts[index], end));
-};
-
 describe.each(ORACLE_CASES)('blake2 $algorithm oracle (@noble/hashes)', ({ algorithm, maxKeyBytes, noble }) => {
   const keyArb = fc.oneof(fc.constant(new Uint8Array()), fc.uint8Array({ minLength: 1, maxLength: maxKeyBytes }));
 
@@ -107,16 +103,7 @@ describe.each(ORACLE_CASES)('blake2 $algorithm keyed Mac oracle (@noble/hashes)'
       fc.property(messageArb, macKeyArb, splitsArb, fc.nat(), (message, key, splits, cloneAt) => {
         const expected = toHex(noble(message, key));
         expect(toHex(fn.mac(key, message))).toBe(expected);
-        const parts = pieces(message, splits);
-        const split = cloneAt % (parts.length + 1);
-        const context = fn.create(key);
-        parts.slice(0, split).forEach((part) => context.update(part));
-        const clone = context.clone();
-        parts.slice(split).forEach((part) => {
-          context.update(part);
-          clone.update(part);
-        });
-        expect([toHex(context.mac()), toHex(clone.mac())]).toEqual([expected, expected]);
+        expect(contextTags(fn, key, message, splits, cloneAt)).toEqual([expected, expected]);
       }),
       { numRuns: RUNS * 2 },
     );

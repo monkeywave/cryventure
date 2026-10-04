@@ -1,8 +1,9 @@
+import { blake2b, blake2s } from '@noble/hashes/blake2.js';
 import { md5, sha1 } from '@noble/hashes/legacy.js';
 import { sha224, sha256, sha384, sha512, sha512_224, sha512_256 } from '@noble/hashes/sha2.js';
-import { sha3_224, sha3_256, sha3_384, sha3_512 } from '@noble/hashes/sha3.js';
+import { keccak_256, sha3_224, sha3_256, sha3_384, sha3_512 } from '@noble/hashes/sha3.js';
 import type { CHash, TRet } from '@noble/hashes/utils.js';
-import { portMemberRef, toHex, type MacFunction, type PrimitiveManifest } from '@cryventure/core';
+import { portMemberRef, toHex, type HashFunction, type MacFunction, type MacOptions, type PrimitiveManifest } from '@cryventure/core';
 import { primitiveManifests } from '@cryventure/primitives';
 import { primitiveProducers, runWithPorts } from '../contracts/runWithPorts.ts';
 
@@ -29,6 +30,34 @@ export const NOBLE_HASHES: Readonly<Record<string, NobleHash>> = {
   'sha3:sha3-384': sha3_384,
   'sha3:sha3-512': sha3_512,
 };
+
+/** A noble BLAKE2 hash fixed to `dkLen` output bytes (noble's `hmac` calls `create()` without options). */
+function blake2WithLength(blake2: typeof blake2s | typeof blake2b, dkLen: number): NobleHash {
+  const fixed = (message: Uint8Array): Uint8Array => blake2(message, { dkLen });
+  return Object.assign(fixed, { create: () => blake2.create({ dkLen }), outputLen: dkLen, blockLen: blake2.blockLen }) as unknown as NobleHash;
+}
+
+/**
+ * The noble hash for every Hash member the `hmac` lab offers without a matching HMAC `Mac` member
+ * (its `hash` picker lists every Hash member): Keccak-256 (rate 136) and the eight BLAKE2 functions.
+ */
+export const LAB_ONLY_NOBLE_HASHES: Readonly<Record<string, NobleHash>> = {
+  'sha3:keccak-256': keccak_256,
+  ...Object.fromEntries([128, 160, 224, 256].map((bits) => [`blake2:blake2s-${bits}`, blake2WithLength(blake2s, bits / 8)])),
+  ...Object.fromEntries([160, 256, 384, 512].map((bits) => [`blake2:blake2b-${bits}`, blake2WithLength(blake2b, bits / 8)])),
+};
+
+/** One registered `Hash` member (fixed-length function): its ref (`<producer>:<id>`) and function. */
+export interface HashMember {
+  ref: string;
+  fn: HashFunction;
+}
+
+/** Every fixed-length `Hash` member of every registered producer, in registry order. */
+export async function hashMembers(): Promise<HashMember[]> {
+  const families = await Promise.all(primitiveManifests.map(async (manifest) => ({ id: manifest.id, family: (await manifest.load()).ports?.Hash })));
+  return families.flatMap(({ id, family }) => (family?.functions ?? []).map((fn) => ({ ref: portMemberRef(id, fn.id), fn })));
+}
 
 /** One registered `Mac` member: its ref (`<producer>:<id>`) and function. */
 export interface MacMember {
@@ -77,3 +106,22 @@ export function pieces(data: Uint8Array, cuts: readonly number[]): Uint8Array[] 
 
 /** The concatenation of `parts`. */
 export const concatBytes = (...parts: readonly Uint8Array[]): Uint8Array => Uint8Array.from(parts.flatMap((part) => Array.from(part)));
+
+/**
+ * Feeds `message` to `fn.create(key, options)` in pieces; after the first `cloneAt mod (pieces + 1)`
+ * pieces it reads the tag (which must not change the context) and clones, then feeds the rest to
+ * both. Returns both final tags as hex.
+ */
+export function contextTags(fn: MacFunction, key: Uint8Array, message: Uint8Array, cuts: readonly number[], cloneAt: number, options?: MacOptions): string[] {
+  const parts = pieces(message, cuts);
+  const split = cloneAt % (parts.length + 1);
+  const context = fn.create(key, options);
+  parts.slice(0, split).forEach((part) => context.update(part));
+  context.mac();
+  const clone = context.clone();
+  parts.slice(split).forEach((part) => {
+    context.update(part);
+    clone.update(part);
+  });
+  return [toHex(context.mac()), toHex(clone.mac())];
+}

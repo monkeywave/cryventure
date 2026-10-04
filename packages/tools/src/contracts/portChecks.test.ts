@@ -467,6 +467,40 @@ describe('macFamilyProblems', () => {
     expect(macFamilyProblems(macFamily([fixed]), 'toy')).toContain('Mac kmac-toy: outputLength 65 is not honoured');
   });
 
+  it('reports a MAC that ignores its key (two keys differing in one byte give the same tag)', () => {
+    const checkKey = (key: Uint8Array): void => { if (key.length < 1 || key.length > 32) throw new RangeError('keyless: key length'); };
+    const keyless: MacFunction = {
+      id: 'keyless',
+      outputSize: 32,
+      blockSize: 64,
+      keySizes: { min: 1, max: 32 },
+      customizable: false,
+      variableOutput: false,
+      construction: { kind: 'keyed-hash' },
+      mac: (key, data, options) => { checkKey(key); rejectOptions(options); return sha256(data); },
+      create: (key, options) => { checkKey(key); rejectOptions(options); return bufferingMacContext(sha256); },
+    };
+    expect(macFamilyProblems(macFamily([keyless]), 'toy')).toEqual(['Mac keyless: two 1-byte keys differing only in byte 0 give the same tag (the key is ignored)']);
+  });
+
+  it('reports a customizable MAC that ignores S, or throws on every S', () => {
+    const ignoring = testKmac({ mac: (key, data, options) => testKmac().mac(key, data, { ...options, customization: undefined }) });
+    expect(macFamilyProblems(macFamily([ignoring]), 'toy')).toContain('Mac kmac-toy: customization: different S give the same tag');
+    const throwing = testKmac({ mac: (key, data, options) => { if ((options?.customization?.length ?? 0) > 0) throw new Error('no S'); return testKmac().mac(key, data, options); } });
+    expect(macFamilyProblems(macFamily([throwing]), 'toy')).toContain('Mac kmac-toy: customization threw: no S');
+  });
+
+  it('reports a variable-output MAC whose longer tag is the shorter one zero-padded', () => {
+    const padding = (key: Uint8Array, data: Uint8Array, options?: MacOptions): Uint8Array => {
+      const length = options?.outputLength ?? 64;
+      const tag = new Uint8Array(length);
+      tag.set(testKmac().mac(key, data, { ...options, outputLength: Math.min(length, 64) }));
+      return tag;
+    };
+    const padded = testKmac({ mac: padding, create: (key, options) => { padding(key, new Uint8Array(0), options); return bufferingMacContext((data) => padding(key, data, options)); } });
+    expect(macFamilyProblems(macFamily([padded]), 'toy')).toEqual(['Mac kmac-toy: outputLength 65 is the 64-byte tag zero-padded']);
+  });
+
   it('reports an HMAC that truncates a key longer than B instead of hashing it (RFC 2104 §2)', () => {
     const truncating = testHmac({ mac: (key, data, options) => { rejectOptions(options); return hmacTag(key, data, true); } });
     truncating.create = (key, options) => { rejectOptions(options); const copy = key.slice(); return bufferingMacContext((data) => truncating.mac(copy, data)); };
@@ -493,27 +527,45 @@ describe('portMemberProblems', () => {
   };
 
   it('passes members declared in the loaded order with matching constructions', () => {
-    expect(portMemberProblems({ implements: ['Hash', 'Mac'], portMembers: declared }, { ports })).toEqual([]);
-    expect(portMemberProblems({ implements: ['Hash'] }, { ports })).toEqual([]);
+    expect(portMemberProblems({ id: 'toy', implements: ['Hash', 'Mac'], portMembers: declared }, { ports })).toEqual([]);
+    expect(portMemberProblems({ id: 'toy', implements: ['BlockCipher'] }, { ports })).toEqual([]);
+  });
+
+  it('reports a Hash or Mac port in implements without declared members (they would appear in no picker)', () => {
+    expect(portMemberProblems({ id: 'toy', implements: ['Hash', 'Mac'] }, { ports })).toEqual([
+      'portMembers: "Hash" is implemented but declares no members (they appear in no member picker)',
+      'portMembers: "Mac" is implemented but declares no members (they appear in no member picker)',
+    ]);
+    expect(portMemberProblems({ id: 'toy', implements: ['Hash', 'Mac'], portMembers: { Hash: declared.Hash } }, { ports })).toEqual([
+      'portMembers: "Mac" is implemented but declares no members (they appear in no member picker)',
+    ]);
+  });
+
+  it('reports member ids that do not form a parsable member ref (e.g. containing ":")', () => {
+    const colon = { id: 'toy', functions: [toyHash({ id: 'toy:224' })] };
+    const members = { Hash: [{ id: 'toy:224', labelKey: 'plugin.toy.hash.224' }] };
+    expect(portMemberProblems({ id: 'toy', implements: ['Hash'], portMembers: members }, { ports: { Hash: colon } })).toEqual([
+      'portMembers.Hash: member id "toy:224" gives the ref "toy:toy:224", which parsePortMemberRef rejects',
+    ]);
   });
 
   it('reports ids that differ from the loaded members or their order', () => {
     const swapped = { Hash: [...declared.Hash!].reverse() };
-    expect(portMemberProblems({ implements: ['Hash'], portMembers: swapped }, { ports })).toEqual(['portMembers.Hash: [toy-224, toy-256] is not the loaded members [toy-256, toy-224] in order']);
-    expect(portMemberProblems({ implements: ['Mac'], portMembers: { Mac: declared.Mac!.slice(1) } }, { ports })).toEqual(['portMembers.Mac: [kmac-toy] is not the loaded members [hmac-toy-256, kmac-toy] in order']);
+    expect(portMemberProblems({ id: 'toy', implements: ['Hash'], portMembers: swapped }, { ports })).toEqual(['portMembers.Hash: [toy-224, toy-256] is not the loaded members [toy-256, toy-224] in order']);
+    expect(portMemberProblems({ id: 'toy', implements: ['Mac'], portMembers: { Mac: declared.Mac!.slice(1) } }, { ports })).toEqual(['portMembers.Mac: [kmac-toy] is not the loaded members [hmac-toy-256, kmac-toy] in order']);
   });
 
   it('reports constructions that differ from the loaded ones (and any on a Hash member)', () => {
     const wrong = { Mac: [{ ...declared.Mac![0]!, construction: 'keyed-hash' as const }, declared.Mac![1]!] };
-    expect(portMemberProblems({ implements: ['Mac'], portMembers: wrong }, { ports })).toEqual(['portMembers.Mac: "hmac-toy-256" declares construction "keyed-hash", the loaded member has "hmac"']);
+    expect(portMemberProblems({ id: 'toy', implements: ['Mac'], portMembers: wrong }, { ports })).toEqual(['portMembers.Mac: "hmac-toy-256" declares construction "keyed-hash", the loaded member has "hmac"']);
     const hashWithKind = { Hash: [{ ...declared.Hash![0]!, construction: 'hmac' as const }, declared.Hash![1]!] };
-    expect(portMemberProblems({ implements: ['Hash'], portMembers: hashWithKind }, { ports })).toEqual(['portMembers.Hash: "toy-256" declares construction "hmac", the loaded member has "undefined"']);
+    expect(portMemberProblems({ id: 'toy', implements: ['Hash'], portMembers: hashWithKind }, { ports })).toEqual(['portMembers.Hash: "toy-256" declares construction "hmac", the loaded member has "undefined"']);
   });
 
   it('reports members of a port that is not a family port, not implemented or not exposed', () => {
-    expect(portMemberProblems({ implements: ['BlockCipher'], portMembers: { BlockCipher: [] } as never }, { ports })).toEqual(['portMembers: "BlockCipher" is not Hash or Mac']);
-    expect(portMemberProblems({ implements: ['Hash'], portMembers: { Mac: declared.Mac } }, { ports })).toEqual(['portMembers: "Mac" is not in implements']);
-    expect(portMemberProblems({ implements: ['Mac'], portMembers: { Mac: declared.Mac } }, {})).toEqual(['portMembers: port "Mac" is missing from module.ports']);
+    expect(portMemberProblems({ id: 'toy', implements: ['BlockCipher'], portMembers: { BlockCipher: [] } as never }, { ports })).toEqual(['portMembers: "BlockCipher" is not Hash or Mac']);
+    expect(portMemberProblems({ id: 'toy', implements: ['Hash'], portMembers: { Hash: declared.Hash, Mac: declared.Mac } }, { ports })).toEqual(['portMembers: "Mac" is not in implements']);
+    expect(portMemberProblems({ id: 'toy', implements: ['Mac'], portMembers: { Mac: declared.Mac } }, {})).toEqual(['portMembers: port "Mac" is missing from module.ports']);
   });
 });
 

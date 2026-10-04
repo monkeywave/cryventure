@@ -28,14 +28,16 @@ describe.each(HMAC_MEMBERS)('hkdf over $ref oracle (@noble/hashes)', ({ ref, fn,
   const hashLen = fn.outputSize;
   const lengthArb = fc.integer({ min: 1, max: Math.min(255, 255 * hashLen) });
   const prkArb = fc.uint8Array({ minLength: hashLen, maxLength: 128 });
-  const base = { mac: ref, ikm: '', salt: '', prk: '', infoEncoding: 'hex', info: '', length: '32', label: '', context: '' };
+  const base = { mac: ref, ikm: '', salt: '', prk: '', infoEncoding: 'hex', info: '', label: '', context: '' };
 
   it(`hkdf and extract modes match noble hkdf / extract for random IKM, salt, info and length (${RUNS} runs)`, async () => {
     await fc.assert(
       fc.asyncProperty(bytesUpTo(128), bytesUpTo(128), bytesUpTo(128), lengthArb, async (ikm, salt, info, length) => {
         const params = { ...base, ikm: toHex(ikm), salt: toHex(salt), info: toHex(info), length: String(length) };
+        const prk = toHex(extract(noble, ikm, salt));
         expect(await runOutputHex('hkdf', { ...params, mode: 'hkdf' }, 'okm')).toBe(toHex(hkdf(noble, ikm, salt, info, length)));
-        expect(await runOutputHex('hkdf', { ...params, mode: 'extract' }, 'prk')).toBe(toHex(extract(noble, ikm, salt)));
+        expect(await runOutputHex('hkdf', { ...params, mode: 'hkdf' }, 'prk')).toBe(prk);
+        expect(await runOutputHex('hkdf', { ...params, mode: 'extract' }, 'prk')).toBe(prk);
       }),
       { numRuns: RUNS },
     );

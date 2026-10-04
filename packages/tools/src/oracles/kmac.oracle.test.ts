@@ -2,7 +2,7 @@ import { kmac128, kmac128xof, kmac256, kmac256xof } from '@noble/hashes/sha3-add
 import { macFunction, toHex, utf8Bytes, type MacFamily } from '@cryventure/core';
 import fc from 'fast-check';
 import { describe, expect, it } from 'vitest';
-import { pieces, producer, runOutputHex } from './macOracleKit.ts';
+import { contextTags, producer, runOutputHex } from './macOracleKit.ts';
 
 /**
  * Oracle (docs/M7.md §2g): the traced `kmac` producer must agree with @noble/hashes kmac128/kmac256
@@ -61,17 +61,7 @@ describe.each(PORT_MEMBERS)('kmac $id ports.Mac oracle (@noble/hashes)', ({ id, 
       fc.property(fc.uint8Array({ maxLength: 200 }), messageArb, optionArb, fc.array(fc.nat(), { maxLength: 4 }), fc.nat(), (key, message, options, cuts, cloneAt) => {
         const expected = toHex(noble(key, message, { dkLen: options.outputLength ?? fn.outputSize, personalization: options.customization ?? new Uint8Array() }));
         expect(toHex(fn.mac(key, message, options))).toBe(expected);
-        const parts = pieces(message, cuts);
-        const split = cloneAt % (parts.length + 1);
-        const context = fn.create(key, options);
-        parts.slice(0, split).forEach((part) => context.update(part));
-        context.mac();
-        const clone = context.clone();
-        parts.slice(split).forEach((part) => {
-          context.update(part);
-          clone.update(part);
-        });
-        expect([toHex(context.mac()), toHex(clone.mac())]).toEqual([expected, expected]);
+        expect(contextTags(fn, key, message, cuts, cloneAt, options)).toEqual([expected, expected]);
       }),
       { numRuns: RUNS * 4 },
     );

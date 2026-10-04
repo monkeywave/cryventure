@@ -1,5 +1,6 @@
 import {
   assertTopologicalOrder,
+  INITIAL_STEP_INDEX,
   NEUTRAL_NODE_PROPS,
   regionSize,
   sampleChoreography,
@@ -73,10 +74,36 @@ export function stepChoreographyProblems(module: ChoreographyModule, facet: AnyS
   });
 }
 
-/** Core's `validateDerivationFacet`, then `assertTopologicalOrder`, as a problem list. */
+const isByte = (value: unknown): boolean => Number.isInteger(value) && (value as number) >= 0 && (value as number) <= 0xff;
+const isStepIndex = (value: unknown): boolean => Number.isInteger(value) && (value as number) >= INITIAL_STEP_INDEX;
+
+/**
+ * Node fields core's `validateDerivationFacet` (frozen in M7) does not check: a non-empty string `id`,
+ * a string `op`, `bytes` of bytes, string `inputs`, an integer `step` ≥ −1 and an integer `group`.
+ */
+function derivationNodeFieldProblems(node: DerivationFacet['nodes'][number], index: number): string[] {
+  const where = typeof node.id === 'string' ? `derivation: node "${node.id}"` : `derivation: node ${index}`;
+  const { id, op, bytes, inputs, step, group } = node as { [K in keyof typeof node]: unknown };
+  const list = (value: unknown): unknown[] => (Array.isArray(value) ? value : []);
+  return [
+    ...(typeof id === 'string' && id !== '' ? [] : [`${where}: id ${String(id)} is not a non-empty string`]),
+    ...(Array.isArray(bytes) ? list(bytes).flatMap((byte, i) => (isByte(byte) ? [] : [`${where}: bytes[${i}] ${String(byte)} is not a byte`])) : [`${where}: bytes is not an array`]),
+    ...(typeof op === 'string' ? [] : [`${where}: op ${String(op)} is not a string`]),
+    ...(Array.isArray(inputs) ? list(inputs).flatMap((input, i) => (typeof input === 'string' ? [] : [`${where}: inputs[${i}] ${String(input)} is not a string`])) : [`${where}: inputs is not an array`]),
+    ...(step === undefined || isStepIndex(step) ? [] : [`${where}: step ${String(step)} is not an integer ≥ ${INITIAL_STEP_INDEX}`]),
+    ...(group === undefined || Number.isInteger(group) ? [] : [`${where}: group ${String(group)} is not an integer`]),
+  ];
+}
+
+/**
+ * Core's `validateDerivationFacet`, then the node fields it leaves unchecked (docs/M7.md §1e: no
+ * NaN/±Infinity in numeric fields), then `assertTopologicalOrder` (which also rejects dangling inputs).
+ */
 export function derivationProblems(facet: DerivationFacet): string[] {
   const schema = validateDerivationFacet(facet);
   if (schema.length > 0) return schema;
+  const fields = facet.nodes.flatMap(derivationNodeFieldProblems);
+  if (fields.length > 0) return fields;
   try {
     assertTopologicalOrder(facet);
     return [];

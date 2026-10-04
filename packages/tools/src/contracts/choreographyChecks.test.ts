@@ -88,4 +88,25 @@ describe('derivationProblems', () => {
     const zoomed = { ...node('a', []), zoom: { producerId: 'Not Kebab', params: {} } };
     expect(derivationProblems({ kind: 'derivation', schemaVersion: 1, nodes: [zoomed] })).toEqual(['derivation: node "a": zoom.producerId Not Kebab is not a kebab-case producer id']);
   });
+
+  it('reports node fields core\'s validator lets through: NaN/fractional steps, non-byte bytes, a non-string op or id, non-integer groups', () => {
+    const bad = { id: 'a', label: { key: 'k' }, bytes: [999, Number.NaN, 1.5, -1], op: 3, inputs: [], step: Number.NaN, group: 0.5 };
+    const anonymous = { label: { key: 'k' }, bytes: [], op: 'xor', inputs: [], step: -2 };
+    expect(derivationProblems({ kind: 'derivation', schemaVersion: 1, nodes: [bad, anonymous] as never })).toEqual([
+      'derivation: node "a": bytes[0] 999 is not a byte',
+      'derivation: node "a": bytes[1] NaN is not a byte',
+      'derivation: node "a": bytes[2] 1.5 is not a byte',
+      'derivation: node "a": bytes[3] -1 is not a byte',
+      'derivation: node "a": op 3 is not a string',
+      'derivation: node "a": step NaN is not an integer ≥ -1',
+      'derivation: node "a": group 0.5 is not an integer',
+      'derivation: node 1: id undefined is not a non-empty string',
+      'derivation: node 1: step -2 is not an integer ≥ -1',
+    ]);
+  });
+
+  it('reports dangling inputs (ids no node defines) and non-string inputs', () => {
+    expect(derivationProblems({ kind: 'derivation', schemaVersion: 1, nodes: [node('a', ['missing'])] })).toEqual(['derivation: "a" uses "missing" before it is defined']);
+    expect(derivationProblems({ kind: 'derivation', schemaVersion: 1, nodes: [node('a', [7 as never])] })).toEqual(['derivation: node "a": inputs[0] 7 is not a string']);
+  });
 });
