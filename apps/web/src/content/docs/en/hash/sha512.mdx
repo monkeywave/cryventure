@@ -1,0 +1,233 @@
+---
+title: SHA-512 and its truncated variants
+description: SHA-512 runs the SHA-2 design on 64-bit words for 80 rounds over 1024-bit blocks; SHA-384, SHA-512/224 and SHA-512/256 change only the initial hash value and truncate the result.
+lessonId: hash/sha512
+track: hash
+phase: 2
+sidebar:
+  order: 2
+tableOfContents: false
+prereqs:
+  - hash/index
+  - hash/sha256
+labs:
+  - sha512-abc
+  - sha512-256-iv
+  - sha384-iv
+refs:
+  - FIPS 180-4, Section 1 (Introduction, Figure 1 — message, block and digest sizes)
+  - FIPS 180-4, Section 3.1 (big-endian convention)
+  - FIPS 180-4, Section 4.1.2 and 4.1.3 (SHA-256 and SHA-512 functions)
+  - FIPS 180-4, Section 4.2.3 (SHA-384, SHA-512, SHA-512/224 and SHA-512/256 constants)
+  - FIPS 180-4, Section 5.1.2 (Padding the message, SHA-384/512)
+  - FIPS 180-4, Section 5.2.2 (Parsing the message, 1024-bit blocks)
+  - FIPS 180-4, Sections 5.3.2, 5.3.4, 5.3.5 (SHA-224, SHA-384, SHA-512 initial hash values)
+  - FIPS 180-4, Section 5.3.6 (SHA-512/t and its IV generation function)
+  - FIPS 180-4, Sections 6.4–6.7 (SHA-512, SHA-384, SHA-512/224, SHA-512/256 hash computation)
+  - FIPS 180-4, Section 7 (Truncation of a message digest)
+  - NIST CSRC, Examples with Intermediate Values, SHA512.pdf, SHA384.pdf, SHA512_256.pdf
+  - NIST SP 800-107 Rev. 1, Section 4.2, Table 1 (security strengths) and Section 5.1 (truncated message digests)
+  - Gueron, Johnson, Walker (2011), SHA-512/256, ITNG 2011, IEEE
+  - Arm Architecture Reference Manual for A-profile, FEAT_SHA512 (SHA512H, SHA512H2, SHA512SU0, SHA512SU1)
+  - Menezes, van Oorschot, Vanstone (1996), Handbook of Applied Cryptography, Section 9.5.2
+  - Duong, Rizzo (2009), Flickr's API Signature Forgery Vulnerability
+  - Coron, Dodis, Malinaud, Puniya (2005), Merkle–Damgård Revisited, CRYPTO 2005, LNCS 3621
+  - RFC 2104 (HMAC)
+---
+
+import Lab from '../../../../components/Lab.astro';
+import CheckQuestion from '../../../../components/lesson/CheckQuestion.astro';
+import Formula from '../../../../components/lesson/Formula.astro';
+import KeyFact from '../../../../components/lesson/KeyFact.astro';
+import KeyFacts from '../../../../components/lesson/KeyFacts.astro';
+import Lens from '../../../../components/lesson/Lens.astro';
+import LessonSection from '../../../../components/lesson/LessonSection.astro';
+import WhyBox from '../../../../components/lesson/WhyBox.astro';
+
+<LessonSection part="concept">
+
+## SHA-256, twice as wide
+
+SHA-512 is the [SHA-256](../sha256/) design with **64-bit** words: the same chain, eight working
+variables and round shape, but **80 rounds** over **1024-bit blocks** (FIPS 180-4, §6.4; §1,
+Figure 1).
+
+<KeyFacts>
+  <KeyFact label="Word" value="64 bit" kind="state" />
+  <KeyFact label="Block" value="1024 bit" kind="plaintext" />
+  <KeyFact label="Rounds" value="80" kind="constant" />
+  <KeyFact label="SHA-512 digest" value="512 bit" kind="ciphertext" />
+</KeyFacts>
+
+The constants `K₀ … K₇₉` are 64 fractional bits of the cube roots of the first 80 primes
+(§4.2.3); the IV uses square roots of the first 8 primes (§5.3.5).
+
+<WhyBox constant="128-bit length" title="why the length field doubles">
+  SHA-512 padding ends with the message length `ℓ` as a **128-bit** big-endian integer, not 64 bits
+  (FIPS 180-4, §5.1.2), because §1, Figure 1 allows messages up to 2¹²⁸ − 1 bits.
+</WhyBox>
+
+Three relatives reuse SHA-512 unchanged: **SHA-384**, **SHA-512/224** and **SHA-512/256** differ
+only in the initial hash value and in how many bits of the result they output (§6.5–6.7).
+
+<Lens only="story">
+
+The same blender with a bigger bowl. Its relatives start from other ingredients and pour out only
+part of the result.
+
+</Lens>
+
+</LessonSection>
+
+<LessonSection part="playground">
+
+## "abc" in 80 rounds
+
+The lab hashes FIPS 180-4's one-block example "abc" (NIST, SHA512.pdf). It opens at round 0:
+the word-operations view shows how the new `a` and `e` are built from `T₁` and `T₂`, now with
+64-bit additions mod 2⁶⁴ (§6.4.2, step 3).
+
+Step through the 80 rounds, then the feed-forward: the eight words of `H⁽¹⁾` are the digest
+`ddaf35a1 93617aba … a54ca49f`.
+
+<Lab labId="sha512-abc" producerId="sha512" presetId="sha-512-abc" startAt="op:round" layout="wordops:55|state:20|narration:25" />
+
+</LessonSection>
+
+<LessonSection part="inside">
+
+## New rotations, new IVs
+
+The functions keep their shape, with new rotation amounts for 64-bit words (FIPS 180-4, §4.1.2
+vs. §4.1.3):
+
+<Formula caption="SHA-512 functions, FIPS 180-4 §4.1.3 (ROTR = rotate right, SHR = shift right, on 64-bit words).">
+{`Σ₀(x) = ROTR²⁸(x) ⊕ ROTR³⁴(x) ⊕ ROTR³⁹(x)      SHA-256: 2, 13, 22
+Σ₁(x) = ROTR¹⁴(x) ⊕ ROTR¹⁸(x) ⊕ ROTR⁴¹(x)      SHA-256: 6, 11, 25
+σ₀(x) = ROTR¹(x)  ⊕ ROTR⁸(x)  ⊕ SHR⁷(x)        SHA-256: 7, 18, SHR 3
+σ₁(x) = ROTR¹⁹(x) ⊕ ROTR⁶¹(x) ⊕ SHR⁶(x)        SHA-256: 17, 19, SHR 10`}
+</Formula>
+
+| Function | Initial hash value | Output |
+|---|---|---|
+| SHA-512 | √ of primes 2 … 19 (§5.3.5) | all 512 bits |
+| SHA-384 | √ of primes 23 … 53 (§5.3.4) | left 384 bits (§6.5) |
+| SHA-512/256 | generated, §5.3.6.2 | left 256 bits (§6.7) |
+| SHA-512/224 | generated, §5.3.6.1 | left 224 bits (§6.6) |
+
+§5.3.6 generates the SHA-512/t IV with SHA-512 itself: XOR every word of the SHA-512 IV with
+`a5a5a5a5a5a5a5a5`, then hash the ASCII text "SHA-512/256" from that state. The result is
+`22312194fc2bf72c …`, the table of §5.3.6.2. Because every `t` starts from its own IV, a
+SHA-512/256 digest is never just the prefix of a SHA-512 digest: the variants are separate
+functions (§5.3.6). Truncation itself yields a shorter digest at SHA-512 speed (FIPS 180-4, §7;
+SP 800-107 Rev. 1, §5.1).
+
+<Lab labId="sha512-256-iv" producerId="sha512" presetId="sha-512-256-iv" startAt="op:init" layout="state:60|narration:40" />
+
+The SHA-384 IV comes from the 9th to 16th primes (§5.3.4):
+
+<Lab labId="sha384-iv" producerId="sha2-constants" presetId="sha384-iv" layout="wordops:50|state:30|narration:20" />
+
+<Lens level="engineer">
+
+A verifiable observation, not a statement of the standard: each SHA-224 IV word (§5.3.2) equals the
+low 32 bits of the matching SHA-384 IV word, e.g. `c1059ed8` in `cbbb9d5d c1059ed8`. FIPS 180-4
+lists the SHA-224 words without a derivation.
+
+</Lens>
+
+</LessonSection>
+
+<LessonSection part="memory">
+
+## Native on 64-bit cores
+
+The SHA-512 chaining value is eight 64-bit words, 64 bytes (FIPS 180-4, §6.4.2). Each 64-bit word
+fits one general-purpose register on x86-64 or AArch64, and one compression consumes 128 message
+bytes in 80 rounds, against 64 bytes in 64 rounds for SHA-256. On 64-bit processors SHA-512 is
+therefore faster per byte than SHA-256 in software; Gueron, Johnson and Walker (ITNG 2011) measured
+this and proposed SHA-512/256 to get a 256-bit digest at SHA-512 speed.
+
+Words are big-endian (§3.1): a little-endian core byte-swaps each 8-byte word it loads, as on the
+[endianness page](../../foundations/endianness/). Armv8.2-A adds optional SHA-512 instructions
+(`SHA512H`, `SHA512H2`, `SHA512SU0`, `SHA512SU1`; Arm ARM, FEAT_SHA512). The
+[SHA-256 page](../sha256/) shows how such instructions map onto the round.
+
+</LessonSection>
+
+<LessonSection part="break">
+
+## Mallory extends the chain
+
+In Merkle–Damgård, the SHA-256 or SHA-512 digest **is** the final chaining value `H⁽ᴺ⁾`
+([hash functions](../)). Anyone holding `H(m)` holds the full state and could keep hashing from
+there. So `H(key ‖ m)` is **not a MAC**: the secret-prefix construction is
+insecure (HAC §9.5.2). Duong and Rizzo showed this against a real service in "Flickr's API
+Signature Forgery Vulnerability" (2009), where the prefixed hash was MD5.
+
+Truncated variants output only part of the state (FIPS 180-4, §6.5–6.7):
+
+| Function | State | Output | State withheld |
+|---|---|---|---|
+| SHA-512 / SHA-256 | 512 / 256 | 512 / 256 | 0 bits |
+| SHA-384 | 512 | 384 | 128 bits |
+| SHA-512/256 | 512 | 256 | 256 bits |
+| SHA-512/224 | 512 | 224 | 288 bits |
+| SHA-224 | 256 | 224 | only 32 bits |
+
+To continue the chain, Mallory must guess the missing bits: 2¹²⁸ tries for SHA-384, but only 2³²
+for SHA-224. The fix is **HMAC** (RFC 2104), which comes in a later chapter.
+
+<Lens level="cryptographer">
+
+Coron, Dodis, Malinaud and Puniya (CRYPTO 2005) prove that "chop-MD", Merkle–Damgård with a
+truncated output, is indifferentiable from a random oracle when enough bits are chopped, whereas
+plain Merkle–Damgård is not, precisely because of length extension.
+
+</Lens>
+
+</LessonSection>
+
+<LessonSection part="check">
+
+## Check yourself
+
+<CheckQuestion
+  id="sha512-block-size"
+  number={1}
+  question="How many bytes of padded message does one SHA-512 compression consume?"
+  options={['64', '80', '128', '256']}
+  answer={2}
+>
+  SHA-512 parses the padded message into 1024-bit blocks of sixteen 64-bit words (FIPS 180-4,
+  §5.2.2): 128 bytes, processed in 80 rounds (§6.4.2).
+</CheckQuestion>
+
+<CheckQuestion
+  id="sha384-withheld-bits"
+  number={2}
+  question="How many bits of the final 512-bit chaining value does a SHA-384 digest withhold?"
+  options={['0', '32', '128', '256']}
+  answer={2}
+>
+  SHA-384 outputs the left-most 384 of 512 bits (FIPS 180-4, §6.5), so 128 bits of the state stay
+  hidden. SHA-224 withholds only 32 of 256.
+</CheckQuestion>
+
+<CheckQuestion
+  id="sha512-256-not-prefix"
+  number={3}
+  question='Is SHA-512/256("abc") the first 256 bits of SHA-512("abc")?'
+  options={[
+    'Yes, SHA-512/256 is defined as plain truncation',
+    'No, SHA-512/256 starts from its own initial hash value',
+    'Only for messages shorter than one block',
+    'Only on big-endian processors',
+  ]}
+  answer={1}
+>
+  SHA-512/t uses an IV generated per `t` (FIPS 180-4, §5.3.6), so the chains differ from the
+  first block on: SHA-512/256("abc") begins `53048e26`, SHA-512("abc") begins `ddaf35a1`.
+</CheckQuestion>
+
+</LessonSection>

@@ -1,0 +1,11 @@
+{
+  "deriver.isa-x86-sha.label": "x86-64 · SHA-Erweiterungen (SHA-NI)",
+  "deriver.isa-x86-sha.registers.label": "x86-64 · SHA-NI · XMM-Register",
+  "deriver.isa-x86-sha.covers.rounds": "Runden {{first}}, {{last}}",
+  "deriver.isa-x86-sha.covers.msg1": "W{{first}}…W{{last}}: erste Hälfte (W[t−16] + σ0(W[t−15]))",
+  "deriver.isa-x86-sha.covers.msg2": "W{{first}}…W{{last}}: fertig (+ σ1(W[t−2]))",
+  "deriver.isa-x86-sha.note.rnds2": "Zwei Runden in einem Befehl. Das Ziel enthält C, D, G, H und erhält A, B, E, F; die Quelle enthält A, B, E, F (A im höchsten Doppelwort). K+W beider Runden kommt aus der unteren Hälfte des impliziten xmm0.",
+  "deriver.isa-x86-sha.note.nextWk": "Schiebt K+W der Runden {{first}}, {{last}} in die untere Hälfte von xmm0 für das nächste sha256rnds2.",
+  "deriver.isa-x86-sha.note.scheduleAhead": "Die Nachrichtenexpansion (Message Schedule) läuft voraus: Dieser Befehl arbeitet an W{{first}}…W{{last}}, einige Runden bevor die Zustandsansicht diese Expansionswörter schreibt. Die vier Nachrichtenregister halten ein gleitendes Fenster aus 16 Expansionswörtern.",
+  "deriver.isa-x86-sha.note.earlySave": "Der Compiler hat diese Kopie der anfänglichen A, B, E, F, die für den Feed-Forward aufbewahrt wird, zwischen die Runden verschoben."
+}

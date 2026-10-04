@@ -1,0 +1,11 @@
+{
+  "deriver.isa-x86-sha.label": "x86-64 · SHA extensions (SHA-NI)",
+  "deriver.isa-x86-sha.registers.label": "x86-64 · SHA-NI · XMM registers",
+  "deriver.isa-x86-sha.covers.rounds": "Rounds {{first}}, {{last}}",
+  "deriver.isa-x86-sha.covers.msg1": "W{{first}}…W{{last}}: first half (W[t−16] + σ0(W[t−15]))",
+  "deriver.isa-x86-sha.covers.msg2": "W{{first}}…W{{last}}: finished (+ σ1(W[t−2]))",
+  "deriver.isa-x86-sha.note.rnds2": "Two rounds in one instruction. The destination holds C, D, G, H and receives A, B, E, F; the source holds A, B, E, F (A in the highest dword). K+W of both rounds comes from the low half of the implicit xmm0.",
+  "deriver.isa-x86-sha.note.nextWk": "Moves K+W of rounds {{first}}, {{last}} into the low half of xmm0 for the next sha256rnds2.",
+  "deriver.isa-x86-sha.note.scheduleAhead": "The message schedule runs ahead: this instruction works on W{{first}}…W{{last}} several rounds before the state view's schedule steps write them. The four message registers hold a sliding window of 16 schedule words.",
+  "deriver.isa-x86-sha.note.earlySave": "The compiler moved this copy of the initial A, B, E, F, kept for the feed-forward, between the rounds."
+}

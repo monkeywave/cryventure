@@ -112,6 +112,37 @@ Status: drafted in an AI editorial review (2026-10). A native-speaker sign-off i
 | fly-through | **Kamerafahrt** (die) | Title of the AES fly-through island. Not „Rundflug“ (a round trip returns to its start). |
 | track (curriculum) | **Lernpfad** (der); „der Lernpfad Geheimnisse im Speicher“ | Used for the curriculum tracks (PLAN §6). |
 
+### Hash functions and SHA-2 (M5)
+
+Checked against the DE catalogs `packages/primitives/src/{sha256,sha512,sha2-constants}/i18n/de.json`
+and `packages/views/src/wordops/i18n/de.json` (2026-10-04): they already use these terms.
+
+| English | German | Decision and rationale |
+|---|---|---|
+| hash function | **Hashfunktion** (die); sidebar group „Hashfunktionen“ | One word (Duden, BSI). Verb **hashen** („wird gehasht“, „das Lab hasht …“). |
+| hash value / digest | **Hashwert** (der); first use may add „(engl. *digest*)“ | One term for both; „Digest“/„Hash“ alone avoided in prose. Compounds: „SHA-256-Hashwert“, „256-Bit-Hashwert“. |
+| compression function | **Kompressionsfunktion** (die) | |
+| chaining value | **Verkettungswert** (der) | `H⁽ⁱ⁾`; „Merkle–Damgård-Verkettung“ for the chaining itself. |
+| Merkle–Damgård (construction), MD strengthening | **Merkle–Damgård-Konstruktion**; **Verstärkung** with „(engl. *strengthening*)“ | En dash between the names as in EN. |
+| message schedule | **Nachrichtenexpansion** (die), first use „Nachrichtenexpansion (Message Schedule)“ | Parallels „Schlüsselexpansion“. Short label for one schedule word: „Expansionswort“. |
+| working variables | **Arbeitsvariablen** (die, plural) `a … h` | |
+| round constant | **Rundenkonstante** (die), as for AES | `K₀ … K₆₃`. |
+| initial hash value (IV) | **Anfangswert (IV)** (der); `H(0)` | Not „Initialisierungsvektor“ here: FIPS 180-4 has no IV input, the value is fixed. Compounds: „SHA-256-Anfangswert“; „IV-Erzeugung“ (SHA-512/t). |
+| preimage / second preimage | **Urbild** (das) / **zweites Urbild** | |
+| preimage / second-preimage / collision resistance | **Urbildresistenz** / **Resistenz gegen zweite Urbilder** / **Kollisionsresistenz** (die) | „Zweites-Urbild-Resistenz“ rejected (clumsy). Textbook synonyms „Einwegeigenschaft“, „schwache/starke Kollisionsresistenz“ are not used (ambiguous across textbooks). |
+| birthday bound | **Geburtstagsschranke** (die) | |
+| security strength (NIST) | **Sicherheitsniveau** (das), „128 Bit gegen Kollisionen“ | BSI TR-02102-1 wording. |
+| length extension (attack) | **Längenerweiterung** (die), **Längenerweiterungsangriff** | |
+| truncation / truncated | **Kürzung** (die) / **gekürzt** („gekürzt auf die ersten 224 Bit“) | |
+| feed-forward | **Feed-Forward** (der) | Established; no German equivalent in the literature. |
+| padding | **Padding** (das), as in M3; verb „auffüllen“ | „Nachricht mit Padding“, „aufgefüllter Block“. |
+| zero bit | **Nullbit** (das), one word like „Nullbyte“ | „7 Nullbits“. |
+| word operations (wordops view) | **Wortoperationen** (die) | View title. Ops: „nach rechts rotieren/schieben“, „XOR-/UND-verknüpfen“, „bitweise invertieren (NICHT)“, „modulo 2ⁿ addieren“. |
+| Ch, Maj, Σ0/Σ1, σ0/σ1 | **unchanged** (FIPS names), glossed „auswählen (Ch)“, „Mehrheit bilden (Maj)“, „großes/kleines Sigma“ | |
+| prime / square root / cube root | **Primzahl** / **Quadratwurzel** / **Kubikwurzel** (die) | „Primzahl Nr. 9“ for the ninth prime. |
+| fractional bits / fractional part | **Nachkommabits** (die, plural) / **Nachkommastellen** | „die ersten 32 Nachkommabits“; the hex fraction is written with a decimal comma („6,a09e…“) in the DE narration. |
+| SHA-NI, SHA extensions | **SHA-Erweiterungen (SHA-NI)**; „die SHA2-Befehle von ARMv8“ | Product names stay English. |
+
 ## Style guide
 
 - **Address the reader with „du“** everywhere (imperative „Drück …“, „Geh …“, „Wähle …“). No

@@ -1,0 +1,208 @@
+---
+title: Hash functions
+description: What a cryptographic hash function is, how Merkle–Damgård pads a message and chains a compression function over its blocks, and what preimage, second-preimage and collision resistance mean.
+lessonId: hash/index
+track: hash
+phase: 2
+sidebar:
+  order: 0
+tableOfContents: false
+prereqs:
+  - foundations/xor
+  - foundations/endianness
+labs:
+  - hash-overview
+refs:
+  - FIPS 180-4, Section 1 (Introduction, Figure 1 — message, block and digest sizes)
+  - FIPS 180-4, Section 3.1 (big-endian convention)
+  - FIPS 180-4, Section 5.1.1 (Padding the message, SHA-1/224/256)
+  - FIPS 180-4, Section 5.1.2 (Padding the message, SHA-384/512)
+  - FIPS 180-4, Section 5.2.1 (Parsing the message)
+  - FIPS 180-4, Section 5.3.3 (SHA-256 initial hash value)
+  - FIPS 180-4, Section 6.2.2 (SHA-256 hash computation, step 4)
+  - NIST CSRC, Examples with Intermediate Values, SHA256.pdf (two-block message)
+  - Merkle (1989), One Way Hash Functions and DES, CRYPTO '89, LNCS 435
+  - Damgård (1989), A Design Principle for Hash Functions, CRYPTO '89, LNCS 435
+  - Menezes, van Oorschot, Vanstone (1996), Handbook of Applied Cryptography, Sections 9.2.2, 9.4.1, 9.7.1
+  - Rogaway, Shrimpton (2004), Cryptographic Hash-Function Basics, FSE 2004, LNCS 3017
+  - NIST SP 800-107 Rev. 1, Section 4.1 (Hash Function Properties) and Section 4.2, Table 1 (security strengths)
+  - NIST SP 800-57 Part 1 Rev. 5, Section 5.6.1.2, Table 3 (hash function security strengths)
+  - Kelsey, Schneier (2005), Second Preimages on n-bit Hash Functions for Much Less than 2^n Work, EUROCRYPT 2005
+  - Wang, Yu (2005), How to Break MD5 and Other Hash Functions, EUROCRYPT 2005
+  - Stevens, Bursztein, Karpman, Albertini, Markov (2017), The First Collision for Full SHA-1, CRYPTO 2017
+---
+
+import Lab from '../../../../components/Lab.astro';
+import CheckQuestion from '../../../../components/lesson/CheckQuestion.astro';
+import Formula from '../../../../components/lesson/Formula.astro';
+import KeyFact from '../../../../components/lesson/KeyFact.astro';
+import KeyFacts from '../../../../components/lesson/KeyFacts.astro';
+import Lens from '../../../../components/lesson/Lens.astro';
+import LessonSection from '../../../../components/lesson/LessonSection.astro';
+import WhyBox from '../../../../components/lesson/WhyBox.astro';
+
+<LessonSection part="concept">
+
+## A fingerprint of fixed size
+
+A **hash function** maps a message of almost any length to a fixed-size **digest**. It is
+deterministic, public and has **no key**: anyone can recompute `H(m)` (FIPS 180-4, §1, Figure 1).
+
+<KeyFacts>
+  <KeyFact label="Message" value="< 2⁶⁴ bit" kind="plaintext" />
+  <KeyFact label="Block" value="512 bit" kind="state" />
+  <KeyFact label="SHA-256 digest" value="256 bit" kind="ciphertext" />
+</KeyFacts>
+
+SHA-2 is a **Merkle–Damgård** design (Merkle 1989; Damgård 1989): **pad** the message to whole
+512-bit blocks (§5.1.1), then feed them one by one into a **compression function**. Its output, the
+**chaining value** `H⁽ⁱ⁾`, enters the next block; step 4 of §6.2.2 adds the old one back in: the
+**feed-forward**.
+
+<Formula caption="Merkle–Damgård chaining in SHA-256, FIPS 180-4 §5.3.3 and §6.2.2 (+ is addition mod 2³² per word).">
+{`H⁽⁰⁾ = IV
+H⁽ⁱ⁾ = H⁽ⁱ⁻¹⁾ + compress(H⁽ⁱ⁻¹⁾, M⁽ⁱ⁾)    i = 1 … N
+H(m) = H⁽ᴺ⁾`}
+</Formula>
+
+<WhyBox constant="64-bit length" title="why the padding ends with the length">
+  The padding ends with the message length `ℓ` in 64 bits (FIPS 180-4 §5.1.1; 128 bits for
+  SHA-384/512, §5.1.2). This "strengthening" makes every collision of the hash a collision of the
+  compression function (Damgård 1989; HAC §9.4.1), and caps messages below 2⁶⁴ bits.
+</WhyBox>
+
+<Lens only="story">
+
+A blender with memory: it mixes one 64-byte scoop at a time into what is already there.
+
+</Lens>
+
+</LessonSection>
+
+<LessonSection part="playground">
+
+## Two blocks, one chain
+
+The lab hashes the two-block message of NIST's "Examples with Intermediate Values" (SHA256.pdf):
+`abcdbcdecdefdefgefghfghighijhijkijkljklmklmnlmnomnopnopq`, 56 bytes = 448 bits. The padding needs
+at least 1 + 64 bits, which no longer fit into the first block, so the message becomes two 512-bit
+blocks (FIPS 180-4, §5.1.1).
+
+Watch the chaining value: after block 1, `H⁽¹⁾` is the starting state of block 2, and only `H⁽²⁾`
+is the digest `248d6a61 … 19db06c1`.
+
+<Lab labId="hash-overview" producerId="sha256" presetId="sha-256-two-block" layout="state:60|narration:40" />
+
+</LessonSection>
+
+<LessonSection part="inside">
+
+## Padding "abc"
+
+FIPS 180-4, §5.1.1 pads a message of `ℓ` bits like this: append one `1` bit, then `k` zero bits
+with `ℓ + 1 + k ≡ 448 (mod 512)`, then `ℓ` as a 64-bit big-endian integer. Its own example is
+"abc": `ℓ = 24`, so `k = 448 − 25 = 423`.
+
+<Formula caption='The padded 512-bit block of "abc" (FIPS 180-4 §5.1.1), in hex.'>
+{`61 62 63                 "abc" (24 bits)
+80                       1 bit, then 7 zero bits
+00 × 52                  416 more zero bits (423 in total)
+00 00 00 00 00 00 00 18  ℓ = 24 = 0x18 as 64 bits`}
+</Formula>
+
+3 + 1 + 52 + 8 = 64 bytes: exactly one block. §5.2.1 then reads it as sixteen 32-bit words
+`M₀ … M₁₅`, here `61626380`, `00000000`, …, `00000018`. One compression from the initial hash value
+(§5.3.3) gives `ba7816bf … f20015ad`.
+
+<Lens level="cryptographer">
+
+Because the last block encodes `ℓ`, two colliding messages of different lengths differ in that
+block, and equal lengths force a collision at some block along the chain. Either way the compression
+function collides: Damgård's proof (1989; HAC §9.4.1).
+
+</Lens>
+
+</LessonSection>
+
+<LessonSection part="memory">
+
+## Eight words of state
+
+The whole SHA-256 state between blocks is the chaining value: eight 32-bit words, 32 bytes
+(FIPS 180-4, §6.2.2). Words are **big-endian** (§3.1), so a little-endian x86 or ARM core byte-swaps
+each word it loads from the message block; the [endianness lesson](../foundations/endianness/)
+shows why.
+
+Modern CPUs have instructions for the compression function: Intel's SHA extensions (SHA-NI) and
+the ARMv8 SHA2 instructions. The [SHA-256 page](./sha256/) runs them in its hardware lab.
+
+</LessonSection>
+
+<LessonSection part="break">
+
+## Mallory's three targets
+
+A hash function should resist three attacks (SP 800-107 Rev. 1, §4.1):
+
+| Notion | Mallory is given | and must find | Generic cost |
+|---|---|---|---|
+| Preimage | a digest `y` | any `m` with `H(m) = y` | about 2ⁿ |
+| Second preimage | a message `m` | `m′ ≠ m` with `H(m′) = H(m)` | about 2ⁿ |
+| Collision | nothing | any `m ≠ m′` with `H(m) = H(m′)` | about 2ⁿᐟ² |
+
+Collisions are cheapest because of the **birthday bound**: among about 2ⁿᐟ² random digests, two
+probably match (HAC §9.7.1). So SHA-256 offers **128-bit** collision strength and 256-bit
+preimage strength (SP 800-107 Rev. 1, §4.2, Table 1; SP 800-57 Part 1 Rev. 5, Table 3).
+
+History shows collisions fall first: MD5 (Wang & Yu, EUROCRYPT 2005) and SHA-1 ("SHAttered",
+Stevens et al., CRYPTO 2017) both lost collision resistance through cryptanalysis.
+
+<Lens level="cryptographer">
+
+Rogaway and Shrimpton (FSE 2004) formalise these as Pre, Sec and Coll, and show how they relate.
+Collision resistance needs care: for a fixed, unkeyed `H`, a collision always *exists*, so it is
+defined as "no one can *find* one". Second preimages of 2ᵏ-block messages cost about 2ⁿ⁻ᵏ for
+Merkle–Damgård (Kelsey & Schneier, EUROCRYPT 2005), hence SP 800-107's range of 201–256 bits.
+
+</Lens>
+
+</LessonSection>
+
+<LessonSection part="check">
+
+## Check yourself
+
+<CheckQuestion
+  id="hash-padding-zero-bits"
+  number={1}
+  question='How many zero bits does SHA-256 padding insert after the 1 bit for the 24-bit message "abc"?'
+  options={['7', '423', '424', '448']}
+  answer={1}
+>
+  `k` satisfies `24 + 1 + k ≡ 448 (mod 512)`, so `k = 423`; the 64-bit length then completes the
+  512-bit block (FIPS 180-4, §5.1.1).
+</CheckQuestion>
+
+<CheckQuestion
+  id="hash-collision-strength"
+  number={2}
+  question="What collision security strength does NIST assign to SHA-256?"
+  options={['64 bits', '128 bits', '192 bits', '256 bits']}
+  answer={1}
+>
+  By the birthday bound, a generic collision search costs about 2²⁵⁶ᐟ² = 2¹²⁸ hash evaluations
+  (SP 800-107 Rev. 1, §4.2, Table 1).
+</CheckQuestion>
+
+<CheckQuestion
+  id="hash-notion-collision"
+  number={3}
+  question="Mallory may choose both messages freely and wins if they have the same digest. Which property does she attack?"
+  options={['Preimage resistance', 'Second-preimage resistance', 'Collision resistance', 'Confidentiality of the key']}
+  answer={2}
+>
+  Choosing both messages is the collision game; in the second-preimage game the first message is
+  given to her (SP 800-107 Rev. 1, §4.1). A hash function has no key.
+</CheckQuestion>
+
+</LessonSection>

@@ -161,3 +161,80 @@ question `aesenc-key-last`). Open questions:
     matches the instructions view catalog?
 15. Code comments inside `<Formula>` listings (`; round 1`, `; ciphertext`, `offset field`) stay
     English like the code itself; translate them?
+
+## M5
+
+Scope (AI editorial review, 2026-10-04): new page `de/hash/index.mdx` (translated from
+`en/hash/index.mdx`, `sourceHash` stamped, `status: ai-reviewed`). Term decisions are in
+`docs/GLOSSARY.md`, section „Hash functions and SHA-2 (M5)“; all M5 §7 proposals were adopted as
+proposed. The DE catalogs `packages/primitives/src/{sha256,sha512,sha2-constants}` and
+`packages/views/src/wordops` were checked against them: no term contradicts the glossary (they were
+not edited in this pass). `de/hash/sha256.mdx` and `de/hash/sha512.mdx` follow once the EN pages exist.
+
+Fixed in this pass (own draft):
+
+- „Kollision des Hashs“ → „Kollision der Hashfunktion“ (EN *collision of the hash* means the function).
+- Description: „Urbild-, Zweites-Urbild- und Kollisionsresistenz“ → „Urbildresistenz, Resistenz gegen
+  zweite Urbilder und Kollisionsresistenz“.
+
+Catalog notes (not changed, for the catalog owner):
+
+- Imperative style: `plugin.sha2-constants.error.invalidParams` „Wähl eine Konstantentabelle.“ vs.
+  „Wähle …“ in the sha256/sha512 errors (23× „Wähle“ elsewhere); `view.wordops.upcoming` „drücke ▶“
+  vs. „Drück …“ in the style guide. Align on one form?
+- `plugin.sha2-constants` mixes „Nachkommastellen“ (initial texts) and „Nachkommabits“ (steps, terms);
+  both are correct, but „die ersten 32 Bit der Nachkommastellen“ could simply read „die ersten 32
+  Nachkommabits“.
+
+Open questions for the human reviewer:
+
+1. **„Resistenz gegen zweite Urbilder“** (quiz option, description) vs. the textbook synonym
+   „schwache Kollisionsresistenz“ (and „Einwegeigenschaft“ for preimage resistance). Chosen to mirror
+   the EN notion names 1:1; is the long form acceptable as a quiz option?
+2. **„Verkettungswert“** for *chaining value* and **„Nachrichtenexpansion (Message Schedule)“** for
+   *message schedule*: natural for readers of German textbooks, or keep „Message Schedule“?
+3. **„Anfangswert (IV)“** for *initial hash value*: the abbreviation IV may suggest an input
+   („Initialisierungsvektor“); fine with the explanation in the glossary?
+4. **„Verstärkung“ (engl. *strengthening*)** in the WhyBox for MD strengthening; „Längenverstärkung“
+   or „MD-Verstärkung“ clearer?
+5. **„Geburtstagsschranke“** for *birthday bound* vs. „Geburtstagsgrenze“; and „Sicherheitsniveau“
+   for NIST *security strength* („Sicherheitsstärke“ is a literal but rare rendering).
+6. **„1-Bit“** („ein `1`-Bit“, „nach dem 1-Bit“) for *the 1 bit* of the padding: unambiguous next to
+   „1 Bit“ (quantity)? Alternative: „ein Einsbit“ / „das Bit 1“ (used in `plugin.sha256.step.pad_*`).
+7. **„Feed-Forward“** kept English (masculine „der Feed-Forward“); ok, or „Vorwärtskopplung“?
+8. Story lens: „Ein Mixer mit Gedächtnis … eine 64-Byte-Portion“ – does the image work in German?
+9. „Das Beispiel der Norm selbst ist „abc““ – FIPS 180-4 as „Norm“ (strictly a *standard*, „Standard“)?
+10. Ref titles stay English (paper and section titles), only „Section/Table/Figure“ are translated,
+    as on the M3/M4 pages.
+
+### M5 – `de/hash/sha512.mdx`
+
+Scope (AI editorial review, 2026-10-04): new page `de/hash/sha512.mdx`, translated from
+`en/hash/sha512.mdx` (`sourceHash` stamped, `status: ai-reviewed`). Same components, props, lab ids,
+question ids and `answer` indexes as EN; refs translated as on `de/hash/index.mdx` (only
+Section/Sections/Table/Figure and descriptive parentheticals translated, FIPS section titles kept).
+Glossary terms used: Hashwert, Anfangswert (IV), Verkettungswert, Arbeitsvariablen, Nachkommabits,
+Kubik-/Quadratwurzel, Primzahl, Kürzung/gekürzt, Längenerweiterung, Feed-Forward, „Wortoperationen“.
+
+Editorial pass vs. EN: meaning, numbers, hex values and section references match; no style-lint
+findings for the page. `../sha256/` links point to a page that does not exist yet in either locale
+(EN as well; resolves once `hash/sha256` is written).
+
+Open questions for the human reviewer:
+
+1. **„ununterscheidbar (indifferentiable)“** in the cryptographer lens: German „ununterscheidbar“
+   usually renders *indistinguishable*; Maurer et al.'s *indifferentiability* has no settled German
+   term. Keep the English gloss, or write „indifferenzierbar“?
+2. **„linke 384 Bit“** for *left 384 bits* (FIPS *left-most*), also in quiz 2 („die linken 384 von
+   512 Bit“): ok, or „die ersten / höchstwertigen 384 Bit“?
+3. **„Rotationsweiten“** for *rotation amounts*; alternative „Rotationsbeträge“ / „Verschiebeweiten“.
+4. Table header **„Zurückgehaltener Zustand“** for *State withheld* (values „0 Bit“ … „nur 32 Bit“):
+   clear enough, or „Verborgene Zustandsbits“?
+5. **„Konstruktion mit geheimem Präfix“** for *secret-prefix construction* and **„weiterhashen“**
+   (colloquial verb from „hashen“) – acceptable?
+6. „Eine nachprüfbare Beobachtung, keine Aussage der Norm“ – same „Norm“ vs. „Standard“ question as
+   item 9 for the index page.
+7. Story lens: „Derselbe Mixer mit einer größeren Schüssel … gießen nur einen Teil des Ergebnisses
+   aus“ – continues the index page's mixer image; reads naturally?
+8. **„Random Oracle“** kept English (no glossary entry yet); add to the glossary (vs.
+   „Zufallsorakel“)?

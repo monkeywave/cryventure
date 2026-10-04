@@ -46,6 +46,12 @@ export default defineConfig({
             },
           ],
         },
+        {
+          label: 'Hash functions',
+          translations: { de: 'Hashfunktionen' },
+          // Page order comes from each page's frontmatter `sidebar.order` (EN and DE).
+          items: [{ autogenerate: { directory: 'hash' } }],
+        },
         // Starlight prefixes a `link` with the current locale and the base (`/cryventure/de/progress/`).
         { label: 'Your progress', translations: { de: 'Dein Fortschritt' }, link: '/progress/' },
       ],

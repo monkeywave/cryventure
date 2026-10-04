@@ -1,4 +1,4 @@
-import { sha224, sha256 } from '@noble/hashes/sha2.js';
+import { sha224, sha256, sha384, sha512, sha512_224, sha512_256 } from '@noble/hashes/sha2.js';
 import { hashFunction, toHex, type HashFamily, type PrimitiveManifest } from '@cryventure/core';
 import { primitiveManifests } from '@cryventure/primitives';
 import fc from 'fast-check';
@@ -8,8 +8,7 @@ import { primitiveProducers, runWithPorts } from '../contracts/runWithPorts.ts';
 /**
  * Oracle (docs/M5.md §2f): the traced SHA-2 producers must agree with @noble/hashes for random
  * messages of 0–128 bytes, both through `run()` (hex input, both detail levels) and through their
- * untraced `ports.Hash`. Append the `sha512` rows (sha384, sha512, sha512_224, sha512_256) to
- * `ORACLE_CASES` when that producer exists.
+ * untraced `ports.Hash`.
  */
 const MAX_MESSAGE_BYTES = 128;
 const RUNS = 60;
@@ -23,6 +22,10 @@ interface OracleCase {
 const ORACLE_CASES: readonly OracleCase[] = [
   { producer: 'sha256', algorithm: 'sha-224', noble: sha224 },
   { producer: 'sha256', algorithm: 'sha-256', noble: sha256 },
+  { producer: 'sha512', algorithm: 'sha-384', noble: sha384 },
+  { producer: 'sha512', algorithm: 'sha-512', noble: sha512 },
+  { producer: 'sha512', algorithm: 'sha-512/224', noble: sha512_224 },
+  { producer: 'sha512', algorithm: 'sha-512/256', noble: sha512_256 },
 ];
 
 const messageArb = fc.uint8Array({ minLength: 0, maxLength: MAX_MESSAGE_BYTES });

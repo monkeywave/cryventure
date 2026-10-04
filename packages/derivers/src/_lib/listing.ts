@@ -67,7 +67,10 @@ export interface ShaListingInstruction {
   w?: number;
 }
 
-export interface ShaListing extends Omit<Listing, 'instructions'> {
+/** A listing's header: compiler, flags, triple, function, source and Compiler Explorer link. */
+export type ListingHeader = Omit<Listing, 'instructions'>;
+
+export interface ShaListing extends ListingHeader {
   instructions: ShaListingInstruction[];
 }
 
@@ -109,7 +112,7 @@ export function listingForRounds(
 }
 
 /** The facet `source` block of a listing (the C source text stays in the listing). */
-export function listingSource(listing: Listing): {
+export function listingSource(listing: Omit<ListingHeader, 'source'>): {
   compiler: string;
   flags: string;
   triple: string;

@@ -1,16 +1,12 @@
-import {
-  facetKey,
-  type AlignSpan,
-  type FacetKey,
-  type I18nRef,
-  type Instruction,
-  type InstructionsFacet,
-  type OperandRef,
-  type RegisterSpec,
-  type RegisterStep,
-  type RegisterWrite,
-  type RegistersFacet,
-  type TraceBundle,
+import type {
+  AlignSpan,
+  FacetKey,
+  I18nRef,
+  Instruction,
+  OperandRef,
+  RegisterSpec,
+  RegisterWrite,
+  TraceBundle,
 } from '@cryventure/core';
 import {
   AES_BLOCK_BYTES,
@@ -19,10 +15,17 @@ import {
   roundKeyBytesAt,
   stateBytesAt,
 } from './aesTrace.ts';
+import {
+  isaFacetPair,
+  registerOperand,
+  registerWrite,
+  vectorRegisterSpecs,
+  type IsaVariant,
+  type IsaWalk,
+} from './isaFacets.ts';
 import { INITIAL_SPAN, instructionSpan, type CoveredOp } from './isaSpans.ts';
 import {
   listingForRounds,
-  listingSource,
   parseMemOperand,
   type Listing,
   type ListingInstruction,
@@ -38,14 +41,7 @@ import { withValueRef } from './valueRef.ts';
  */
 
 /** What an ISA deriver contributes: its names, how it reads operands, and which ops each instruction covers. */
-export interface IsaProfile {
-  /** The deriver id; message keys live under `deriver.<id>.*`. */
-  deriverId: string;
-  variant: string;
-  isa: string;
-  extension: string;
-  syntax: InstructionsFacet['syntax'];
-  byteOrder: 'little' | 'big';
+export interface IsaProfile extends IsaVariant {
   /** Lane widths the vector registers offer, e.g. [8, 16, 32, 64]. */
   lanes: number[];
   /** Listings by round count Nr. */
@@ -68,14 +64,6 @@ interface Effects {
 }
 
 const NO_EFFECTS: Effects = { reads: [], writes: [], registerWrites: [] };
-
-function registerOperand(name: string, valueRef?: string): OperandRef {
-  return withValueRef({ kind: 'reg' as const, name }, valueRef);
-}
-
-function registerWrite(reg: string, bytes: number[], valueRef?: string): RegisterWrite {
-  return withValueRef({ reg, bytes }, valueRef);
-}
 
 function listingError(instruction: ListingInstruction, message: string): Error {
   return new Error(`listing ${instruction.address} ${instruction.mnemonic}: ${message}`);
@@ -277,11 +265,6 @@ function buildInstruction(
   return instruction;
 }
 
-interface Walk {
-  instructions: Instruction[];
-  steps: RegisterStep[];
-}
-
 /** Per instruction, the `first` step of the next instruction that covers AES ops (§1e). */
 function nextAesFirsts(
   ctx: TraceContext,
@@ -297,9 +280,9 @@ function nextAesFirsts(
   return next;
 }
 
-function walkListing(ctx: TraceContext, profile: IsaProfile, listing: Listing): Walk {
+function walkListing(ctx: TraceContext, profile: IsaProfile, listing: Listing): IsaWalk {
   const bank = new RegisterBank();
-  const walk: Walk = { instructions: [], steps: [] };
+  const walk: IsaWalk = { instructions: [], steps: [] };
   const coverage = listing.instructions.map((listed) => profile.covers(listed));
   const nextAesFirst = nextAesFirsts(ctx, coverage);
   let previous = INITIAL_SPAN;
@@ -326,18 +309,13 @@ function walkListing(ctx: TraceContext, profile: IsaProfile, listing: Listing): 
   return walk;
 }
 
-function registerNumber(name: string): number {
-  return Number(/\d+$/.exec(name)?.[0] ?? 0);
-}
-
 /** The vector registers a listing uses, by register number. */
 export function listingRegisters(profile: IsaProfile, listing: Listing): RegisterSpec[] {
-  const names = new Set(
+  return vectorRegisterSpecs(
     listing.instructions.flatMap((instruction) => vectorRegisters(profile, instruction)),
+    VECTOR_BITS,
+    profile.lanes,
   );
-  return [...names]
-    .sort((a, b) => registerNumber(a) - registerNumber(b))
-    .map((name) => ({ name, bits: VECTOR_BITS, lanes: [...profile.lanes] }));
 }
 
 /** Derives `instructions@<variant>` and `registers@<variant>` for an AES op-detail bundle. */
@@ -347,31 +325,10 @@ export function deriveIsaFacets(
 ): Partial<Record<FacetKey, unknown>> {
   const ctx = traceContext(bundle);
   const listing = listingForRounds(profile.listings, ctx.ops.rounds);
-  const walk = walkListing(ctx, profile, listing);
-  const namespace = `deriver.${profile.deriverId}`;
-  const instructions: InstructionsFacet = {
-    kind: 'instructions',
-    schemaVersion: 1,
-    isa: profile.isa,
-    extension: profile.extension,
-    label: { key: `${namespace}.label` },
-    syntax: profile.syntax,
-    source: listingSource(listing),
-    instructions: walk.instructions,
-  };
-  const registers: RegistersFacet = {
-    kind: 'registers',
-    schemaVersion: 1,
-    label: { key: `${namespace}.registers.label` },
-    file: {
-      isa: profile.isa,
-      byteOrder: profile.byteOrder,
-      registers: listingRegisters(profile, listing),
-    },
-    steps: walk.steps,
-  };
-  return {
-    [facetKey('instructions', profile.variant)]: instructions,
-    [facetKey('registers', profile.variant)]: registers,
-  };
+  return isaFacetPair(
+    profile,
+    listing,
+    walkListing(ctx, profile, listing),
+    listingRegisters(profile, listing),
+  );
 }

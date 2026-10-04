@@ -1,0 +1,222 @@
+{
+  "source": "NIST CSRC, Examples with Intermediate Values, SHA512.pdf, SHA384.pdf, SHA512_224.pdf and SHA512_256.pdf, \"One Block Message Sample\" (input \"abc\"): the a … h rows after rounds t = 0, 1, 15, 16, 79 (https://csrc.nist.gov/CSRC/media/Projects/Cryptographic-Standards-and-Guidelines/documents/examples/SHA512.pdf, .../SHA384.pdf, .../SHA512_224.pdf, .../SHA512_256.pdf), transcribed with pdftotext (rows \"A/E B/F C/G D/H\" read as a, b, c, d then e, f, g, h).",
+  "message": "abc",
+  "algorithms": {
+    "sha-512": {
+      "vars": {
+        "0": [
+          "f6afceb8bcfcddf5",
+          "6a09e667f3bcc908",
+          "bb67ae8584caa73b",
+          "3c6ef372fe94f82b",
+          "58cb02347ab51f91",
+          "510e527fade682d1",
+          "9b05688c2b3e6c1f",
+          "1f83d9abfb41bd6b"
+        ],
+        "1": [
+          "1320f8c9fb872cc0",
+          "f6afceb8bcfcddf5",
+          "6a09e667f3bcc908",
+          "bb67ae8584caa73b",
+          "c3d4ebfd48650ffa",
+          "58cb02347ab51f91",
+          "510e527fade682d1",
+          "9b05688c2b3e6c1f"
+        ],
+        "15": [
+          "0ae07c86b1181c75",
+          "fa967eed85a08028",
+          "44249631255d2ca0",
+          "5e41214388186c14",
+          "a77b7c035dd4c161",
+          "874bfe5f6aae9f2f",
+          "860acf9effba6f61",
+          "cdf3bff2883fc9d9"
+        ],
+        "16": [
+          "caf81a425d800537",
+          "0ae07c86b1181c75",
+          "fa967eed85a08028",
+          "44249631255d2ca0",
+          "2deecc6b39d64d78",
+          "a77b7c035dd4c161",
+          "874bfe5f6aae9f2f",
+          "860acf9effba6f61"
+        ],
+        "79": [
+          "73a54f399fa4b1b2",
+          "10d9c4c4295599f6",
+          "d67806db8b148677",
+          "654ef9abec389ca9",
+          "d08446aa79693ed7",
+          "9bb4d39778c07f9e",
+          "25c96a7768fb2aa3",
+          "ceb9fc3691ce8326"
+        ]
+      }
+    },
+    "sha-384": {
+      "vars": {
+        "0": [
+          "470994ad30873f88",
+          "cbbb9d5dc1059ed8",
+          "629a292a367cd507",
+          "9159015a3070dd17",
+          "bd03f724be6075f9",
+          "67332667ffc00b31",
+          "8eb44a8768581511",
+          "db0c2e0d64f98fa7"
+        ],
+        "1": [
+          "2e91230306a12ae0",
+          "470994ad30873f88",
+          "cbbb9d5dc1059ed8",
+          "629a292a367cd507",
+          "5e1b4e1695372b9e",
+          "bd03f724be6075f9",
+          "67332667ffc00b31",
+          "8eb44a8768581511"
+        ],
+        "15": [
+          "1eab6159ae87ef6d",
+          "7e32dc0e9f414783",
+          "e5f06744c0d7563a",
+          "185f9ff038a50f39",
+          "153b895cfbc436c5",
+          "3a9950aaa5e75884",
+          "2fa93d1ce9523015",
+          "8b4acfc4d2b8afe6"
+        ],
+        "16": [
+          "33ef2cebbf1739aa",
+          "1eab6159ae87ef6d",
+          "7e32dc0e9f414783",
+          "e5f06744c0d7563a",
+          "9d1a64baf1d366aa",
+          "153b895cfbc436c5",
+          "3a9950aaa5e75884",
+          "2fa93d1ce9523015"
+        ],
+        "79": [
+          "ff44d7e1849dbfb3",
+          "5306143f64497b00",
+          "95d33150de6df44c",
+          "055b73814cf102b4",
+          "1952e0c3a227c0f2",
+          "ca06a219cc701096",
+          "c7f7bff08ebf0d30",
+          "c4b149710f5d6a71"
+        ]
+      }
+    },
+    "sha-512/224": {
+      "vars": {
+        "0": [
+          "9f8617b9dce5aad2",
+          "8c3d37c819544da2",
+          "73e1996689dcd4d6",
+          "1dfab7ae32ff9c82",
+          "e606d304f5742303",
+          "0f6d2b697bd44da8",
+          "77e36f7304c48942",
+          "3f9d85a86a1d36c8"
+        ],
+        "1": [
+          "39eef9ea0d97d0e7",
+          "9f8617b9dce5aad2",
+          "8c3d37c819544da2",
+          "73e1996689dcd4d6",
+          "ed6a8ce6ac02ae3b",
+          "e606d304f5742303",
+          "0f6d2b697bd44da8",
+          "77e36f7304c48942"
+        ],
+        "15": [
+          "a69af3fa50f71091",
+          "db71f51be96e76d1",
+          "206c69b0295cae2f",
+          "6528afe0f531b8d9",
+          "6c6a7ef25668bbb4",
+          "340b10abc4b10e09",
+          "3ca059f97e654f98",
+          "af77a75bbf7964c9"
+        ],
+        "16": [
+          "f57d3a111596e3f7",
+          "a69af3fa50f71091",
+          "db71f51be96e76d1",
+          "206c69b0295cae2f",
+          "483fd5187e05af83",
+          "6c6a7ef25668bbb4",
+          "340b10abc4b10e09",
+          "3ca059f97e654f98"
+        ],
+        "79": [
+          "b9f6ef4757271cb2",
+          "66ccdbc9bc2b6e0c",
+          "f03d357829ef4d22",
+          "d6eb4f969d4cf40a",
+          "12446e230b3b76ac",
+          "b3953ba10977d31a",
+          "fddf88a8dff1fd36",
+          "054704d916035d9d"
+        ]
+      }
+    },
+    "sha-512/256": {
+      "vars": {
+        "0": [
+          "9a2f6d11c39458fe",
+          "22312194fc2bf72c",
+          "9f555fa3c84c64c2",
+          "2393b86b6f53b151",
+          "3908d19fbcaf1b12",
+          "96283ee2a88effe3",
+          "be5e1e2553863992",
+          "2b0199fc2c85b8aa"
+        ],
+        "1": [
+          "9c465a16f85ebd68",
+          "9a2f6d11c39458fe",
+          "22312194fc2bf72c",
+          "9f555fa3c84c64c2",
+          "bb7cf388a65ca549",
+          "3908d19fbcaf1b12",
+          "96283ee2a88effe3",
+          "be5e1e2553863992"
+        ],
+        "15": [
+          "1ec6365704280063",
+          "8d70d5ebdea6724a",
+          "8c4d8b98e0672988",
+          "c9e2cb6d5d017ba7",
+          "419c9d961ba8ea8f",
+          "ceaaaeef7189ec61",
+          "996e6405c63d83e3",
+          "0662bfd092e26fb7"
+        ],
+        "16": [
+          "3aa569ffd0244ec4",
+          "1ec6365704280063",
+          "8d70d5ebdea6724a",
+          "8c4d8b98e0672988",
+          "4ac147677b104598",
+          "419c9d961ba8ea8f",
+          "ceaaaeef7189ec61",
+          "996e6405c63d83e3"
+        ],
+        "79": [
+          "30d36c91856827cd",
+          "fbd8ca13a30018e9",
+          "c12f185ac5a8bbf5",
+          "4aaa7a17aea6c466",
+          "780d55b8dd49f3a4",
+          "61a99523c8a086db",
+          "578fb21004694ef1",
+          "94ae3c3d5bb9d976"
+        ]
+      }
+    }
+  }
+}

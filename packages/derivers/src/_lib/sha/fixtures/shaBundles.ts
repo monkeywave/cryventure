@@ -1,0 +1,23 @@
+import type { TraceBundle } from '@cryventure/core';
+import sha224Abc from './sha256-sha-224-abc.bundle.json';
+import sha256Abc from './sha256-sha-256-abc.bundle.json';
+import sha256TwoBlock from './sha256-sha-256-two-block.bundle.json';
+
+/**
+ * Test-only: real `sha256` producer bundles (state + values + wordops facets, round detail) of the
+ * presets "abc" (SHA-256 and SHA-224) and the two-block message, generated from `@cryventure/primitives`
+ * (derivers may not import primitives, hence the JSON snapshot, as for the AES fixtures).
+ */
+export const SHA_FIXTURE_PRESETS = ['sha-256-abc', 'sha-256-two-block', 'sha-224-abc'] as const;
+export type ShaFixturePreset = (typeof SHA_FIXTURE_PRESETS)[number];
+
+const FIXTURES: Record<ShaFixturePreset, { bundle: unknown }> = {
+  'sha-256-abc': sha256Abc,
+  'sha-256-two-block': sha256TwoBlock,
+  'sha-224-abc': sha224Abc,
+};
+
+/** A fresh deep copy of the preset's bundle (tests may mutate it). */
+export function shaFixtureBundle(preset: ShaFixturePreset): TraceBundle {
+  return JSON.parse(JSON.stringify(FIXTURES[preset].bundle)) as TraceBundle;
+}
