@@ -1,0 +1,221 @@
+---
+title: 'KMAC: ein MAC aus dem Sponge'
+description: KMAC gibt den Schlüssel direkt in cSHAKE, weil ein Sponge seine Kapazität verbirgt; bytepad(encode_string(K)) gibt dem Schlüssel einen eigenen Block, N = „KMAC“ und S trennen Verwendungszwecke, right_encode(L) bindet die Länge, und BLAKE2 mit Schlüssel macht denselben Trick mit einer Kompressionsfunktion.
+lessonId: mac/kmac
+track: mac
+phase: 2
+sidebar:
+  order: 2
+tableOfContents: false
+prereqs:
+  - hash/sponge
+  - mac/index
+  - mac/hmac
+labs:
+  - kmac128-sample1
+  - kmac256-sample4
+  - blake2s-256-keyed
+refs:
+  - NIST SP 800-185, Abschnitt 2.3.1 (left_encode, right_encode), 2.3.2 (encode_string) und 2.3.3 (bytepad)
+  - NIST SP 800-185, Abschnitt 3.2 und 3.3 (Parameter und Definition von cSHAKE, N und S)
+  - NIST SP 800-185, Abschnitt 4.1 (Überblick über KMAC), 4.2 (Parameter), 4.3 (Definition) und 4.3.1 (KMACXOF)
+  - NIST CSRC, Examples with Intermediate Values, KMAC_samples.pdf und KMACXOF_samples.pdf
+  - FIPS 202, Abschnitt 3.1 (Zustand, Lanes), Abschnitt 4 (Sponge Construction), Abschnitt 6.2 (SHAKE128, SHAKE256) und Abschnitt 7, Tabelle 3 (Raten)
+  - FIPS 202, Anhang A.1 (Sicherheitsübersicht, Längenerweiterung) und A.2 (XOF-Ausgaben sind verwandt)
+  - RFC 2104, Abschnitt 2 (Definition of HMAC) und Abschnitt 4 (Implementation note – vorberechnete Zwischenwerte)
+  - RFC 7693, Abschnitt 1 (Introduction – eingebauter Schlüssel, kein HMAC nötig)
+  - RFC 7693, Abschnitt 2.5 (Parameter Block – Schlüssellänge kk)
+  - RFC 7693, Abschnitt 3.3 (Padding Data and Computing a BLAKE2 Digest – schlüsselabhängiges Hashen)
+  - Aumasson, Neves, Wilcox-O'Hearn, Winnerlein (2013), BLAKE2 – simpler, smaller, fast as MD5, ACNS 2013, LNCS 7954 (Abschnitt 2.9)
+  - Bertoni, Daemen, Peeters, Van Assche (2008), On the Indifferentiability of the Sponge Construction, EUROCRYPT 2008, LNCS 4965
+sourceHash: sha256:2b6fd14a368fe9e4d343e5325d59ec83ac75a0226546b1a1531a4379e996ab29
+translation:
+  status: ai-reviewed
+  reviewedAt: '2026-10-04'
+  reviewer: AI editorial review (Claude)
+---
+
+import Lab from '../../../../components/Lab.astro';
+import CheckQuestion from '../../../../components/lesson/CheckQuestion.astro';
+import Formula from '../../../../components/lesson/Formula.astro';
+import KeyFact from '../../../../components/lesson/KeyFact.astro';
+import KeyFacts from '../../../../components/lesson/KeyFacts.astro';
+import Lens from '../../../../components/lesson/Lens.astro';
+import LessonSection from '../../../../components/lesson/LessonSection.astro';
+import WhyBox from '../../../../components/lesson/WhyBox.astro';
+
+<LessonSection part="concept">
+
+## Schlüssel rein, Tag raus, keine Verschachtelung
+
+[HMAC](../hmac/) hasht zweimal, `H((K ⊕ opad) ‖ H((K ⊕ ipad) ‖ m))` (RFC 2104, §2), weil ein
+Merkle–Damgård-Hashwert sein vollständiger Verkettungswert ist und sich `H(K ‖ m)` verlängern ließe
+([SHA-256](../../hash/sha256/)). Ein Sponge gibt seine Kapazität nie aus (FIPS 202, §4), also
+widersteht er der Längenerweiterung (Anhang A.1). Den Schlüssel voranzustellen genügt.
+
+Genau das ist **KMAC**: cSHAKE mit dem Funktionsnamen `N = "KMAC"`, angewandt auf den codierten
+Schlüssel, die Nachricht und die codierte Ausgabelänge (NIST SP 800-185, §4.3). Ein Durchlauf, kein
+innerer Hash.
+
+<KeyFacts>
+  <KeyFact label="KMAC128-Rate" value="168 Byte" kind="plaintext" />
+  <KeyFact label="KMAC256-Rate" value="136 Byte" kind="plaintext" />
+  <KeyFact label="Funktionsname N" value="„KMAC“" kind="constant" />
+  <KeyFact label="Schlüssellänge" value="beliebig" kind="key" />
+</KeyFacts>
+
+<WhyBox constant="N = „KMAC“" title="warum ein Funktionsname">
+  cSHAKE reserviert `N` für Funktionen, die NIST definiert, und `S` für die Anwendung (SP 800-185,
+  §3.2). Das feste `N = "KMAC"` trennt die Sponge-Eingaben von KMAC von reinem cSHAKE und von den
+  anderen Funktionen aus SP 800-185 (§3.2, §4.3).
+</WhyBox>
+
+<Lens only="story">
+
+Flüstere dem Schwamm zuerst das Passwort zu, dann gieß den Brief hinein. Ausgedrückt wird immer nur
+die Oberfläche, das Passwort bleibt also drinnen.
+
+</Lens>
+
+</LessonSection>
+
+<LessonSection part="playground">
+
+## KMAC128, Beispiel Nr. 1
+
+Das Lab rechnet das erste KMAC-Beispiel aus SP 800-185: Schlüssel `40 41 … 5f` (32 Byte), Daten
+`00 01 02 03`, `L = 256`, `S` leer (NIST, KMAC_samples.pdf). Drei Rate-Blöcke, drei Permutationen:
+
+1. **pad**: `bytepad(encode_string("KMAC") ‖ encode_string(""), 168)` (§3.3);
+2. **encodeKey**: `bytepad(encode_string(K), 168)` (§4.3);
+3. die Daten, dann `right_encode(256)`, dann das cSHAKE-Suffix und pad10\*1.
+
+Die Sponge-Ansicht zeigt, wie jeder Block per XOR in die Rate eingeht, während die Kapazitäts-Lanes
+unberührt bleiben. Das Tag ist `e5780b0d 3ea6f7d3 … 456ee14e`, wie im NIST-Beispiel.
+
+<Lab labId="kmac128-sample1" producerId="kmac" presetId="kmac128-sample1" layout="sponge:55|state:20|narration:25" />
+
+</LessonSection>
+
+<LessonSection part="inside">
+
+## Drei Blöcke, Byte für Byte
+
+`left_encode(x)` schreibt die Anzahl der Bytes zuerst, `right_encode(x)` zuletzt (SP 800-185,
+§2.3.1). `encode_string(K)` stellt `K` seine Länge in Bit voran (§2.3.2); `bytepad(X, w)` stellt
+`left_encode(w)` voran und füllt mit Nullen auf ein Vielfaches von `w` Byte auf (§2.3.3). Der
+Schlüssel beginnt also immer einen neuen Block und füllt ihn allein:
+
+<Formula caption="KMAC128, Beispiel Nr. 1, die drei absorbierten Blöcke (SP 800-185, §4.3; NIST KMAC_samples.pdf).">
+{`Block 0  01 a8 | 01 20 | 4b 4d 41 43 | 01 00 | 00 … 00            bytepad(N="KMAC", S="")
+Block 1  01 a8 | 02 01 00 | 40 41 … 5f | 00 … 00                    bytepad(encode_string(K))
+Block 2  00 01 02 03 | 01 00 02 | 04 00 … 00 80                     X ‖ right_encode(256) ‖ pad`}
+</Formula>
+
+Der Anpassungsstring `S` landet in Block 0 (§4.2): Beispiel Nr. 4 setzt
+`S = "My Tagged Application"`, und KMAC256 füllt auf seine Rate von 136 Byte auf (`01 88 …`, §4.3).
+
+<Lab labId="kmac256-sample4" producerId="kmac" presetId="kmac256-sample4" startAt="op:encodeKey" layout="sponge:55|state:20|narration:25" />
+
+**KMACXOF** schreibt `right_encode(0) = 00 01` statt `right_encode(L)` und presst beliebig viel aus
+(§4.3.1).
+
+</LessonSection>
+
+<LessonSection part="memory">
+
+## Ein Zustand, zwei vorberechnete Blöcke
+
+KMAC hält einen einzigen Keccak-Zustand von 200 Byte, 25 Little-Endian-Lanes zu 64 Bit (FIPS 202,
+§3.1); siehe die [Sponge-Seite](../../hash/sponge/). HMAC-SHA-256 braucht zwei Verkettungszustände
+und einen Puffer (RFC 2104, §4).
+
+Die Blöcke 0 und 1 hängen nur von `S` und `K` ab. Eine Implementierung kann sie also einmal pro
+Schlüssel absorbieren und den 200-Byte-Zustand für jede Nachricht kopieren, wie die vorberechneten
+Zwischenzustände (Midstates) von HMAC. Der Schlüssel liegt dann nur noch in einem permutierten
+Zustand im Speicher, doch dieser Zustand ist so geheim wie der Schlüssel: Wer ihn kopiert, kann Tags
+berechnen.
+
+<Lens level="engineer">
+
+Eine kurze Nachricht kostet bei KMAC128, Beispiel Nr. 1, drei Permutationen und eine weitere je
+168 Byte (SP 800-185, §4.3; FIPS 202, §7, Tabelle 3). Mit den beiden zwischengespeicherten
+Schlüsselblöcken kostet ein kurzes Tag eine.
+
+</Lens>
+
+</LessonSection>
+
+<LessonSection part="break">
+
+## Was jede Codierung verhindert
+
+**Schlüssel ohne Codierung.** Schlüssel `ab` mit Daten `cd` wäre dasselbe wie Schlüssel `abcd` ohne
+Daten. Das Längenpräfix und die Blockgrenze schließen das aus (SP 800-185, §2.3.2, §2.3.3).
+
+**Kein `right_encode(L)`.** SHAKE-Ausgaben verschiedener Länge sind Präfixe voneinander (FIPS 202,
+Anhang A.2). KMAC bindet `L`, also ist ein 32-Byte-Tag nicht der Anfang eines 64-Byte-Tags (§4.1);
+KMACXOF verzichtet darauf mit Absicht (§4.3.1).
+
+**Der andere Hash mit Schlüssel.** [BLAKE2](../../hash/blake2/) füllt den Schlüssel mit Nullen auf
+Block 0 auf und trägt `kk` in Parameterwort 0 ein (RFC 7693, §2.5, §3.3); kein HMAC nötig (§1),
+eine Kompression oder mehr gespart (Aumasson et al. 2013, §2.9).
+
+<Lab labId="blake2s-256-keyed" producerId="blake2" presetId="blake2s-256-keyed" startAt="op:load" layout="state:60|narration:40" />
+
+<Lens level="cryptographer">
+
+SP 800-185 nennt KMAC eine Pseudozufallsfunktion (PRF, §4.1). Die Schranke dahinter: Ein Sponge
+über einer zufälligen Permutation ist bis zu etwa 2<sup>c/2</sup> Anfragen *indifferentiable* von
+einem Random Oracle (Bertoni et al., EUROCRYPT 2008), mit `c = 256` für KMAC128 und `512` für
+KMAC256 (FIPS 202, Anhang A.1).
+
+</Lens>
+
+</LessonSection>
+
+<LessonSection part="check">
+
+## Teste dich selbst
+
+<CheckQuestion
+  id="kmac-no-nesting"
+  number={1}
+  question="Warum kann KMAC den Schlüssel in einem Durchlauf voranstellen, während SHA-256(K ‖ m) die Verschachtelung von HMAC braucht?"
+  options={[
+    'Keccak-f[1600] hat mehr Runden als SHA-256',
+    'Der Sponge gibt seine Kapazität nie aus, also lässt sich ein Tag nicht verlängern',
+    'KMAC verschlüsselt den Schlüssel, bevor er absorbiert wird',
+    'cSHAKE füllt mit der Nachrichtenlänge in Bit auf',
+  ]}
+  answer={1}
+>
+  Ein SHA-256-Hashwert ist der vollständige Verkettungswert, also lässt sich `H(K ‖ m)` verlängern.
+  Ein Sponge-Tag zeigt nur Rate-Bits; die Kapazität bleibt verborgen (FIPS 202, §4, Anhang A.1),
+  daher ist KMAC ein einziger cSHAKE-Aufruf (SP 800-185, §4.3).
+</CheckQuestion>
+
+<CheckQuestion
+  id="kmac-key-block"
+  number={2}
+  question="Wie beginnt der Schlüsselblock von KMAC128 bei einem 32-Byte-Schlüssel?"
+  options={['40 41 42 43', '01 a8 02 01 00 40', '01 20 4b 4d 41 43', '02 01 00 40']}
+  answer={1}
+>
+  `bytepad(encode_string(K), 168)`: `left_encode(168) = 01 a8`, dann `left_encode(256) = 02 01 00`
+  für den 256-Bit-Schlüssel, dann der Schlüssel `40 41 …`, mit Nullen auf 168 Byte aufgefüllt
+  (SP 800-185, §2.3, §4.3).
+</CheckQuestion>
+
+<CheckQuestion
+  id="kmacxof-length"
+  number={3}
+  question="Was absorbiert KMACXOF nach der Nachricht anstelle von right_encode(L)?"
+  options={['Nichts', 'right_encode(0)', 'left_encode(L)', 'Den String „XOF“']}
+  answer={1}
+>
+  SP 800-185, §4.3.1: KMACXOF verwendet `right_encode(0) = 00 01`, die Ausgabe hängt also nicht von
+  ihrer Länge ab und lässt sich so lange auspressen wie nötig. KMAC hängt `right_encode(L)` an.
+</CheckQuestion>
+
+</LessonSection>

@@ -1,0 +1,216 @@
+---
+title: PBKDF2
+description: PBKDF2 streckt ein Passwort mit wenig Entropie zu einem Schlüssel, indem es HMAC mit einem Salt c-mal iteriert; so wird jeder Rateversuch c-mal so teuer – für den Angreifer und für den Verteidiger gleichermaßen.
+lessonId: kdf/pbkdf2
+track: kdf
+phase: 2
+sidebar:
+  order: 2
+tableOfContents: false
+prereqs:
+  - hash/sha256
+  - mac/hmac
+labs:
+  - pbkdf2-rfc6070-tc2
+  - pbkdf2-rfc6070-tc3
+refs:
+  - RFC 8018 (PKCS #5 v2.1), Abschnitt 4.1 (Salt) und Abschnitt 4.2 (Iteration Count)
+  - RFC 8018, Abschnitt 5.2 (PBKDF2)
+  - RFC 6070 (Testvektoren für PBKDF2-HMAC-SHA1), Abschnitt 2
+  - RFC 7914, Abschnitt 11 (Testvektoren für PBKDF2-HMAC-SHA256)
+  - RFC 2104 (HMAC), Abschnitt 2 (Definition) und Abschnitt 4 (Implementierungshinweis zu vorberechneten Zwischenergebnissen)
+  - NIST SP 800-132 (2010), Recommendation for Password-Based Key Derivation, Abschnitte 5.1, 5.2 und 5.3
+  - OWASP Password Storage Cheat Sheet (abgerufen am 4. Oktober 2026), Abschnitt PBKDF2
+  - RFC 7914 (scrypt)
+  - RFC 9106 (Argon2)
+sourceHash: sha256:490fa5d7653927f76aca8ac4e6ffd2e7a6aa009b7ca3f79749d85389ccb9202b
+translation:
+  status: ai-reviewed
+  reviewedAt: '2026-10-04'
+  reviewer: AI editorial review (Claude)
+---
+
+import Lab from '../../../../components/Lab.astro';
+import CheckQuestion from '../../../../components/lesson/CheckQuestion.astro';
+import Formula from '../../../../components/lesson/Formula.astro';
+import KeyFact from '../../../../components/lesson/KeyFact.astro';
+import KeyFacts from '../../../../components/lesson/KeyFacts.astro';
+import Lens from '../../../../components/lesson/Lens.astro';
+import LessonSection from '../../../../components/lesson/LessonSection.astro';
+import WhyBox from '../../../../components/lesson/WhyBox.astro';
+
+<LessonSection part="concept">
+
+## Jeder Rateversuch wird teuer
+
+Ein Passwort ist kein Schlüssel: Menschen wählen aus einem kleinen, gut zu erratenden Raum, also
+probiert ein Angreifer, der einen abgeleiteten Schlüssel sieht, einfach wahrscheinliche Passwörter
+durch. PBKDF2 kann keine Entropie hinzufügen; es sorgt dafür, dass jeder **Rateversuch** `c`
+Aufrufe der Pseudozufallsfunktion (PRF) kostet statt einem (RFC 8018, §4.2). Die PRF ist ein
+[HMAC](../../mac/hmac/) mit dem Passwort als Schlüssel (§5.2).
+
+<KeyFacts>
+  <KeyFact label="Eingabe" value="Passwort P, Salt S" kind="key" />
+  <KeyFact label="Arbeitsfaktor" value="Iterationszahl c" kind="constant" />
+  <KeyFact label="PRF" value="HMAC-SHA-1 / SHA-256 / …" kind="state" />
+  <KeyFact label="Ausgabe" value="dkLen Byte" kind="ciphertext" />
+</KeyFacts>
+
+<WhyBox constant="salt" title="warum jedes Passwort sein eigenes Salt bekommt">
+  Durch das Salt führt ein Passwort zu vielen möglichen Schlüsseln, also kann ein Angreifer keine
+  Tabelle abgeleiteter Schlüssel einmal vorberechnen und für jedes Opfer wiederverwenden
+  (RFC 8018, §4.1). RFC 8018 verlangt mindestens 64 Bit Salt, NIST SP 800-132 mindestens 128 Bit,
+  zufällig erzeugt (§5.1).
+</WhyBox>
+
+<Lens only="story">
+
+Ein Schloss, bei dem jeder Schlüsselversuch eine volle Minute dauert: harmlos für die Besitzerin,
+ruinös für jemanden, der eine Million Schlüssel durchprobiert.
+
+</Lens>
+
+</LessonSection>
+
+<LessonSection part="playground">
+
+## RFC 6070, zwei Iterationen
+
+Das Lab rechnet Testfall 2 aus RFC 6070: PBKDF2-HMAC-SHA1, Passwort „password“, Salt „salt“,
+`c = 2`, 20 Byte (RFC 6070, §2). Verfolge `U₁ = PRF(P, S ‖ INT(1))`, dann `U₂ = PRF(P, U₁)` und
+ihr XOR, das den Schlüssel `ea6c014d … d8de8957` ergibt. Die Ableitungsansicht zoomt in jeden
+HMAC-Aufruf hinein.
+
+<Lab labId="pbkdf2-rfc6070-tc2" producerId="pbkdf2" presetId="rfc6070-tc2" layout="derivation:45|state:30|narration:25" />
+
+Das Lab ist ein Lehrwerkzeug: Gib hier kein echtes Passwort ein. Alles bleibt auf der Seite, aber
+die Parameter, das Passwort eingeschlossen, landen im Deep Link in der Adresszeile.
+
+</LessonSection>
+
+<LessonSection part="inside">
+
+## Eine Kette von HMACs, per XOR verknüpft
+
+<Formula caption="PBKDF2, RFC 8018 §5.2 (INT(i) = i als 4-Byte-Big-Endian-Ganzzahl, hLen = Ausgabelänge der PRF).">
+{`U₁ = PRF(P, S ‖ INT(i))
+U_j = PRF(P, U_{j−1})                    j = 2 … c
+T_i = U₁ ⊕ U₂ ⊕ … ⊕ U_c
+DK  = T₁ ‖ T₂ ‖ … ‖ T_⌈dkLen/hLen⌉       (gekürzt auf dkLen Byte)`}
+</Formula>
+
+Die Iterationen laufen streng nacheinander: `U_j` braucht `U_{j−1}`. Mit `c = 4096` (RFC 6070,
+§2, Testfall 3) zeichnet das Lab `U₁ … U₃` und `U₄₀₉₆` auf und fasst den Rest in einem
+übersprungenen Schritt zusammen; der Schlüssel ist `4b007901 … 65a429c1`. Es läuft in einem Web
+Worker, damit die Seite reaktionsfähig bleibt.
+
+<Lab labId="pbkdf2-rfc6070-tc3" producerId="pbkdf2" presetId="rfc6070-tc3" layout="derivation:45|state:30|narration:25" />
+
+<Lens level="cryptographer">
+
+Das XOR hält jedes `U_j` in der Ausgabe fest, wer späte Iterationen auslässt, bekommt also einen
+anderen Schlüssel; und jeder Block `T_i` startet die Kette mit seinem eigenen Index `i` neu
+(RFC 8018, §5.2).
+
+</Lens>
+
+</LessonSection>
+
+<LessonSection part="memory">
+
+## Zwei Kompressionen pro Iteration
+
+HMAC ist `H((K ⊕ opad) ‖ H((K ⊕ ipad) ‖ m))` (RFC 2104, §2). In PBKDF2 ist der Schlüssel `K`
+immer das Passwort, also lassen sich die Hash-Zustände nach den Blöcken `K ⊕ ipad` und
+`K ⊕ opad`, die **Zwischenzustände (Midstates)**, einmal berechnen und wiederverwenden
+(RFC 2104, §4). Genau das macht das Lab: ein Kontext mit Schlüssel, für jeden Aufruf kopiert.
+
+| Pro HMAC-Aufruf | Ohne Zwischenzustände | Mit Zwischenzuständen |
+|---|---|---|
+| Innerer Hash eines 20- oder 32-Byte-`U_{j−1}` | 2 Kompressionen | 1 |
+| Äußerer Hash des inneren Hashwerts | 2 Kompressionen | 1 |
+
+Jede Iteration kostet also etwa **2 Kompressionen** (siehe [HMAC](../../mac/hmac/)), `c = 4096`
+etwa 8192. Der Angreifer nutzt denselben Trick, der Verteidiger gewinnt ihm gegenüber also nichts;
+der Trick spart nur Verschwendung. Der Arbeitsspeicherbedarf ist ein paar Hash-Zustände, wenige
+hundert Byte: billig auf GPUs und ASICs zu vervielfachen.
+
+</LessonSection>
+
+<LessonSection part="break">
+
+## Mallory bringt eine Tabelle mit, dann eine GPU
+
+**Ohne Salt** ergibt ein Passwort immer denselben Schlüssel, also hasht Mallory ein Wörterbuch
+einmal und schlägt jedes Opfer darin nach (RFC 8018, §4.1). Die Iterationszahl erhöht die Kosten
+linear für **beide** Seiten (§4.2): Der Verteidiger zahlt `c` einmal pro Anmeldung, Mallory `c`
+pro Rateversuch.
+
+Empfehlungen für `c`: RFC 8018 (§4.2) und SP 800-132 (§5.2) nennen mindestens 1000, SP 800-132
+bis zu 10.000.000 für kritische Schlüssel. Das OWASP Password Storage Cheat Sheet empfiehlt
+**600.000** Iterationen für PBKDF2-HMAC-SHA256 (Stand: 4. Oktober 2026) und bevorzugt Argon2id,
+sofern nicht FIPS 140 verlangt ist.
+
+PBKDF2 braucht fast keinen Speicher, also rät parallele Hardware billig. Das speicherintensive
+(engl. *memory-hard*) scrypt (RFC 7914) und Argon2id (RFC 9106) verlangen pro Rateversuch auch
+Speicher: Das kommt in einem späteren Kapitel.
+
+<Lens level="cryptographer">
+
+Bei `dkLen > hLen` sind die Blöcke `T_i` unabhängig (RFC 8018, §5.2): Der Verteidiger berechnet
+alle, Mallory aber kann einen Rateversuch allein gegen `T₁` prüfen.
+
+</Lens>
+
+</LessonSection>
+
+<LessonSection part="check">
+
+## Teste dich selbst
+
+<CheckQuestion
+  id="pbkdf2-salt-purpose"
+  number={1}
+  question="Was verhindert ein zufälliges Salt pro Passwort?"
+  options={[
+    'Das Erraten eines einzelnen Passworts per Brute Force',
+    'Das Vorberechnen einer einzigen Tabelle abgeleiteter Schlüssel für alle Nutzer',
+    'Eine Längenerweiterung beim zugrunde liegenden Hash',
+    'Timing-Lecks beim Vergleich des Tags',
+  ]}
+  answer={1}
+>
+  Durch das Salt hat jedes Passwort viele mögliche Schlüssel, eine vorberechnete Tabelle gilt also
+  nicht mehr für alle Nutzer (RFC 8018, §4.1). Ein einzelner gezielter Rateversuch kostet so viel
+  wie vorher.
+</CheckQuestion>
+
+<CheckQuestion
+  id="pbkdf2-iteration-cost"
+  number={2}
+  question="Wenn du c von 1000 auf 100.000 erhöhst, wird eine Anmeldung 100-mal langsamer. Was passiert mit den Kosten des Angreifers pro Rateversuch?"
+  options={[
+    'Die Kosten bleiben gleich',
+    'Die Kosten wachsen ebenfalls um das 100-Fache',
+    'Die Kosten wachsen um das 10.000-Fache',
+    'Die Kosten wachsen nur logarithmisch',
+  ]}
+  answer={1}
+>
+  Jeder Rateversuch muss dieselben `c` aufeinanderfolgenden PRF-Aufrufe ausführen (RFC 8018,
+  §§4.2, 5.2), die Kosten steigen also für Verteidiger und Angreifer gleichermaßen linear.
+</CheckQuestion>
+
+<CheckQuestion
+  id="pbkdf2-compressions-per-iteration"
+  number={3}
+  question="Wie viele Hash-Kompressionen braucht eine Iteration von PBKDF2-HMAC-SHA1, wenn die HMAC-Zwischenzustände vorberechnet sind?"
+  options={['1', '2', '4', '64']}
+  answer={1}
+>
+  Die Blöcke `K ⊕ ipad` und `K ⊕ opad` werden einmal gehasht (RFC 2104, §4). Danach braucht jede
+  Iteration eine Kompression für den inneren Hash des 20-Byte-`U_{j−1}` und eine für den äußeren
+  Hash.
+</CheckQuestion>
+
+</LessonSection>

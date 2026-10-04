@@ -182,6 +182,50 @@ Settled from the M6 §7 proposals (2026-10-04) and checked against the DE catalo
 | detail level (lab parameter) | **Detailstufe** (die) | UI label in the hash and BLAKE2 producers; „Detailgrad“ is the older AES wording. |
 | span (of an instruction, instructions view) | **Spanne** (die) | As on the AES-NI page (M4); not „Zeitspanne“. |
 
+### MACs and key derivation (M7)
+
+Settled from the M7 §7 proposals (2026-10-04) and checked against the DE catalogs
+`packages/primitives/src/{hmac,kmac}` and `packages/views/src/derivation`. Open points are in
+`docs/translation-review-2026-10.md`, section „M7“.
+
+| English | German | Decision and rationale |
+|---|---|---|
+| message authentication code (MAC) | **MAC** (der), first use „Nachrichtenauthentifizierungscode (engl. *message authentication code*, MAC)“; plural **MACs**; likewise **der HMAC**, **der KMAC** | Masculine after „der Code“. Sidebar group „MACs“. |
+| tag (MAC output) | **Tag** (das), plural **Tags**, as in M4 | „das Tag“ as in „HTML-Tag“; compounds „HMAC-Tag“, „Tag-Länge“, „128-Bit-Tag“. |
+| key derivation function (KDF) | **Schlüsselableitungsfunktion (KDF)** (die), then **die KDF**, plural **KDFs** | Sidebar group „Schlüsselableitung“. |
+| derivation (view, process) | **Ableitung** (die); verb **ableiten** | Title of the derivation view; not „Herleitung“ (one word for view and prose). |
+| pseudorandom function (PRF) | **Pseudozufallsfunktion (PRF)** (die), then **die PRF** | Adjective „pseudozufällig“. |
+| pseudorandom key (PRK) | **pseudozufälliger Schlüssel (PRK)** (der) | RFC 5869 §2.2. |
+| salt | **Salt** (das), as in M6 | „ein zufälliges Salt“. „Salz“ not used. |
+| iteration count | **Iterationszahl** (die) `c` | RFC 8018 §5.2. Not „Iterationsanzahl“ / „Rundenzahl“. |
+| key stretching | **Key-Stretching** (das), first use „Key-Stretching (Schlüsselstreckung)“ | Only for password KDFs; never for the AES KeyExpansion (see above). |
+| midstate | **Zwischenzustand** (der), first use „Zwischenzustand (Midstate)“; **innerer** / **äußerer Zwischenzustand** | The compression-function state after `K0 ⊕ ipad` / `K0 ⊕ opad`. |
+| inner / outer hash | **innerer** / **äußerer Hash** (der) | Exception to „Hash alone avoided“ (M5): the two nested hash computations of HMAC; their outputs are „innerer/äußerer Hashwert“ only where the value is meant. |
+| key block `K0` | **Schlüsselblock K0** (der) | FIPS 198-1 §4 (`K0`); „auf B Byte aufgefüllt“. |
+| ipad / opad | **ipad** / **opad**, unchanged; „die Pads“ | RFC 2104 names. |
+| constant-time comparison | **Vergleich mit konstanter Laufzeit** (der) | Deviates from the M7 proposal „in konstanter Zeit“: the term base already fixes *constant-time* → „konstante Laufzeit“ (see above). |
+| early exit (of a comparison loop) | **vorzeitiger Abbruch**; „bricht beim ersten Unterschied ab“ | |
+| (existential) unforgeability under chosen-message attack (EUF-CMA) | **existenzielle Fälschungssicherheit bei Angriffen mit gewählten Nachrichten (EUF-CMA)**; adjective **fälschungssicher** | Katz–Lindell §4.2. |
+| non-repudiation | **Nichtabstreitbarkeit** (die) | BSI wording. |
+| (digital) signature | **(digitale) Signatur** (die) | Not „Unterschrift“ in technical text. |
+| secret prefix / secret suffix (MAC) | **geheimes Präfix** / **geheimes Suffix**; „MAC mit geheimem Präfix“ | HAC §9.5.2. |
+| extract-then-expand | **Extract-then-Expand** (das), unchanged; steps **HKDF-Extract** / **HKDF-Expand** | RFC 5869 names. |
+| master secret / pre-master secret | **Master Secret** / **Pre-Master Secret** (das), unchanged English names | RFC 5246 §8.1. One rule: the English name stays as two words (hyphen only inside „Pre-Master“); German compounds built on it are fully hyphenated: „Master-Secret-Berechnung“. Not „Pre-Master-Secret“. |
+| secret (TLS, HKDF input) | **Secret** (das), plural **Secrets** | „das gemeinsame Secret“; „Geheimnis“ in general prose. |
+| seed (TLS PRF) | **Seed** (der) | RFC 5246 §5 `seed`. |
+| key block (TLS, `key_block`) | **Schlüsselblock** (der), first use „Schlüsselblock (engl. *key block*)“ | RFC 5246 §6.3. Same word as HMAC's `K0`: always name the symbol (`K0` / `key_block`) when both could be meant. |
+| key schedule (TLS 1.3) | **Key Schedule** (der), unchanged, as the name of RFC 8446 §7.1 | Not „Schlüsselplan“, which stays reserved for the AES round-key words. |
+| session resumption / renegotiation | **Sitzungswiederaufnahme** (die) / **Neuaushandlung** (die), first use „(engl. *renegotiation*)“ | |
+| triple handshake (attack) | **Triple-Handshake-Angriff** (der) | Bhargavan et al. 2014. |
+| memory-hard (KDF) | **speicherintensiv**, first use „(engl. *memory-hard*)“ | scrypt, Argon2id. |
+| work factor | **Arbeitsfaktor** (der) | |
+| early secret, handshake secret (TLS 1.3) | **Early Secret**, **Handshake Secret** (das), unchanged | RFC 8446 §7.1 names, like „Master Secret“. |
+| randomness extractor | **Zufallsextraktor** (der) | Krawczyk 2010 (HKDF-Extract). |
+| `info` (HKDF context input) | **Info** (die), the RFC 5869 parameter `info` in code font; „mit leerer Info“, „verschiedene Info-Strings“ | Feminine as the German short form of „Information“; used throughout the HKDF page and catalog. |
+| label (TLS PRF, HKDF-Label) | **Label** (das), plural **Labels** | Identifiers such as `"master secret"` stay in code. |
+| encoding (lab parameter: text or hex) | **Eingabeformat** (das); verb **codieren**, noun **Codierung** (`encode_string`: „codiert“) | As in all hash producers. Spelling with „c“ (not „kodieren“/„Kodierung“), as in the KMAC catalog; hex input is **Hextext** (see above). |
+| quotations from English standards | stay **English inside „…“**, e.g. das Label „master secret“ | Identifiers in code font stay as they are. |
+
 ## Style guide
 
 - **Address the reader with „du“** everywhere (imperative „Drück …“, „Geh …“, „Wähle …“). No

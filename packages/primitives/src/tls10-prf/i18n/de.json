@@ -6,7 +6,7 @@
   "plugin.tls10-prf.param.sha1Mac": "HMAC für S2",
   "plugin.tls10-prf.param.sha1MacHint": "RFC 2246 legt HMAC-SHA-1 für die zweite Hälfte fest. Mit einem anderen HMAC entsteht eine andere Funktion, nicht die PRF von TLS 1.0.",
   "plugin.tls10-prf.param.secret": "Secret (hex)",
-  "plugin.tls10-prf.param.secretHint": "1 bis 256 Byte: das Pre-Master-Secret für das Master Secret, das Master Secret für den Schlüsselblock. Es wird in S1 und S2 geteilt.",
+  "plugin.tls10-prf.param.secretHint": "1 bis 256 Byte: das Pre-Master Secret für das Master Secret, das Master Secret für den Schlüsselblock. Es wird in S1 und S2 geteilt.",
   "plugin.tls10-prf.param.label": "Label",
   "plugin.tls10-prf.param.labelHint": "1 bis 64 ASCII-Zeichen, z. B. „master secret“ oder „key expansion“.",
   "plugin.tls10-prf.param.seed": "Seed (hex)",

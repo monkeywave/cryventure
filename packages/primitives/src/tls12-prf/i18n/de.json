@@ -7,7 +7,7 @@
   "plugin.tls12-prf.param.mac": "HMAC",
   "plugin.tls12-prf.param.macHint": "P_hash arbeitet mit einem HMAC. TLS 1.2 nutzt HMAC-SHA-256; die Cipher-Suites aus RFC 5289, deren Name auf _SHA384 endet, nutzen HMAC-SHA-384.",
   "plugin.tls12-prf.param.secret": "Secret (hex)",
-  "plugin.tls12-prf.param.secretHint": "1 bis 256 Byte, der HMAC-Schlüssel jedes Aufrufs: das Pre-Master-Secret für das Master Secret, das Master Secret für den Schlüsselblock.",
+  "plugin.tls12-prf.param.secretHint": "1 bis 256 Byte, der HMAC-Schlüssel jedes Aufrufs: das Pre-Master Secret für das Master Secret, das Master Secret für den Schlüsselblock.",
   "plugin.tls12-prf.param.label": "Label",
   "plugin.tls12-prf.param.labelHint": "1 bis 64 ASCII-Zeichen, z. B. „master secret“ oder „key expansion“. Das Label trennt die Verwendungen eines Secrets.",
   "plugin.tls12-prf.param.seed": "Seed (hex)",

@@ -1,0 +1,229 @@
+---
+title: HKDF
+description: HKDF macht aus Eingabeschlüsselmaterial in zwei HMAC-basierten Hälften, Extract und Expand, so viele unabhängige Schlüssel wie nötig, und TLS 1.3 baut seinen Key Schedule daraus auf.
+lessonId: kdf/hkdf
+track: kdf
+phase: 2
+sidebar:
+  order: 1
+tableOfContents: false
+prereqs:
+  - mac/hmac
+labs:
+  - hkdf-rfc5869-a1
+  - hkdf-rfc5869-a3
+  - hkdf-tls13-derived
+refs:
+  - RFC 5869, Abschnitt 1 (Introduction, Extract-then-Expand)
+  - RFC 5869, Abschnitt 2.2 (Step 1, Extract)
+  - RFC 5869, Abschnitt 2.3 (Step 2, Expand)
+  - RFC 5869, Abschnitt 3.1 (To Salt or not to Salt)
+  - RFC 5869, Abschnitt 3.2 (The 'info' Input to HKDF)
+  - RFC 5869, Abschnitt 3.3 (To Skip or not to Skip)
+  - RFC 5869, Abschnitt 4 (Applications of HKDF, Quellen mit wenig Entropie)
+  - RFC 5869, Anhang A.1 und A.3 (Testfälle)
+  - Krawczyk (2010), Cryptographic Extraction and Key Derivation, The HKDF Scheme, CRYPTO 2010, LNCS 6223
+  - RFC 2104, Abschnitt 4 (Implementation note, vorberechnete Zwischenergebnisse)
+  - RFC 8446, Abschnitt 7.1 (Key Schedule, HKDF-Expand-Label, Derive-Secret)
+  - RFC 8448, Abschnitt 3 (Simple 1-RTT Handshake)
+sourceHash: sha256:53def60c09388cedd9704d6f988a4cadcd44b98b7649fbae70d9d18862b32612
+translation:
+  status: ai-reviewed
+  reviewedAt: '2026-10-04'
+  reviewer: AI editorial review (Claude)
+---
+
+import { Aside } from '@astrojs/starlight/components';
+import Lab from '../../../../components/Lab.astro';
+import CheckQuestion from '../../../../components/lesson/CheckQuestion.astro';
+import Formula from '../../../../components/lesson/Formula.astro';
+import KeyFact from '../../../../components/lesson/KeyFact.astro';
+import KeyFacts from '../../../../components/lesson/KeyFacts.astro';
+import Lens from '../../../../components/lesson/Lens.astro';
+import LessonSection from '../../../../components/lesson/LessonSection.astro';
+import WhyBox from '../../../../components/lesson/WhyBox.astro';
+
+<LessonSection part="concept">
+
+## Ein Geheimnis rein, viele Schlüssel raus
+
+Eine **Schlüsselableitungsfunktion** (KDF, engl. *key derivation function*) macht aus geheimem
+Material, etwa einem gemeinsamen Diffie-Hellman-Geheimnis, die Schlüssel, die ein Protokoll
+verwendet (RFC 5869, §1). HKDF hat zwei [HMAC](../../mac/hmac/)-basierte Hälften,
+**Extract-then-Expand** (Krawczyk, CRYPTO 2010; RFC 5869, §1):
+
+<KeyFacts>
+  <KeyFact label="Extract" value="PRK = HMAC(Salt, IKM)" kind="key" />
+  <KeyFact label="Expand" value="OKM, L Byte" kind="ciphertext" />
+  <KeyFact label="Max. L" value="255 · HashLen" kind="constant" />
+</KeyFacts>
+
+**Extract** verdichtet ungleichmäßig zufälliges Eingabeschlüsselmaterial (IKM, engl. *input keying
+material*) zu einem gleichverteilt zufälligen **pseudozufälligen Schlüssel**, PRK (§2.2). **Expand**
+dehnt den PRK auf so viel Ausgabeschlüsselmaterial (OKM) wie nötig, gebunden an einen
+Kontextstring `info` (§2.3).
+
+<WhyBox constant="255 · HashLen" title="warum die Ausgabe begrenzt ist">
+  Expand nummeriert seine Blöcke mit einem einzigen Zählerbyte, `0x01` … `0xff`, also gibt es
+  höchstens 255 Blöcke zu je HashLen Byte: 8160 Byte für SHA-256 (RFC 5869, §2.3).
+</WhyBox>
+
+<Lens only="story">
+
+Schmilz klumpiges Erz zu einem reinen Barren, dann präge Münzen daraus, jede mit ihrem Zweck
+gestempelt.
+
+</Lens>
+
+</LessonSection>
+
+<LessonSection part="playground">
+
+## RFC 5869, Testfall 1
+
+Das Lab rechnet HKDF-SHA-256 nach RFC 5869, Anhang A.1: 22 Byte IKM `0b0b…0b`, ein 13-Byte-Salt
+`000102…0c`, Info `f0f1…f9` und L = 42. Extract liefert den PRK `07770936 … d7c2b3e5`; zwei
+Expand-Blöcke liefern das OKM `3cb25f25 … 87185865`, gekürzt auf 42 von 64 Byte.
+
+Jeder HMAC-Knoten in der Ableitungsansicht hat einen **Zoom-Link**: Er öffnet das
+[HMAC-Lab](../../mac/hmac/) mit dem Schlüssel und der Nachricht dieses Aufrufs, sodass du einem
+Block bis hinunter zu ipad, opad und dem Hash folgen kannst.
+
+<Lab labId="hkdf-rfc5869-a1" producerId="hkdf" presetId="rfc5869-a1" layout="derivation:50|state:25|narration:25" />
+
+</LessonSection>
+
+<LessonSection part="inside">
+
+## Erst Extract, dann Expand
+
+<Formula caption="HKDF, RFC 5869, §2.2 und §2.3 (‖ = Verkettung, N = ⌈L / HashLen⌉).">
+{`PRK  = HMAC-Hash(salt, IKM)
+T(0) = leerer String
+T(i) = HMAC-Hash(PRK, T(i−1) ‖ info ‖ i)      i = 0x01 … N
+OKM  = die ersten L Byte von T(1) ‖ T(2) ‖ … ‖ T(N)`}
+</Formula>
+
+Das **Salt** ist optional: Ist es leer, nimmt Extract HashLen Nullbytes (§2.2). Ein zufälliges Salt
+„adds significantly to the strength of HKDF“ und muss nicht geheim sein (§3.1). **Info** bindet
+jeden Schlüssel an seinen Zweck: Verschiedene Info, unabhängige Schlüssel aus demselben PRK (§3.2).
+Testfall A.3 hat keins von beiden:
+
+<Lab labId="hkdf-rfc5869-a3" producerId="hkdf" presetId="rfc5869-a3" layout="derivation:50|state:25|narration:25" />
+
+<Aside type="note" title="Ausblick: TLS 1.3">
+
+TLS 1.3 baut seinen ganzen Key Schedule daraus auf (RFC 8446, §7.1). `HKDF-Expand-Label` packt die
+Länge, `"tls13 "` ‖ Label und einen Kontext in eine Struktur `HkdfLabel` und verwendet sie als Info;
+`Derive-Secret` übergibt einen Transkript-Hash als Kontext. Das Lab reproduziert RFC 8448 (§3):
+Derive-Secret(Early Secret, „derived“, „“) = `6f2615a1 … 6c3611ba`. Das Protokoll folgt in Phase 7.
+
+<Lab labId="hkdf-tls13-derived" producerId="hkdf" presetId="tls13-derived" layout="derivation:45|state:30|narration:25" />
+
+</Aside>
+
+<Lens level="cryptographer">
+
+Krawczyk (CRYPTO 2010) modelliert Extract als Zufallsextraktor, dessen Schlüssel das Salt ist, und
+Expand als Pseudozufallsfunktion (PRF) variabler Länge mit dem PRK als Schlüssel; der
+Sicherheitsbeweis setzt voraus, dass HMAC beide Eigenschaften hat.
+
+</Lens>
+
+</LessonSection>
+
+<LessonSection part="memory">
+
+## Zwischenzustände und kurzlebige Geheimnisse
+
+Der PRK ist der HMAC-Schlüssel jedes Expand-Blocks. Der innere und der äußere Hash von HMAC
+absorbieren zuerst `K ⊕ ipad` bzw. `K ⊕ opad`, also kann eine Implementierung diese beiden
+Zwischenzustände (Midstates) einmal pro Schlüssel speichern (RFC 2104, §4). In Testfall A.1 ist
+jede Eingabe für `T(i)` höchstens 32 + 10 + 1 = 43 Byte lang, also kostet danach jeder Block zwei
+SHA-256-Kompressionen.
+
+| Wert | Größe (A.1) | Geheim? |
+|---|---|---|
+| IKM | 22 Byte | ja |
+| Salt, Info | 13 bzw. 10 Byte | nein (RFC 5869, §3.1, §3.2) |
+| PRK | HashLen = 32 Byte | ja |
+| OKM | L = 42 Byte | ja |
+
+RFC 8446 (§7.1) verlangt, ein Geheimnis zu löschen, sobald alle daraus abgeleiteten Werte berechnet
+sind. Wie lange solche Schlüssel im Speicher eines Prozesses liegen bleiben, ist Thema einer
+späteren Phase.
+
+</LessonSection>
+
+<LessonSection part="break">
+
+## Mallorys Abkürzungen
+
+**Extract überspringen.** RFC 5869 erlaubt das nur, wenn das IKM bereits ein gleichverteilt
+zufälliger Schlüssel ist; ein Diffie-Hellman-Wert ist das nicht, erst Extract macht einen daraus
+(§3.3).
+
+**Info weglassen.** Zwei Schlüssel aus demselben PRK mit gleicher Info und gleichem L sind
+identisch. Kommen ein Verschlüsselungsschlüssel und ein MAC-Schlüssel gleich heraus, sind die beiden
+Verwendungen nicht mehr unabhängig; verschiedene Info-Strings halten sie auseinander (§3.2).
+
+**Ein Passwort einspeisen.** Extract „can concentrate existing entropy but cannot amplify entropy“,
+und HKDF hat keinen Mechanismus, der einen Wörterbuchangriff bremst (§4). Jeder Passwortversuch von
+Mallory kostet nur ein paar HMAC-Aufrufe. Passwörter brauchen eine absichtlich langsame KDF wie
+[PBKDF2](../pbkdf2/) (RFC 5869, §4 verweist auf PKCS #5).
+
+<Lens level="engineer">
+
+Wer L > 255 · HashLen anfordert, bekommt einen Fehler, keinen längeren Schlüssel (RFC 5869, §2.3).
+
+</Lens>
+
+</LessonSection>
+
+<LessonSection part="check">
+
+## Teste dich selbst
+
+<CheckQuestion
+  id="hkdf-empty-salt"
+  number={1}
+  question="Was verwendet HKDF-Extract als HMAC-Schlüssel, wenn das Salt leer ist?"
+  options={[
+    'Das IKM selbst',
+    'HashLen Nullbytes',
+    'Einen Zufallswert, den die Bibliothek wählt',
+    'Extract wird übersprungen',
+  ]}
+  answer={1}
+>
+  RFC 5869, §2.2: Fehlt das Salt, wird es auf eine Folge von HashLen Nullen gesetzt. Testfall A.3
+  zeigt das Ergebnis: PRK `19ef24a3 … 293ccb04`.
+</CheckQuestion>
+
+<CheckQuestion
+  id="hkdf-max-length"
+  number={2}
+  question="Wie lang kann das OKM von HKDF-SHA-256 höchstens sein?"
+  options={['32 Byte', '255 Byte', '8160 Byte', 'Unbegrenzt']}
+  answer={2}
+>
+  L ≤ 255 · HashLen (RFC 5869, §2.3), weil der Blockzähler ein Byte hat: 255 · 32 = 8160 Byte.
+</CheckQuestion>
+
+<CheckQuestion
+  id="hkdf-not-for-passwords"
+  number={3}
+  question="Warum ist HKDF die falsche Wahl, um einen Schlüssel aus einem Passwort abzuleiten?"
+  options={[
+    'HMAC kann kein Passwort als Eingabe nehmen',
+    'HKDF braucht ein geheimes Salt',
+    'HKDF kann keine Entropie hinzufügen und bremst das Raten nicht',
+    'Die Ausgabe ist zu kurz',
+  ]}
+  answer={2}
+>
+  Extract verdichtet nur die vorhandene Entropie, und HKDF hat keinen Arbeitsfaktor gegen
+  Wörterbuchangriffe (RFC 5869, §4). Nimm eine passwortbasierte KDF wie [PBKDF2](../pbkdf2/).
+</CheckQuestion>
+
+</LessonSection>

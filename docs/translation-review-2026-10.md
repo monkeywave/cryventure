@@ -364,3 +364,65 @@ Open questions for the human reviewer:
 9. `de/hash/sha512.mdx`: „setzen die Nachrichtenexpansion um jeweils zwei Wörter fort“ for *extend
    the message schedule two words at a time*; „Teilsumme, die in FIPS 180-4 nicht vorkommt“ for
    *a partial sum that is not a value of FIPS 180-4*.
+
+## M7
+
+Scope (AI editorial review, 2026-10-04): the M7 glossary terms (`docs/GLOSSARY.md`, section „MACs
+and key derivation (M7)“); the new pages `de/mac/index.mdx` and `de/mac/hmac.mdx` (stamped,
+`status: ai-reviewed`); the DE catalogs of `hmac`, `kmac` and the `derivation` view. The pages
+`de/mac/kmac.mdx` and `de/kdf/{hkdf,pbkdf2,tls-prf}.mdx` are translated and reviewed separately.
+
+All M7 §7 proposals were adopted, except *constant-time comparison*: „Vergleich mit konstanter
+Laufzeit“ instead of „Vergleich in konstanter Zeit“, because the term base already fixes
+*constant-time* → „konstante Laufzeit“. Added beyond the proposals: Schlüsselblock K0, ipad/opad,
+vorzeitiger Abbruch, EUF-CMA, Nichtabstreitbarkeit, Signatur, geheimes Präfix/Suffix, Eingabeformat
+/ codieren, Ableitung (not „Herleitung“).
+
+Fixed in the catalogs:
+
+- `hmac`: „Kodierung der Nachricht“ → „Eingabeformat der Nachricht“ (as in all hash producers), hint
+  in the du-form; „(Length Extension)“ → „(Längenerweiterung)“; „Vergleich in konstanter Zeit“ →
+  „Vergleich mit konstanter Laufzeit“; „RFC 2104 (Abschnitt 5)“ → „RFC 2104 verlangt in Abschnitt
+  5“; title „… mit Hashfunktion“ → „… auf Basis einer Hashfunktion“ (*keyed-hash MAC*).
+- `kmac`: unclear „Es steht hinter der Nachricht“ → „Diese Codierung steht hinter der Nachricht“;
+  „Byte-Anzahl“ → „Anzahl seiner Bytes“.
+- `derivation`: „die Herleitung steht unter …“ → „die Ableitung steht unter …“ (view title).
+
+Settled after reports from the `kmac`/`kdf` translation: „der HMAC“/„der MAC“ (masculine); „Early
+Secret“ unchanged like „Master Secret“; „Zufallsextraktor“ for *randomness extractor*; „die Info“ for the RFC 5869
+parameter `info` („mit leerer Info“, as written); English quotations from standards
+stay English inside „…“; spelling „Codierung“ (not „Kodierung“); „Hextext“. From the `pbkdf2`/`tls-prf` translation: „Master
+Secret“ / „Pre-Master Secret“ as unchanged English names (was „Pre-Master-Secret“ in the TLS PRF
+catalogs and page, aligned), „das Secret“, „der Seed“, „Schlüsselblock (engl. *key block*)“, „Key
+Schedule“ (TLS 1.3, not „Schlüsselplan“), „Sitzungswiederaufnahme“, „Neuaushandlung“,
+„Triple-Handshake-Angriff“, „speicherintensiv (engl. *memory-hard*)“, „Arbeitsfaktor“.
+
+Cross-page alignment (all six M7 pages and catalogs): „Pre-Master-Secret“ → „Pre-Master Secret“
+(`tls-prf`, `tls10-prf`, `tls12-prf`); `hkdf` „Schlüsselplan“ (TLS 1.3) → „Key Schedule“ (2×);
+`tls-prf` description „strecken“ → „ableiten“ (*stretch* is reserved for key stretching);
+`hkdf` catalog „Codierung von Info“ → „Eingabeformat von Info“, „HashLen Nullbytes“ → „Nullbyte“;
+`kmac` page „(PRF) (§4.1)“ → „(PRF, §4.1)“.
+
+Open questions for the human reviewer:
+
+1. **„MAC“ (der)** and the long form „Nachrichtenauthentifizierungscode“ on first use: natural, or
+   „Message Authentication Code“ as in many German textbooks?
+2. **„Zwischenzustand (Midstate)“**: „Zwischenzustand“ is also plain German for any intermediate
+   state; is the gloss enough, or keep „Midstate“ in labels?
+3. **„innerer / äußerer Hash“**: an exception to „Hash alone avoided“ (M5). Fine, or
+   „innere / äußere Hashberechnung“?
+4. **„Vergleich mit konstanter Laufzeit“** vs. the shorter „zeitkonstanter Vergleich“.
+5. **„existenzielle Fälschungssicherheit bei Angriffen mit gewählten Nachrichten (EUF-CMA)“**: long;
+   many German lecture notes keep „EUF-CMA-Sicherheit“ only.
+6. **„Key-Stretching (Schlüsselstreckung)“**, **„Master Secret“** and **„Early Secret“** unchanged:
+   acceptable anglicisms?
+7. `de/mac/index.mdx`: the story lens „du und deine Freundin“ (EN *your friend*) picks a gender;
+   „ein Freund“ / „jemand, dem du vertraust“?
+8. `de/mac/hmac.mdx`: „Nach RFC 2104, §4 speicherst du die beiden Zwischenzustände“ (EN *RFC 2104 §4
+   stores the two midstates*) addresses the reader as the implementer; „speichert eine
+   Implementierung“ would be closer.
+9. **„die Info“** for HKDF's `info`: natural, or „der Kontext-String info“ throughout?
+10. **„Master Secret“ / „Pre-Master Secret“** (English, two words) vs. German compound spelling
+    „Master-Secret“ / „Pre-Master-Secret“ (Duden rule for English compounds).
+11. Story lenses pick a gender („deine Freundin“ in `mac/index`, „die Besitzerin“ in the KDF pages):
+    keep, or neutral wording?

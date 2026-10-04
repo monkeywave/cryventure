@@ -11,7 +11,7 @@
   "view.derivation.chainTitle": "So entsteht {{name}}",
   "view.derivation.input": "{{name}} ist eine Eingabe: Der Wert wird nicht aus anderen Werten berechnet.",
   "view.derivation.operand": "{{op}} mit {{name}} ({{hex}})",
-  "view.derivation.announceOpen": "{{name}} ausgewählt – die Herleitung steht unter „{{group}}“.",
+  "view.derivation.announceOpen": "{{name}} ausgewählt – die Ableitung steht unter „{{group}}“.",
   "view.derivation.zoom": "Lab zu diesem Schritt öffnen",
   "view.derivation.zoomLabel": "Lab öffnen, das {{name}} berechnet",
   "view.derivation.op.input": "Eingabe",

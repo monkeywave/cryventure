@@ -1,0 +1,214 @@
+---
+title: Nachrichtenauthentifizierungscodes
+description: Was ein MAC ist, wie er sich von einem Hashwert und einer Signatur unterscheidet, was „fälschungssicher“ heißt, warum SHA-256(K ‖ m) kein MAC ist, ein Sponge oder BLAKE2 mit Schlüssel aber schon, und warum Tags mit konstanter Laufzeit verglichen werden müssen.
+lessonId: mac/index
+track: mac
+phase: 2
+sidebar:
+  order: 0
+tableOfContents: false
+prereqs:
+  - hash/index
+  - hash/sha512
+labs:
+  - hmac-jefe
+refs:
+  - NIST FIPS 198-1 (2008), Abschnitt 1 (Introduction) und Abschnitt 4 (HMAC Specification)
+  - NIST FIPS 186-5 (2023), Abschnitt 1 (Introduction – Signaturen, Nichtabstreitbarkeit)
+  - RFC 2104, Abschnitt 2 (Definition of HMAC) und Abschnitt 4 (Implementation Note)
+  - RFC 4231, Abschnitt 4.3 (Test Case 2)
+  - Menezes, van Oorschot, Vanstone (1996), Handbook of Applied Cryptography, Abschnitt 9.5.2 (Secret-Prefix- und Secret-Suffix-Verfahren)
+  - Bellare, Canetti, Krawczyk (1996), Keying Hash Functions for Message Authentication, CRYPTO 1996, LNCS 1109
+  - Katz, Lindell (2020), Introduction to Modern Cryptography, 3. Aufl., Abschnitt 4.2 (Definition eines sicheren MAC) und Abschnitt 4.3 (MACs aus PRFs)
+  - NIST SP 800-185, Abschnitt 4 (KMAC)
+  - FIPS 202, Anhang A.1 (Sicherheitsübersicht)
+  - RFC 7693, Abschnitt 3.3 (BLAKE2 mit Schlüssel)
+  - Dokumentation der Python-Standardbibliothek, hmac.compare_digest
+sourceHash: sha256:a4f71705459822b8fd92521ef6e0ab53e611d2796863435a6ca3cbf13e53e328
+translation:
+  status: ai-reviewed
+  reviewedAt: '2026-10-04'
+  reviewer: AI editorial review (Claude)
+---
+
+import Lab from '../../../../components/Lab.astro';
+import CheckQuestion from '../../../../components/lesson/CheckQuestion.astro';
+import Formula from '../../../../components/lesson/Formula.astro';
+import KeyFact from '../../../../components/lesson/KeyFact.astro';
+import KeyFacts from '../../../../components/lesson/KeyFacts.astro';
+import Lens from '../../../../components/lesson/Lens.astro';
+import LessonSection from '../../../../components/lesson/LessonSection.astro';
+
+<LessonSection part="concept">
+
+## Ein Tag, das nur der Schlüsselinhaber erzeugen kann
+
+Ein [Hashwert](../hash/) deckt versehentliche Änderungen auf, aber wer die Nachricht ändert, kann
+ihn einfach neu berechnen. Ein **Nachrichtenauthentifizierungscode** (engl. *message
+authentication code*, MAC) nimmt zusätzlich einen geheimen Schlüssel `K`, den Sender und Empfänger
+teilen, und liefert ein kurzes **Tag** (FIPS 198-1, §1). Der Empfänger berechnet das Tag aus `K`
+und der Nachricht neu und vergleicht beide.
+
+Eine **Signatur** wird mit einem privaten Schlüssel erzeugt und mit einem öffentlichen geprüft.
+Jeder kann sie also prüfen, und ein Dritter kann erkennen, wer signiert hat: Nichtabstreitbarkeit
+(FIPS 186-5, §1). Das kann ein MAC nicht leisten: Wer ein Tag prüfen kann, besitzt `K` und hätte
+es selbst erzeugen können.
+
+<KeyFacts>
+  <KeyFact label="Eingaben" value="Schlüssel K, Nachricht m" kind="key" />
+  <KeyFact label="Ausgabe" value="Tag" kind="ciphertext" />
+  <KeyFact label="Schlüssel" value="einer, geteilt" kind="key" />
+  <KeyFact label="Prüfen" value="neu berechnen, vergleichen" kind="state" />
+</KeyFacts>
+
+<Lens only="story">
+
+Ein Wachssiegel aus einem Stempel, den nur du und deine Freundin besitzen. Sie weiß dann, dass der
+Brief von einem von euch beiden stammt, kann aber niemand anderem beweisen, von wem.
+
+</Lens>
+
+</LessonSection>
+
+<LessonSection part="playground">
+
+## Ein kurzer Schlüssel: „Jefe“
+
+Das Lab rechnet **HMAC-SHA-256**, den MAC der [nächsten Seite](hmac/), mit Testfall 2 aus RFC 4231
+(§4.3): dem 4-Byte-Schlüssel „Jefe“ (`4a656665`) und der Nachricht „what do ya want for nothing?“.
+Der letzte Schritt gibt das Tag aus dem RFC aus:
+
+`5bdcc146bf60754e6a042426089575c75a003f089d2739839dec58b964ec3843`.
+
+Ändere einen Buchstaben der Nachricht oder des Schlüssels: Jedes Byte des Tags ändert sich.
+RFC 4231 nimmt diesen kurzen Schlüssel absichtlich, um einen Schlüssel zu testen, der kürzer als
+die Ausgabe ist; echte Schlüssel sollten das nicht sein (RFC 2104, §3). Auch die Erläuterung zum
+ersten Schritt sagt es: Dieses Lab ist ein Lernwerkzeug, gib also nie einen echten Schlüssel ein.
+
+<Lab labId="hmac-jefe" producerId="hmac" presetId="rfc4231-tc2" layout="state:60|narration:40" />
+
+</LessonSection>
+
+<LessonSection part="inside">
+
+## Was „fälschungssicher“ heißt
+
+Mallory darf sich Tags für beliebige Nachrichten ihrer Wahl geben lassen. Sie gewinnt, wenn sie
+danach ein gültiges Tag für eine Nachricht vorlegt, nach der sie nie gefragt hat. Ein MAC ist
+sicher, wenn sie nur mit vernachlässigbarer Wahrscheinlichkeit gewinnt (Katz–Lindell, §4.2);
+Bellare, Canetti und Krawczyk legen diesen Begriff für HMAC zugrunde (CRYPTO 1996).
+
+Drei Wege, einen Schlüssel in einen Hash zu bringen (HAC, §9.5.2; RFC 2104, §2):
+
+<Formula caption="Hashen mit Schlüssel. ‖ = Verkettung, K0 = auf einen Block aufgefüllter Schlüssel, ipad/opad = feste Bytes 0x36/0x5c.">
+{`geheimes Präfix  H(K ‖ m)                          gebrochen bei Merkle–Damgård
+geheimes Suffix  H(m ‖ K)                          eine Kollision in H ist eine Fälschung
+HMAC             H((K0 ⊕ opad) ‖ H((K0 ⊕ ipad) ‖ m))`}
+</Formula>
+
+Das Suffix-Verfahren fällt durch eine offline gefundene Kollision `H(m) = H(m′)` mit gleich langen
+`m`, `m′`: Dann sind auch die beiden Tags gleich (HAC, §9.5.2). HMAC verschachtelt zwei Hashes; die
+[HMAC-Seite](hmac/) schaut hinein.
+
+<Lens level="cryptographer">
+
+Das ist existenzielle Fälschungssicherheit bei Angriffen mit gewählten Nachrichten (EUF-CMA). Bei
+einem deterministischen MAC wie HMAC heißt Prüfen Neuberechnen, und jede sichere
+Pseudozufallsfunktion (PRF) auf Eingaben fester Länge ist ein sicherer MAC (Katz–Lindell, §4.3).
+
+</Lens>
+
+</LessonSection>
+
+<LessonSection part="memory">
+
+## Geheimer Schlüssel, öffentliches Tag
+
+Im Speicher sind der Schlüssel `K` und jeder Wert, der nur von ihm abhängt, Geheimnisse. In der
+Zustandsansicht des Labs sind das `K0`, die mit den Pads verknüpften Schlüssel und die
+Zwischenzustände (Midstates). Nachricht und Tag sind öffentlich: Das Tag reist neben der Nachricht.
+Nach RFC 2104, §4 darf eine Implementierung statt `K` die beiden Zwischenzustände speichern, muss
+sie dann aber wie den Schlüssel schützen.
+
+Es gibt keinen MAC-Befehl. HMAC ruft die Kompressionsfunktion des Hashs auf, daher beschleunigen
+SHA-NI und die SHA2-Befehle von ARMv8 HMAC genauso wie das reine SHA-256
+([Seite zu SHA-256](../hash/sha256/)).
+
+</LessonSection>
+
+<LessonSection part="break">
+
+## Mallory hängt an und stoppt die Zeit
+
+**Geheimes Präfix.** Ein SHA-256-Hashwert ist der vollständige Verkettungswert. Von `H(K ‖ m)` aus
+kann Mallory also weiterhashen und erhält ohne `K` ein gültiges Tag für `m ‖ Padding ‖ m′`:
+Längenerweiterung ([Seite zu SHA-512](../hash/sha512/#mallory-verlängert-die-kette); HAC, §9.5.2).
+
+**Sponges und BLAKE2 sind sicher.** Ein Sponge gibt nur Rate-Bits aus; seine Kapazität bleibt
+verborgen (FIPS 202, Anhang A.1). Deshalb setzt KMAC den Schlüssel einfach vor die Nachricht
+(SP 800-185, §4). BLAKE2 mit Schlüssel legt den Schlüssel in Block 0 und markiert den letzten Block
+mit einem Flag (RFC 7693, §3.3; [Seite zu BLAKE2](../hash/blake2/)).
+
+**Vergleich.** Eine Schleife, die beim ersten falschen Byte abbricht, ist umso früher fertig, je
+früher der Unterschied liegt. Ihre Laufzeit verrät also, wie viele führende Bytes eines geratenen
+Tags stimmen. Vergleiche immer alle Bytes, z. B. mit `hmac.compare_digest` aus Python
+(Python-Dokumentation).
+
+</LessonSection>
+
+<LessonSection part="check">
+
+## Teste dich selbst
+
+<CheckQuestion
+  id="mac-vs-signature"
+  number={1}
+  question="Was kann eine digitale Signatur leisten, ein MAC aber nicht?"
+  options={[
+    'Eine geänderte Nachricht erkennen',
+    'Einen Dritten überzeugen, wer die Nachricht erstellt hat',
+    'Eine kürzere Ausgabe',
+    'Ganz ohne Schlüssel auskommen',
+  ]}
+  answer={1}
+>
+  Beide erkennen Änderungen. Eine Signatur wird mit einem öffentlichen Schlüssel geprüft, daher kann
+  ein Dritter erkennen, wer signiert hat (Nichtabstreitbarkeit, FIPS 186-5, §1). Wer einen MAC
+  prüft, besitzt denselben Schlüssel `K` und hätte das Tag selbst erzeugen können.
+</CheckQuestion>
+
+<CheckQuestion
+  id="secret-prefix-length-extension"
+  number={2}
+  question="Warum ist SHA-256(K ‖ m) kein sicherer MAC?"
+  options={[
+    'Für SHA-256 sind Kollisionen bekannt',
+    'Das Tag ist zu kurz',
+    'Das Tag ist der vollständige Verkettungswert, also kann jeder Blöcke anhängen und erhält ein gültiges Tag',
+    'K muss immer zuerst gehasht werden',
+  ]}
+  answer={2}
+>
+  Ein Merkle–Damgård-Hashwert ist der letzte Verkettungswert. Mallory hasht von dort aus weiter und
+  erhält ein gültiges Tag für `m ‖ Padding ‖ m′`, ohne `K` zu kennen: Längenerweiterung (HAC,
+  §9.5.2).
+</CheckQuestion>
+
+<CheckQuestion
+  id="tag-compare-early-exit"
+  number={3}
+  question="Warum darf eine Prüfung nicht beim ersten abweichenden Tag-Byte abbrechen?"
+  options={[
+    'Die Prüfung würde falsche Tags akzeptieren',
+    'Die Laufzeit würde verraten, wie viele führende Bytes eines geratenen Tags stimmen',
+    'Die Prüfung wäre im Mittel langsamer',
+    'Tags werden als Zahlen verglichen, nicht als Bytes',
+  ]}
+  answer={1}
+>
+  Das Ergebnis bleibt richtig, aber die Laufzeit ist nicht mehr konstant. Ein Vergleich über alle
+  Bytes, wie ihn `hmac.compare_digest` ausführt (Python-Dokumentation), braucht für jedes falsche
+  Tag gleich lange.
+</CheckQuestion>
+
+</LessonSection>
