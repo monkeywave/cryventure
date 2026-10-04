@@ -16,8 +16,11 @@ const LABS = [
 const stateMatrix = (lab: Locator) => lab.locator('[data-region="state"] [role="grid"]');
 const caption = (lab: Locator) => lab.locator('.cv-caption__text');
 const player = (lab: Locator) => lab.locator('.cv-lab__player');
-/** Live regions that narrate; the parameter form's inline validation messages are live regions of their own. */
-const narratingLiveRegions = (lab: Locator) => lab.locator('[aria-live]:not(.cv-params__error)');
+/**
+ * Live regions that narrate; the parameter form's inline validation messages and the "Computing…"
+ * status of a slow re-run (docs/M7.md §4, empty otherwise) are live regions of their own.
+ */
+const narratingLiveRegions = (lab: Locator) => lab.locator('[aria-live]:not(.cv-params__error):not(.cv-lab__computing)');
 
 /** The part of the viewport not hidden by Starlight's fixed header. */
 async function visibleBand(page: Page): Promise<{ top: number; bottom: number }> {

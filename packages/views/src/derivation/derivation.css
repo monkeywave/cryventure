@@ -31,6 +31,8 @@
 
 .cv-derivation__rows {
   display: grid;
+  /* One track no wider than the view: an open chain's long hex lines scroll inside the chain, they never widen the rows. */
+  grid-template-columns: minmax(0, 1fr);
   gap: 0.4rem;
 }
 
@@ -108,7 +110,8 @@
 
 /* Inline disclosure: a full-width panel inside the row, attached by a left rule in the key colour. */
 .cv-derivation__chain {
-  flex: 1 0 100%;
+  /* Its own line (basis 100%), shrinking by its left margin so it never pokes out of the row. */
+  flex: 1 1 100%;
   display: grid;
   gap: 0.35rem;
   min-width: 0;
@@ -151,10 +154,14 @@
   max-width: 28rem;
 }
 
-/* One chain line: glyph | [op] name (wraps) | hex (one line, right-aligned like FIPS 197 App. A); zoom link below. */
+/*
+ * One chain line: glyph | [op] name (wraps) | hex (one line, right-aligned like FIPS 197 App. A); zoom link below.
+ * The name keeps at least its longest word, so a hex wider than the panel (a 72-byte HMAC input) pushes the
+ * line into the chain's horizontal scroll instead of covering the name.
+ */
 .cv-derivation__link {
   display: grid;
-  grid-template-columns: 1.25em minmax(0, 1fr) auto;
+  grid-template-columns: 1.25em minmax(min-content, 1fr) auto;
   align-items: baseline;
   column-gap: 0.5rem;
 }
