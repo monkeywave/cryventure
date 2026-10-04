@@ -69,6 +69,34 @@ describe('derivedSchemaProblems', () => {
   });
 });
 
+describe('wordops in derived facets', () => {
+  const term = (id: string, extra: Record<string, unknown> = {}) => ({ id, label: { key: `deriver.demo.${id}` }, hex: '428a2f98', role: 'constant', ...extra });
+  const wordops = (terms: unknown[], formula: unknown = { key: 'deriver.demo.f' }) => ({ kind: 'wordops', schemaVersion: 1, wordBits: 32, steps: [{ step: 0, formula, terms }] });
+
+  it('validates wordops facets with the core validator', () => {
+    expect(derivedSchemaProblems({ 'wordops@x': wordops([term('k')]) })).toEqual([]);
+    expect(derivedSchemaProblems({ 'wordops@x': wordops([term('k', { hex: '428a2f9' })]) })).toEqual(['wordops@x: wordops step 0 term "k": hex "428a2f9" is not 8 lowercase hex digits']);
+  });
+
+  it('flags malformed refs in the wordops formula and term labels', () => {
+    const facet = wordops([term('k'), { ...term('w'), label: 'W' }], { key: 'deriver.demo.f', params: { n: [] } });
+    expect(malformedRefProblems({ 'wordops@x': facet })).toEqual([
+      'wordops@x: steps[0].formula is not an I18nRef { key, params? }',
+      'wordops@x: steps[0].terms[1].label is not an I18nRef { key, params? }',
+    ]);
+  });
+
+  it('flags wordops term valueRefs the values facet lacks', () => {
+    const facet = wordops([term('k', { valueRef: 'k0' }), term('w', { valueRef: 'w0' })]);
+    const withValues = bundle({ 'values@default': { values: [{ id: 'k0' }] } });
+    expect(unknownValueRefProblems({ 'wordops@x': facet }, withValues)).toEqual(['wordops@x: valueRef "w0" is not in the values facet']);
+  });
+
+  it('finds wordops refs for the EN/DE and namespace checks', () => {
+    expect(i18nRefsIn(wordops([term('k')]))).toEqual([{ key: 'deriver.demo.f' }, { key: 'deriver.demo.k' }]);
+  });
+});
+
 describe('alignSpanSequences / derivedAlignProblems', () => {
   const facet = {
     instructions: [{ align: { first: -1, last: -1 }, reads: [{ kind: 'reg' }] }, { align: { first: 0, last: 2 } }],

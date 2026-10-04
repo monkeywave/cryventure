@@ -1,4 +1,4 @@
-import { bytesEqual, isPortName, readText, type BlockCipher, type ParamField, type PortMap, type PortName, type PrimitiveManifest, type PrimitiveModule } from '@cryventure/core';
+import { bytesEqual, isPortName, readText, type BlockCipher, type HashFamily, type HashFunction, type ParamField, type PortMap, type PortName, type PrimitiveManifest, type PrimitiveModule } from '@cryventure/core';
 
 /**
  * Contract checks for ports, port and text params and the `runIn` flag (docs/M3.md §1, §2, §8).
@@ -64,9 +64,52 @@ export function blockCipherProblems(cipher: BlockCipher, producerId: string): st
   ];
 }
 
+const HASH_BLOCK_SIZES: readonly number[] = [64, 128];
+
+/** Digests of the same input twice, or the reason hashing threw. */
+function digestPair(fn: HashFunction, data: Uint8Array): [Uint8Array, Uint8Array] | string {
+  try {
+    return [fn.hash(data.slice()), fn.hash(data.slice())];
+  } catch (error) {
+    return errorMessage(error);
+  }
+}
+
+/** Deterministic, `outputSize` bytes, for one input length. */
+function digestProblems(fn: HashFunction, length: number): string[] {
+  const where = `Hash ${fn.id}: ${length}-byte input`;
+  const digests = digestPair(fn, testBytes(length, 5));
+  if (typeof digests === 'string') return [`${where} threw: ${digests}`];
+  const [first, second] = digests;
+  const problems: string[] = [];
+  if (!(first instanceof Uint8Array) || first.length !== fn.outputSize) problems.push(`${where}: digest is not ${fn.outputSize} bytes`);
+  else if (!(second instanceof Uint8Array) || !bytesEqual(first, second)) problems.push(`${where}: hash is not deterministic`);
+  return problems;
+}
+
+function hashFunctionProblems(fn: HashFunction): string[] {
+  if (!HASH_BLOCK_SIZES.includes(fn.blockSize)) return [`Hash ${fn.id}: blockSize ${fn.blockSize} is not 64 or 128`];
+  if (!isPositiveInteger(fn.outputSize)) return [`Hash ${fn.id}: outputSize ${fn.outputSize} is not a positive integer`];
+  return [0, 1, fn.blockSize].flatMap((length) => digestProblems(fn, length));
+}
+
+function duplicateIds(functions: readonly HashFunction[]): string[] {
+  const ids = functions.map((fn) => fn.id);
+  return [...new Set(ids.filter((id, index) => ids.indexOf(id) !== index))];
+}
+
+/** Family id = producer id, at least one function, unique function ids, and every function sane (docs/M5.md §1). */
+export function hashFamilyProblems(family: HashFamily, producerId: string): string[] {
+  const problems = family.id === producerId ? [] : [`Hash: family id "${family.id}" is not the producer id "${producerId}"`];
+  if (family.functions.length === 0) return [...problems, 'Hash: functions is empty'];
+  problems.push(...duplicateIds(family.functions).map((id) => `Hash: function id "${id}" is not unique`));
+  return [...problems, ...family.functions.flatMap(hashFunctionProblems)];
+}
+
 /** The sanity check per port; the `Record` makes a new port without a check a type error. */
 const PORT_SANITY: { [N in PortName]: (implementation: PortMap[N], producerId: string) => string[] } = {
   BlockCipher: blockCipherProblems,
+  Hash: hashFamilyProblems,
 };
 
 function portSanity<N extends PortName>(port: N, implementation: PortMap[N], producerId: string): string[] {

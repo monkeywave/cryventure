@@ -1,0 +1,101 @@
+{
+  "source": "NIST CSRC, Examples with Intermediate Values (https://csrc.nist.gov/CSRC/media/Projects/Cryptographic-Standards-and-Guidelines/documents/examples/SHA256.pdf, .../SHA224.pdf); empty-message digests from NIST CAVP SHAVS SHA256ShortMsg.rsp / SHA224ShortMsg.rsp (https://csrc.nist.gov/CSRC/media/Projects/Cryptographic-Algorithm-Validation-Program/documents/shs/shabytetestvectors.zip)",
+  "cases": [
+    {
+      "name": "SHA-256, \"abc\" (SHA256.pdf, one block)",
+      "params": {
+        "algorithm": "sha-256",
+        "encoding": "utf8",
+        "input": "abc",
+        "detail": "round"
+      },
+      "outputs": {
+        "digest": "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad"
+      }
+    },
+    {
+      "name": "SHA-256, \"abc\" at block detail",
+      "params": {
+        "algorithm": "sha-256",
+        "encoding": "utf8",
+        "input": "abc",
+        "detail": "block"
+      },
+      "outputs": {
+        "digest": "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad"
+      }
+    },
+    {
+      "name": "SHA-256, \"abc\" as hex 616263",
+      "params": {
+        "algorithm": "sha-256",
+        "encoding": "hex",
+        "input": "616263",
+        "detail": "round"
+      },
+      "outputs": {
+        "digest": "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad"
+      }
+    },
+    {
+      "name": "SHA-256, 448-bit message (SHA256.pdf, two blocks)",
+      "params": {
+        "algorithm": "sha-256",
+        "encoding": "utf8",
+        "input": "abcdbcdecdefdefgefghfghighijhijkijkljklmklmnlmnomnopnopq",
+        "detail": "round"
+      },
+      "outputs": {
+        "digest": "248d6a61d20638b8e5c026930c3e6039a33ce45964ff2167f6ecedd419db06c1"
+      }
+    },
+    {
+      "name": "SHA-224, \"abc\" (SHA224.pdf, one block)",
+      "params": {
+        "algorithm": "sha-224",
+        "encoding": "utf8",
+        "input": "abc",
+        "detail": "round"
+      },
+      "outputs": {
+        "digest": "23097d223405d8228642a477bda255b32aadbce4bda0b3f7e36c9da7"
+      }
+    },
+    {
+      "name": "SHA-224, 448-bit message (SHA224.pdf, two blocks)",
+      "params": {
+        "algorithm": "sha-224",
+        "encoding": "utf8",
+        "input": "abcdbcdecdefdefgefghfghighijhijkijkljklmklmnlmnomnopnopq",
+        "detail": "round"
+      },
+      "outputs": {
+        "digest": "75388b16512776cc5dba5da1fd890150b0c6455cb4f58b1952522525"
+      }
+    },
+    {
+      "name": "SHA-256, empty message (SHA256ShortMsg.rsp, Len = 0)",
+      "params": {
+        "algorithm": "sha-256",
+        "encoding": "utf8",
+        "input": "",
+        "detail": "round"
+      },
+      "outputs": {
+        "digest": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      }
+    },
+    {
+      "name": "SHA-224, empty message (SHA224ShortMsg.rsp, Len = 0)",
+      "params": {
+        "algorithm": "sha-224",
+        "encoding": "utf8",
+        "input": "",
+        "detail": "round"
+      },
+      "outputs": {
+        "digest": "d14a028c2a3a2bc9476102bb288234c415a2b01f828ea62ac5b3e42f"
+      }
+    }
+  ]
+}

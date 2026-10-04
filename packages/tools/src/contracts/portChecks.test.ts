@@ -1,6 +1,6 @@
-import type { BlockCipher, ParamField, PrimitiveManifest } from '@cryventure/core';
+import type { BlockCipher, HashFamily, HashFunction, ParamField, PrimitiveManifest } from '@cryventure/core';
 import { describe, expect, it } from 'vitest';
-import { blockCipherProblems, implementedPortProblems, portFieldProblems, runInProblems, textFieldProblems } from './portChecks.ts';
+import { blockCipherProblems, hashFamilyProblems, implementedPortProblems, portFieldProblems, runInProblems, textFieldProblems } from './portChecks.ts';
 
 /** 4-byte toy cipher: E(k, b) = b ⊕ k, with the length checks a real port must have. */
 function toyCipher(overrides: Partial<BlockCipher> = {}): BlockCipher {
@@ -38,6 +38,74 @@ describe('blockCipherProblems', () => {
   it('reports a cipher that throws on valid input', () => {
     const throwing = toyCipher({ encryptBlock: () => { throw new Error('boom'); } });
     expect(blockCipherProblems(throwing, 'toy')).toEqual(['BlockCipher: round trip with a 4-byte key threw: boom']);
+  });
+});
+
+/** Toy hash: folds the input (and its length) into `outputSize` bytes. */
+function toyHash(overrides: Partial<HashFunction> = {}): HashFunction {
+  const base: HashFunction = {
+    id: 'toy-256',
+    blockSize: 64,
+    outputSize: 32,
+    hash(data) {
+      const digest = new Uint8Array(this.outputSize).fill(data.length & 0xff);
+      data.forEach((byte, i) => { digest[i % digest.length]! ^= byte; });
+      return digest;
+    },
+  };
+  return { ...base, ...overrides };
+}
+
+const toyFamily = (functions: HashFunction[] = [toyHash(), toyHash({ id: 'toy-224', outputSize: 28 })], id = 'toy'): HashFamily => ({ id, functions });
+
+describe('hashFamilyProblems', () => {
+  it('passes a sane family', () => expect(hashFamilyProblems(toyFamily(), 'toy')).toEqual([]));
+
+  it('accepts a 128-byte block', () => expect(hashFamilyProblems(toyFamily([toyHash({ id: 'toy-512', blockSize: 128, outputSize: 64 })]), 'toy')).toEqual([]));
+
+  it('reports a family id that is not the producer id', () => {
+    expect(hashFamilyProblems(toyFamily(undefined, 'sha256'), 'toy')).toEqual(['Hash: family id "sha256" is not the producer id "toy"']);
+  });
+
+  it('reports an empty family', () => expect(hashFamilyProblems(toyFamily([]), 'toy')).toEqual(['Hash: functions is empty']));
+
+  it('reports duplicate function ids', () => {
+    expect(hashFamilyProblems(toyFamily([toyHash(), toyHash(), toyHash()]), 'toy')).toEqual(['Hash: function id "toy-256" is not unique']);
+  });
+
+  it('reports a block size other than 64 or 128', () => {
+    expect(hashFamilyProblems(toyFamily([toyHash({ blockSize: 32 })]), 'toy')).toEqual(['Hash toy-256: blockSize 32 is not 64 or 128']);
+  });
+
+  it('reports a bad output size', () => {
+    expect(hashFamilyProblems(toyFamily([toyHash({ outputSize: 0 })]), 'toy')).toEqual(['Hash toy-256: outputSize 0 is not a positive integer']);
+  });
+
+  it('reports digests of the wrong length, per input length', () => {
+    const short = toyHash({ hash: (data) => new Uint8Array(data.length === 1 ? 31 : 32) });
+    expect(hashFamilyProblems(toyFamily([short]), 'toy')).toEqual(['Hash toy-256: 1-byte input: digest is not 32 bytes']);
+    const blockOnly = toyHash({ hash: (data) => new Uint8Array(data.length === 64 ? 16 : 32) });
+    expect(hashFamilyProblems(toyFamily([blockOnly]), 'toy')).toEqual(['Hash toy-256: 64-byte input: digest is not 32 bytes']);
+  });
+
+  it('reports a non-deterministic function', () => {
+    let calls = 0;
+    const drifting = toyHash({ hash: () => new Uint8Array(32).fill(calls++) });
+    expect(hashFamilyProblems(toyFamily([drifting]), 'toy')).toEqual([
+      'Hash toy-256: 0-byte input: hash is not deterministic',
+      'Hash toy-256: 1-byte input: hash is not deterministic',
+      'Hash toy-256: 64-byte input: hash is not deterministic',
+    ]);
+  });
+
+  it('reports a function that throws', () => {
+    const throwing = toyHash({ hash: (data) => { if (data.length === 0) throw new Error('empty'); return new Uint8Array(32); } });
+    expect(hashFamilyProblems(toyFamily([throwing]), 'toy')).toEqual(['Hash toy-256: 0-byte input threw: empty']);
+  });
+
+  it('is the sanity check implementedPortProblems runs for Hash', () => {
+    expect(implementedPortProblems({ id: 'toy', implements: ['Hash'] }, { ports: { Hash: toyFamily() } })).toEqual([]);
+    expect(implementedPortProblems({ id: 'other', implements: ['Hash'] }, { ports: { Hash: toyFamily() } })).toEqual(['Hash: family id "toy" is not the producer id "other"']);
   });
 });
 

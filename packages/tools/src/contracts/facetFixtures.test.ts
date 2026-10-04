@@ -37,6 +37,13 @@ describe('primitiveFixtureBundles', () => {
     expect(names(await primitiveFixtureBundles([aes, composite]))).toEqual(['aes', 'composite']);
   });
 
+  it('carries every facet kind each primitive declares (so a view requiring e.g. wordops gets real fixtures)', () => {
+    bundles.forEach(({ name, bundle }, index) => {
+      const declared = primitiveManifests[index]!.facets;
+      expect(declared.filter((kind) => !facetKindsOf(bundle).has(kind)), name).toEqual([]);
+    });
+  });
+
   it('covers every facet kind the shipped views require', () => {
     const kinds = new Set(bundles.flatMap(({ bundle }) => [...facetKindsOf(bundle)]));
     ['state', 'values', 'narration', 'derivation', 'math', 'table'].forEach((kind) => expect(kinds.has(kind), kind).toBe(true));
@@ -110,6 +117,20 @@ describe('fixtureBundlesFor', () => {
   it('fails with the kinds no fixture provides', () => {
     expect(fixtureBundlesFor(['memory'], [], sources)).toEqual({ ok: false, problem: 'no fixture provides facet kind(s) memory: emit them from a primitive or add a fallback in facetFixtures' });
     expect(fixtureBundlesFor(['memory'], [], [], { memory: {} }).ok).toBe(true);
+  });
+});
+
+describe('fixtureBundlesFor (wordops)', () => {
+  it('serves a view requiring wordops from the producer that emits it, with no fallback', () => {
+    const sources = [bundleWith('aes', ['state', 'math']), bundleWith('sha256', ['state', 'values', 'wordops'])];
+    const selection = fixtureBundlesFor(['wordops'], ['state', 'values'], sources);
+    expect(selection.ok && names(selection.bundles)).toEqual(['sha256']);
+  });
+
+  it('assembles wordops into a bundle for a view that also requires a kind its producer lacks', () => {
+    const sources = [bundleWith('aes', ['state', 'math']), bundleWith('sha256', ['state', 'wordops'])];
+    const selection = fixtureBundlesFor(['wordops', 'math'], [], sources);
+    expect(selection.ok && selection.bundles[0]!.bundle.facets['wordops@default']).toEqual({ kind: 'wordops', from: 'sha256' });
   });
 });
 

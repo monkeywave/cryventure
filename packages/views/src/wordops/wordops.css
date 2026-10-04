@@ -1,0 +1,286 @@
+/*
+ * Word operations view styles. Imported by the view component, so it ships in the view's lazy chunk.
+ * Colours come only from the semantic tokens (--cv-*, --sl-color-*); fallbacks keep it usable standalone.
+ * Role colours as in the math view: operand = plaintext blue, intermediate = state slate,
+ * constant = teal, carry = nonce magenta, result = success green (always with a label and, for the
+ * result, a rule above it). The computed shift arrows (e ← d + T1, a ← T1 + T2) are bold and dashed
+ * and carry text labels, so colour is never the only cue.
+ *
+ * Phones: the register row and the term table scroll horizontally inside their own focusable regions
+ * (edge shadows from the shared `.cv-scroll-shadow` utility), never the page.
+ */
+
+.cv-wordops {
+  --cv-wordops-col: 6rem;
+  display: grid;
+  gap: 0.5rem;
+  min-width: 0;
+  max-width: 100%;
+}
+
+.cv-wordops__formula,
+.cv-wordops__hint,
+.cv-wordops__empty {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.cv-wordops__formula {
+  font-weight: 600;
+  color: var(--cv-text, CanvasText);
+}
+
+.cv-wordops__hint,
+.cv-wordops__empty {
+  color: var(--cv-text-muted, GrayText);
+}
+
+.cv-wordops__hint {
+  font-style: italic;
+}
+
+.cv-wordops sup {
+  font-size: 0.75em;
+  line-height: 0;
+}
+
+/* Before the first wordops step: the first step, muted and dashed-framed, under a start hint. */
+.cv-wordops__upcoming {
+  display: grid;
+  gap: 0.5rem;
+  min-width: 0;
+  padding: 0.5rem;
+  border: 1px dashed var(--cv-border, GrayText);
+  border-radius: 0.375rem;
+}
+
+.cv-wordops__upcoming .cv-wordops__formula,
+.cv-wordops__upcoming .cv-wordops__scroll {
+  opacity: 0.6;
+}
+
+.cv-wordops__scroll {
+  min-width: 0;
+  max-width: 100%;
+  overflow-x: auto;
+}
+
+.cv-wordops__scroll:focus-visible {
+  outline: 2px solid var(--cv-cell-focus-border, Highlight);
+  outline-offset: 2px;
+}
+
+/* Hex words: monospace, 4-digit chunks; 64-bit words wrap after two chunks inside a register cell. */
+.cv-wordops__word {
+  font-family: var(--sl-font-mono, ui-monospace, monospace);
+  background: none;
+  color: inherit;
+  padding: 0;
+}
+
+.cv-wordops__chunk {
+  white-space: pre;
+}
+
+/* ---------- registers ---------- */
+
+.cv-wordops__registers {
+  display: grid;
+  grid-template-columns: max-content repeat(var(--cv-wordops-regs, 8), var(--cv-wordops-col));
+  row-gap: 0.125rem;
+  inline-size: max-content;
+  font-variant-numeric: tabular-nums;
+}
+
+.cv-wordops__regrow {
+  display: grid;
+  grid-column: 1 / -1;
+  grid-template-columns: subgrid;
+  align-items: stretch;
+}
+
+.cv-wordops__regside {
+  align-self: center;
+  padding-inline-end: 0.5rem;
+  font-size: 0.8em;
+  color: var(--cv-text-muted, GrayText);
+}
+
+.cv-wordops__reg {
+  display: grid;
+  align-content: start;
+  gap: 0.125rem;
+  margin-inline: 2px;
+  padding: 0.25rem 0.375rem;
+  font-size: 0.85em;
+  color: var(--cv-text, CanvasText);
+  background: var(--cv-surface-elevated, Canvas);
+  border: 1px solid var(--cv-border-subtle, GrayText);
+  border-radius: 0.25rem;
+}
+
+.cv-wordops__regname {
+  font-weight: 700;
+  color: var(--cv-text-muted, GrayText);
+}
+
+/* A register a non-round step changed (init, feed-forward): heavier border plus a • glyph. */
+.cv-wordops__reg[data-changed] {
+  border: 2px solid var(--cv-state, CanvasText);
+}
+
+.cv-wordops__shift {
+  grid-column: 2 / -1;
+  min-width: 0;
+}
+
+.cv-wordops__arrows {
+  display: block;
+  inline-size: 100%;
+  block-size: auto;
+  overflow: visible;
+}
+
+.cv-wordops__arrow line {
+  stroke: var(--cv-text-muted, GrayText);
+  stroke-width: 1.5;
+}
+
+.cv-wordops__arrow:not([data-source='copy']) line {
+  stroke: var(--cv-key, CanvasText);
+  stroke-width: 2.5;
+  stroke-dasharray: 6 3;
+}
+
+.cv-wordops__head[data-source='copy'] path {
+  fill: var(--cv-text-muted, GrayText);
+}
+
+.cv-wordops__head[data-source='calc'] path {
+  fill: var(--cv-key, CanvasText);
+}
+
+.cv-wordops__arrowlabel {
+  font-family: var(--sl-font-mono, ui-monospace, monospace);
+  font-size: 12px;
+  font-weight: 700;
+  fill: var(--cv-text, CanvasText);
+}
+
+/* ---------- terms ---------- */
+
+.cv-wordops__table {
+  border-collapse: collapse;
+  font-variant-numeric: tabular-nums;
+}
+
+.cv-wordops__table th,
+.cv-wordops__table td {
+  padding: 0.25rem 0.5rem;
+  text-align: start;
+  vertical-align: middle;
+  white-space: nowrap;
+}
+
+.cv-wordops__table thead th {
+  font-size: 0.8em;
+  font-weight: 500;
+  color: var(--cv-text-muted, GrayText);
+  border-bottom: 1px solid var(--cv-border, GrayText);
+}
+
+.cv-wordops__row {
+  --cv-wordops-role: var(--cv-state, CanvasText);
+}
+
+.cv-wordops__row[data-role='operand'] {
+  --cv-wordops-role: var(--cv-plaintext, CanvasText);
+}
+
+.cv-wordops__row[data-role='constant'] {
+  --cv-wordops-role: var(--cv-constant, CanvasText);
+}
+
+.cv-wordops__row[data-role='carry'] {
+  --cv-wordops-role: var(--cv-nonce, CanvasText);
+}
+
+.cv-wordops__row[data-role='result'] {
+  --cv-wordops-role: var(--cv-success, CanvasText);
+}
+
+.cv-wordops__row[data-role='result'] > * {
+  border-top: 2px solid var(--cv-border, GrayText);
+  font-weight: 600;
+}
+
+/* Linked brushing: the term whose value is the lab selection gets an outline and bold label. */
+.cv-wordops__row[data-selected] > * {
+  background: var(--cv-surface-elevated, Canvas);
+}
+
+.cv-wordops__row[data-selected] .cv-wordops__label {
+  outline: 2px solid var(--cv-cell-focus-border, Highlight);
+  outline-offset: -2px;
+  font-weight: 700;
+}
+
+.cv-wordops__label {
+  border-left: 3px solid var(--cv-wordops-role);
+  color: var(--cv-text, CanvasText);
+  font-weight: 500;
+}
+
+.cv-wordops__link {
+  padding: 0;
+  font: inherit;
+  color: inherit;
+  background: none;
+  border: none;
+  border-bottom: 1px dotted currentColor;
+  cursor: pointer;
+}
+
+.cv-wordops__link:focus-visible {
+  outline: 2px solid var(--cv-cell-focus-border, Highlight);
+  outline-offset: 2px;
+}
+
+.cv-wordops__op {
+  text-align: center;
+  color: var(--cv-wordops-role);
+  font-weight: 700;
+}
+
+.cv-wordops__hex {
+  color: var(--cv-wordops-role);
+}
+
+.cv-wordops__bits {
+  display: inline-flex;
+  gap: 1px;
+}
+
+.cv-wordops__bit {
+  display: inline-grid;
+  place-items: center;
+  inline-size: 0.875rem;
+  block-size: 1.25rem;
+  font-family: var(--sl-font-mono, ui-monospace, monospace);
+  font-size: 0.75em;
+  color: var(--cv-cell-dim-fg, GrayText);
+  background: var(--cv-cell-dim-bg, Canvas);
+  border: 1px solid var(--cv-border-subtle, GrayText);
+  border-radius: 2px;
+}
+
+.cv-wordops__bit[data-set] {
+  color: var(--cv-text, CanvasText);
+  background: var(--cv-surface-elevated, Canvas);
+  border-color: var(--cv-wordops-role);
+  font-weight: 700;
+}
+
+.cv-wordops__bit[data-nibble-end]:not(:last-child) {
+  margin-inline-end: 0.25rem;
+}

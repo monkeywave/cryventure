@@ -34,6 +34,43 @@ export interface Listing {
   instructions: ListingInstruction[];
 }
 
+/**
+ * Roles in the SHA-256 compression listings (`isa-x86-sha/data/sha256.json`, `isa-armv8-sha/…`,
+ * docs/M5.md §5b): a separate set, not mixed into the AES `ListingRole`.
+ */
+export type ShaListingRole =
+  | 'loadState'
+  | 'packState'
+  | 'loadBlock'
+  | 'byteSwap'
+  | 'addK'
+  | 'rounds'
+  | 'rounds2'
+  | 'msg1'
+  | 'msg2'
+  | 'unpackState'
+  | 'feedForward'
+  | 'store'
+  | 'other';
+
+export interface ShaListingInstruction {
+  address: string;
+  mnemonic: string;
+  operands: string[];
+  role: ShaListingRole;
+  /** Round instructions (`sha256rnds2`, `sha256h`, `sha256h2`): the first round t they run. */
+  round?: number;
+  /**
+   * Schedule instructions (`sha256msg1`/`msg2`, `sha256su0`/`su1`): the first schedule word t of the
+   * group W[t..t+3] they produce (msg1/su0: the group whose partial sum they compute).
+   */
+  w?: number;
+}
+
+export interface ShaListing extends Omit<Listing, 'instructions'> {
+  instructions: ShaListingInstruction[];
+}
+
 /** A memory operand: base register and byte offset. */
 export interface MemOperand {
   base: string;
@@ -56,7 +93,9 @@ function signedOffset(sign: string | undefined, magnitude: string | undefined): 
  */
 export function parseMemOperand(operand: string): MemOperand | undefined {
   const match = INTEL_MEM.exec(operand) ?? ARM_MEM.exec(operand);
-  return match?.[1] === undefined ? undefined : { base: match[1], offset: signedOffset(match[2], match[3]) };
+  return match?.[1] === undefined
+    ? undefined
+    : { base: match[1], offset: signedOffset(match[2], match[3]) };
 }
 
 /** The listing for Nr rounds; throws when the deriver ships none. */

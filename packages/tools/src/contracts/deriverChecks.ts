@@ -12,6 +12,7 @@ import {
   validateMemoryFacet,
   validateRegistersFacet,
   validateTableFacet,
+  validateWordopsFacet,
   type AlignSpan,
   type AnyStateFacet,
   type DeriverManifest,
@@ -71,6 +72,7 @@ export const FACET_VALIDATORS: Readonly<Partial<Record<FacetKind, FacetValidator
   field: validateFieldFacet,
   math: validateMathFacet,
   table: validateTableFacet,
+  wordops: validateWordopsFacet,
 };
 
 /** Lowercase hex address as a bigint, or undefined for anything else. */
@@ -234,6 +236,7 @@ export const KNOWN_REF_FIELDS: Readonly<Partial<Record<FacetKind, readonly strin
   math: ['steps[].formula', 'steps[].terms[].label'],
   field: ['steps[].formula', 'steps[].terms[].label'],
   table: ['title'],
+  wordops: ['steps[].formula', 'steps[].terms[].label'],
   chain: ['formula', 'nodes[].label'],
   wire: ['segments[].label'],
 };

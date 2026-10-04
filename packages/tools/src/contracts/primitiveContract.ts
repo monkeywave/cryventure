@@ -6,6 +6,7 @@ import {
   validateFieldFacet,
   validateMathFacet,
   validateTableFacet,
+  validateWordopsFacet,
   type DerivationFacet,
   type FieldFacet,
   type I18nRef,
@@ -16,6 +17,7 @@ import {
   type TableFacet,
   type TraceBundle,
   type ValuesFacet,
+  type WordopsFacet,
 } from '@cryventure/core';
 import { beforeAll, describe, expect, it } from 'vitest';
 import { loadPluginCatalogs, type LocaleCatalogs } from './catalogs.ts';
@@ -43,6 +45,8 @@ import {
   tableFacetRefs,
   tableSelectParamProblems,
   unknownParamFields,
+  wordopsFacetRefs,
+  wordopsValueRefProblems,
   type AnyStateFacet,
 } from './checks.ts';
 import { modeFacetIssues, modeFacetRefs } from './modeFacetChecks.ts';
@@ -172,6 +176,22 @@ function optionalRunChecks<P>(manifest: PrimitiveManifest<P>, catalogs: LocaleCa
     facetChecks<FieldFacet>('field', validateFieldFacet, fieldFacetRefs, catalogs, bundle);
     fieldCrossChecks(bundle);
   }
+  if (manifest.facets.includes('wordops')) {
+    facetChecks<WordopsFacet>('wordops', validateWordopsFacet, wordopsFacetRefs, catalogs, bundle);
+    wordopsCrossChecks(bundle);
+  }
+}
+
+function wordopsCrossChecks(bundle: () => TraceBundle): void {
+  it('aligns every wordops step with a state step or the narrated initial state (step −1)', () => {
+    const wordops = getFacet<WordopsFacet>(bundle(), 'wordops');
+    const state = getFacet<AnyStateFacet>(bundle(), 'state') ?? { steps: [] };
+    expect(wordops === undefined ? [] : facetStepRangeProblems('wordops', wordops, state)).toEqual([]);
+  });
+  it('links wordops terms only to values in the values facet', () => {
+    const wordops = getFacet<WordopsFacet>(bundle(), 'wordops');
+    expect(wordops === undefined ? [] : wordopsValueRefProblems(wordops, getFacet<ValuesFacet>(bundle(), 'values'))).toEqual([]);
+  });
 }
 
 function fieldCrossChecks(bundle: () => TraceBundle): void {

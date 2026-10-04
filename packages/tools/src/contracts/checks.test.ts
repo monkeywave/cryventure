@@ -1,6 +1,6 @@
-import { narrationFromState, parseHexOfLength, RecordingTracer, type AnyStateFacet, type FieldFacet, type I18nRef, type MathFacet, type NarrationFacet, type PrimitiveManifest, type RegionSpec, type TableFacet, type TraceBundle } from '@cryventure/core';
+import { narrationFromState, parseHexOfLength, RecordingTracer, type AnyStateFacet, type FieldFacet, type I18nRef, type MathFacet, type NarrationFacet, type PrimitiveManifest, type RegionSpec, type TableFacet, type TraceBundle, type WordopsFacet } from '@cryventure/core';
 import { describe, expect, it } from 'vitest';
-import { validateFieldFacet } from '@cryventure/core';
+import { validateFieldFacet, validateWordopsFacet } from '@cryventure/core';
 import {
   derivationGroupRefs,
   emittedNarration,
@@ -25,6 +25,8 @@ import {
   tableFacetRefs,
   tableSelectParamProblems,
   unknownParamFields,
+  wordopsFacetRefs,
+  wordopsValueRefProblems,
 } from './checks.ts';
 
 const catalogs = {
@@ -253,6 +255,40 @@ describe('field facet checks', () => {
     expect(fieldValueRefProblems(valid, values)).toEqual([]);
     expect(fieldValueRefProblems(broken, values)).toEqual(['field step 2 term "h": valueRef "nope" is not in the values facet']);
     expect(fieldValueRefProblems(valid, undefined)).toEqual(['field step 0 term "h": valueRef "h" is not in the values facet']);
+  });
+});
+
+describe('wordops facet checks', () => {
+  const term = (id: string, valueRef?: string, hex = '6a09e667') => ({ id, label: { key: `plugin.x.term.${id}` }, hex, role: 'operand' as const, op: 'add' as const, ...(valueRef === undefined ? {} : { valueRef }) });
+  const wordops = (steps: WordopsFacet['steps']): WordopsFacet => ({ kind: 'wordops', schemaVersion: 1, wordBits: 32, registerNames: ['a', 'b'], steps });
+  const valid = wordops([{ step: 0, formula: { key: 'plugin.x.t1', params: { t: 0 } }, terms: [term('w', 'w'), term('k')], registers: { before: ['00000000', '00000001'], after: ['00000002', '00000003'] } }]);
+  const broken = wordops([
+    { step: 2, formula: { key: 'plugin.x.t1' }, terms: [term('w', 'nope', '6A09E667')] },
+    { step: 1, formula: { key: 'plugin.x.t1' }, terms: [] },
+  ]);
+
+  it('validates a synthetic broken wordops facet with the core validator', () => {
+    expect(validateWordopsFacet(valid)).toEqual([]);
+    expect(validateWordopsFacet(broken)).toEqual(['wordops step 2 term "w": hex "6A09E667" is not 8 lowercase hex digits', 'wordops: step 1 does not increase (after 2)']);
+  });
+
+  it('reports wordops steps outside the state steps', () => {
+    const state = { steps: new Array(2).fill(undefined) };
+    expect(facetStepRangeProblems('wordops', valid, state)).toEqual([]);
+    expect(facetStepRangeProblems('wordops', broken, state)).toEqual(['wordops step 2 has no state step (-1..1)']);
+  });
+
+  it('collects formula and term label refs, checked in EN and DE', () => {
+    expect(wordopsFacetRefs(valid)).toEqual([{ key: 'plugin.x.t1', params: { t: 0 } }, { key: 'plugin.x.term.w' }, { key: 'plugin.x.term.k' }]);
+    const wordopsCatalogs = { en: { 'plugin.x.t1': 'T1 {{t}}', 'plugin.x.term.w': 'W', 'plugin.x.term.k': 'K' }, de: { 'plugin.x.t1': 'T1 {{t}}', 'plugin.x.term.w': 'W' } };
+    expect(refProblems(wordopsFacetRefs(valid), wordopsCatalogs)).toEqual(['de:plugin.x.term.k missing']);
+  });
+
+  it('reports term valueRefs the values facet lacks', () => {
+    const values = { values: [{ id: 'w', labelKey: 'k', role: 'state' as const, bytes: [], createdAt: 0 }] };
+    expect(wordopsValueRefProblems(valid, values)).toEqual([]);
+    expect(wordopsValueRefProblems(broken, values)).toEqual(['wordops step 2 term "w": valueRef "nope" is not in the values facet']);
+    expect(wordopsValueRefProblems(valid, undefined)).toEqual(['wordops step 0 term "w": valueRef "w" is not in the values facet']);
   });
 });
 

@@ -319,6 +319,12 @@ never on a producer's code:
   `producers` the caller passes (`all.contract.test.ts`: `primitiveProducerSet`, every primitive); `port` fields name a port some producer implements, `text` fields have a
   positive `maxLength` that `defaults` and presets fit, and `runIn` is `main` or `worker`
 - with `implements`: every declared port is exposed on the module and passes its sanity check
+  (`BlockCipher`: id, sizes, round trip, wrong lengths throw; `Hash`: family id = producer id,
+  unique function ids, `blockSize` 64 or 128, and every function is deterministic and returns
+  `outputSize` bytes for inputs of 0, 1 and `blockSize` bytes)
+- when a run emits a `wordops` facet: it passes `validateWordopsFacet`, its steps lie within the
+  state steps (−1 only with an `initialNarration`), its term `valueRef`s exist in the `values`
+  facet, and its formula and term-label keys and `{{params}}` exist in EN and DE
 - when a run emits `chain` or `wire` facets: `chainIssues`/`wireIssues` against the state facet's
   step count are empty, and their label keys and `{{params}}` exist in EN and DE
 - `vectors/conformance.json` exists, is well-formed, has at least one case, and `run(params)`
@@ -348,11 +354,11 @@ never on a producer's code:
   deterministically, with JSON-serializable facets
 - returns exactly its `provides` kinds (every one, keyed `kind@variant`)
 - each facet passes its core validator when its kind has one (`instructions`, `registers`,
-  `memory`, `field`, `math`, `table`); memory writes lie in their allocation's lifetime
+  `memory`, `field`, `math`, `table`, `wordops`); memory writes lie in their allocation's lifetime
 - every array of steps with `align` spans is monotonic and within the bundle's state steps
   (`alignIssues`), and none of its items lacks an `align` span
-- every `valueRef` (operands, register writes, memory allocations, refs and writes, field terms,
-  …) exists in the bundle's `values` facet
+- every `valueRef` (operands, register writes, memory allocations, refs and writes, field and
+  wordops terms, …) exists in the bundle's `values` facet
 - the known `I18nRef` fields of each core kind hold well-formed refs; every `I18nRef` (those fields,
   plus exact `{ key }` / `{ key, params }` objects anywhere in the facets) lies under
   `deriver.<id>.*` and exists with matching `{{params}}` in EN and DE; every catalog key sits under

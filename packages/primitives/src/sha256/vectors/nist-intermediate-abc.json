@@ -1,0 +1,118 @@
+{
+  "source": "NIST CSRC, Examples with Intermediate Values, SHA256.pdf and SHA224.pdf, \"One Block Message Sample\" (input \"abc\"): the a … h rows after rounds t = 0, 1, 15, 16, 63 (https://csrc.nist.gov/CSRC/media/Projects/Cryptographic-Standards-and-Guidelines/documents/examples/SHA256.pdf, .../SHA224.pdf). The PDFs list W0 … W15 only; W16 and W63 of block 1 were computed with an independent Python implementation of FIPS 180-4 §6.2.2 step 1 (W16 = W0 = 61626380 because W1 … W14 are zero).",
+  "message": "abc",
+  "algorithms": {
+    "sha-256": {
+      "vars": {
+        "0": [
+          "5d6aebcd",
+          "6a09e667",
+          "bb67ae85",
+          "3c6ef372",
+          "fa2a4622",
+          "510e527f",
+          "9b05688c",
+          "1f83d9ab"
+        ],
+        "1": [
+          "5a6ad9ad",
+          "5d6aebcd",
+          "6a09e667",
+          "bb67ae85",
+          "78ce7989",
+          "fa2a4622",
+          "510e527f",
+          "9b05688c"
+        ],
+        "15": [
+          "b0fa238e",
+          "c0645fde",
+          "d932eb16",
+          "87912990",
+          "07590dcd",
+          "0b92f20c",
+          "745a48de",
+          "1e578218"
+        ],
+        "16": [
+          "21da9a9b",
+          "b0fa238e",
+          "c0645fde",
+          "d932eb16",
+          "8034229c",
+          "07590dcd",
+          "0b92f20c",
+          "745a48de"
+        ],
+        "63": [
+          "506e3058",
+          "d39a2165",
+          "04d24d6c",
+          "b85e2ce9",
+          "5ef50f24",
+          "fb121210",
+          "948d25b6",
+          "961f4894"
+        ]
+      },
+      "w": {
+        "16": "61626380",
+        "63": "12b1edeb"
+      }
+    },
+    "sha-224": {
+      "vars": {
+        "0": [
+          "0e96b2da",
+          "c1059ed8",
+          "367cd507",
+          "3070dd17",
+          "0434225e",
+          "ffc00b31",
+          "68581511",
+          "64f98fa7"
+        ],
+        "1": [
+          "c20dab6b",
+          "0e96b2da",
+          "c1059ed8",
+          "367cd507",
+          "9cab416f",
+          "0434225e",
+          "ffc00b31",
+          "68581511"
+        ],
+        "15": [
+          "9f341a45",
+          "1d80d178",
+          "be316902",
+          "fc4f023e",
+          "6a61c411",
+          "4545f53a",
+          "65141125",
+          "87bea51a"
+        ],
+        "16": [
+          "0f324db9",
+          "9f341a45",
+          "1d80d178",
+          "be316902",
+          "06c80d6a",
+          "6a61c411",
+          "4545f53a",
+          "65141125"
+        ],
+        "63": [
+          "6203de4a",
+          "fd89031b",
+          "55d1c760",
+          "c693fc7a",
+          "2aedb1b3",
+          "55489ee6",
+          "7e730e00",
+          "13dfb889"
+        ]
+      }
+    }
+  }
+}

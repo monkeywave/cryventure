@@ -25,6 +25,7 @@ import {
   type TableFacet,
   type TraceBundle,
   type ValuesFacet,
+  type WordopsFacet,
 } from '@cryventure/core';
 import { CONTRACT_LOCALES, type LocaleCatalogs } from './catalogs.ts';
 
@@ -133,7 +134,26 @@ export function derivationGroupRefs(facet: DerivationFacet): I18nRef[] {
 
 /** Every ref a math facet emits: each step's formula and term labels (deduplicated). */
 export function mathFacetRefs(facet: MathFacet): I18nRef[] {
+  return termFacetRefs(facet);
+}
+
+/** A per-step facet whose steps carry a formula and labelled terms (`math`, `field`, `wordops`). */
+interface TermFacet {
+  steps: readonly { step: number; formula: I18nRef; terms: readonly { id: string; label: I18nRef; valueRef?: string }[] }[];
+}
+
+function termFacetRefs(facet: TermFacet): I18nRef[] {
   return uniqueRefs(facet.steps.flatMap((step) => [step.formula, ...step.terms.map((term) => term.label)]));
+}
+
+/** Term `valueRef`s that the bundle's `values` facet does not declare; `kind` prefixes each problem. */
+function termValueRefProblems(kind: string, facet: TermFacet, values: Pick<ValuesFacet, 'values'> | undefined): string[] {
+  const known = new Set(values?.values.map((value) => value.id) ?? []);
+  return facet.steps.flatMap((step) =>
+    step.terms
+      .filter((term) => term.valueRef !== undefined && !known.has(term.valueRef))
+      .map((term) => `${kind} step ${step.step} term "${term.id}": valueRef "${term.valueRef}" is not in the values facet`),
+  );
 }
 
 /** Every ref a table facet emits: its title. */
@@ -207,17 +227,22 @@ export function mathStepRangeProblems(facet: MathFacet, state: Pick<AnyStateFace
 
 /** Every ref a field facet emits: each step's formula and term labels (deduplicated). */
 export function fieldFacetRefs(facet: FieldFacet): I18nRef[] {
-  return uniqueRefs(facet.steps.flatMap((step) => [step.formula, ...step.terms.map((term) => term.label)]));
+  return termFacetRefs(facet);
 }
 
 /** Field term `valueRef`s that the bundle's `values` facet does not declare. */
 export function fieldValueRefProblems(facet: FieldFacet, values: Pick<ValuesFacet, 'values'> | undefined): string[] {
-  const known = new Set(values?.values.map((value) => value.id) ?? []);
-  return facet.steps.flatMap((step) =>
-    step.terms
-      .filter((term) => term.valueRef !== undefined && !known.has(term.valueRef))
-      .map((term) => `field step ${step.step} term "${term.id}": valueRef "${term.valueRef}" is not in the values facet`),
-  );
+  return termValueRefProblems('field', facet, values);
+}
+
+/** Every ref a wordops facet emits: each step's formula and term labels (deduplicated). */
+export function wordopsFacetRefs(facet: WordopsFacet): I18nRef[] {
+  return termFacetRefs(facet);
+}
+
+/** Wordops term `valueRef`s that the bundle's `values` facet does not declare. */
+export function wordopsValueRefProblems(facet: WordopsFacet, values: Pick<ValuesFacet, 'values'> | undefined): string[] {
+  return termValueRefProblems('wordops', facet, values);
 }
 
 /**
