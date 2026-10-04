@@ -1,0 +1,187 @@
+{
+  "source": "https://csrc.nist.gov/CSRC/media/Projects/Cryptographic-Standards-and-Guidelines/documents/examples/KMAC_samples.pdf and .../KMACXOF_samples.pdf (NIST SP 800-185 example values, https://csrc.nist.gov/projects/cryptographic-standards-and-guidelines/example-values)",
+  "filter": "All 12: KMAC samples #1-3 (KMAC128) and #4-6 (KMAC256), KMACXOF samples #1-3 (KMACXOF128) and #4-6 (KMACXOF256). customization is S as printed ('(null)' = empty string); outputLength = L / 8 bytes; run() at detail permutation.",
+  "count": 12,
+  "cases": [
+    {
+      "name": "SP 800-185 KMAC128 sample #1",
+      "params": {
+        "algorithm": "kmac128",
+        "key": "404142434445464748494a4b4c4d4e4f505152535455565758595a5b5c5d5e5f",
+        "encoding": "hex",
+        "input": "00010203",
+        "customization": "",
+        "outputLength": "32",
+        "detail": "permutation"
+      },
+      "outputs": {
+        "tag": "e5780b0d3ea6f7d3a429c5706aa43a00fadbd7d49628839e3187243f456ee14e"
+      }
+    },
+    {
+      "name": "SP 800-185 KMAC128 sample #2",
+      "params": {
+        "algorithm": "kmac128",
+        "key": "404142434445464748494a4b4c4d4e4f505152535455565758595a5b5c5d5e5f",
+        "encoding": "hex",
+        "input": "00010203",
+        "customization": "My Tagged Application",
+        "outputLength": "32",
+        "detail": "permutation"
+      },
+      "outputs": {
+        "tag": "3b1fba963cd8b0b59e8c1a6d71888b7143651af8ba0a7070c0979e2811324aa5"
+      }
+    },
+    {
+      "name": "SP 800-185 KMAC128 sample #3",
+      "params": {
+        "algorithm": "kmac128",
+        "key": "404142434445464748494a4b4c4d4e4f505152535455565758595a5b5c5d5e5f",
+        "encoding": "hex",
+        "input": "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f202122232425262728292a2b2c2d2e2f303132333435363738393a3b3c3d3e3f404142434445464748494a4b4c4d4e4f505152535455565758595a5b5c5d5e5f606162636465666768696a6b6c6d6e6f707172737475767778797a7b7c7d7e7f808182838485868788898a8b8c8d8e8f909192939495969798999a9b9c9d9e9fa0a1a2a3a4a5a6a7a8a9aaabacadaeafb0b1b2b3b4b5b6b7b8b9babbbcbdbebfc0c1c2c3c4c5c6c7",
+        "customization": "My Tagged Application",
+        "outputLength": "32",
+        "detail": "permutation"
+      },
+      "outputs": {
+        "tag": "1f5b4e6cca02209e0dcb5ca635b89a15e271ecc760071dfd805faa38f9729230"
+      }
+    },
+    {
+      "name": "SP 800-185 KMAC256 sample #4",
+      "params": {
+        "algorithm": "kmac256",
+        "key": "404142434445464748494a4b4c4d4e4f505152535455565758595a5b5c5d5e5f",
+        "encoding": "hex",
+        "input": "00010203",
+        "customization": "My Tagged Application",
+        "outputLength": "64",
+        "detail": "permutation"
+      },
+      "outputs": {
+        "tag": "20c570c31346f703c9ac36c61c03cb64c3970d0cfc787e9b79599d273a68d2f7f69d4cc3de9d104a351689f27cf6f5951f0103f33f4f24871024d9c27773a8dd"
+      }
+    },
+    {
+      "name": "SP 800-185 KMAC256 sample #5",
+      "params": {
+        "algorithm": "kmac256",
+        "key": "404142434445464748494a4b4c4d4e4f505152535455565758595a5b5c5d5e5f",
+        "encoding": "hex",
+        "input": "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f202122232425262728292a2b2c2d2e2f303132333435363738393a3b3c3d3e3f404142434445464748494a4b4c4d4e4f505152535455565758595a5b5c5d5e5f606162636465666768696a6b6c6d6e6f707172737475767778797a7b7c7d7e7f808182838485868788898a8b8c8d8e8f909192939495969798999a9b9c9d9e9fa0a1a2a3a4a5a6a7a8a9aaabacadaeafb0b1b2b3b4b5b6b7b8b9babbbcbdbebfc0c1c2c3c4c5c6c7",
+        "customization": "",
+        "outputLength": "64",
+        "detail": "permutation"
+      },
+      "outputs": {
+        "tag": "75358cf39e41494e949707927cee0af20a3ff553904c86b08f21cc414bcfd691589d27cf5e15369cbbff8b9a4c2eb17800855d0235ff635da82533ec6b759b69"
+      }
+    },
+    {
+      "name": "SP 800-185 KMAC256 sample #6",
+      "params": {
+        "algorithm": "kmac256",
+        "key": "404142434445464748494a4b4c4d4e4f505152535455565758595a5b5c5d5e5f",
+        "encoding": "hex",
+        "input": "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f202122232425262728292a2b2c2d2e2f303132333435363738393a3b3c3d3e3f404142434445464748494a4b4c4d4e4f505152535455565758595a5b5c5d5e5f606162636465666768696a6b6c6d6e6f707172737475767778797a7b7c7d7e7f808182838485868788898a8b8c8d8e8f909192939495969798999a9b9c9d9e9fa0a1a2a3a4a5a6a7a8a9aaabacadaeafb0b1b2b3b4b5b6b7b8b9babbbcbdbebfc0c1c2c3c4c5c6c7",
+        "customization": "My Tagged Application",
+        "outputLength": "64",
+        "detail": "permutation"
+      },
+      "outputs": {
+        "tag": "b58618f71f92e1d56c1b8c55ddd7cd188b97b4ca4d99831eb2699a837da2e4d970fbacfde50033aea585f1a2708510c32d07880801bd182898fe476876fc8965"
+      }
+    },
+    {
+      "name": "SP 800-185 KMACXOF128 sample #1",
+      "params": {
+        "algorithm": "kmacxof128",
+        "key": "404142434445464748494a4b4c4d4e4f505152535455565758595a5b5c5d5e5f",
+        "encoding": "hex",
+        "input": "00010203",
+        "customization": "",
+        "outputLength": "32",
+        "detail": "permutation"
+      },
+      "outputs": {
+        "tag": "cd83740bbd92ccc8cf032b1481a0f4460e7ca9dd12b08a0c4031178bacd6ec35"
+      }
+    },
+    {
+      "name": "SP 800-185 KMACXOF128 sample #2",
+      "params": {
+        "algorithm": "kmacxof128",
+        "key": "404142434445464748494a4b4c4d4e4f505152535455565758595a5b5c5d5e5f",
+        "encoding": "hex",
+        "input": "00010203",
+        "customization": "My Tagged Application",
+        "outputLength": "32",
+        "detail": "permutation"
+      },
+      "outputs": {
+        "tag": "31a44527b4ed9f5c6101d11de6d26f0620aa5c341def41299657fe9df1a3b16c"
+      }
+    },
+    {
+      "name": "SP 800-185 KMACXOF128 sample #3",
+      "params": {
+        "algorithm": "kmacxof128",
+        "key": "404142434445464748494a4b4c4d4e4f505152535455565758595a5b5c5d5e5f",
+        "encoding": "hex",
+        "input": "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f202122232425262728292a2b2c2d2e2f303132333435363738393a3b3c3d3e3f404142434445464748494a4b4c4d4e4f505152535455565758595a5b5c5d5e5f606162636465666768696a6b6c6d6e6f707172737475767778797a7b7c7d7e7f808182838485868788898a8b8c8d8e8f909192939495969798999a9b9c9d9e9fa0a1a2a3a4a5a6a7a8a9aaabacadaeafb0b1b2b3b4b5b6b7b8b9babbbcbdbebfc0c1c2c3c4c5c6c7",
+        "customization": "My Tagged Application",
+        "outputLength": "32",
+        "detail": "permutation"
+      },
+      "outputs": {
+        "tag": "47026c7cd793084aa0283c253ef658490c0db61438b8326fe9bddf281b83ae0f"
+      }
+    },
+    {
+      "name": "SP 800-185 KMACXOF256 sample #4",
+      "params": {
+        "algorithm": "kmacxof256",
+        "key": "404142434445464748494a4b4c4d4e4f505152535455565758595a5b5c5d5e5f",
+        "encoding": "hex",
+        "input": "00010203",
+        "customization": "My Tagged Application",
+        "outputLength": "64",
+        "detail": "permutation"
+      },
+      "outputs": {
+        "tag": "1755133f1534752aad0748f2c706fb5c784512cab835cd15676b16c0c6647fa96faa7af634a0bf8ff6df39374fa00fad9a39e322a7c92065a64eb1fb0801eb2b"
+      }
+    },
+    {
+      "name": "SP 800-185 KMACXOF256 sample #5",
+      "params": {
+        "algorithm": "kmacxof256",
+        "key": "404142434445464748494a4b4c4d4e4f505152535455565758595a5b5c5d5e5f",
+        "encoding": "hex",
+        "input": "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f202122232425262728292a2b2c2d2e2f303132333435363738393a3b3c3d3e3f404142434445464748494a4b4c4d4e4f505152535455565758595a5b5c5d5e5f606162636465666768696a6b6c6d6e6f707172737475767778797a7b7c7d7e7f808182838485868788898a8b8c8d8e8f909192939495969798999a9b9c9d9e9fa0a1a2a3a4a5a6a7a8a9aaabacadaeafb0b1b2b3b4b5b6b7b8b9babbbcbdbebfc0c1c2c3c4c5c6c7",
+        "customization": "",
+        "outputLength": "64",
+        "detail": "permutation"
+      },
+      "outputs": {
+        "tag": "ff7b171f1e8a2b24683eed37830ee797538ba8dc563f6da1e667391a75edc02ca633079f81ce12a25f45615ec89972031d18337331d24ceb8f8ca8e6a19fd98b"
+      }
+    },
+    {
+      "name": "SP 800-185 KMACXOF256 sample #6",
+      "params": {
+        "algorithm": "kmacxof256",
+        "key": "404142434445464748494a4b4c4d4e4f505152535455565758595a5b5c5d5e5f",
+        "encoding": "hex",
+        "input": "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f202122232425262728292a2b2c2d2e2f303132333435363738393a3b3c3d3e3f404142434445464748494a4b4c4d4e4f505152535455565758595a5b5c5d5e5f606162636465666768696a6b6c6d6e6f707172737475767778797a7b7c7d7e7f808182838485868788898a8b8c8d8e8f909192939495969798999a9b9c9d9e9fa0a1a2a3a4a5a6a7a8a9aaabacadaeafb0b1b2b3b4b5b6b7b8b9babbbcbdbebfc0c1c2c3c4c5c6c7",
+        "customization": "My Tagged Application",
+        "outputLength": "64",
+        "detail": "permutation"
+      },
+      "outputs": {
+        "tag": "d5be731c954ed7732846bb59dbe3a8e30f83e77a4bff4459f2f1c2b4ecebb8ce67ba01c62e8ab8578d2d499bd1bb276768781190020a306a97de281dcc30305d"
+      }
+    }
+  ]
+}

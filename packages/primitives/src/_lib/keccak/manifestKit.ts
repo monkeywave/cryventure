@@ -1,9 +1,9 @@
-import { opLabels, readOption, readText, utf8Bytes, type ParamField, type ValidationResult } from '@cryventure/core';
-import { HASH_ENCODINGS, hashLabParamsFor, messageField, paramError, readMessageInput, selectField, type HashEncoding, type HashLabParams } from '../hashKit/manifestKit.ts';
+import { opLabels, parseHexOfLength, readOption, readText, utf8Bytes, type ParamField, type ValidationResult } from '@cryventure/core';
+import { HASH_ENCODINGS, hashLabParamsFor, messageField, messageLengths, paramError, readMessageInput, selectField, type HashEncoding, type HashLabParams } from '../hashKit/manifestKit.ts';
 
 /**
- * The eager manifest parts of the `sha3` producer (docs/M6.md §2b): algorithm ids, param fields and
- * validation. Manifests load eagerly, so this module imports `@cryventure/core` and the shared hash manifest kit
+ * The eager manifest parts of the `sha3` and `kmac` producers (docs/M6.md §2b, docs/M7.md §2c):
+ * algorithm ids, param fields and validation. Manifests load eagerly, so this module imports `@cryventure/core` and the shared hash manifest kit
  * only (the sponge and the recorder stay behind `load()`).
  */
 
@@ -117,3 +117,83 @@ export const sha3HashLabParams: HashLabParams = hashLabParamsFor(KECCAK_HASH_IDS
   customization: '',
   detail: 'mapping',
 }));
+
+// ---- KMAC (SP 800-185 §4; docs/M7.md §2c) ----
+
+/** KMAC128/256 (the `Mac` port's members) and the lab-only KMACXOF128/256. */
+export const KMAC_MAC_IDS = ['kmac128', 'kmac256'] as const;
+export const KMAC_ALGORITHM_IDS = [...KMAC_MAC_IDS, 'kmacxof128', 'kmacxof256'] as const;
+export type KmacAlgorithmId = (typeof KMAC_ALGORITHM_IDS)[number];
+/** The output length L in bytes (KMAC128 samples: 32, KMAC256 samples: 64; 168 = one KMAC128 rate block). */
+export const KMAC_OUTPUT_LENGTHS = ['16', '32', '64', '168'] as const;
+export type KmacOutputLength = (typeof KMAC_OUTPUT_LENGTHS)[number];
+/** The recorded ops: the two KMAC encodings, then those of the cSHAKE sponge. */
+export const KMAC_OP_NAMES = ['encodeKey', 'encodeLength', ...SHA3_OP_NAMES] as const;
+export type KmacOpName = (typeof KMAC_OP_NAMES)[number];
+/** K: at most 64 bytes (SP 800-185 samples: 32); X: at most 200 bytes; S: at most 64 UTF-8 bytes. */
+export const KMAC_MAX_KEY_BYTES = 64;
+export const KMAC_MAX_MESSAGE_BYTES = SHA3_MAX_MESSAGE_BYTES;
+export const KMAC_MAX_CUSTOM_BYTES = SHA3_MAX_CUSTOM_BYTES;
+
+export interface KmacParams {
+  algorithm: KmacAlgorithmId;
+  /** K as hex (lowercase, no separators), 0 … 64 bytes. */
+  key: string;
+  encoding: Sha3Encoding;
+  /** The message X: UTF-8 text, or hex (normalised) while `encoding` is `hex`. */
+  input: string;
+  /** The customization string S (UTF-8). */
+  customization: string;
+  outputLength: KmacOutputLength;
+  detail: Sha3Detail;
+}
+
+/** The param fields: algorithm, key, encoding, message, S, output length, detail. */
+export function kmacParamFields(ns: string): ParamField[] {
+  return [
+    selectField(ns, 'algorithm', KMAC_ALGORITHM_IDS),
+    { name: 'key', kind: 'hex', labelKey: `${ns}.param.key`, hintKey: `${ns}.param.keyHint` },
+    selectField(ns, 'encoding', SHA3_ENCODINGS),
+    messageField(ns, KMAC_MAX_MESSAGE_BYTES),
+    textField(ns, 'customization', KMAC_MAX_CUSTOM_BYTES),
+    selectField(ns, 'outputLength', KMAC_OUTPUT_LENGTHS),
+    selectField(ns, 'detail', SHA3_DETAILS),
+  ];
+}
+
+/** The op labels (`<ns>.op.<name>`, `<ns>.opShort.<name>`). */
+export const kmacOps = (ns: string) => opLabels(ns, KMAC_OP_NAMES);
+
+/** K: hex of 0 … 64 bytes, normalised. */
+function readKmacKey(ns: string, input: unknown): ValidationResult<string> {
+  const hex = parseHexOfLength(input, messageLengths(KMAC_MAX_KEY_BYTES), { invalidType: `${ns}.error.invalidParams`, wrongLength: `${ns}.error.keyLength` });
+  return hex.ok ? { ok: true, value: hex.hex } : hex;
+}
+
+/** S: a string of at most 64 UTF-8 bytes. */
+function readKmacCustomization(ns: string, value: unknown): ValidationResult<string> {
+  const text = readText(value ?? '', KMAC_MAX_CUSTOM_BYTES);
+  if (text !== undefined) return { ok: true, value: text };
+  return typeof value === 'string' ? paramError(ns, 'customizationLength', { length: utf8Bytes(value).length }) : paramError(ns, 'invalidParams');
+}
+
+/** Validates and normalises KMAC params (hex lowercased with separators stripped; every select checked). */
+export function validateKmacParams(ns: string, params: unknown): ValidationResult<KmacParams> {
+  if (typeof params !== 'object' || params === null) return paramError(ns, 'invalidParams');
+  const record = params as Record<string, unknown>;
+  const algorithm = readOption(record['algorithm'], KMAC_ALGORITHM_IDS);
+  if (algorithm === undefined) return paramError(ns, 'algorithm', { algorithm: String(record['algorithm']) });
+  const encoding = readOption(record['encoding'], SHA3_ENCODINGS);
+  if (encoding === undefined) return paramError(ns, 'encoding', { encoding: String(record['encoding']) });
+  const outputLength = readOption(record['outputLength'], KMAC_OUTPUT_LENGTHS);
+  if (outputLength === undefined) return paramError(ns, 'outputLength', { outputLength: String(record['outputLength']) });
+  const detail = readOption(record['detail'], SHA3_DETAILS);
+  if (detail === undefined) return paramError(ns, 'detail', { detail: String(record['detail']) });
+  const key = readKmacKey(ns, record['key']);
+  if (!key.ok) return key;
+  const input = readMessageInput(ns, record['input'], encoding, KMAC_MAX_MESSAGE_BYTES);
+  if (!input.ok) return input;
+  const customization = readKmacCustomization(ns, record['customization']);
+  if (!customization.ok) return customization;
+  return { ok: true, value: { algorithm, key: key.value, encoding, input: input.value, customization: customization.value, outputLength, detail } };
+}

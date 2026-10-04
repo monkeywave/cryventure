@@ -1,16 +1,18 @@
 import { i18nRef, scopeLevels } from '@cryventure/core';
 import { describe, expect, it } from 'vitest';
-import { initialSnapshot } from '../_lib/sha2/regions.ts';
-import { sha3Regions } from './regions.ts';
+import { initialSnapshot } from '../sha2/regions.ts';
+import type { Sha3OpName } from './manifestKit.ts';
 import { SpongeRecorder } from './spongeRecorder.ts';
+import { spongeRegions } from './spongeRecording.ts';
+import type { SpongeRegion } from './spongeSteps.ts';
 
 const NARRATION = i18nRef('plugin.sha3.step.output');
 const LANES = new Array<string>(25).fill('0000000000000000');
 const LEVELS = scopeLevels('plugin.sha3', 'block', 'round', 'op');
 
-function recorder(): SpongeRecorder {
-  const regions = sha3Regions(1, 136, 32);
-  return new SpongeRecorder(regions, initialSnapshot(regions, { message: [1] }), i18nRef('plugin.sha3.step.initial'));
+function recorder(): SpongeRecorder<SpongeRegion, Sha3OpName> {
+  const regions = spongeRegions('plugin.sha3', 136, 32);
+  return new SpongeRecorder<SpongeRegion, Sha3OpName>(regions, initialSnapshot(regions, {}), i18nRef('plugin.sha3.step.initial'));
 }
 
 describe('SpongeRecorder', () => {
