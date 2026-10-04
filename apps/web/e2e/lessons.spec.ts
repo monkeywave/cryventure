@@ -11,6 +11,8 @@ interface LessonPage {
   code?: string;
   title: Record<Lang, string>;
   labId?: string;
+  /** Further labs on the page; each must hydrate too. */
+  moreLabIds?: readonly string[];
 }
 
 const AES_LESSONS: readonly LessonPage[] = [
@@ -45,6 +47,20 @@ const MODE_LESSONS: readonly LessonPage[] = [
   { slug: 'symmetric/modes/gcm/', code: 'GCM', title: { en: 'GCM: counter mode with a tag', de: 'GCM: Zählermodus mit Tag' }, labId: 'gcm-tc4' },
 ];
 
+/** Lessons of the "Hash functions" group (docs/M5.md §7), in sidebar order. */
+const HASH_LESSONS: readonly LessonPage[] = [
+  { slug: 'hash/', title: { en: 'Hash functions', de: 'Hashfunktionen' }, labId: 'hash-overview' },
+  { slug: 'hash/sha256/', title: { en: 'SHA-256 inside', de: 'SHA-256 von innen' }, labId: 'sha256-abc', moreLabIds: ['sha256-k', 'sha256-sha-ni'] },
+  {
+    slug: 'hash/sha512/',
+    title: { en: 'SHA-512 and its truncated variants', de: 'SHA-512 und seine gekürzten Varianten' },
+    labId: 'sha512-abc',
+    moreLabIds: ['sha512-256-iv', 'sha384-iv'],
+  },
+];
+
+const HASH_GROUP: Record<Lang, string> = { en: 'Hash functions', de: 'Hashfunktionen' };
+
 const MODES_OVERVIEW = { slug: 'symmetric/modes/', title: { en: 'Modes of operation', de: 'Betriebsmodi' } } as const;
 
 const SIX_PARTS: Record<Lang, RegExp> = {
@@ -67,7 +83,7 @@ const START_POSITIONS = [
 ] as const;
 
 for (const lang of ['en', 'de'] as const) {
-  for (const lesson of [...AES_LESSONS, ...MODE_LESSONS]) {
+  for (const lesson of [...AES_LESSONS, ...MODE_LESSONS, ...HASH_LESSONS]) {
     test(`${lang}/${lesson.slug} renders all six lesson parts`, async ({ page }) => {
       const response = await page.goto(`${lang}/${lesson.slug}`);
       expect(response?.status()).toBe(200);
@@ -77,6 +93,7 @@ for (const lang of ['en', 'de'] as const) {
       await expect(page.locator('.cv-lesson-section__eyebrow').last()).toHaveText(SIX_PARTS[lang]);
       await expect(page.locator('.cv-check')).not.toHaveCount(0);
       if (lesson.labId !== undefined) await waitForLab(page, lesson.labId);
+      for (const labId of lesson.moreLabIds ?? []) await waitForLab(page, labId);
     });
   }
 }
@@ -113,6 +130,19 @@ test('sidebar walks through the mode lessons in order (EN)', async ({ page }) =>
     await expect(page.getByRole('heading', { level: 1 })).toHaveText(lesson.title.en);
   }
 });
+
+for (const lang of ['en', 'de'] as const) {
+  test(`sidebar walks through the hash lessons in order (${lang.toUpperCase()})`, async ({ page }) => {
+    await page.goto(`${lang}/${HASH_LESSONS[0]!.slug}`);
+    const sidebar = page.locator('#starlight__sidebar');
+    await expect(sidebar.locator('summary').getByText(HASH_GROUP[lang], { exact: true })).toBeVisible();
+    for (const lesson of HASH_LESSONS) {
+      await sidebar.getByRole('link', { name: lesson.title[lang], exact: true }).click();
+      await expect(page).toHaveURL(new RegExp(`/${lang}/${lesson.slug}$`));
+      await expect(page.getByRole('heading', { level: 1 })).toHaveText(lesson.title[lang]);
+    }
+  });
+}
 
 test('German sidebar shows the translated block-cipher group', async ({ page }) => {
   await page.goto('de/symmetric/aes/');

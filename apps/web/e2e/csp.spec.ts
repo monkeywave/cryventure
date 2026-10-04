@@ -75,6 +75,19 @@ test.describe('CSP (no violations)', () => {
     await expect(lab.locator('.cv-timeline__step')).not.toBeEmpty();
   });
 
+  test('the SHA-256 lesson hydrates its wordops, constants and lazily derived SHA-NI labs', async ({ page }) => {
+    await page.goto('en/hash/sha256/');
+    await expectStrictMetaPolicy(page);
+    const round = await waitForLab(page, 'sha256-abc');
+    await labButton(round, 'ui.player.next').click();
+    await expect(round.locator('.cv-wordops [data-term="T1"]')).toBeVisible();
+    const constants = await waitForLab(page, 'sha256-k');
+    await expect(constants.locator('.cv-wordops')).toBeVisible();
+    const hardware = await waitForLab(page, 'sha256-sha-ni');
+    await expect(hardware.locator('.cv-instructions')).toContainText(/sha256rnds2/i);
+    await expect(hardware.locator('.cv-registers .cv-cell').first()).toBeVisible();
+  });
+
   test('the standalone lab route /en/lab/aes/', async ({ page }) => {
     await page.goto('en/lab/aes/');
     await expectStrictMetaPolicy(page);

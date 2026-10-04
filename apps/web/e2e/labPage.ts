@@ -1,5 +1,5 @@
 import { expect, type Locator, type Page } from '@playwright/test';
-import { interpolate, type Locale } from '@cryventure/core';
+import { interpolate, type Lens, type Locale } from '@cryventure/core';
 import vizEn from '../../../packages/viz/src/i18n/en.json' with { type: 'json' };
 import vizDe from '../../../packages/viz/src/i18n/de.json' with { type: 'json' };
 
@@ -101,4 +101,25 @@ export async function stateHex(lab: Locator, region = 'state'): Promise<string> 
 export async function expectNoHorizontalOverflow(page: Page): Promise<void> {
   const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
   expect(overflow).toBeLessThanOrEqual(0);
+}
+
+/** Sets the page lens the way the header selector does (on a phone it sits in the collapsed menu). */
+export async function setLens(page: Page, lens: Lens): Promise<void> {
+  await page.evaluate((value) => {
+    const select = document.querySelector<HTMLSelectElement>('cv-lens-select select');
+    if (!select) throw new Error('lens selector missing');
+    select.value = value;
+    select.dispatchEvent(new Event('change', { bubbles: true }));
+  }, lens);
+  await expect(page.locator('html')).toHaveAttribute('data-lens', lens);
+}
+
+/** Labs mount when they scroll into view; bring each one in and wait until it is interactive. */
+export async function mountLabs(page: Page): Promise<void> {
+  const labs = page.locator('[data-lab-id]');
+  const count = await labs.count();
+  for (let index = 0; index < count; index += 1) {
+    await labs.nth(index).scrollIntoViewIfNeeded();
+    await expect(labs.nth(index).locator('section.cv-lab')).toBeVisible({ timeout: 15_000 });
+  }
 }
