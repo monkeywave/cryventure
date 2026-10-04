@@ -23,7 +23,7 @@ refs:
   - FIPS 202, Abschnitt 7, Tabelle 3 (Blockgrößen für HMAC)
   - Lawson (2009), Timing attack in Google Keyczar library, root labs rdist (Blog), Mai 2009
   - Dokumentation der Python-Standardbibliothek, hmac.compare_digest
-sourceHash: sha256:628878c5fd22ddb3f1dfd4557cd2dc7a8dbcda6139d1710cdaf7521cfa9b0a71
+sourceHash: sha256:d9880e641a5093668c42e44931fef415f65db7d44ef2cb0ee1b9ce6e78d500da
 translation:
   status: ai-reviewed
   reviewedAt: '2026-10-04'
@@ -44,7 +44,7 @@ import WhyBox from '../../../../components/lesson/WhyBox.astro';
 ## Zwei Hashes, zwei Pads
 
 Bellare, Canetti und Krawczyk stellten HMAC mit einem Beweis vor (CRYPTO 1996); RFC 2104 (1997)
-spezifizierte es, und NIST übernahm es als FIPS 198 (2002), heute FIPS 198-1 (2008). HMAC
+spezifizierte ihn, und NIST übernahm ihn als FIPS 198 (2002), heute FIPS 198-1 (2008). HMAC
 umhüllt jede iterierte Hashfunktion `H` mit Blockgröße `B` und Ausgabelänge `L` (RFC 2104, §2):
 
 <Formula caption="HMAC, RFC 2104 §2 und FIPS 198-1 §4. K0 = der Schlüssel als ein Block mit B Byte.">
@@ -61,15 +61,14 @@ opad = 5c 5c … 5c   (B Byte)`}
 </KeyFacts>
 
 <WhyBox constant="ipad = 0x36, opad = 0x5c" title="warum diese beiden Pads">
-  Der Beweis braucht nur, dass sich `K0 ⊕ ipad` und `K0 ⊕ opad` unterscheiden, damit die beiden
-  Hashes unter zwei verschiedenen Schlüsseln laufen (Bellare, Canetti, Krawczyk 1996; RFC 2104,
-  §2). `36 ⊕ 5c = 6a = 01101010`: Die Pads unterscheiden sich in 4 von 8 Bit pro Byte. Die Werte
-  sind festgelegt, damit alle Implementierungen übereinstimmen; eine tiefere Herleitung ist nicht
-  veröffentlicht.
+  HMAC ist NMAC mit zwei Schlüsseln, die als `f(K0 ⊕ ipad)` und `f(K0 ⊕ opad)` abgeleitet werden.
+  Der Beweis behandelt sie als unabhängig, dafür müssen sich die Pads unterscheiden (BCK 1996, §5.2;
+  RFC 2104, §2). BCK wählten `0x36` und `0x5c` wegen der einfachen Darstellung und eines großen
+  Hamming-Abstands: `36 ⊕ 5c = 6a = 01101010`, 4 von 8 Bit pro Byte. Mehr wird nicht behauptet.
 </WhyBox>
 
 <WhyBox constant="t ≥ 80 Bit" title="warum ein Tag mindestens 80 Bit braucht">
-  RFC 2104, §5 verlangt mindestens `L/2` und mindestens 80 Bit, eine sinnvolle Untergrenze für die
+  RFC 2104, §5 empfiehlt mindestens `L/2` und mindestens 80 Bit, eine sinnvolle Untergrenze für die
   Zahl der Bits, die ein Angreifer vorhersagen muss.
 </WhyBox>
 
@@ -118,8 +117,8 @@ mit `SHA-256(K) = 45ad4b37 … a521db81`; das Tag ist `60e43159 … 0ee37f54`.
 
 <Lab labId="hmac-long-key" producerId="hmac" presetId="rfc4231-tc6-longkey" startAt="op:keyPrep" layout="derivation:45|state:30|narration:25" />
 
-Die Blöcke `K0 ⊕ ipad` und `K0 ⊕ opad` hängen nur vom Schlüssel ab. Nach RFC 2104, §4 speicherst
-du die beiden **Zwischenzustände** (Midstates) nach diesen Blöcken; jede Nachricht kostet dann nur
+Die Blöcke `K0 ⊕ ipad` und `K0 ⊕ opad` hängen nur vom Schlüssel ab. Nach RFC 2104, §4 speichert
+eine Implementierung die beiden **Zwischenzustände** (Midstates) nach diesen Blöcken; jede Nachricht kostet dann nur
 ihre eigenen Blöcke plus eine äußere Kompression.
 
 Ein Tag darf auf seine ersten `t` Bit **gekürzt** werden (FIPS 198-1, §5), mit `t ≥ L/2` und
@@ -161,10 +160,10 @@ SHA2-Befehle von ARMv8 unverändert ([Seite zu SHA-256](../../hash/sha256/)).
 **Kein äußerer Hash.** HMAC schrumpft dann zu `H((K0 ⊕ ipad) ‖ m)`, einem MAC mit geheimem
 Präfix, offen für Längenerweiterung ([Seite zu SHA-512](../../hash/sha512/#mallory-verlängert-die-kette)).
 
-**Kurze Tags.** Weniger Bits heißt weniger zu erraten; RFC 2104, §5 behält mindestens 80.
+**Kurze Tags.** Weniger Bits heißt weniger zu erraten; RFC 2104, §5 setzt die Untergrenze bei 80 Bit.
 
 **Vergleich mit vorzeitigem Abbruch.** 2009 berichtete Nate Lawson, dass Googles Bibliothek
-Keyczar HMAC-Tags Byte für Byte verglich und beim ersten Unterschied zurückkehrte. Die Prüfzeit
+Keyczar HMAC-Tags Byte für Byte verglich und beim ersten Unterschied abbrach. Die Prüfzeit
 verriet also, wie viele führende Bytes eines gefälschten Tags stimmten (Lawson 2009). Die Abhilfe
 ist ein Vergleich, dessen Laufzeit nicht von den Daten abhängt: Der Prüfschritt des Labs
 verknüpft jedes Bytepaar per XOR und sammelt das Ergebnis per ODER in einem Akkumulator, ohne
@@ -191,8 +190,8 @@ in Python (Python-Dokumentation).
   ]}
   answer={1}
 >
-  Nur, dass `K0 ⊕ ipad ≠ K0 ⊕ opad` gilt (Bellare, Canetti, Krawczyk 1996; RFC 2104, §2). `0x36`
-  und `0x5c` sind öffentlich, für die Interoperabilität festgelegt und unterscheiden sich in 4 von
+  Dass sie sich unterscheiden, damit die beiden abgeleiteten Schlüssel als unabhängig gelten können
+  (Bellare, Canetti, Krawczyk 1996, §5.2; RFC 2104, §2). `0x36` und `0x5c` sind öffentlich, für die Interoperabilität festgelegt und unterscheiden sich in 4 von
   8 Bit pro Byte.
 </CheckQuestion>
 

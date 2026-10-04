@@ -23,7 +23,7 @@ refs:
   - OWASP Password Storage Cheat Sheet (abgerufen am 4. Oktober 2026), Abschnitt PBKDF2
   - RFC 7914 (scrypt)
   - RFC 9106 (Argon2)
-sourceHash: sha256:490fa5d7653927f76aca8ac4e6ffd2e7a6aa009b7ca3f79749d85389ccb9202b
+sourceHash: sha256:3ed85e93fee10b9ae14adb0475abdc9ab7766cf396d2d2997ca5f8eb1431fb20
 translation:
   status: ai-reviewed
   reviewedAt: '2026-10-04'
@@ -56,10 +56,10 @@ Aufrufe der Pseudozufallsfunktion (PRF) kostet statt einem (RFC 8018, §4.2). Di
   <KeyFact label="Ausgabe" value="dkLen Byte" kind="ciphertext" />
 </KeyFacts>
 
-<WhyBox constant="salt" title="warum jedes Passwort sein eigenes Salt bekommt">
+<WhyBox constant="Salt" title="warum jedes Passwort sein eigenes Salt bekommt">
   Durch das Salt führt ein Passwort zu vielen möglichen Schlüsseln, also kann ein Angreifer keine
   Tabelle abgeleiteter Schlüssel einmal vorberechnen und für jedes Opfer wiederverwenden
-  (RFC 8018, §4.1). RFC 8018 verlangt mindestens 64 Bit Salt, NIST SP 800-132 mindestens 128 Bit,
+  (RFC 8018, §4.1). RFC 8018 empfiehlt mindestens 64 Bit Salt, NIST SP 800-132 verlangt mindestens 128 Bit,
   zufällig erzeugt (§5.1).
 </WhyBox>
 
@@ -83,7 +83,7 @@ HMAC-Aufruf hinein.
 
 <Lab labId="pbkdf2-rfc6070-tc2" producerId="pbkdf2" presetId="rfc6070-tc2" layout="derivation:45|state:30|narration:25" />
 
-Das Lab ist ein Lehrwerkzeug: Gib hier kein echtes Passwort ein. Alles bleibt auf der Seite, aber
+Das Lab ist ein Lernwerkzeug: Gib hier kein echtes Passwort ein. Alles bleibt auf der Seite, aber
 die Parameter, das Passwort eingeschlossen, landen im Deep Link in der Adresszeile.
 
 </LessonSection>
@@ -101,14 +101,14 @@ DK  = T₁ ‖ T₂ ‖ … ‖ T_⌈dkLen/hLen⌉       (gekürzt auf dkLen Byt
 
 Die Iterationen laufen streng nacheinander: `U_j` braucht `U_{j−1}`. Mit `c = 4096` (RFC 6070,
 §2, Testfall 3) zeichnet das Lab `U₁ … U₃` und `U₄₀₉₆` auf und fasst den Rest in einem
-übersprungenen Schritt zusammen; der Schlüssel ist `4b007901 … 65a429c1`. Es läuft in einem Web
+einzigen Schritt („Übersprungen“) zusammen; der Schlüssel ist `4b007901 … 65a429c1`. Es läuft in einem Web
 Worker, damit die Seite reaktionsfähig bleibt.
 
 <Lab labId="pbkdf2-rfc6070-tc3" producerId="pbkdf2" presetId="rfc6070-tc3" layout="derivation:45|state:30|narration:25" />
 
 <Lens level="cryptographer">
 
-Das XOR hält jedes `U_j` in der Ausgabe fest, wer späte Iterationen auslässt, bekommt also einen
+Das XOR hält jedes `U_j` in der Ausgabe fest: Wer späte Iterationen auslässt, bekommt einen
 anderen Schlüssel; und jeder Block `T_i` startet die Kette mit seinem eigenen Index `i` neu
 (RFC 8018, §5.2).
 
@@ -120,9 +120,9 @@ anderen Schlüssel; und jeder Block `T_i` startet die Kette mit seinem eigenen I
 
 ## Zwei Kompressionen pro Iteration
 
-HMAC ist `H((K ⊕ opad) ‖ H((K ⊕ ipad) ‖ m))` (RFC 2104, §2). In PBKDF2 ist der Schlüssel `K`
-immer das Passwort, also lassen sich die Hash-Zustände nach den Blöcken `K ⊕ ipad` und
-`K ⊕ opad`, die **Zwischenzustände (Midstates)**, einmal berechnen und wiederverwenden
+HMAC ist `H((K0 ⊕ opad) ‖ H((K0 ⊕ ipad) ‖ m))` (RFC 2104, §2). In PBKDF2 ist der Schlüssel `K`
+immer das Passwort, also lassen sich die Hash-Zustände nach den Blöcken `K0 ⊕ ipad` und
+`K0 ⊕ opad`, die **Zwischenzustände (Midstates)**, einmal berechnen und wiederverwenden
 (RFC 2104, §4). Genau das macht das Lab: ein Kontext mit Schlüssel, für jeden Aufruf kopiert.
 
 | Pro HMAC-Aufruf | Ohne Zwischenzustände | Mit Zwischenzuständen |
@@ -132,7 +132,7 @@ immer das Passwort, also lassen sich die Hash-Zustände nach den Blöcken `K ⊕
 
 Jede Iteration kostet also etwa **2 Kompressionen** (siehe [HMAC](../../mac/hmac/)), `c = 4096`
 etwa 8192. Der Angreifer nutzt denselben Trick, der Verteidiger gewinnt ihm gegenüber also nichts;
-der Trick spart nur Verschwendung. Der Arbeitsspeicherbedarf ist ein paar Hash-Zustände, wenige
+der Trick spart nur Verschwendung. Der Speicherbedarf besteht aus ein paar Hash-Zuständen, wenigen
 hundert Byte: billig auf GPUs und ASICs zu vervielfachen.
 
 </LessonSection>
@@ -142,23 +142,24 @@ hundert Byte: billig auf GPUs und ASICs zu vervielfachen.
 ## Mallory bringt eine Tabelle mit, dann eine GPU
 
 **Ohne Salt** ergibt ein Passwort immer denselben Schlüssel, also hasht Mallory ein Wörterbuch
-einmal und schlägt jedes Opfer darin nach (RFC 8018, §4.1). Die Iterationszahl erhöht die Kosten
+einmal für alle Opfer (RFC 8018, §4.1). Die Iterationszahl erhöht die Kosten
 linear für **beide** Seiten (§4.2): Der Verteidiger zahlt `c` einmal pro Anmeldung, Mallory `c`
 pro Rateversuch.
 
-Empfehlungen für `c`: RFC 8018 (§4.2) und SP 800-132 (§5.2) nennen mindestens 1000, SP 800-132
-bis zu 10.000.000 für kritische Schlüssel. Das OWASP Password Storage Cheat Sheet empfiehlt
+Empfehlungen für `c`: RFC 8018 (§4.2) und SP 800-132 (§5.2): mindestens 1000 und „so groß wie
+möglich“, solange Anmelden zumutbar bleibt; für besonders kritische Schlüssel können
+10.000.000 passen (SP 800-132). Das OWASP Password Storage Cheat Sheet empfiehlt
 **600.000** Iterationen für PBKDF2-HMAC-SHA256 (Stand: 4. Oktober 2026) und bevorzugt Argon2id,
-sofern nicht FIPS 140 verlangt ist.
+sofern keine FIPS-140-Konformität verlangt ist.
 
-PBKDF2 braucht fast keinen Speicher, also rät parallele Hardware billig. Das speicherintensive
-(engl. *memory-hard*) scrypt (RFC 7914) und Argon2id (RFC 9106) verlangen pro Rateversuch auch
-Speicher: Das kommt in einem späteren Kapitel.
+PBKDF2 braucht fast keinen Speicher, also lässt sich auf paralleler Hardware billig raten. Die
+speicherintensiven (engl. *memory-hard*) KDFs scrypt (RFC 7914) und Argon2id (RFC 9106) verlangen
+pro Rateversuch auch Speicher (späteres Kapitel).
 
 <Lens level="cryptographer">
 
 Bei `dkLen > hLen` sind die Blöcke `T_i` unabhängig (RFC 8018, §5.2): Der Verteidiger berechnet
-alle, Mallory aber kann einen Rateversuch allein gegen `T₁` prüfen.
+alle, Mallory prüft einen Rateversuch allein an `T₁`.
 
 </Lens>
 

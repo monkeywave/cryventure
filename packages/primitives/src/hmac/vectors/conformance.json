@@ -1,6 +1,6 @@
 {
   "source": "https://www.rfc-editor.org/rfc/rfc4231.txt (RFC 4231, Section 4, Test Cases 1-7); https://www.rfc-editor.org/rfc/rfc2202.txt (RFC 2202, Sections 2 and 3)",
-  "filter": "RFC 4231: TC1-7 x HMAC-SHA-224/256/384/512 (26 cases); TC5 is the RFC's 128-bit truncated tag (tagLength 16), so TC5 for SHA-384 and SHA-512 is left out here because 16 bytes is below the lab's max(10, L/2) tag rule (RFC 4231 TC5 HMAC-SHA-384, RFC 4231 TC5 HMAC-SHA-512; covered through the Mac port in _lib/hmac). RFC 2202: TC1-7 for HMAC-MD5 and HMAC-SHA-1 with full tags, plus TC5's digest-96 (tagLength 12) for both. Keys and messages as hex (encoding hex). Built from the M7 vectors agent's hmac-rfc4231.json / hmac-rfc2202.json.",
+  "filter": "RFC 4231: TC1-7 x HMAC-SHA-224/256/384/512 (26 cases); TC5 is the RFC's 128-bit truncated tag (tagLength 16), so TC5 for SHA-384 and SHA-512 is left out here because 16 bytes is below the lab's max(10, L/2) tag rule (RFC 4231 TC5 HMAC-SHA-384, RFC 4231 TC5 HMAC-SHA-512; covered through the Mac port in _lib/hmac). RFC 2202: TC1-7 for HMAC-MD5 and HMAC-SHA-1 with full tags, plus TC5's digest-96 (tagLength 12) for both. Keys and messages as hex (encoding hex).",
   "count": 42,
   "cases": [
     {

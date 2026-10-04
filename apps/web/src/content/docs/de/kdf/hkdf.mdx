@@ -26,7 +26,7 @@ refs:
   - RFC 2104, Abschnitt 4 (Implementation note, vorberechnete Zwischenergebnisse)
   - RFC 8446, Abschnitt 7.1 (Key Schedule, HKDF-Expand-Label, Derive-Secret)
   - RFC 8448, Abschnitt 3 (Simple 1-RTT Handshake)
-sourceHash: sha256:53def60c09388cedd9704d6f988a4cadcd44b98b7649fbae70d9d18862b32612
+sourceHash: sha256:21c0b0f02833994b801472755b74e7c6725262c195f77260dc630d9d658ce3ab
 translation:
   status: ai-reviewed
   reviewedAt: '2026-10-04'
@@ -59,7 +59,7 @@ verwendet (RFC 5869, §1). HKDF hat zwei [HMAC](../../mac/hmac/)-basierte Hälft
 </KeyFacts>
 
 **Extract** verdichtet ungleichmäßig zufälliges Eingabeschlüsselmaterial (IKM, engl. *input keying
-material*) zu einem gleichverteilt zufälligen **pseudozufälligen Schlüssel**, PRK (§2.2). **Expand**
+material*) zu einem **pseudozufälligen Schlüssel** (PRK, §2.2). **Expand**
 dehnt den PRK auf so viel Ausgabeschlüsselmaterial (OKM) wie nötig, gebunden an einen
 Kontextstring `info` (§2.3).
 
@@ -104,7 +104,7 @@ T(i) = HMAC-Hash(PRK, T(i−1) ‖ info ‖ i)      i = 0x01 … N
 OKM  = die ersten L Byte von T(1) ‖ T(2) ‖ … ‖ T(N)`}
 </Formula>
 
-Das **Salt** ist optional: Ist es leer, nimmt Extract HashLen Nullbytes (§2.2). Ein zufälliges Salt
+Das **Salt** ist optional: Ist es leer, nimmt Extract HashLen Nullbyte (§2.2). Ein zufälliges Salt
 „adds significantly to the strength of HKDF“ und muss nicht geheim sein (§3.1). **Info** bindet
 jeden Schlüssel an seinen Zweck: Verschiedene Info, unabhängige Schlüssel aus demselben PRK (§3.2).
 Testfall A.3 hat keins von beiden:
@@ -118,9 +118,9 @@ Länge, `"tls13 "` ‖ Label und einen Kontext in eine Struktur `HkdfLabel` und 
 `Derive-Secret` übergibt einen Transkript-Hash als Kontext. Das Lab reproduziert RFC 8448 (§3):
 Derive-Secret(Early Secret, „derived“, „“) = `6f2615a1 … 6c3611ba`. Das Protokoll folgt in Phase 7.
 
-<Lab labId="hkdf-tls13-derived" producerId="hkdf" presetId="tls13-derived" layout="derivation:45|state:30|narration:25" />
-
 </Aside>
+
+<Lab labId="hkdf-tls13-derived" producerId="hkdf" presetId="tls13-derived" layout="derivation:45|state:30|narration:25" />
 
 <Lens level="cryptographer">
 
@@ -137,7 +137,7 @@ Sicherheitsbeweis setzt voraus, dass HMAC beide Eigenschaften hat.
 ## Zwischenzustände und kurzlebige Geheimnisse
 
 Der PRK ist der HMAC-Schlüssel jedes Expand-Blocks. Der innere und der äußere Hash von HMAC
-absorbieren zuerst `K ⊕ ipad` bzw. `K ⊕ opad`, also kann eine Implementierung diese beiden
+absorbieren zuerst `K0 ⊕ ipad` bzw. `K0 ⊕ opad`, also kann eine Implementierung diese beiden
 Zwischenzustände (Midstates) einmal pro Schlüssel speichern (RFC 2104, §4). In Testfall A.1 ist
 jede Eingabe für `T(i)` höchstens 32 + 10 + 1 = 43 Byte lang, also kostet danach jeder Block zwei
 SHA-256-Kompressionen.
@@ -149,7 +149,7 @@ SHA-256-Kompressionen.
 | PRK | HashLen = 32 Byte | ja |
 | OKM | L = 42 Byte | ja |
 
-RFC 8446 (§7.1) verlangt, ein Geheimnis zu löschen, sobald alle daraus abgeleiteten Werte berechnet
+RFC 8446 (§7.1) empfiehlt (SHOULD), ein Secret zu löschen, sobald alle daraus abgeleiteten Werte berechnet
 sind. Wie lange solche Schlüssel im Speicher eines Prozesses liegen bleiben, ist Thema einer
 späteren Phase.
 
@@ -190,7 +190,7 @@ Wer L > 255 · HashLen anfordert, bekommt einen Fehler, keinen längeren Schlüs
   question="Was verwendet HKDF-Extract als HMAC-Schlüssel, wenn das Salt leer ist?"
   options={[
     'Das IKM selbst',
-    'HashLen Nullbytes',
+    'HashLen Nullbyte',
     'Einen Zufallswert, den die Bibliothek wählt',
     'Extract wird übersprungen',
   ]}

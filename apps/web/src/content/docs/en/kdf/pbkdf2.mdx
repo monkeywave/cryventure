@@ -52,8 +52,8 @@ with the password (§5.2).
 
 <WhyBox constant="salt" title="why every password gets its own salt">
   The salt makes one password map to many keys, so an attacker cannot precompute a table of
-  derived keys once and reuse it for every victim (RFC 8018, §4.1). RFC 8018 asks for at least
-  64 bits of salt, NIST SP 800-132 for at least 128 bits, randomly generated (§5.1).
+  derived keys once and reuse it for every victim (RFC 8018, §4.1). RFC 8018 recommends at least
+  64 bits of salt, NIST SP 800-132 requires at least 128 bits, randomly generated (§5.1).
 </WhyBox>
 
 <Lens only="story">
@@ -110,8 +110,8 @@ block `T_i` restarts the chain with its own index `i` (RFC 8018, §5.2).
 
 ## Two compressions per iteration
 
-HMAC is `H((K ⊕ opad) ‖ H((K ⊕ ipad) ‖ m))` (RFC 2104, §2). In PBKDF2 the key `K` is always the
-password, so the hash states after the `K ⊕ ipad` and `K ⊕ opad` blocks, the **midstates**, can
+HMAC is `H((K0 ⊕ opad) ‖ H((K0 ⊕ ipad) ‖ m))` (RFC 2104, §2). In PBKDF2 the key `K` is always the
+password, so the hash states after the `K0 ⊕ ipad` and `K0 ⊕ opad` blocks, the **midstates**, can
 be computed once and reused (RFC 2104, §4). The lab does exactly this: one keyed context, cloned
 for every call.
 
@@ -135,8 +135,8 @@ replicate on GPUs and ASICs.
 looks up every victim (RFC 8018, §4.1). The iteration count scales cost linearly for **both**
 sides (§4.2): the defender pays `c` once per login, Mallory `c` per guess.
 
-Guidance on `c`: RFC 8018 (§4.2) and SP 800-132 (§5.2) say at least 1000, SP 800-132 up to
-10,000,000 for critical keys. The OWASP Password Storage Cheat Sheet recommends **600,000**
+Guidance on `c`: RFC 8018 (§4.2) and SP 800-132 (§5.2): at least 1000 and "as large as possible"
+while logins stay acceptable; 10,000,000 may suit especially critical keys (SP 800-132). The OWASP Password Storage Cheat Sheet recommends **600,000**
 iterations for PBKDF2-HMAC-SHA256 (as of 2026-10-04) and prefers Argon2id unless FIPS-140 is
 required.
 

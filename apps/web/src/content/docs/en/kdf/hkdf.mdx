@@ -52,8 +52,8 @@ into the keys a protocol uses (RFC 5869, §1). HKDF has two [HMAC](../../mac/hma
   <KeyFact label="Max. L" value="255 · HashLen" kind="constant" />
 </KeyFacts>
 
-**Extract** condenses unevenly random input keying material (IKM) into a uniformly random
-pseudorandom key, PRK (§2.2). **Expand** stretches PRK into as much output keying
+**Extract** condenses unevenly random input keying material (IKM) into a pseudorandom key,
+PRK (§2.2). **Expand** stretches PRK into as much output keying
 material (OKM) as needed, bound to a context string `info` (§2.3).
 
 <WhyBox constant="255 · HashLen" title="why the output is capped">
@@ -110,9 +110,9 @@ length, `"tls13 "` ‖ label and a context into an `HkdfLabel` struct and uses i
 `Derive-Secret` passes a transcript hash as the context. The lab reproduces RFC 8448 (§3):
 Derive-Secret(early secret, "derived", "") = `6f2615a1 … 6c3611ba`. The protocol follows in Phase 7.
 
-<Lab labId="hkdf-tls13-derived" producerId="hkdf" presetId="tls13-derived" layout="derivation:45|state:30|narration:25" />
-
 </Aside>
+
+<Lab labId="hkdf-tls13-derived" producerId="hkdf" presetId="tls13-derived" layout="derivation:45|state:30|narration:25" />
 
 <Lens level="cryptographer">
 
@@ -128,7 +128,7 @@ variable-length PRF keyed by PRK; the security proof relies on HMAC having both 
 ## Midstates and short-lived secrets
 
 PRK is the HMAC key of every Expand block. HMAC's inner and outer hashes start by absorbing
-`K ⊕ ipad` and `K ⊕ opad`, so an implementation can store those two intermediate states once per
+`K0 ⊕ ipad` and `K0 ⊕ opad`, so an implementation can store those two intermediate states once per
 key (RFC 2104, §4). In test case A.1 each `T(i)` input is at most 32 + 10 + 1 = 43 bytes, so every
 block then costs two SHA-256 compressions.
 
@@ -139,7 +139,7 @@ block then costs two SHA-256 compressions.
 | PRK | HashLen = 32 bytes | yes |
 | OKM | L = 42 bytes | yes |
 
-RFC 8446 (§7.1) asks that a secret be erased once every value derived from it is computed. How long
+RFC 8446 (§7.1) recommends (SHOULD) that a secret be erased once every value derived from it is computed. How long
 such keys linger in a process's memory is the topic of a later phase.
 
 </LessonSection>

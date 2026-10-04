@@ -56,10 +56,10 @@ opad = 5c 5c … 5c   (B bytes)`}
 </KeyFacts>
 
 <WhyBox constant="ipad = 0x36, opad = 0x5c" title="why these two pads">
-  The proof needs only that `K0 ⊕ ipad` and `K0 ⊕ opad` differ, so the two hashes run under two
-  different keys (Bellare, Canetti, Krawczyk 1996; RFC 2104, §2). `36 ⊕ 5c = 6a = 01101010`: the
-  pads differ in 4 of 8 bits per byte. The values are fixed so that implementations agree; no
-  deeper derivation is published.
+  HMAC is NMAC with two keys derived as `f(K0 ⊕ ipad)` and `f(K0 ⊕ opad)`; the proof treats them as
+  independent, which needs different pads (BCK 1996, §5.2; RFC 2104, §2). BCK chose `0x36` and
+  `0x5c` for a simple representation and a high Hamming distance: `36 ⊕ 5c = 6a = 01101010`, 4 of
+  8 bits per byte. Nothing deeper is claimed.
 </WhyBox>
 
 <WhyBox constant="t ≥ 80 bits" title="why a tag needs at least 80 bits">
@@ -180,8 +180,9 @@ accumulator without exiting early. Libraries ship such a function, e.g. Python's
   ]}
   answer={1}
 >
-  Only that `K0 ⊕ ipad ≠ K0 ⊕ opad` (Bellare, Canetti, Krawczyk 1996; RFC 2104, §2). `0x36` and
-  `0x5c` are public, fixed for interoperability, and differ in 4 of 8 bits per byte.
+  That they differ, so the two derived keys can be treated as independent (Bellare, Canetti,
+  Krawczyk 1996, §5.2; RFC 2104, §2). `0x36` and `0x5c` are public, fixed for interoperability, and
+  differ in 4 of 8 bits per byte.
 </CheckQuestion>
 
 <CheckQuestion

@@ -43,7 +43,7 @@ import WhyBox from '../../../../components/lesson/WhyBox.astro';
 
 ## Key in, tag out, no nesting
 
-[HMAC](../hmac/) hashes twice, `H((K ⊕ opad) ‖ H((K ⊕ ipad) ‖ m))` (RFC 2104, §2), because a
+[HMAC](../hmac/) hashes twice, `H((K0 ⊕ opad) ‖ H((K0 ⊕ ipad) ‖ m))` (RFC 2104, §2), because a
 Merkle–Damgård digest is its full chaining value and `H(K ‖ m)` could be extended
 ([SHA-256](../../hash/sha256/)). A sponge never outputs its capacity (FIPS 202, §4), so it resists
 length extension (Appendix A.1). Prepending the key is enough.
@@ -52,10 +52,10 @@ length extension (Appendix A.1). Prepending the key is enough.
 message and the encoded output length (NIST SP 800-185, §4.3). One pass, no inner hash.
 
 <KeyFacts>
-  <KeyFact label="KMAC128 rate" value="168 B" kind="plaintext" />
-  <KeyFact label="KMAC256 rate" value="136 B" kind="plaintext" />
+  <KeyFact label="KMAC128 rate" value="168 bytes" kind="plaintext" />
+  <KeyFact label="KMAC256 rate" value="136 bytes" kind="plaintext" />
   <KeyFact label="Function name N" value='"KMAC"' kind="constant" />
-  <KeyFact label="Key length" value="any" kind="key" />
+  <KeyFact label="Key length" value="any (≥ security strength, §8.4.1)" kind="key" />
 </KeyFacts>
 
 <WhyBox constant='N = "KMAC"' title="why a function name">
@@ -66,8 +66,8 @@ message and the encoded output length (NIST SP 800-185, §4.3). One pass, no inn
 
 <Lens only="story">
 
-Whisper the password into the sponge first, then pour in the letter. Only the surface is ever
-wrung out, so the password stays inside.
+Whisper the secret key into the sponge first, then pour in the letter. Only the surface is ever
+wrung out, so the key stays inside.
 
 </Lens>
 
@@ -78,14 +78,15 @@ wrung out, so the password stays inside.
 ## KMAC128, sample #1
 
 The lab runs SP 800-185's first KMAC sample: key `40 41 … 5f` (32 bytes), data `00 01 02 03`,
-`L = 256`, `S` empty (NIST, KMAC_samples.pdf). Three rate blocks, three permutations:
+`L = 256`, `S` empty (NIST, KMAC_samples.pdf). Its first steps build the input:
 
-1. **pad**: `bytepad(encode_string("KMAC") ‖ encode_string(""), 168)` (§3.3);
-2. **encodeKey**: `bytepad(encode_string(K), 168)` (§4.3);
-3. the data, then `right_encode(256)`, then the cSHAKE suffix and pad10\*1.
+1. **encodeKey**: `bytepad(encode_string(K), 168)` (§4.3);
+2. **encodeLength**: `right_encode(256)`, placed after the data;
+3. **pad**: the cSHAKE prefix `bytepad(encode_string("KMAC") ‖ encode_string(""), 168)` in front
+   (§3.3), the cSHAKE suffix and pad10\*1 at the end.
 
-The sponge view shows each block XORed into the rate while the capacity lanes stay untouched. The
-tag is `e5780b0d 3ea6f7d3 … 456ee14e`, as in the NIST sample.
+Then come three rate blocks (prefix, key, data) and three permutations. The sponge view shows each
+block XORed into the rate while the capacity lanes stay untouched. The tag is `e5780b0d 3ea6f7d3 … 456ee14e`, as in the NIST sample.
 
 <Lab labId="kmac128-sample1" producerId="kmac" presetId="kmac128-sample1" layout="sponge:55|state:20|narration:25" />
 
@@ -109,7 +110,7 @@ block 2  00 01 02 03 | 01 00 02 | 04 00 … 00 80                     X ‖ righ
 The customization string `S` lands in block 0 (§4.2): sample #4 sets
 `S = "My Tagged Application"`, and KMAC256 pads to its 136-byte rate (`01 88 …`, §4.3).
 
-<Lab labId="kmac256-sample4" producerId="kmac" presetId="kmac256-sample4" startAt="op:encodeKey" layout="sponge:55|state:20|narration:25" />
+<Lab labId="kmac256-sample4" producerId="kmac" presetId="kmac256-sample4" startAt="op:pad" layout="sponge:55|state:20|narration:25" />
 
 **KMACXOF** writes `right_encode(0) = 00 01` instead of `right_encode(L)` and squeezes freely
 (§4.3.1).
@@ -149,9 +150,9 @@ length prefix and the block boundary rule that out (SP 800-185, §2.3.2, §2.3.3
 Appendix A.2). KMAC binds `L`, so a 32-byte tag is not the start of a 64-byte one (§4.1); KMACXOF
 gives that up on purpose (§4.3.1).
 
-**The other keyed hash.** [BLAKE2](../../hash/blake2/) zero-pads the key into block 0 and records
-`kk` in parameter word 0 (RFC 7693, §2.5, §3.3); no HMAC needed (§1), one compression or more
-saved (Aumasson et al. 2013, §2.9).
+**The other keyed hash.** [BLAKE2](../../hash/blake2/) zero-pads the key into block 0 and sets the
+key length `kk` (RFC 7693, §2.5, §3.3): no HMAC, at least one compression saved (Aumasson et al.
+2013, §2.9).
 
 <Lab labId="blake2s-256-keyed" producerId="blake2" presetId="blake2s-256-keyed" startAt="op:load" layout="state:60|narration:40" />
 

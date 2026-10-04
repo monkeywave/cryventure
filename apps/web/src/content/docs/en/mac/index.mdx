@@ -15,11 +15,11 @@ labs:
 refs:
   - NIST FIPS 198-1 (2008), Section 1 (Introduction) and Section 4 (HMAC specification)
   - NIST FIPS 186-5 (2023), Section 1 (Introduction — signatures, non-repudiation)
-  - RFC 2104, Section 2 (Definition of HMAC) and Section 4 (Implementation note)
+  - RFC 2104, Section 2 (Definition of HMAC), Section 3 (Keys) and Section 4 (Implementation note)
   - RFC 4231, Section 4.3 (Test Case 2)
-  - Menezes, van Oorschot, Vanstone (1996), Handbook of Applied Cryptography, Section 9.5.2 (secret prefix and secret suffix methods)
+  - Menezes, van Oorschot, Vanstone (1996), Handbook of Applied Cryptography, Section 9.5.2 (secret prefix and secret suffix methods, Example 9.65)
   - Bellare, Canetti, Krawczyk (1996), Keying Hash Functions for Message Authentication, CRYPTO 1996, LNCS 1109
-  - Katz, Lindell (2020), Introduction to Modern Cryptography, 3rd ed., Section 4.2 (definition of a secure MAC) and Section 4.3 (MACs from PRFs)
+  - Katz, Lindell (2020), Introduction to Modern Cryptography, 3rd ed., Section 4.2 (definition of a secure MAC) and Section 4.3.1 (a fixed-length MAC from a PRF)
   - NIST SP 800-185, Section 4 (KMAC)
   - FIPS 202, Appendix A.1 (security summary)
   - RFC 7693, Section 3.3 (keyed BLAKE2)
@@ -94,19 +94,19 @@ Three ways to put a key into a hash (HAC §9.5.2; RFC 2104, §2):
 
 <Formula caption="Keyed hashes. ‖ = concatenation, K0 = key padded to one block, ipad/opad = fixed bytes 0x36/0x5c.">
 {`secret prefix   H(K ‖ m)                          broken for Merkle–Damgård
-secret suffix   H(m ‖ K)                          a collision in H is a forgery
+secret suffix   H(m ‖ K)                          a chaining-value collision is a forgery
 HMAC            H((K0 ⊕ opad) ‖ H((K0 ⊕ ipad) ‖ m))`}
 </Formula>
 
-The suffix method falls to an offline collision `H(m) = H(m′)` with equal-length `m`, `m′`: then
-the two tags are equal too (HAC §9.5.2). HMAC nests two hashes; the [HMAC page](hmac/) goes
+The suffix method falls to an offline collision of the chaining values after equal-length `m`,
+`m′` (no `K` needed): then `H(m ‖ K) = H(m′ ‖ K)` (HAC §9.5.2, Example 9.65). HMAC nests two hashes; the [HMAC page](hmac/) goes
 inside.
 
 <Lens level="cryptographer">
 
 This is existential unforgeability under chosen-message attack (EUF-CMA). For a deterministic
 MAC such as HMAC, verifying means recomputing, and every secure pseudorandom function (PRF) on
-fixed-length inputs is a secure MAC (Katz–Lindell, §4.3).
+fixed-length inputs is a secure MAC (Katz–Lindell, §4.3.1).
 
 </Lens>
 

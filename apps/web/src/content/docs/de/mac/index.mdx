@@ -15,16 +15,16 @@ labs:
 refs:
   - NIST FIPS 198-1 (2008), Abschnitt 1 (Introduction) und Abschnitt 4 (HMAC Specification)
   - NIST FIPS 186-5 (2023), Abschnitt 1 (Introduction – Signaturen, Nichtabstreitbarkeit)
-  - RFC 2104, Abschnitt 2 (Definition of HMAC) und Abschnitt 4 (Implementation Note)
+  - RFC 2104, Abschnitt 2 (Definition of HMAC), Abschnitt 3 (Keys) und Abschnitt 4 (Implementation Note)
   - RFC 4231, Abschnitt 4.3 (Test Case 2)
-  - Menezes, van Oorschot, Vanstone (1996), Handbook of Applied Cryptography, Abschnitt 9.5.2 (Secret-Prefix- und Secret-Suffix-Verfahren)
+  - Menezes, van Oorschot, Vanstone (1996), Handbook of Applied Cryptography, Abschnitt 9.5.2 (Secret-Prefix- und Secret-Suffix-Verfahren, Beispiel 9.65)
   - Bellare, Canetti, Krawczyk (1996), Keying Hash Functions for Message Authentication, CRYPTO 1996, LNCS 1109
-  - Katz, Lindell (2020), Introduction to Modern Cryptography, 3. Aufl., Abschnitt 4.2 (Definition eines sicheren MAC) und Abschnitt 4.3 (MACs aus PRFs)
+  - Katz, Lindell (2020), Introduction to Modern Cryptography, 3. Aufl., Abschnitt 4.2 (Definition eines sicheren MAC) und Abschnitt 4.3.1 (MAC fester Länge aus einer PRF)
   - NIST SP 800-185, Abschnitt 4 (KMAC)
   - FIPS 202, Anhang A.1 (Sicherheitsübersicht)
   - RFC 7693, Abschnitt 3.3 (BLAKE2 mit Schlüssel)
   - Dokumentation der Python-Standardbibliothek, hmac.compare_digest
-sourceHash: sha256:a4f71705459822b8fd92521ef6e0ab53e611d2796863435a6ca3cbf13e53e328
+sourceHash: sha256:5435e7c485d8e4998f5c6a7282e0e0af64be78a7988458aeba0ad78ab29589df
 translation:
   status: ai-reviewed
   reviewedAt: '2026-10-04'
@@ -102,19 +102,19 @@ Drei Wege, einen Schlüssel in einen Hash zu bringen (HAC, §9.5.2; RFC 2104, §
 
 <Formula caption="Hashen mit Schlüssel. ‖ = Verkettung, K0 = auf einen Block aufgefüllter Schlüssel, ipad/opad = feste Bytes 0x36/0x5c.">
 {`geheimes Präfix  H(K ‖ m)                          gebrochen bei Merkle–Damgård
-geheimes Suffix  H(m ‖ K)                          eine Kollision in H ist eine Fälschung
+geheimes Suffix  H(m ‖ K)                          Kollision der Verkettungswerte ist Fälschung
 HMAC             H((K0 ⊕ opad) ‖ H((K0 ⊕ ipad) ‖ m))`}
 </Formula>
 
-Das Suffix-Verfahren fällt durch eine offline gefundene Kollision `H(m) = H(m′)` mit gleich langen
-`m`, `m′`: Dann sind auch die beiden Tags gleich (HAC, §9.5.2). HMAC verschachtelt zwei Hashes; die
+Das Suffix-Verfahren fällt durch eine offline gefundene Kollision der Verkettungswerte nach gleich
+langen `m`, `m′` (ohne `K`): Dann gilt `H(m ‖ K) = H(m′ ‖ K)` (HAC, §9.5.2, Beispiel 9.65). HMAC verschachtelt zwei Hashes; die
 [HMAC-Seite](hmac/) schaut hinein.
 
 <Lens level="cryptographer">
 
 Das ist existenzielle Fälschungssicherheit bei Angriffen mit gewählten Nachrichten (EUF-CMA). Bei
 einem deterministischen MAC wie HMAC heißt Prüfen Neuberechnen, und jede sichere
-Pseudozufallsfunktion (PRF) auf Eingaben fester Länge ist ein sicherer MAC (Katz–Lindell, §4.3).
+Pseudozufallsfunktion (PRF) auf Eingaben fester Länge ist ein sicherer MAC (Katz–Lindell, §4.3.1).
 
 </Lens>
 
@@ -144,7 +144,7 @@ SHA-NI und die SHA2-Befehle von ARMv8 HMAC genauso wie das reine SHA-256
 kann Mallory also weiterhashen und erhält ohne `K` ein gültiges Tag für `m ‖ Padding ‖ m′`:
 Längenerweiterung ([Seite zu SHA-512](../hash/sha512/#mallory-verlängert-die-kette); HAC, §9.5.2).
 
-**Sponges und BLAKE2 sind sicher.** Ein Sponge gibt nur Rate-Bits aus; seine Kapazität bleibt
+**Sponges und BLAKE2 brauchen keine Verschachtelung.** Ein Sponge gibt nur Rate-Bits aus; seine Kapazität bleibt
 verborgen (FIPS 202, Anhang A.1). Deshalb setzt KMAC den Schlüssel einfach vor die Nachricht
 (SP 800-185, §4). BLAKE2 mit Schlüssel legt den Schlüssel in Block 0 und markiert den letzten Block
 mit einem Flag (RFC 7693, §3.3; [Seite zu BLAKE2](../hash/blake2/)).

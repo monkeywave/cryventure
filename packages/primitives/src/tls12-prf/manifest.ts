@@ -84,7 +84,7 @@ export const tls12PrfManifest = definePrimitive<Tls12PrfParams>({
     'RFC 5246 §8.1 (computing the master secret)',
     'RFC 5246 §6.3 (key calculation)',
     'RFC 7627 §4 (the extended master secret)',
-    'RFC 5289 §3 (the SHA-384 PRF of the *_SHA384 cipher suites)',
+    'RFC 5288 §3 and RFC 5289 §3 (the SHA-384 PRF of the *_SHA384 cipher suites)',
     'NIST SP 800-135 Rev. 1 §4.2 (TLS key derivation functions)',
   ],
   facets: ['state', 'values', 'derivation', 'narration'],

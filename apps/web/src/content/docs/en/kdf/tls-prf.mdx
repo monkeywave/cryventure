@@ -17,6 +17,7 @@ refs:
   - RFC 2246, The TLS Protocol Version 1.0 (1999), Section 5 (HMAC and the pseudorandom function), Section 6.3 (key calculation), Section 8.1 (computing the master secret)
   - RFC 4346, The TLS Protocol Version 1.1 (2006), Section 5 (the PRF is unchanged)
   - RFC 5246, The TLS Protocol Version 1.2 (2008), Section 5 (HMAC and the pseudorandom function), Section 6.3 (key calculation), Section 7.3 (handshake overview, session resumption), Section 8.1 (computing the master secret)
+  - RFC 5288, AES Galois Counter Mode (GCM) Cipher Suites for TLS (2008), Section 3 (PRF of the *_SHA384 suites)
   - RFC 5289, TLS Elliptic Curve Cipher Suites with SHA-256/384 and AES Galois Counter Mode (2008), Section 3 (PRF of the *_SHA384 suites)
   - RFC 7627, TLS Session Hash and Extended Master Secret Extension (2015), Sections 1, 3, 4
   - RFC 8446, The TLS Protocol Version 1.3 (2018), Section 1.2 (major differences) and Section 7.1 (key schedule)
@@ -47,7 +48,7 @@ The PRF takes a secret, an ASCII **label** and a **seed**, and expands them with
 "master secret" (§8.1) or "key expansion" (§6.3), so the two outputs come from different inputs.
 
 <KeyFacts>
-  <KeyFact label="Master secret" value="48 byte" kind="key" />
+  <KeyFact label="Master secret" value="48 bytes" kind="key" />
   <KeyFact label="TLS 1.0/1.1" value="P_MD5 ⊕ P_SHA-1" kind="constant" />
   <KeyFact label="TLS 1.2" value="P_SHA256" kind="constant" />
   <KeyFact label="TLS 1.3" value="HKDF" kind="constant" />
@@ -105,8 +106,8 @@ PRF(secret, label, seed) = P_MD5(S1, label + seed) ⊕ P_SHA-1(S2, label + seed)
 </Formula>
 
 For an odd length, S1's last byte is S2's first (RFC 2246 §5). TLS 1.2 drops the split and uses
-one hash: SHA-256 for its own suites, and suites must name their PRF (RFC 5246 §5); the
-`*_SHA384` suites of RFC 5289 use `P_SHA384` (RFC 5289 §3).
+one hash: SHA-256 for all suites of RFC 5246, and new suites must name their PRF (RFC 5246 §5);
+the `*_SHA384` suites, e.g. of RFC 5288 and RFC 5289, use `P_SHA384` (RFC 5288 §3; RFC 5289 §3).
 
 <Lens level="cryptographer">
 
@@ -123,8 +124,9 @@ secure". Each half is keyed with only half of the secret, though.
 
 During the PRF, a TLS stack holds the secret as an HMAC key, the current `A(i)`, the label and seed,
 and an output buffer. HMAC lets it hash the padded key once and keep the inner and outer keyed
-states for every later call (RFC 2104 §4), so each `A(i)` and each block costs two compressions
-of a short message.
+states for every later call (RFC 2104 §4). Then `A(2)`, `A(3)`, … cost two compressions each.
+`A(1)` and every output block also hash label + seed (77 bytes for the master secret), so they
+cost three.
 
 What survives the handshake is the 48-byte master secret: TLS 1.2 keeps it with the session so
 that resumption can derive new keys from it (RFC 5246 §8.1, §7.3). Anyone who reads those 48 bytes
@@ -151,7 +153,7 @@ applications relied on (RFC 7627 §1). This page tells the history, not the atta
 
 The fix, RFC 7627, binds the master secret to the whole handshake:
 
-<Formula caption="RFC 7627 §4; session_hash is the hash of the handshake messages so far (§3).">
+<Formula caption="RFC 7627 §4; session_hash is the hash of the handshake messages from ClientHello up to and including ClientKeyExchange (§3).">
 {`master_secret = PRF(pre_master_secret, "extended master secret", session_hash)[0..47]`}
 </Formula>
 
@@ -184,7 +186,7 @@ handshake. RFC 7627 fixes the input, not the function (RFC 7627 §1, §4).
   answer={1}
 >
   RFC 5246 §5: `A(i) = HMAC_hash(secret, A(i−1))`, with `A(0)` the label plus seed. The output
-  blocks are `HMAC_hash(secret, A(i) + seed)`; the chain itself never sees the seed again.
+  blocks are `HMAC_hash(secret, A(i) + label + seed)`; the chain itself never sees the seed again.
 </CheckQuestion>
 
 <CheckQuestion

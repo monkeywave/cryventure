@@ -28,7 +28,7 @@ refs:
   - RFC 7693, Abschnitt 3.3 (Padding Data and Computing a BLAKE2 Digest – schlüsselabhängiges Hashen)
   - Aumasson, Neves, Wilcox-O'Hearn, Winnerlein (2013), BLAKE2 – simpler, smaller, fast as MD5, ACNS 2013, LNCS 7954 (Abschnitt 2.9)
   - Bertoni, Daemen, Peeters, Van Assche (2008), On the Indifferentiability of the Sponge Construction, EUROCRYPT 2008, LNCS 4965
-sourceHash: sha256:2b6fd14a368fe9e4d343e5325d59ec83ac75a0226546b1a1531a4379e996ab29
+sourceHash: sha256:6923bc209b42800628f12250d0e5484f671600c2feba825f52b6cfa9e7bbbb54
 translation:
   status: ai-reviewed
   reviewedAt: '2026-10-04'
@@ -48,7 +48,7 @@ import WhyBox from '../../../../components/lesson/WhyBox.astro';
 
 ## Schlüssel rein, Tag raus, keine Verschachtelung
 
-[HMAC](../hmac/) hasht zweimal, `H((K ⊕ opad) ‖ H((K ⊕ ipad) ‖ m))` (RFC 2104, §2), weil ein
+[HMAC](../hmac/) hasht zweimal, `H((K0 ⊕ opad) ‖ H((K0 ⊕ ipad) ‖ m))` (RFC 2104, §2), weil ein
 Merkle–Damgård-Hashwert sein vollständiger Verkettungswert ist und sich `H(K ‖ m)` verlängern ließe
 ([SHA-256](../../hash/sha256/)). Ein Sponge gibt seine Kapazität nie aus (FIPS 202, §4), also
 widersteht er der Längenerweiterung (Anhang A.1). Den Schlüssel voranzustellen genügt.
@@ -61,7 +61,7 @@ innerer Hash.
   <KeyFact label="KMAC128-Rate" value="168 Byte" kind="plaintext" />
   <KeyFact label="KMAC256-Rate" value="136 Byte" kind="plaintext" />
   <KeyFact label="Funktionsname N" value="„KMAC“" kind="constant" />
-  <KeyFact label="Schlüssellänge" value="beliebig" kind="key" />
+  <KeyFact label="Schlüssellänge" value="beliebig (≥ Sicherheitsniveau, §8.4.1)" kind="key" />
 </KeyFacts>
 
 <WhyBox constant="N = „KMAC“" title="warum ein Funktionsname">
@@ -72,8 +72,8 @@ innerer Hash.
 
 <Lens only="story">
 
-Flüstere dem Schwamm zuerst das Passwort zu, dann gieß den Brief hinein. Ausgedrückt wird immer nur
-die Oberfläche, das Passwort bleibt also drinnen.
+Flüstere dem Schwamm zuerst den geheimen Schlüssel zu, dann gieß den Brief hinein. Ausgedrückt wird
+immer nur die Oberfläche, der Schlüssel bleibt also drinnen.
 
 </Lens>
 
@@ -84,13 +84,15 @@ die Oberfläche, das Passwort bleibt also drinnen.
 ## KMAC128, Beispiel Nr. 1
 
 Das Lab rechnet das erste KMAC-Beispiel aus SP 800-185: Schlüssel `40 41 … 5f` (32 Byte), Daten
-`00 01 02 03`, `L = 256`, `S` leer (NIST, KMAC_samples.pdf). Drei Rate-Blöcke, drei Permutationen:
+`00 01 02 03`, `L = 256`, `S` leer (NIST, KMAC_samples.pdf). Die ersten Schritte bauen die Eingabe:
 
-1. **pad**: `bytepad(encode_string("KMAC") ‖ encode_string(""), 168)` (§3.3);
-2. **encodeKey**: `bytepad(encode_string(K), 168)` (§4.3);
-3. die Daten, dann `right_encode(256)`, dann das cSHAKE-Suffix und pad10\*1.
+1. **encodeKey**: `bytepad(encode_string(K), 168)` (§4.3);
+2. **encodeLength**: `right_encode(256)`, hinter den Daten;
+3. **pad**: vorn das cSHAKE-Präfix `bytepad(encode_string("KMAC") ‖ encode_string(""), 168)`
+   (§3.3), am Ende das cSHAKE-Suffix und pad10\*1.
 
-Die Sponge-Ansicht zeigt, wie jeder Block per XOR in die Rate eingeht, während die Kapazitäts-Lanes
+Dann folgen drei Rate-Blöcke (Präfix, Schlüssel, Daten) und drei Permutationen. Die
+Sponge-Ansicht zeigt, wie jeder Block per XOR in die Rate eingeht, während die Kapazitäts-Lanes
 unberührt bleiben. Das Tag ist `e5780b0d 3ea6f7d3 … 456ee14e`, wie im NIST-Beispiel.
 
 <Lab labId="kmac128-sample1" producerId="kmac" presetId="kmac128-sample1" layout="sponge:55|state:20|narration:25" />
@@ -115,7 +117,7 @@ Block 2  00 01 02 03 | 01 00 02 | 04 00 … 00 80                     X ‖ righ
 Der Anpassungsstring `S` landet in Block 0 (§4.2): Beispiel Nr. 4 setzt
 `S = "My Tagged Application"`, und KMAC256 füllt auf seine Rate von 136 Byte auf (`01 88 …`, §4.3).
 
-<Lab labId="kmac256-sample4" producerId="kmac" presetId="kmac256-sample4" startAt="op:encodeKey" layout="sponge:55|state:20|narration:25" />
+<Lab labId="kmac256-sample4" producerId="kmac" presetId="kmac256-sample4" startAt="op:pad" layout="sponge:55|state:20|narration:25" />
 
 **KMACXOF** schreibt `right_encode(0) = 00 01` statt `right_encode(L)` und presst beliebig viel aus
 (§4.3.1).
@@ -158,8 +160,8 @@ Anhang A.2). KMAC bindet `L`, also ist ein 32-Byte-Tag nicht der Anfang eines 64
 KMACXOF verzichtet darauf mit Absicht (§4.3.1).
 
 **Der andere Hash mit Schlüssel.** [BLAKE2](../../hash/blake2/) füllt den Schlüssel mit Nullen auf
-Block 0 auf und trägt `kk` in Parameterwort 0 ein (RFC 7693, §2.5, §3.3); kein HMAC nötig (§1),
-eine Kompression oder mehr gespart (Aumasson et al. 2013, §2.9).
+Block 0 auf und setzt die Schlüssellänge `kk` (RFC 7693, §2.5, §3.3): kein HMAC, mindestens eine
+Kompression gespart (Aumasson et al. 2013, §2.9).
 
 <Lab labId="blake2s-256-keyed" producerId="blake2" presetId="blake2s-256-keyed" startAt="op:load" layout="state:60|narration:40" />
 
