@@ -14,7 +14,7 @@ beforeAll(async () => {
 const ascii = (text: string): number[] => Array.from(utf8Bytes(text));
 
 function input(iterations: number, length = 20, password = ascii('password'), salt = ascii('salt')): Pbkdf2Input {
-  return { macName: 'HMAC-SHA-1', outputSize: 20, keyed: sha1.create(Uint8Array.from(password)), password, salt, iterations, length };
+  return { mac: sha1, password, salt, iterations, length };
 }
 
 const opsOf = (iterations: number, length = 20) => recordPbkdf2(input(iterations, length)).state.steps.map((step) => step.op);

@@ -3,8 +3,6 @@ import {
   highlight,
   i18nRef,
   INITIAL_STEP_INDEX,
-  narrationFromState,
-  runPrimitive,
   scopeLevels,
   toHex,
   u8Regions,
@@ -19,11 +17,13 @@ import {
   type RunResult,
   type ValuesFacet,
 } from '@cryventure/core';
-import { addChainNodes, addPrfInputNodes, PrfDerivationBuilder } from '../_lib/prf/derivation.ts';
+import { DerivationBuilder } from '../_lib/derivation.ts';
+import { addChainNodes, addPrfInputNodes } from '../_lib/prf/derivation.ts';
 import { decodePrfInputs, pHashChain, splitSecret, type PHashChain, type PrfRunInputs } from '../_lib/prf/pHash.ts';
-import { PrfRecorder, prfName, recordChainBlock, recordSeedStep, type PrfBlockSteps, type PrfChainSpec } from '../_lib/prf/record.ts';
+import { PrfRecorder, prfName, prfRecording, recordChainBlock, recordSeedStep, type PrfBlockSteps, type PrfChainSpec } from '../_lib/prf/record.ts';
 import { macDisplayName } from '../_lib/hmac/macCalls.ts';
-import { requireHmacMember } from '../_lib/hmac/requireHmacMember.ts';
+import { requireHmacMembers } from '../_lib/hmac/requireHmacMember.ts';
+import { runPrimitiveChecked } from '../_lib/runChecked.ts';
 import { tls10PrfManifest, type Tls10PrfParams } from './manifest.ts';
 
 /**
@@ -179,7 +179,7 @@ function buildValues(run: Tls10Run, steps: Tls10Steps): ValuesFacet {
 
 /** secret → S1, S2; label ‖ seed; the two chains; each stream cut to L bytes; their XOR. */
 function buildDerivation(run: Tls10Run, steps: Tls10Steps): DerivationFacet {
-  const builder = new PrfDerivationBuilder(NS);
+  const builder = new DerivationBuilder(NS);
   const { secretId, labelSeedId: labelSeedNodeId } = addPrfInputNodes(builder, run, steps.seed);
   const length = run.output.length;
   const streamIds = HALVES.map((names, index) => {
@@ -196,20 +196,11 @@ function record(params: Tls10PrfParams, md5: MacFunction, sha1: MacFunction): Pr
   const run = toRun(params, md5, sha1);
   const recorder = createRecorder(run);
   const steps = recordSteps(recorder, run);
-  const state = recorder.stateFacet();
-  return {
-    facets: { state, values: buildValues(run, steps), derivation: buildDerivation(run, steps), narration: narrationFromState(state) },
-    output: { output: Array.from(run.output) },
-  };
+  return prfRecording(recorder, { values: buildValues(run, steps), derivation: buildDerivation(run, steps) }, run.output);
 }
 
 /** Validates `params`, resolves both HMACs (run errors: missing member, not an HMAC) and records the PRF. */
 export function run(params: Tls10PrfParams, options: RunOptions = {}): RunResult {
-  const validated = tls10PrfManifest.validate(params);
-  if (!validated.ok) return validated;
-  const md5 = requireHmacMember(options.resolve, validated.value.md5Mac, NS);
-  if (!md5.ok) return md5;
-  const sha1 = requireHmacMember(options.resolve, validated.value.sha1Mac, NS);
-  if (!sha1.ok) return sha1;
-  return runPrimitive(tls10PrfManifest, validated.value, (value) => record(value, md5.mac, sha1.mac));
+  const macs = (value: Tls10PrfParams) => requireHmacMembers(options.resolve, [value.md5Mac, value.sha1Mac], NS);
+  return runPrimitiveChecked(tls10PrfManifest, params, macs, (value, [md5, sha1]) => record(value, md5, sha1));
 }

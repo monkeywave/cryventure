@@ -1,4 +1,4 @@
-import type { PortMemberDecl } from '@cryventure/core';
+import type { ParamField, PortMemberDecl } from '@cryventure/core';
 
 /**
  * The `portMembers` declarations of the hash producers (docs/M7.md §1b, §2a). Manifests load
@@ -38,4 +38,12 @@ export function hmacPortMembers(namespace: string, functionIds: readonly string[
  */
 export function hashPortMembers(functionIds: readonly string[], labelKey: (functionId: string) => string): PortMemberDecl[] {
   return functionIds.map((id) => ({ id, labelKey: labelKey(id) }));
+}
+
+/**
+ * The one HMAC-member picker: a `Mac` member field `name` limited to HMAC (hkdf, pbkdf2 and the TLS
+ * PRFs are defined over HMAC only), labelled `<ns>.param.<name>` with a `<name>Hint`.
+ */
+export function hmacMemberField(ns: string, name: string): ParamField {
+  return { name, kind: 'port', port: 'Mac', member: true, constructions: ['hmac'], labelKey: `${ns}.param.${name}`, hintKey: `${ns}.param.${name}Hint` };
 }

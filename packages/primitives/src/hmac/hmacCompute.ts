@@ -1,4 +1,4 @@
-import { i18nRef, type HashContext, type HashFunction, type I18nRef } from '@cryventure/core';
+import { bytesEqual, i18nRef, type HashContext, type HashFunction, type I18nRef } from '@cryventure/core';
 import { hmacK0, IPAD, OPAD, xorPad, type HmacK0Branch } from '../_lib/hmac/hmac.ts';
 import { timingSafeEqualSteps, type TimingSafeEqualTrace } from '../_lib/hmac/timingSafeEqual.ts';
 import type { HmacTagLength } from './manifest.ts';
@@ -68,7 +68,7 @@ function midstateOf(hash: HashFunction, context: HashContext): number[] | undefi
   const state = context.chainingState?.();
   if (state === undefined) return undefined;
   const initial = hash.create().chainingState?.();
-  const unchanged = initial !== undefined && initial.length === state.length && initial.every((byte, index) => byte === state[index]);
+  const unchanged = initial !== undefined && bytesEqual(initial, state);
   return unchanged ? undefined : Array.from(state);
 }
 

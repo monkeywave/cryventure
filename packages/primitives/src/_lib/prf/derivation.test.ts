@@ -1,6 +1,7 @@
 import { assertTopologicalOrder, parseHexOrThrow, toHex, validateDerivationFacet } from '@cryventure/core';
 import { describe, expect, it } from 'vitest';
-import { addChainNodes, addPrfInputNodes, PrfDerivationBuilder } from './derivation.ts';
+import { DerivationBuilder } from '../derivation.ts';
+import { addChainNodes, addPrfInputNodes } from './derivation.ts';
 import { concatBytes, labelSeed, pHashChain } from './pHash.ts';
 import { HMAC_SHA256 } from './testMacs.ts';
 
@@ -9,22 +10,8 @@ const SECRET = parseHexOrThrow('0102030405');
 const JOINED = labelSeed('test label', parseHexOrThrow('aabb'));
 const CHAIN = pHashChain(HMAC_SHA256, SECRET, JOINED, 40);
 
-describe('PrfDerivationBuilder', () => {
-  it('labels nodes under <ns>.derivation and omits absent optionals', () => {
-    const builder = new PrfDerivationBuilder(NS);
-    expect(builder.add({ id: 'secret', label: 'secret', bytes: SECRET, op: 'input', valueRef: 'secret' })).toBe('secret');
-    builder.add({ id: 'out', label: 'output', labelParams: { length: 5 }, bytes: [1], op: 'truncate', inputs: ['secret'], result: true, step: 3, zoom: undefined });
-    const facet = builder.facet();
-    expect(facet.title).toEqual({ key: `${NS}.derivation.title` });
-    expect(facet.nodes).toEqual([
-      { id: 'secret', label: { key: `${NS}.derivation.secret` }, bytes: [1, 2, 3, 4, 5], op: 'input', inputs: [], valueRef: 'secret' },
-      { id: 'out', label: { key: `${NS}.derivation.output`, params: { length: 5 } }, bytes: [1], op: 'truncate', inputs: ['secret'], result: true, step: 3 },
-    ]);
-  });
-});
-
 describe('addChainNodes', () => {
-  const builder = new PrfDerivationBuilder(NS);
+  const builder = new DerivationBuilder(NS);
   builder.add({ id: 'secret', label: 'secret', bytes: SECRET, op: 'input' });
   builder.add({ id: 'labelSeed', label: 'labelSeed', bytes: JOINED, op: 'concat' });
   const steps = [
@@ -62,7 +49,7 @@ describe('addChainNodes', () => {
 
 describe('addPrfInputNodes', () => {
   it('adds secret, label and seed, then label ‖ seed at the seed step', () => {
-    const builder = new PrfDerivationBuilder(NS);
+    const builder = new DerivationBuilder(NS);
     const seed = parseHexOrThrow('aabb');
     expect(addPrfInputNodes(builder, { secret: SECRET, label: 'test label', seed, labelSeed: JOINED }, 3)).toEqual({ secretId: 'secret', labelSeedId: 'labelSeed' });
     const nodes = builder.facet().nodes;

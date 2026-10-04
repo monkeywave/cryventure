@@ -1,8 +1,8 @@
-import { parseHexOrThrow, toHex, u8Regions, zeroSnapshot, type I18nRef } from '@cryventure/core';
+import { narrationFromState, parseHexOrThrow, toHex, u8Regions, zeroSnapshot, type I18nRef } from '@cryventure/core';
 import { describe, expect, it } from 'vitest';
 import { labelSeed, pHashChain } from './pHash.ts';
 import { macDisplayName as macName } from '../hmac/macCalls.ts';
-import { PrfRecorder, prfName, recordChainBlock, recordSeedStep, type PrfChainSpec, type PrfOpName } from './record.ts';
+import { PrfRecorder, prfName, prfRecording, recordChainBlock, recordSeedStep, type PrfChainSpec, type PrfOpName } from './record.ts';
 import { HMAC_MD5, HMAC_SHA1, HMAC_SHA256 } from './testMacs.ts';
 
 const NS = 'plugin.test-prf';
@@ -112,5 +112,19 @@ describe('recordChainBlock', () => {
     expect(narration(0)).toEqual({ key: `${NS}.step.aFirst`, params: { ...common, value: toHex(CHAIN.a[0]!) } });
     expect(narration(2)).toEqual({ key: `${NS}.step.a`, params: { ...common, i: 2, prev: 1, value: toHex(CHAIN.a[1]!) } });
     expect(narration(3)).toEqual({ key: `${NS}.step.p`, params: { ...common, i: 2, value: toHex(CHAIN.p[1]!), from: 33, to: 64 } });
+  });
+});
+
+describe('prfRecording', () => {
+  it('wraps the state, values, derivation and narration facets and the output bytes', () => {
+    const rec = recorder();
+    recordSeedStep(rec, NS, 'labelSeed', 'test label', JOINED);
+    const values = { kind: 'values' as const, schemaVersion: 1 as const, values: [] };
+    const derivation = { kind: 'derivation' as const, schemaVersion: 1 as const, title: { key: `${NS}.derivation.title` }, nodes: [] };
+    const recording = prfRecording(rec, { values, derivation }, Uint8Array.of(1, 2));
+    const state = rec.stateFacet();
+    expect(Object.keys(recording.facets)).toEqual(['state', 'values', 'derivation', 'narration']);
+    expect(recording.facets).toEqual({ state, values, derivation, narration: narrationFromState(state) });
+    expect(recording.output).toEqual({ output: [1, 2] });
   });
 });

@@ -1,4 +1,4 @@
-import { macFunction, parseHexOrThrow, toHex, type MacFamily, type MacFunction } from '@cryventure/core';
+import { bytesEqual, macFunction, parseHexOrThrow, toHex, type MacFamily, type MacFunction } from '@cryventure/core';
 import { hmacMemberId } from './manifestKit.ts';
 import { testHash } from './testHashes.ts';
 
@@ -72,6 +72,6 @@ export function cloneProblems(fn: MacFunction, key: Uint8Array, prefix: Uint8Arr
     ['clone', copy.mac(), Uint8Array.from([...prefix, ...tailB])],
   ];
   return cases.flatMap(([what, actual, message]) =>
-    toHex(actual) === toHex(fn.mac(key, message)) ? [] : [`${fn.id}: the ${what} after a ${prefix.length}-byte prefix does not equal mac of its message`],
+    bytesEqual(actual, fn.mac(key, message)) ? [] : [`${fn.id}: the ${what} after a ${prefix.length}-byte prefix does not equal mac of its message`],
   );
 }

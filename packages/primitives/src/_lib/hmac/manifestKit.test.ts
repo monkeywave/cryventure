@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { hashPortMembers, hmacMemberId, hmacPortMembers } from './manifestKit.ts';
+import { hashPortMembers, hmacMemberField, hmacMemberId, hmacPortMembers } from './manifestKit.ts';
 
 describe('hmacMemberId', () => {
   it('prefixes the Hash member id with hmac-', () => {
@@ -26,5 +26,19 @@ describe('hashPortMembers', () => {
       { id: 'sha-384', labelKey: 'plugin.sha512.param.algorithmOption.sha-384' },
       { id: 'sha-512/256', labelKey: 'plugin.sha512.param.algorithmOption.sha-512/256' },
     ]);
+  });
+});
+
+describe('hmacMemberField', () => {
+  it('is a Mac member picker limited to HMAC, labelled and hinted in the namespace', () => {
+    expect(hmacMemberField('plugin.pbkdf2', 'mac')).toEqual({
+      name: 'mac',
+      kind: 'port',
+      port: 'Mac',
+      member: true,
+      constructions: ['hmac'],
+      labelKey: 'plugin.pbkdf2.param.mac',
+      hintKey: 'plugin.pbkdf2.param.macHint',
+    });
   });
 });

@@ -1,4 +1,5 @@
-import { allIndices, blockCount, i18nRef, RecordingTracer, scopeLevels, toHex, type MacContext, type RegionSpec, type StateFacet } from '@cryventure/core';
+import { allIndices, blockCount, highlight, i18nRef, RecordingTracer, scopeLevels, toHex, u8Regions, zeroSnapshot, type MacFunction, type RegionSpec, type Snapshot, type StateFacet } from '@cryventure/core';
+import { macDisplayName } from '../_lib/hmac/macCalls.ts';
 import type { Pbkdf2OpName } from './manifest.ts';
 import { int32be, pbkdf2Block } from './pbkdf2.ts';
 
@@ -28,12 +29,9 @@ export function iterationRecording(j: number, iterations: number): IterationReco
   return j === iterations - 1 ? 'skip' : 'hidden';
 }
 
-/** What a run derives from, all validated; `keyed` is the Mac context keyed once with the password. */
+/** What a run derives from, all validated: the PRF (an HMAC `Mac` member) and its inputs. */
 export interface Pbkdf2Input {
-  /** Display name of the PRF, e.g. `HMAC-SHA-256`. */
-  macName: string;
-  outputSize: number;
-  keyed: MacContext;
+  mac: MacFunction;
   password: number[];
   salt: number[];
   iterations: number;
@@ -64,33 +62,15 @@ export interface Pbkdf2Recording {
 }
 
 /** The regions; `password` and `salt` are omitted when empty (nothing to show). */
-function regions(input: Pbkdf2Input): RegionSpec<Pbkdf2Region>[] {
-  const region = (id: Pbkdf2Region, size: number, blank: boolean): RegionSpec<Pbkdf2Region> => ({
-    id,
-    labelKey: `${NS}.region.${id}`,
-    elem: 'u8',
-    shape: [size],
-    ...(blank ? { initial: 'blank' as const } : {}),
-  });
-  return [
-    ...(input.password.length > 0 ? [region('password', input.password.length, false)] : []),
-    ...(input.salt.length > 0 ? [region('salt', input.salt.length, false)] : []),
-    region('u', input.outputSize, true),
-    region('f', input.outputSize, true),
-    region('dk', input.length, true),
-  ];
+function regionSizes(input: Pbkdf2Input): Partial<Record<Pbkdf2Region, number>> {
+  const { password, salt, mac, length } = input;
+  return { ...(password.length > 0 ? { password: password.length } : {}), ...(salt.length > 0 ? { salt: salt.length } : {}), u: mac.outputSize, f: mac.outputSize, dk: length };
 }
 
-function initialSnapshot(input: Pbkdf2Input, specs: RegionSpec<Pbkdf2Region>[]): Partial<Record<Pbkdf2Region, number[]>> {
-  const zeros = (size: number) => new Array<number>(size).fill(0);
-  const values: Record<Pbkdf2Region, number[]> = {
-    password: input.password,
-    salt: input.salt,
-    u: zeros(input.outputSize),
-    f: zeros(input.outputSize),
-    dk: zeros(input.length),
-  };
-  return Object.fromEntries(specs.map((spec) => [spec.id, values[spec.id]]));
+/** Zeros for u, f and dk; the password and salt regions (when present) hold their bytes from the start. */
+function initialSnapshot(regions: RegionSpec<Pbkdf2Region>[], input: Pbkdf2Input): Snapshot<Pbkdf2Region> {
+  const known: Partial<Record<Pbkdf2Region, number[]>> = { password: input.password, salt: input.salt };
+  return Object.fromEntries(Object.entries(zeroSnapshot(regions)).map(([id, zeros]) => [id, known[id as Pbkdf2Region] ?? zeros])) as Snapshot<Pbkdf2Region>;
 }
 
 /** Total PRF calls l · c and the compressions they cost after the two midstates (2 per call; U1 needs more when S ‖ INT(i) spans more than one block). */
@@ -101,21 +81,22 @@ export function pbkdf2Cost(blocks: number, iterations: number): { calls: number;
 
 class Pbkdf2Recorder {
   readonly tracer: RecordingTracer<Pbkdf2Region, Pbkdf2Op>;
-  private readonly hasPassword: boolean;
-  private readonly hasSalt: boolean;
+  /** Display name of the PRF, e.g. `HMAC-SHA-256`. */
+  private readonly macName: string;
+  private readonly outputSize: number;
 
   constructor(private readonly input: Pbkdf2Input) {
-    const specs = regions(input);
-    this.hasPassword = input.password.length > 0;
-    this.hasSalt = input.salt.length > 0;
-    this.tracer = new RecordingTracer<Pbkdf2Region, Pbkdf2Op>(specs, initialSnapshot(input, specs) as Record<Pbkdf2Region, number[]>, {
+    const regions = u8Regions(NS, regionSizes(input) as Record<Pbkdf2Region, number>, ['u', 'f', 'dk']);
+    this.macName = macDisplayName(input.mac);
+    this.outputSize = input.mac.outputSize;
+    this.tracer = new RecordingTracer<Pbkdf2Region, Pbkdf2Op>(regions, initialSnapshot(regions, input), {
       initialNarration: i18nRef(`${NS}.step.initial`, {
-        mac: input.macName,
+        mac: this.macName,
         passwordBytes: input.password.length,
         saltBytes: input.salt.length,
         iterations: input.iterations,
         length: input.length,
-        count: blockCount(input.length, input.outputSize),
+        count: blockCount(input.length, this.outputSize),
       }),
     });
   }
@@ -135,54 +116,57 @@ class Pbkdf2Recorder {
   }
 
   private u1(index: number, u: number[], f: number[]): void {
-    const size = this.input.outputSize;
+    const indices = allIndices(this.outputSize);
     this.tracer.step({
       op: 'u1',
       writes: [{ region: 'u', offset: 0, values: u }, { region: 'f', offset: 0, values: f }],
-      highlights: [...this.keyReads(), ...(this.hasSalt ? [{ region: 'salt' as const, indices: allIndices(this.input.salt.length), kind: 'read' as const }] : []), { region: 'u', indices: allIndices(size), kind: 'write' }, { region: 'f', indices: allIndices(size), kind: 'write' }],
-      narration: i18nRef(`${NS}.step.u1`, { block: index, counter: toHex(int32be(index)), mac: this.input.macName }),
+      highlights: [...this.inputReads('password'), ...this.inputReads('salt'), highlight('u', 'write', indices), highlight('f', 'write', indices)],
+      narration: i18nRef(`${NS}.step.u1`, { block: index, counter: toHex(int32be(index)), mac: this.macName }),
     });
   }
 
   private uAndXor(j: number, u: number[], f: number[]): void {
-    const indices = allIndices(this.input.outputSize);
+    const indices = allIndices(this.outputSize);
     this.tracer.step({
       op: 'u',
       writes: [{ region: 'u', offset: 0, values: u }],
-      highlights: [...this.keyReads(), { region: 'u', indices, kind: 'write' }],
+      highlights: [...this.inputReads('password'), highlight('u', 'write', indices)],
       narration: i18nRef(`${NS}.step.u`, { j, previous: j - 1, iterations: this.input.iterations }),
     });
     this.tracer.step({
       op: 'xor',
       writes: [{ region: 'f', offset: 0, values: f }],
-      highlights: [{ region: 'u', indices, kind: 'read' }, { region: 'f', indices, kind: 'xor' }],
+      highlights: [highlight('u', 'read', indices), highlight('f', 'xor', indices)],
       narration: i18nRef(`${NS}.step.xor`, { j }),
     });
   }
 
   private skip(j: number, u: number[], f: number[]): void {
-    const indices = allIndices(this.input.outputSize);
+    const indices = allIndices(this.outputSize);
     this.tracer.step({
       op: 'skip',
       writes: [{ region: 'u', offset: 0, values: u }, { region: 'f', offset: 0, values: f }],
-      highlights: [{ region: 'u', indices, kind: 'write' }, { region: 'f', indices, kind: 'write' }],
+      highlights: [highlight('u', 'write', indices), highlight('f', 'write', indices)],
       narration: i18nRef(`${NS}.step.skip`, { first: LEADING_ITERATIONS + 1, last: j, hidden: j - LEADING_ITERATIONS }),
     });
   }
 
-  private keyReads() {
-    return this.hasPassword ? [{ region: 'password' as const, indices: allIndices(this.input.password.length), kind: 'read' as const }] : [];
+  /** A read of the whole password or salt, or none when it is empty (its region is omitted). */
+  private inputReads(region: 'password' | 'salt') {
+    const length = this.input[region].length;
+    return length > 0 ? [highlight(region, 'read', allIndices(length))] : [];
   }
 
   /** Writes T_index (truncated for the last block) into DK at scope [index − 1]; returns the bytes written. */
   block(index: number, f: Uint8Array): number[] {
-    const { outputSize, length } = this.input;
+    const { outputSize } = this;
+    const { length } = this.input;
     const offset = (index - 1) * outputSize;
     const t = Array.from(f.subarray(0, length - offset));
     this.tracer.step({
       op: 'block',
       writes: [{ region: 'dk', offset, values: t }],
-      highlights: [{ region: 'f', indices: allIndices(t.length), kind: 'read' }, { region: 'dk', indices: allIndices(t.length).map((k) => offset + k), kind: 'write' }],
+      highlights: [highlight('f', 'read', allIndices(t.length)), highlight('dk', 'write', allIndices(t.length).map((k) => offset + k))],
       narration: t.length < outputSize ? i18nRef(`${NS}.step.blockTruncated`, { block: index, bytes: t.length, offset, size: outputSize }) : i18nRef(`${NS}.step.block`, { block: index, bytes: t.length, offset }),
     });
     return t;
@@ -193,8 +177,8 @@ class Pbkdf2Recorder {
     this.tracer.step({
       op: 'output',
       writes: [],
-      highlights: [{ region: 'dk', indices: allIndices(this.input.length), kind: 'read' }],
-      narration: i18nRef(`${NS}.step.output`, { length: this.input.length, count: blocks, iterations: this.input.iterations, calls, compressions, mac: this.input.macName }),
+      highlights: [highlight('dk', 'read', allIndices(this.input.length))],
+      narration: i18nRef(`${NS}.step.output`, { length: this.input.length, count: blocks, iterations: this.input.iterations, calls, compressions, mac: this.macName }),
     });
   }
 }
@@ -202,13 +186,14 @@ class Pbkdf2Recorder {
 /** Runs PBKDF2 with the recorder attached: every value shown is the real one of this computation. */
 export function recordPbkdf2(input: Pbkdf2Input): Pbkdf2Recording {
   const recorder = new Pbkdf2Recorder(input);
+  const keyed = input.mac.create(Uint8Array.from(input.password));
   const salt = Uint8Array.from(input.salt);
   const blocks: RecordedBlock[] = [];
-  const count = blockCount(input.length, input.outputSize);
+  const count = blockCount(input.length, input.mac.outputSize);
   for (let index = 1; index <= count; index++) {
     const us: RecordedU[] = [];
     recorder.tracer.enter(index - 1);
-    const f = pbkdf2Block(input.keyed, salt, index, input.iterations, (j, u, running) => {
+    const f = pbkdf2Block(keyed, salt, index, input.iterations, (j, u, running) => {
       const recorded = recorder.iteration(index, j, u, running);
       if (recorded !== undefined) us.push(recorded);
     });

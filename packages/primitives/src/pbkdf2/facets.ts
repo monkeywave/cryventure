@@ -1,7 +1,8 @@
-import { i18nRef, INITIAL_STEP_INDEX, valueId, valueRef, type DerivationFacet, type DerivationNode, type LabZoom, type ValuesFacet } from '@cryventure/core';
-import { hmacLabZoom } from '../_lib/hmac/labZoom.ts';
+import { i18nRef, INITIAL_STEP_INDEX, valueId, valueRef, type DerivationFacet, type ValuesFacet } from '@cryventure/core';
+import { DerivationBuilder, type DerivationNodeSpec } from '../_lib/derivation.ts';
+import { macLabZoom } from '../_lib/hmac/labZoom.ts';
 import { saltWithIndex } from './pbkdf2.ts';
-import { LEADING_ITERATIONS, type Pbkdf2Recording, type RecordedBlock, type RecordedU } from './record.ts';
+import { LEADING_ITERATIONS, type Pbkdf2Input, type Pbkdf2Recording, type RecordedBlock } from './record.ts';
 
 /** The `values` and `derivation` facets of a recorded PBKDF2 run (docs/M7.md §2e). */
 const NS = 'plugin.pbkdf2';
@@ -14,20 +15,23 @@ const messageNodeId = (index: number): string => valueId([index], 'message');
 export const uNodeId = (index: number, j: number): string => valueId([index], `u${j}`);
 
 /** Password (secret) and salt from the start, T_i at its block step, DK (secret) at the output step. */
-export function pbkdf2Values(recording: Pbkdf2Recording, password: number[], salt: number[]): ValuesFacet {
+export function pbkdf2Values(recording: Pbkdf2Recording, input: Pick<Pbkdf2Input, 'password' | 'salt'>): ValuesFacet {
   return {
     kind: 'values',
     schemaVersion: 1,
     values: [
-      valueRef(NS, 'password', 'secret', password, INITIAL_STEP_INDEX),
-      valueRef(NS, 'salt', 'public', salt, INITIAL_STEP_INDEX),
+      valueRef(NS, 'password', 'secret', input.password, INITIAL_STEP_INDEX),
+      valueRef(NS, 'salt', 'public', input.salt, INITIAL_STEP_INDEX),
       ...recording.blocks.map((block) => valueRef(NS, 't', 'secret', block.t, block.step, [block.index])),
       valueRef(NS, 'dk', 'secret', recording.dk, recording.outputStep),
     ],
   };
 }
 
-/** Where the derivation's HMAC calls come from: the Hash member behind the Mac, the password, the salt. */
+/**
+ * Where the derivation's HMAC calls come from: the Hash member behind the Mac, the password, the salt.
+ * No longer used by `pbkdf2Derivation`, which takes the run's `Pbkdf2Input` (its `mac` names the hash).
+ */
 export interface DerivationInput {
   /** The Mac member's `construction.hash`, e.g. `sha256:sha-256`. */
   hashRef: string;
@@ -35,55 +39,29 @@ export interface DerivationInput {
   salt: number[];
 }
 
-function uNode(block: RecordedBlock, u: RecordedU, previous: string, zoom: LabZoom | undefined): DerivationNode {
-  const label = u.skipped ? i18nRef(`${NS}.derivation.uSkipped`, { j: u.j, hidden: u.j - LEADING_ITERATIONS }) : i18nRef(`${NS}.derivation.u`, { j: u.j, block: block.index });
-  return { id: uNodeId(block.index, u.j), label, bytes: u.bytes, op: 'hmac', inputs: [previous, PASSWORD_ID], step: u.step, ...(zoom === undefined ? {} : { zoom }) };
-}
+type DerivationSource = Pick<Pbkdf2Input, 'mac' | 'password' | 'salt'>;
 
-/** S ‖ INT(i) → U₁ → … → U_c (recorded ones) → T_i = U₁ ⊕ … ⊕ U_c, the last U continuing the chain. */
-function blockNodes(input: DerivationInput, block: RecordedBlock): DerivationNode[] {
-  const message = Array.from(saltWithIndex(Uint8Array.from(input.salt), block.index));
-  const nodes: DerivationNode[] = [{ id: messageNodeId(block.index), label: i18nRef(`${NS}.derivation.message`, { block: block.index }), bytes: message, op: 'concat', inputs: [SALT_ID] }];
+/** S ‖ INT(i) → U₁ → … → U_c (recorded ones) → T_i = U₁ ⊕ … ⊕ U_c, the last U continuing the chain; U₁ links to the `hmac` lab. */
+function addBlockNodes(builder: DerivationBuilder, input: DerivationSource, block: RecordedBlock): void {
+  const message = saltWithIndex(Uint8Array.from(input.salt), block.index);
+  let previous = builder.add({ id: messageNodeId(block.index), label: 'message', labelParams: { block: block.index }, bytes: message, op: 'concat', inputs: [SALT_ID] });
   for (const u of block.us) {
-    const previous = nodes.at(-1)!.id;
-    nodes.push(uNode(block, u, previous, u.j === 1 ? hmacLabZoom(input.hashRef, input.password, message) : undefined));
+    const label: Pick<DerivationNodeSpec, 'label' | 'labelParams'> = u.skipped ? { label: 'uSkipped', labelParams: { j: u.j, hidden: u.j - LEADING_ITERATIONS } } : { label: 'u', labelParams: { j: u.j, block: block.index } };
+    const zoom = u.j === 1 ? macLabZoom(input.mac, input.password, message) : undefined;
+    previous = builder.add({ id: uNodeId(block.index, u.j), ...label, bytes: u.bytes, op: 'hmac', inputs: [previous, PASSWORD_ID], step: u.step, zoom });
   }
   const uIds = block.us.map((u) => uNodeId(block.index, u.j));
-  nodes.push({
-    id: blockValueId(block.index),
-    label: i18nRef(`${NS}.derivation.t`, { block: block.index }),
-    bytes: block.t,
-    op: 'xor',
-    inputs: [uIds.at(-1)!, ...uIds.slice(0, -1)],
-    group: block.index,
-    result: true,
-    valueRef: blockValueId(block.index),
-    step: block.step,
-  });
-  return nodes;
+  const tId = blockValueId(block.index);
+  builder.add({ id: tId, label: 't', labelParams: { block: block.index }, bytes: block.t, op: 'xor', inputs: [uIds.at(-1)!, ...uIds.slice(0, -1)], group: block.index, result: true, valueRef: tId, step: block.step });
 }
 
 /** Password and salt, every block's U chain, then DK = T₁ ‖ … ‖ T_l (truncated to dkLen). */
-export function pbkdf2Derivation(recording: Pbkdf2Recording, input: DerivationInput): DerivationFacet {
-  const inputs: DerivationNode[] = [
-    { id: PASSWORD_ID, label: i18nRef(`${NS}.derivation.password`), bytes: input.password, op: 'input', inputs: [], valueRef: PASSWORD_ID },
-    { id: SALT_ID, label: i18nRef(`${NS}.derivation.salt`), bytes: input.salt, op: 'input', inputs: [], valueRef: SALT_ID },
-  ];
-  const dk: DerivationNode = {
-    id: DK_ID,
-    label: i18nRef(`${NS}.derivation.dk`, { length: recording.dk.length }),
-    bytes: recording.dk,
-    op: 'concat',
-    inputs: recording.blocks.map((block) => blockValueId(block.index)),
-    result: true,
-    valueRef: DK_ID,
-    step: recording.outputStep,
-  };
-  return {
-    kind: 'derivation',
-    schemaVersion: 1,
-    title: i18nRef(`${NS}.derivation.title`),
-    nodes: [...inputs, ...recording.blocks.flatMap((block) => blockNodes(input, block)), dk],
-    groups: recording.blocks.map((block) => ({ id: block.index, label: i18nRef(`${NS}.derivation.group`, { block: block.index }) })),
-  };
+export function pbkdf2Derivation(recording: Pbkdf2Recording, input: DerivationSource): DerivationFacet {
+  const builder = new DerivationBuilder(NS);
+  builder.add({ id: PASSWORD_ID, label: 'password', bytes: input.password, op: 'input', valueRef: PASSWORD_ID });
+  builder.add({ id: SALT_ID, label: 'salt', bytes: input.salt, op: 'input', valueRef: SALT_ID });
+  for (const block of recording.blocks) addBlockNodes(builder, input, block);
+  const dkInputs = recording.blocks.map((block) => blockValueId(block.index));
+  builder.add({ id: DK_ID, label: 'dk', labelParams: { length: recording.dk.length }, bytes: recording.dk, op: 'concat', inputs: dkInputs, result: true, valueRef: DK_ID, step: recording.outputStep });
+  return builder.facet(recording.blocks.map((block) => ({ id: block.index, label: i18nRef(`${NS}.derivation.group`, { block: block.index }) })));
 }

@@ -3,15 +3,19 @@ import {
   blockIndices,
   highlight,
   i18nRef,
+  narrationFromState,
   RecordingTracer,
   toHex,
+  type DerivationFacet,
   type I18nRef,
   type MacFunction,
+  type PrimitiveRecording,
   type RegionSpec,
   type ScopeLevel,
   type Snapshot,
   type StateFacet,
   type StepInput,
+  type ValuesFacet,
 } from '@cryventure/core';
 import { macDisplayName } from '../hmac/macCalls.ts';
 import type { PHashChain } from './pHash.ts';
@@ -152,4 +156,13 @@ function recordP<R extends string>(recorder: PrfRecorder<R>, spec: PrfChainSpec<
 /** Block `index` of the chain: its `a` and `p` steps in the current scope. */
 export function recordChainBlock<R extends string>(recorder: PrfRecorder<R>, spec: PrfChainSpec<R>, index: number): PrfBlockSteps {
   return { a: recordA(recorder, spec, index), p: recordP(recorder, spec, index) };
+}
+
+/** A TLS PRF run's recording: the recorder's state and its narration, the values and derivation facets, and `{ output }`. */
+export function prfRecording<R extends string>(recorder: PrfRecorder<R>, facets: { values: ValuesFacet; derivation: DerivationFacet }, output: Uint8Array): PrimitiveRecording {
+  const state = recorder.stateFacet();
+  return {
+    facets: { state, values: facets.values, derivation: facets.derivation, narration: narrationFromState(state) },
+    output: { output: Array.from(output) },
+  };
 }

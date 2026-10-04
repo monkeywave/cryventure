@@ -1,4 +1,4 @@
-import { blockCount, type MacContext, type MacFunction } from '@cryventure/core';
+import { blockCount, concatBlocks, type MacContext, type MacFunction } from '@cryventure/core';
 import { keyedMac } from '../_lib/hmac/macCalls.ts';
 
 /**
@@ -14,10 +14,7 @@ export function int32be(index: number): Uint8Array {
 
 /** S ‖ INT(i), the message of U₁ in block `index` (1-based). */
 export function saltWithIndex(salt: Uint8Array, index: number): Uint8Array {
-  const message = new Uint8Array(salt.length + 4);
-  message.set(salt);
-  message.set(int32be(index), salt.length);
-  return message;
+  return concatBlocks([salt, int32be(index)]);
 }
 
 /** Called after iteration `j` (1-based) with U_j and the running F = U₁ ⊕ … ⊕ U_j (both owned by the caller only for the call). */

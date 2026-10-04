@@ -1,4 +1,4 @@
-import { blockCount, parseHexOrThrow, utf8Bytes, xorBytes, type MacFunction } from '@cryventure/core';
+import { blockCount, concatBlocks, parseHexOrThrow, utf8Bytes, xorBytes, type MacFunction } from '@cryventure/core';
 import { keyedMac } from '../hmac/macCalls.ts';
 import type { PrfInputs } from './manifestKit.ts';
 
@@ -22,15 +22,12 @@ export interface PHashChain {
 
 /** a ‖ b as a new array. */
 export function concatBytes(a: Uint8Array, b: Uint8Array): Uint8Array {
-  const joined = new Uint8Array(a.length + b.length);
-  joined.set(a);
-  joined.set(b, a.length);
-  return joined;
+  return concatBlocks([a, b]);
 }
 
 /** label ‖ seed: the ASCII label's bytes followed by the seed (RFC 5246 §5). */
 export function labelSeed(label: string, seed: Uint8Array): Uint8Array {
-  return concatBytes(utf8Bytes(label), seed);
+  return concatBlocks([utf8Bytes(label), seed]);
 }
 
 function assertLength(length: number): void {
@@ -52,10 +49,9 @@ export function pHashChain(mac: MacFunction, secret: Uint8Array, seed: Uint8Arra
   for (let index = 0; index < blocks; index += 1) {
     previous = keyedMac(keyed, previous);
     a.push(previous);
-    p.push(keyedMac(keyed, concatBytes(previous, seed)));
+    p.push(keyedMac(keyed, concatBlocks([previous, seed])));
   }
-  const stream = new Uint8Array(blocks * mac.outputSize);
-  p.forEach((block, index) => stream.set(block, index * mac.outputSize));
+  const stream = concatBlocks(p);
   return { a, p, stream, output: stream.slice(0, length) };
 }
 

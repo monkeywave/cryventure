@@ -1,10 +1,11 @@
 import { definePrimitive, opLabels, readOption, readPortMemberRef, type ParamField, type Preset, type ValidationResult } from '@cryventure/core';
+import { hmacMemberField } from '../_lib/hmac/manifestKit.ts';
 import { readDigits } from '../_lib/params/manifestKit.ts';
 import { HASH_ENCODINGS, paramError, readMessageInput, selectField, type HashEncoding } from '../_lib/hashKit/manifestKit.ts';
 
 /**
  * Manifest for PBKDF2 (RFC 8018 §5.2) over any HMAC `Mac` member (docs/M7.md §2e). The first
- * producer that runs in a Web Worker. Imports core and the core-only hash manifest kit only.
+ * producer that runs in a Web Worker. Imports core and the core-only manifest kits only.
  */
 export type Pbkdf2Encoding = HashEncoding;
 
@@ -61,7 +62,7 @@ function digitsField(name: string, max: number): ParamField {
 }
 
 export const PBKDF2_PARAM_FIELDS: ParamField[] = [
-  { name: 'mac', kind: 'port', port: 'Mac', member: true, constructions: ['hmac'], labelKey: `${NS}.param.mac`, hintKey: `${NS}.param.macHint` },
+  hmacMemberField(NS, 'mac'),
   selectField(NS, 'passwordEncoding', HASH_ENCODINGS),
   bytesField('password', PBKDF2_MAX_PASSWORD_BYTES),
   selectField(NS, 'saltEncoding', HASH_ENCODINGS),
