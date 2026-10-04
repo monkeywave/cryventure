@@ -47,8 +47,57 @@ export function sha1Schedule(block: Uint8Array): number[] {
   return w;
 }
 
-/** SHA-1 compression of one 64-byte block into `h` (5 words, updated in place and returned). */
+/** W_0 … W_79 of the block being compressed (reused: compression is synchronous). */
+const W = new Int32Array(SHA1_ROUNDS);
+const K_TABLE = Int32Array.from(SHA1_K);
+
+/** The schedule (§6.1.2 step 1) into `w`: W_0 … W_15 big-endian, then the ROTL^1 recurrence. */
+function fillSchedule(block: Uint8Array, w: Int32Array): void {
+  for (let t = 0, o = 0; t < 16; t++, o += 4) w[t] = (block[o]! << 24) | (block[o + 1]! << 16) | (block[o + 2]! << 8) | block[o + 3]!;
+  for (let t = 16; t < SHA1_ROUNDS; t++) {
+    const x = w[t - 3]! ^ w[t - 8]! ^ w[t - 14]! ^ w[t - 16]!;
+    w[t] = (x << 1) | (x >>> 31);
+  }
+}
+
+/** f_t(b, c, d) + K_t (§4.1.1, §4.2.1) as a signed 32-bit int: Ch, Parity, Maj, Parity by quarter. */
+function fPlusK(t: number, b: number, c: number, d: number): number {
+  if (t < 20) return (((b & c) ^ (~b & d)) + K_TABLE[0]!) | 0;
+  if (t < 40) return ((b ^ c ^ d) + K_TABLE[1]!) | 0;
+  if (t < 60) return (((b & c) ^ (b & d) ^ (c & d)) + K_TABLE[2]!) | 0;
+  return ((b ^ c ^ d) + K_TABLE[3]!) | 0;
+}
+
+/**
+ * SHA-1 compression of one 64-byte block into `h` (5 words, updated in place and returned): the
+ * port's hot path (docs/M7.md §2e), int32 arithmetic on a reused schedule; equal to `sha1CompressSpec`.
+ */
 export function sha1Compress(h: Uint32Array, block: Uint8Array): Uint32Array {
+  fillSchedule(block, W);
+  let a = h[0]! | 0, b = h[1]! | 0, c = h[2]! | 0, d = h[3]! | 0, e = h[4]! | 0;
+  for (let t = 0; t < SHA1_ROUNDS; t++) {
+    const temp = (((a << 5) | (a >>> 27)) + fPlusK(t, b, c, d) + e + W[t]!) | 0;
+    e = d;
+    d = c;
+    c = (b << 30) | (b >>> 2);
+    b = a;
+    a = temp;
+  }
+  // Uint32Array stores wrap mod 2^32 (negative int32 sums included).
+  h[0]! += a;
+  h[1]! += b;
+  h[2]! += c;
+  h[3]! += d;
+  h[4]! += e;
+  return h;
+}
+
+/**
+ * SHA-1 compression written straight from FIPS 180-4 §6.1.2 (`sha1Schedule`, `sha1RoundConstants`,
+ * `SHA1_FUNCTIONS`, `WORD32`): the readable reference `sha1Compress` is checked and timed against
+ * (about 10 µs per block).
+ */
+export function sha1CompressSpec(h: Uint32Array, block: Uint8Array): Uint32Array {
   const w = sha1Schedule(block);
   let a = h[0]!, b = h[1]!, c = h[2]!, d = h[3]!, e = h[4]!;
   for (let t = 0; t < SHA1_ROUNDS; t++) {

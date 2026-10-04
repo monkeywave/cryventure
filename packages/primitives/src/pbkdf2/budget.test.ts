@@ -12,11 +12,10 @@ const { performance } = globalThis as unknown as { performance: { now(): number 
 const members = await allHmacMembers();
 
 /**
- * Over budget, reported to the M7 lead (not lowered here): the MD5 and SHA-1 ports take about
- * 10–12 µs per compression, so the two blocks of a 32-byte key (400 000 compressions) need 5–6 s
- * alone and 13 s while the whole suite runs in parallel. Fix in their ports, then remove the entry.
+ * Members over budget, reported to the M7 lead rather than lowering the budget; skipped until their
+ * ports are fixed. Empty since the MD5 and SHA-1 ports compress in about 0.5 µs (was 10–12 µs).
  */
-const OVER_BUDGET: ReadonlySet<string> = new Set(['md5:hmac-md5', 'sha1:hmac-sha-1']);
+const OVER_BUDGET: ReadonlySet<string> = new Set<string>();
 const gated = members.filter((member) => !OVER_BUDGET.has(member.ref));
 
 describe('pbkdf2 budget: c = 100000, 32 bytes', () => {

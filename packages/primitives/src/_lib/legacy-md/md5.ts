@@ -85,8 +85,54 @@ export function md5PadTail(tail: ArrayLike<number>, messageBytes: number): Uint8
   return littleEndianLength(sha2PadTail(tail, messageBytes, MD5_BLOCK_BYTES));
 }
 
-/** MD5 compression of one 64-byte block into `h` (4 words, updated in place and returned). */
+/** k and s of operation i (`md5Operation`) as flat tables, so the fast compression allocates nothing per step. */
+const WORD_INDEX_TABLE = Uint8Array.from({ length: MD5_ROUNDS }, (_, i) => md5Operation(i).k);
+const SHIFT_TABLE = Uint8Array.from({ length: MD5_ROUNDS }, (_, i) => md5Operation(i).s);
+const T_TABLE = Int32Array.from(MD5_T);
+/** X[0 … 15] of the block being compressed (reused: compression is synchronous). */
+const X = new Int32Array(16);
+
+/** X[0 … 15]: the block's 32-bit words read little-endian (RFC 1321 §3.4). */
+function readLittleEndianWords(block: Uint8Array, x: Int32Array): void {
+  for (let j = 0, o = 0; j < 16; j++, o += 4) x[j] = block[o]! | (block[o + 1]! << 8) | (block[o + 2]! << 16) | (block[o + 3]! << 24);
+}
+
+/** The auxiliary function of operation i on b, c, d (F, G, H, I by quarter), as a signed 32-bit int. */
+function md5Function(i: number, b: number, c: number, d: number): number {
+  if (i < 16) return (b & c) | (~b & d);
+  if (i < 32) return (b & d) | (c & ~d);
+  if (i < 48) return b ^ c ^ d;
+  return c ^ (b | ~d);
+}
+
+/**
+ * MD5 compression of one 64-byte block into `h` (4 words, updated in place and returned): the
+ * port's hot path (docs/M7.md §2e), int32 arithmetic on flat tables; equal to `md5CompressSpec`.
+ */
 export function md5Compress(h: Uint32Array, block: Uint8Array): Uint32Array {
+  readLittleEndianWords(block, X);
+  let a = h[0]! | 0, b = h[1]! | 0, c = h[2]! | 0, d = h[3]! | 0;
+  for (let i = 0; i < MD5_ROUNDS; i++) {
+    const sum = (a + md5Function(i, b, c, d) + X[WORD_INDEX_TABLE[i]!]! + T_TABLE[i]!) | 0;
+    const s = SHIFT_TABLE[i]!;
+    a = d;
+    d = c;
+    c = b;
+    b = (b + ((sum << s) | (sum >>> (32 - s)))) | 0;
+  }
+  // Uint32Array stores wrap mod 2^32 (negative int32 sums included).
+  h[0]! += a;
+  h[1]! += b;
+  h[2]! += c;
+  h[3]! += d;
+  return h;
+}
+
+/**
+ * MD5 compression written straight from RFC 1321 §3.4 (`md5Operation`, `MD5_FUNCTIONS`, `WORD32`):
+ * the readable reference `md5Compress` is checked and timed against (about 12 µs per block).
+ */
+export function md5CompressSpec(h: Uint32Array, block: Uint8Array): Uint32Array {
   const x = wordsFromBytes(WORD32, block.subarray(0, MD5_BLOCK_BYTES), 'little');
   let a = h[0]!, b = h[1]!, c = h[2]!, d = h[3]!;
   for (let i = 0; i < MD5_ROUNDS; i++) {
