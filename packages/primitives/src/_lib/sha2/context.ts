@@ -2,8 +2,8 @@ import type { HashContext } from '@cryventure/core';
 import { BlockBuffer } from '../hashKit/blockBuffer.ts';
 import { isWord32, type AnySha2Algorithm } from './algorithms.ts';
 import { sha2PadTail } from './padding.ts';
-import { sha256Compress, sha512Compress } from './reference.ts';
-import { WORD32, WORD64, wordsToBytes } from './words.ts';
+import { sha512CompressHiLo, toHiLo } from './hilo.ts';
+import { sha256Compress } from './reference.ts';
 
 /**
  * Incremental SHA-2, MD5 and SHA-1 (docs/M6.md §1): a context compresses every whole block as data
@@ -23,18 +23,27 @@ export interface BlockEngine<S extends BlockState> {
   readonly bytes: (state: S) => Uint8Array;
 }
 
+/** 32-bit words big-endian (FIPS 180-4 §3.1); for a hi/lo state that is its 64-bit words big-endian. */
+export function bigEndianWordBytes(state: Uint32Array): Uint8Array {
+  const bytes = new Uint8Array(state.length * 4);
+  const view = new DataView(bytes.buffer);
+  state.forEach((word, index) => view.setUint32(index * 4, word));
+  return bytes;
+}
+
 const ENGINE32: BlockEngine<Uint32Array> = {
   blockBytes: 64,
   compress: sha256Compress,
   padTail: (tail, messageBytes) => sha2PadTail(tail, messageBytes, 64),
-  bytes: (state) => Uint8Array.from(wordsToBytes(WORD32, [...state])),
+  bytes: bigEndianWordBytes,
 };
 
-const ENGINE64: BlockEngine<BigUint64Array> = {
+/** SHA-384/512/512-t on the 32-bit hi/lo compression (docs/M7.md §2a): 16 entries for the 8 words. */
+const ENGINE64: BlockEngine<Uint32Array> = {
   blockBytes: 128,
-  compress: sha512Compress,
+  compress: sha512CompressHiLo,
   padTail: (tail, messageBytes) => sha2PadTail(tail, messageBytes, 128),
-  bytes: (state) => Uint8Array.from(wordsToBytes(WORD64, [...state])),
+  bytes: bigEndianWordBytes,
 };
 
 /** Compresses every `blockBytes`-byte block of `padded` into `state` (in place) and returns it. */
@@ -63,6 +72,11 @@ class BlockContext<S extends BlockState> implements HashContext {
     return engine.bytes(compressBlocks(this.state.slice() as S, tail, engine.blockBytes, engine.compress)).slice(0, this.outputSize);
   }
 
+  /** H, the chaining value after the last whole block, as `engine.bytes` writes it (docs/M7.md §1a). */
+  chainingState(): Uint8Array {
+    return this.engine.bytes(this.state.slice() as S);
+  }
+
   clone(): HashContext {
     return new BlockContext(this.engine, this.outputSize, this.state.slice() as S, this.buffer.clone(), this.messageBytes);
   }
@@ -77,5 +91,5 @@ export function createBlockContext<S extends BlockState>(engine: BlockEngine<S>,
 export function createSha2Context(algorithm: AnySha2Algorithm): HashContext {
   return isWord32(algorithm)
     ? createBlockContext(ENGINE32, Uint32Array.from(algorithm.iv), algorithm.outputSize)
-    : createBlockContext(ENGINE64, BigUint64Array.from(algorithm.iv), algorithm.outputSize);
+    : createBlockContext(ENGINE64, toHiLo(algorithm.iv), algorithm.outputSize);
 }

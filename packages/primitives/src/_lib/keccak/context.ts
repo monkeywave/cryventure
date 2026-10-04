@@ -1,6 +1,6 @@
 import type { HashContext, XofContext } from '@cryventure/core';
 import { BlockBuffer } from '../hashKit/blockBuffer.ts';
-import { zeroState, type KeccakState } from './lanes.ts';
+import { stateBytes, zeroState, type KeccakState } from './lanes.ts';
 import { padTail, type DomainSuffix } from './padding.ts';
 import { absorbBlock, squeezeBlock, squeezeFrom } from './sponge.ts';
 import { keccakF1600 } from './stepMappings.ts';
@@ -40,6 +40,11 @@ class AbsorbingSponge {
     return keccakF1600(absorbBlock(this.state, last));
   }
 
+  /** The 200-byte state after the last whole rate block, in FIPS 202 byte order (no buffered bytes). */
+  stateBytes(): Uint8Array {
+    return Uint8Array.from(stateBytes(this.state));
+  }
+
   clone(): AbsorbingSponge {
     return new AbsorbingSponge(this.rateBytes, this.suffix, [...this.state], this.buffer.clone());
   }
@@ -58,6 +63,11 @@ class KeccakHashContext implements HashContext {
 
   digest(): Uint8Array {
     return squeezeFrom(this.sponge.finish(), this.rateBytes, this.outputSize);
+  }
+
+  /** The sponge state as bytes (docs/M7.md §1a). */
+  chainingState(): Uint8Array {
+    return this.sponge.stateBytes();
   }
 
   clone(): HashContext {

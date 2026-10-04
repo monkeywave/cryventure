@@ -1,12 +1,14 @@
 import { utf8Bytes, type HashFamily, type HashFunction } from '@cryventure/core';
-import { createSha2Context } from './context.ts';
+import { bigEndianWordBytes, compressBlocks, createSha2Context } from './context.ts';
 import { isWord32, SHA256_ALGORITHMS, SHA512_ALGORITHMS, SHA2_IDS, type AnySha2Algorithm, type Sha2Algorithm, type Sha2AlgorithmId, type Sha2Id } from './algorithms.ts';
+import { sha512CompressHiLo, toHiLo } from './hilo.ts';
 import { sha2Pad } from './padding.ts';
 import { sha256Compress, sha512Compress } from './reference.ts';
 import { WORD64, wordsFromBytes } from './words.ts';
 
 /**
- * The untraced SHA-2 hash functions (docs/M5.md §2a): padding, the reference compression per block,
+ * The untraced SHA-2 hash functions (docs/M5.md §2a): padding, the reference compression per block
+ * (the `Hash` port: the SHA-512 family on the hi/lo compression, docs/M7.md §2a),
  * and truncation, plus incremental contexts (docs/M6.md §1). `SHA2_FUNCTIONS` are the six `HashFunction`s
  * behind the producers' `Hash` ports.
  */
@@ -38,6 +40,16 @@ export function sha2Digest(algorithm: AnySha2Algorithm, data: Uint8Array): Uint8
   return isWord32(algorithm) ? digest32(algorithm, data) : digest64(algorithm, data);
 }
 
+/**
+ * The digest the `Hash` port computes: SHA-224/256 as `sha2Digest`, the SHA-512 family on the 32-bit
+ * hi/lo compression (docs/M7.md §2a) instead of `bigint`. Same bytes, about an order of magnitude faster.
+ */
+export function sha2PortDigest(algorithm: AnySha2Algorithm, data: Uint8Array): Uint8Array {
+  if (isWord32(algorithm)) return digest32(algorithm, data);
+  const h = compressBlocks(toHiLo(algorithm.iv), sha2Pad(data, 128), 128, sha512CompressHiLo);
+  return bigEndianWordBytes(h).slice(0, algorithm.outputSize);
+}
+
 /** The SHA-512/t IV generation function (§5.3.6): SHA-512 with IV H(0) ⊕ a5a5…a5, untruncated. */
 export function sha512tIvGenerator(data: Uint8Array): Uint8Array {
   return sha2Digest(ALGORITHMS['sha-512/t-iv'], data);
@@ -56,7 +68,7 @@ function sha2HashFunction(id: Sha2Id): HashFunction {
     id,
     blockSize: algorithm.params.blockBytes,
     outputSize: algorithm.outputSize,
-    hash: (data) => sha2Digest(algorithm, data),
+    hash: (data) => sha2PortDigest(algorithm, data),
     create: () => createSha2Context(algorithm),
   };
 }

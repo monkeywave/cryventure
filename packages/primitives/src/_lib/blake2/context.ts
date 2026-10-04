@@ -72,6 +72,11 @@ class Blake2Context<S extends Blake2State> implements HashContext {
     return engine.bytes(state).slice(0, this.outputBytes);
   }
 
+  /** h after the blocks compressed so far, little-endian (docs/M7.md §1a); a buffered block is not in it yet. */
+  chainingState(): Uint8Array {
+    return this.engine.bytes(this.running.state);
+  }
+
   clone(): HashContext {
     const { engine, running } = this;
     return new Blake2Context(engine, this.outputBytes, { ...running, state: engine.copy(running.state), buffer: running.buffer.slice() });
