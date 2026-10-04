@@ -1,0 +1,287 @@
+{
+  "source": "https://csrc.nist.gov/CSRC/media/Projects/Cryptographic-Algorithm-Validation-Program/documents/components/800-135testvectors/tls.zip (CAVS 12.0 SP 800-135 TLS KDF, tls.rsp) (section [TLS 1.0/1.1])",
+  "filter": "Every COUNT of the TLS 1.0/1.1 section, two cases each: master secret = PRF(pre_master_secret, 'master secret', ClientHello.random ‖ ServerHello.random)[0..48), key block = PRF(master_secret, 'key expansion', server_random ‖ client_random)[0..104).",
+  "count": 20,
+  "cases": [
+    {
+      "name": "CAVP SP 800-135 TLS [TLS 1.0/1.1] COUNT=0 master secret",
+      "params": {
+        "md5Mac": "md5:hmac-md5",
+        "sha1Mac": "sha1:hmac-sha-1",
+        "secret": "bded7fa5c1699c010be23dd06ada3a48349f21e5f86263d512c0c5cc379f0e780ec55d9844b2f1db02a96453513568d0",
+        "label": "master secret",
+        "seed": "e5acaf549cd25c22d964c0d930fa4b5261d2507fad84c33715b7b9a864020693135e4d557fdf3aa6406d82975d5c606a9734c9334b42136e96990fbd5358cdb2",
+        "length": "48"
+      },
+      "outputs": {
+        "output": "2f6962dfbc744c4b2138bb6b3d33054c5ecc14f24851d9896395a44ab3964efc2090c5bf51a0891209f46c1e1e998f62"
+      }
+    },
+    {
+      "name": "CAVP SP 800-135 TLS [TLS 1.0/1.1] COUNT=0 key block",
+      "params": {
+        "md5Mac": "md5:hmac-md5",
+        "sha1Mac": "sha1:hmac-sha-1",
+        "secret": "2f6962dfbc744c4b2138bb6b3d33054c5ecc14f24851d9896395a44ab3964efc2090c5bf51a0891209f46c1e1e998f62",
+        "label": "key expansion",
+        "seed": "67267e650eb32444119d222a368c191af3082888dc35afe8368e638c828874bed58a7b1cd4fedaa232159df652ce188f9d997e061b9bf48e83b62990440931f6",
+        "length": "104"
+      },
+      "outputs": {
+        "output": "3088825988e77fce68d19f756e18e43eb7fe672433504feaf99b3c503d9091b164f166db301d70c9fc0870b4a94563907bee1a61fb786cb717576890bcc51cb9ead97e01d0a2fea99c953377b195205ff07b369589178796edc963fd80fdbe518a2fc1c35c18ae8d"
+      }
+    },
+    {
+      "name": "CAVP SP 800-135 TLS [TLS 1.0/1.1] COUNT=1 master secret",
+      "params": {
+        "md5Mac": "md5:hmac-md5",
+        "sha1Mac": "sha1:hmac-sha-1",
+        "secret": "2a63fc315176b2148604263e2efbc3b51269b899bc0c26ef6f5e1392d4305cd1b4e2a873cb2e4a3b9ae54b46361d77e3",
+        "label": "master secret",
+        "seed": "d9c5171a11719f7b411fe90dccd0e5d34d40a1f6a064600b88e1a6e03a05c49ba27d758b700b1fd301e293cd7fceceed59580590a92893de05dc0ed07cb30f34",
+        "length": "48"
+      },
+      "outputs": {
+        "output": "4d2358abf1396fd5270ab11e9a93305a8aa9bfe51628f823a76d240443b31a05c5cd44ecdfdf2fa1a4d8f209b06153a6"
+      }
+    },
+    {
+      "name": "CAVP SP 800-135 TLS [TLS 1.0/1.1] COUNT=1 key block",
+      "params": {
+        "md5Mac": "md5:hmac-md5",
+        "sha1Mac": "sha1:hmac-sha-1",
+        "secret": "4d2358abf1396fd5270ab11e9a93305a8aa9bfe51628f823a76d240443b31a05c5cd44ecdfdf2fa1a4d8f209b06153a6",
+        "label": "key expansion",
+        "seed": "e0fcd224616679cf9b437c566705052a2a846ae295d06cdd30dc11aae51d8512d2daac9e23b03832a9ec3378862e5d9fd5ed96194659252b9e3ed46af9632f42",
+        "length": "104"
+      },
+      "outputs": {
+        "output": "34134f49603f314e3c1183a78f1d12fb94e699402112bb29f1f54c2581a781fd8950ddd2166c348ce9841ab6e6213c9a7700669a53dc68a0d2aac11d65e7e4552531c2ea267c7b595335b81efe370608773008ee491a402b03cae19a5ce6eee10e4cb611cee34a0e"
+      }
+    },
+    {
+      "name": "CAVP SP 800-135 TLS [TLS 1.0/1.1] COUNT=2 master secret",
+      "params": {
+        "md5Mac": "md5:hmac-md5",
+        "sha1Mac": "sha1:hmac-sha-1",
+        "secret": "4f837e583bae8ac2d64f2e0e354be9e593e5f772f337f945fd9c8d90259bc90ff8d9b8e4920381ee2db6c8d5418bed1b",
+        "label": "master secret",
+        "seed": "41c251377f8c666e9ec7b2b78a0f84e1309baede339e6e8d69819d6c51e1ff5c9cc4c1fb0dbc33836cadce7a727f5d55d0c429c42cdd99ac2d88b64171b50dff",
+        "length": "48"
+      },
+      "outputs": {
+        "output": "bf35ff019b1b1aab12674f00dae08edfbc6f1d3012e291abf194cd762a8b4bdfe191c3ac41f402a40278d77cc2c26d38"
+      }
+    },
+    {
+      "name": "CAVP SP 800-135 TLS [TLS 1.0/1.1] COUNT=2 key block",
+      "params": {
+        "md5Mac": "md5:hmac-md5",
+        "sha1Mac": "sha1:hmac-sha-1",
+        "secret": "bf35ff019b1b1aab12674f00dae08edfbc6f1d3012e291abf194cd762a8b4bdfe191c3ac41f402a40278d77cc2c26d38",
+        "label": "key expansion",
+        "seed": "38bb673f07eb1e4f019cbe69f27f46e4f14e42b89d5c3ac2a31e25c9f72f47b4c310396390b643d9d6864e563a0863b617f77ab1c18b7e1d94143025ed5c9b92",
+        "length": "104"
+      },
+      "outputs": {
+        "output": "f50640548512e816f699e3f18e0e2a18515a372978d0fb4c4aa4a405c86838dc948f1104ab4fe1a575359b60f8551adacb7949968e5633a06c7e4e447bf33817b5e1c952e8d7e7363e80edbc21c07f5ae46a6f9f2da74f6f217275cc8e99bae7efa03577034b8179"
+      }
+    },
+    {
+      "name": "CAVP SP 800-135 TLS [TLS 1.0/1.1] COUNT=3 master secret",
+      "params": {
+        "md5Mac": "md5:hmac-md5",
+        "sha1Mac": "sha1:hmac-sha-1",
+        "secret": "86051948e4d9a0cd273b6cd3a76557fc695e2ad9517cda97081ed009588a20ab48d0b128de8f917da74e711879460b60",
+        "label": "master secret",
+        "seed": "0b71e1f7232e675112510cf654a5e6280b3bd8ff078b67ec55276bfaddb9207555f1f273d4cdd4abb97f6856ed10f83a799dc42403c3f60c4e504419db4fd727",
+        "length": "48"
+      },
+      "outputs": {
+        "output": "37841ef801f8cbdb49b6a164025de3e0ea8169604ffe80bd98b45cdd34105251cedac7223045ff4c7b67c8a12bf3141c"
+      }
+    },
+    {
+      "name": "CAVP SP 800-135 TLS [TLS 1.0/1.1] COUNT=3 key block",
+      "params": {
+        "md5Mac": "md5:hmac-md5",
+        "sha1Mac": "sha1:hmac-sha-1",
+        "secret": "37841ef801f8cbdb49b6a164025de3e0ea8169604ffe80bd98b45cdd34105251cedac7223045ff4c7b67c8a12bf3141c",
+        "label": "key expansion",
+        "seed": "a62615ee7fee41993588b2542735f90910c5a0f9c5dcb64898fdf3e90dc72a5f7798a130b732d7789e59a5fc14ad331ae91199f7d122e7fd4a594036b0694873",
+        "length": "104"
+      },
+      "outputs": {
+        "output": "c520e2409fa54facd3da01910f50a28f2f50986beb56b0c7b4cee9122e8f7428b7f7b8277bda931c71d35fdc2ea92127a5a143f63fe145275af5bcdab26113deffbb87a67f965b3964ea1ca29df1841c1708e6f42aacd87c12c4471913f61bb994fe3790b735dd11"
+      }
+    },
+    {
+      "name": "CAVP SP 800-135 TLS [TLS 1.0/1.1] COUNT=4 master secret",
+      "params": {
+        "md5Mac": "md5:hmac-md5",
+        "sha1Mac": "sha1:hmac-sha-1",
+        "secret": "c1553d58e3f448ea0931fa956e4dacaf7a36a600726ca00f5fe3765dda46aa60532944debd41218453577548ca5a182b",
+        "label": "master secret",
+        "seed": "60c999faddcd570ebfec2a1c5c7cba9717d16dc35301e25a29509aa49a888405f65c9d09d7f287d653d04966e00a3e0d9923f8186b5d9a85d3a9078571756a05",
+        "length": "48"
+      },
+      "outputs": {
+        "output": "346673a1bb47a43b625be4c687b9894c5cfcbeb73e1e9e6fd891d0b0168ed25dfca469cf37eac007c6b9c1b3f7c17ce4"
+      }
+    },
+    {
+      "name": "CAVP SP 800-135 TLS [TLS 1.0/1.1] COUNT=4 key block",
+      "params": {
+        "md5Mac": "md5:hmac-md5",
+        "sha1Mac": "sha1:hmac-sha-1",
+        "secret": "346673a1bb47a43b625be4c687b9894c5cfcbeb73e1e9e6fd891d0b0168ed25dfca469cf37eac007c6b9c1b3f7c17ce4",
+        "label": "key expansion",
+        "seed": "c8270018c82732a26ff1c0206a7c9ce83be0359e8c18e868957803b5b1d35ec90896407b67189bb3952d2cddc471d4d88f8b1ad9a3cb2fb245217781bb070398",
+        "length": "104"
+      },
+      "outputs": {
+        "output": "db969b07ef962133512f65d1c9a58a3c8dd8ff3c2ed5d693cd48c6e66165771d378fb5252fd58a634923f022cbaf3d81f93bbf777cc6feb7a7a931f25dec2b595cd9295eb8487cc332e7fe2423daa49d3690e0ec921d64dc9e29971444231b6e3969219ec95ce8ee"
+      }
+    },
+    {
+      "name": "CAVP SP 800-135 TLS [TLS 1.0/1.1] COUNT=5 master secret",
+      "params": {
+        "md5Mac": "md5:hmac-md5",
+        "sha1Mac": "sha1:hmac-sha-1",
+        "secret": "f61dc5feb5b8a69af3e02dad131e78d3d34afb2bc9a527f7ff3ecf0dab108fbb51c817987061bca9657ec731b8363dcb",
+        "label": "master secret",
+        "seed": "060f62bfe2b9ceecb713f00927314d547fa2fce912731dc09d20a4a4c6e567167fe673f53133e210201a85fbd12e04085bb5748fba589b213b3dfac4cbc2e060",
+        "length": "48"
+      },
+      "outputs": {
+        "output": "eb672534ccd44947aff15d117a997e020355a6e71004b2c9435e649752ed30738504fc9f3b7e4e48a1f024757ba6dac5"
+      }
+    },
+    {
+      "name": "CAVP SP 800-135 TLS [TLS 1.0/1.1] COUNT=5 key block",
+      "params": {
+        "md5Mac": "md5:hmac-md5",
+        "sha1Mac": "sha1:hmac-sha-1",
+        "secret": "eb672534ccd44947aff15d117a997e020355a6e71004b2c9435e649752ed30738504fc9f3b7e4e48a1f024757ba6dac5",
+        "label": "key expansion",
+        "seed": "73fac330e43744a9344f0a81dad262c13b288791e28f19a283e9e55ed5448acca23b0c2b07f8ba29eda3b24513d43f7604a9c3bae0bcc18223cf08b7c9a949c5",
+        "length": "104"
+      },
+      "outputs": {
+        "output": "29a5f2d0559203963a32ce1cc66598018abe5694903fc5039f4dca38d2df95f0d6a04b5c291c5f12be775e7d2cbba062cb96d1837860e78884bbd55b9fd29df718a84087a4586d6fbe99632eda1bce6a0f34f7a9f1d36cf8c8526c3f63b0cc7cb2e8a327f7b5c902"
+      }
+    },
+    {
+      "name": "CAVP SP 800-135 TLS [TLS 1.0/1.1] COUNT=6 master secret",
+      "params": {
+        "md5Mac": "md5:hmac-md5",
+        "sha1Mac": "sha1:hmac-sha-1",
+        "secret": "8360ccfd90a7413cedea3f74917f442e776cc98721bf24c079f621fc98d07db2e531194832a24a77ee6cb702fcc51109",
+        "label": "master secret",
+        "seed": "5e0a39954c3e7ddb4b2a8b1f39a7007fb52bef86988abc9a0611c080b9bf9628b983fd8093fcd068ed278ebb23633a6a5ef528c69a7aca0aad2922e1ba00e3ac",
+        "length": "48"
+      },
+      "outputs": {
+        "output": "a152d579c64f77a97ee4ceeda08c0a25a4199a2bbf4e166f63aa6af53379227a4753e92889436a55d82e67ad408da285"
+      }
+    },
+    {
+      "name": "CAVP SP 800-135 TLS [TLS 1.0/1.1] COUNT=6 key block",
+      "params": {
+        "md5Mac": "md5:hmac-md5",
+        "sha1Mac": "sha1:hmac-sha-1",
+        "secret": "a152d579c64f77a97ee4ceeda08c0a25a4199a2bbf4e166f63aa6af53379227a4753e92889436a55d82e67ad408da285",
+        "label": "key expansion",
+        "seed": "aba07a7c23c341b03fa1fa014ecf373259c901c6c2fd9aab705df8df19be3f238042358286ea496b96fea93ea9ae8d33ec2289ec4009bc894d065e4284ea5baf",
+        "length": "104"
+      },
+      "outputs": {
+        "output": "60498f4ef1b3f00fdfd9b4d4c915180ad2b24067e25b44dd1a494e14314888bda5dac91e055a8d1480234c7f89b46e33487fd63a5a81b4e923510a6019d1810e1ac9de58c7f7442738104a6f358d780e99fa5ea970177bad73a9fd4d70e7a778959756cbcbe79fa9"
+      }
+    },
+    {
+      "name": "CAVP SP 800-135 TLS [TLS 1.0/1.1] COUNT=7 master secret",
+      "params": {
+        "md5Mac": "md5:hmac-md5",
+        "sha1Mac": "sha1:hmac-sha-1",
+        "secret": "f7ca6df371dbc0ace6ddba008480b5105867aa5e244c7e297ddabedc690b6a14255df53f2a9b7b77d2278d435f05c232",
+        "label": "master secret",
+        "seed": "2edd99da86d651ff908ba7d4ce524791815457b28b09480c934ff7d360655410b28a30b86e318909e9e7ed2171a3009d37cbfc82415537040f5cc1c45c1b1f88",
+        "length": "48"
+      },
+      "outputs": {
+        "output": "627c92b23e63348ee641345b1811b09e541d14b416c7d1a541685475d79d727cc8ddc279d240c255f9da8960c69a1422"
+      }
+    },
+    {
+      "name": "CAVP SP 800-135 TLS [TLS 1.0/1.1] COUNT=7 key block",
+      "params": {
+        "md5Mac": "md5:hmac-md5",
+        "sha1Mac": "sha1:hmac-sha-1",
+        "secret": "627c92b23e63348ee641345b1811b09e541d14b416c7d1a541685475d79d727cc8ddc279d240c255f9da8960c69a1422",
+        "label": "key expansion",
+        "seed": "2ffb00bb2050bae4445c3e02994de6c8695fc0abdcb6ebc9746c2ccc489e62501aa2da939302fb2874e7b9c555fd231941fef84c42f72f1b18944c9be154a303",
+        "length": "104"
+      },
+      "outputs": {
+        "output": "3b6905f9b1d0bb6bd4e1affe6d4683abc1f81bd47baaab342c55bd403007b4981109a7650b372bf1e029d38b62371523811c393f451385efa4ec58c1e6067726badeaaad33c7bbf423fd79a0975e6dac2b6a421688128d15754448f2c11deda6e9be25ac8f30addc"
+      }
+    },
+    {
+      "name": "CAVP SP 800-135 TLS [TLS 1.0/1.1] COUNT=8 master secret",
+      "params": {
+        "md5Mac": "md5:hmac-md5",
+        "sha1Mac": "sha1:hmac-sha-1",
+        "secret": "4f9d8117b32534aea9b372b37e6f14c69b92ab46a7dfbd84cf40ead01ffd0b5457101b26f84f77e33ada36fb3a66102d",
+        "label": "master secret",
+        "seed": "9e9410bd307a6269b8d2bf2635a2abdacb6e3de25e06841ea84902b401284f4dcbe1e622456dc1e7134077ed216b604b5da843cd6881e280100b0c1a16917d7f",
+        "length": "48"
+      },
+      "outputs": {
+        "output": "836381369314505a825787e827738d644284909f205f6383cc294b056aea8f1cce394ed0ca30b096094992362663787e"
+      }
+    },
+    {
+      "name": "CAVP SP 800-135 TLS [TLS 1.0/1.1] COUNT=8 key block",
+      "params": {
+        "md5Mac": "md5:hmac-md5",
+        "sha1Mac": "sha1:hmac-sha-1",
+        "secret": "836381369314505a825787e827738d644284909f205f6383cc294b056aea8f1cce394ed0ca30b096094992362663787e",
+        "label": "key expansion",
+        "seed": "7f3b93d1b67064975b273c73945e884eaa1604601e795183b8842df8ab398e7ffa9c817f673cfc480b8927151c578d97e6ab0153aaf7cab840e16bc73b286df6",
+        "length": "104"
+      },
+      "outputs": {
+        "output": "5f7ca3799b135974b93e340517962153cab1dab4b5d82db3d8e05b5069f28b8fb08ae2d9fff4c08c1db56e71e16b659883076cb2c0068f9b42b975a2e708e4552b72c8ee0fa8a321241df0aac03a8c7973b0fc0e090088873a2a55b10709d3eb65e356b07b2951ab"
+      }
+    },
+    {
+      "name": "CAVP SP 800-135 TLS [TLS 1.0/1.1] COUNT=9 master secret",
+      "params": {
+        "md5Mac": "md5:hmac-md5",
+        "sha1Mac": "sha1:hmac-sha-1",
+        "secret": "f00c38deb2dfefd14923e38558b3310a9ab858480a4c544558b775334eb87d2cec199aea0e1d6fd9a66da8ecb33e055e",
+        "label": "master secret",
+        "seed": "17207bc9b7b233cc8ec46fde3bcb4abfde1d68fd35ca9065fc83b6207d8b03cdd49844bffaa631a659109d086a0cbe43359e34c0b08f4719b9bf522f51746fb8",
+        "length": "48"
+      },
+      "outputs": {
+        "output": "7b59ca48c69d33a3fa727e6d0a6ca68bfe9a8146b160ed8e2ebe8827a0e1dc848fb783be2cbf4c030b61926e53bb56e0"
+      }
+    },
+    {
+      "name": "CAVP SP 800-135 TLS [TLS 1.0/1.1] COUNT=9 key block",
+      "params": {
+        "md5Mac": "md5:hmac-md5",
+        "sha1Mac": "sha1:hmac-sha-1",
+        "secret": "7b59ca48c69d33a3fa727e6d0a6ca68bfe9a8146b160ed8e2ebe8827a0e1dc848fb783be2cbf4c030b61926e53bb56e0",
+        "label": "key expansion",
+        "seed": "3ff0e293bc960a79ffd441f62c87f156b71c3e8240bc49ae8b9bdfcfdaf92037807a9afded845149583a1bd8e37865b7ecec7ed94bc61d64e87bc520d527b46a",
+        "length": "104"
+      },
+      "outputs": {
+        "output": "f2e6aae413c3e7d2ff3a74b056866a3fea1c8b030853c0c5cf7f6c91d0342c9c6bd9bc8b4bfddca44580db9743f75f4bf0ab15d36c3f15f9de0b2cb8ce9060a988ef4b3b85f021d5c15b326a595ab44db176eec8e14b97c6c1899e75ef16d05f72771352e603794d"
+      }
+    }
+  ]
+}
