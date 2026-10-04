@@ -1,0 +1,75 @@
+import { isResultNode, validateDerivationFacet, type MacFunction } from '@cryventure/core';
+import { beforeAll, describe, expect, it } from 'vitest';
+import { blockValueId, DK_ID, HMAC_LAB_MAX_BYTES, PASSWORD_ID, pbkdf2Derivation, pbkdf2Values, SALT_ID, u1Zoom, uNodeId } from './facets.ts';
+import { recordPbkdf2, type Pbkdf2Recording } from './record.ts';
+import { hmacMember } from './testMacs.ts';
+
+const NS = 'plugin.pbkdf2';
+const PASSWORD = [0x70, 0x77];
+const SALT = [0x73];
+let sha1: MacFunction;
+
+beforeAll(async () => {
+  sha1 = await hmacMember('sha1:hmac-sha-1');
+});
+
+function recording(iterations: number, length: number): Pbkdf2Recording {
+  return recordPbkdf2({ macName: 'HMAC-SHA-1', outputSize: 20, keyed: sha1.create(Uint8Array.from(PASSWORD)), password: PASSWORD, salt: SALT, iterations, length });
+}
+
+describe('u1Zoom', () => {
+  it('opens the hmac lab with hex key and message, full tag, nothing to verify', () => {
+    expect(u1Zoom('sha1:sha-1', [0xab], [0x01, 0x02])).toEqual({ producerId: 'hmac', params: { hash: 'sha1:sha-1', key: 'ab', encoding: 'hex', input: '0102', tagLength: 'full', expected: '' } });
+  });
+
+  it('gives no link past the lab limit of 256 bytes', () => {
+    const limit = Array<number>(HMAC_LAB_MAX_BYTES).fill(1);
+    expect(u1Zoom('h:x', limit, limit)).toBeDefined();
+    expect(u1Zoom('h:x', [...limit, 1], [])).toBeUndefined();
+    expect(u1Zoom('h:x', [], [...limit, 1])).toBeUndefined();
+  });
+});
+
+describe('pbkdf2Values', () => {
+  it('marks password and DK secret, the salt public, one T per block', () => {
+    const values = pbkdf2Values(recording(1, 25), PASSWORD, SALT).values;
+    expect(values.map((value) => [value.id, value.role])).toEqual([
+      [PASSWORD_ID, 'secret'],
+      [SALT_ID, 'public'],
+      [blockValueId(1), 'secret'],
+      [blockValueId(2), 'secret'],
+      [DK_ID, 'secret'],
+    ]);
+  });
+});
+
+describe('pbkdf2Derivation', () => {
+  it('validates and chains S ‖ INT(i) → U₁ → … → T_i → DK', () => {
+    const facet = pbkdf2Derivation(recording(3, 25), { hashRef: 'sha1:sha-1', password: PASSWORD, salt: SALT });
+    expect(validateDerivationFacet(facet)).toEqual([]);
+    expect(facet.title).toEqual({ key: `${NS}.derivation.title` });
+    const byId = new Map(facet.nodes.map((node) => [node.id, node]));
+    expect(byId.get(uNodeId(1, 1))?.inputs).toEqual(['1/message', PASSWORD_ID]);
+    expect(byId.get(uNodeId(1, 3))?.inputs).toEqual([uNodeId(1, 2), PASSWORD_ID]);
+    expect(byId.get(blockValueId(1))?.inputs).toEqual([uNodeId(1, 3), uNodeId(1, 1), uNodeId(1, 2)]);
+    expect(byId.get(DK_ID)?.inputs).toEqual([blockValueId(1), blockValueId(2)]);
+    expect(facet.nodes.filter(isResultNode).map((node) => node.id)).toEqual([blockValueId(1), blockValueId(2), DK_ID]);
+    expect(facet.groups?.map((group) => group.id)).toEqual([1, 2]);
+  });
+
+  it('zooms on U₁ of every block only', () => {
+    const facet = pbkdf2Derivation(recording(3, 25), { hashRef: 'sha1:sha-1', password: PASSWORD, salt: SALT });
+    expect(facet.nodes.filter((node) => node.zoom !== undefined).map((node) => [node.id, node.zoom?.params['input']])).toEqual([
+      [uNodeId(1, 1), '7300000001'],
+      [uNodeId(2, 1), '7300000002'],
+    ]);
+  });
+
+  it('labels the skipped stretch on U_{c−1} when c > 8', () => {
+    const facet = pbkdf2Derivation(recording(20, 20), { hashRef: 'sha1:sha-1', password: PASSWORD, salt: SALT });
+    const skipped = facet.nodes.find((node) => node.id === uNodeId(1, 19))!;
+    expect(skipped.label).toEqual({ key: `${NS}.derivation.uSkipped`, params: { j: 19, hidden: 16 } });
+    expect(skipped.inputs).toEqual([uNodeId(1, 3), PASSWORD_ID]);
+    expect(facet.nodes.find((node) => node.id === uNodeId(1, 20))?.inputs).toEqual([uNodeId(1, 19), PASSWORD_ID]);
+  });
+});

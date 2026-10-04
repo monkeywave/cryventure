@@ -1,0 +1,19 @@
+{
+  "source": "https://www.rfc-editor.org/rfc/rfc6070.txt (RFC 6070 Section 2, PBKDF2-HMAC-SHA1); https://www.rfc-editor.org/rfc/rfc7914.txt (RFC 7914 Section 11, PBKDF2-HMAC-SHA-256)",
+  "filter": "RFC 6070 TC4 only (c = 16777216): run through the Mac port when CV_SLOW=1.",
+  "count": 1,
+  "cases": [
+    {
+      "name": "RFC 6070 TC4",
+      "source": "RFC 6070 Section 2",
+      "testCase": 4,
+      "hash": "sha1",
+      "password": "70617373776f7264",
+      "salt": "73616c74",
+      "iterations": 16777216,
+      "dkLen": 20,
+      "dk": "eefe3d61cd4da4e4e9945b3d6ba2158c2634e984",
+      "slow": true
+    }
+  ]
+}
