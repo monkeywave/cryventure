@@ -1,4 +1,4 @@
-import type { BlockCipher, HashFamily, HashFunction, ParamField, PrimitiveManifest } from '@cryventure/core';
+import type { BlockCipher, HashContext, HashFamily, HashFunction, ParamField, PrimitiveManifest, XofContext, XofCustomization, XofFunction } from '@cryventure/core';
 import { describe, expect, it } from 'vitest';
 import { blockCipherProblems, hashFamilyProblems, implementedPortProblems, portFieldProblems, runInProblems, textFieldProblems } from './portChecks.ts';
 
@@ -41,9 +41,19 @@ describe('blockCipherProblems', () => {
   });
 });
 
-/** Toy hash: folds the input (and its length) into `outputSize` bytes. */
+/** A buffering context over a one-shot `hash` (fine for a toy; real ports compress as they go). */
+function bufferingContext(hash: (data: Uint8Array) => Uint8Array, absorbed: readonly number[] = []): HashContext {
+  const bytes = [...absorbed];
+  return {
+    update: (data) => { bytes.push(...data); },
+    digest: () => hash(Uint8Array.from(bytes)),
+    clone: () => bufferingContext(hash, bytes),
+  };
+}
+
+/** Toy hash: folds the input (and its length) into `outputSize` bytes; its context follows any `hash` override. */
 function toyHash(overrides: Partial<HashFunction> = {}): HashFunction {
-  const base: HashFunction = {
+  const base: Omit<HashFunction, 'create'> = {
     id: 'toy-256',
     blockSize: 64,
     outputSize: 32,
@@ -53,7 +63,8 @@ function toyHash(overrides: Partial<HashFunction> = {}): HashFunction {
       return digest;
     },
   };
-  return { ...base, ...overrides };
+  const fn: HashFunction = { ...base, create: () => bufferingContext((data) => fn.hash(data)), ...overrides };
+  return fn;
 }
 
 const toyFamily = (functions: HashFunction[] = [toyHash(), toyHash({ id: 'toy-224', outputSize: 28 })], id = 'toy'): HashFamily => ({ id, functions });
@@ -127,6 +138,177 @@ describe('hashFamilyProblems', () => {
   it('is the sanity check implementedPortProblems runs for Hash', () => {
     expect(implementedPortProblems({ id: 'toy', implements: ['Hash'] }, { ports: { Hash: toyFamily() } })).toEqual([]);
     expect(implementedPortProblems({ id: 'other', implements: ['Hash'] }, { ports: { Hash: toyFamily() } })).toEqual(['Hash: family id "toy" is not the producer id "other"']);
+  });
+});
+
+/** Toy XOF stream: byte i of the output for a seed folded from N, S and the data. */
+const toyStream = (seed: number, from: number, length: number): Uint8Array => Uint8Array.from({ length }, (_, i) => (seed * 31 + (from + i) * 7 + ((from + i) >> 3)) & 0xff);
+const fold = (seed: number, bytes: Uint8Array | undefined): number => Array.from(bytes ?? []).reduce((acc, byte) => (acc * 33 + byte + 1) % 65_521, seed);
+const isEmpty = (custom: XofCustomization | undefined): boolean => (custom?.functionName?.length ?? 0) === 0 && (custom?.customization?.length ?? 0) === 0;
+
+/** The seed of a toy XOF: cSHAKE-like with N/S folded in only when non-empty, so empty N and S equal SHAKE. */
+function toySeed(securityBits: number, data: Uint8Array, custom: XofCustomization | undefined): number {
+  const domain = isEmpty(custom) ? securityBits : fold(fold(securityBits + 1, custom?.functionName), custom?.customization);
+  return fold(domain, data);
+}
+
+function toyXofContext(securityBits: number, custom: XofCustomization | undefined, state = { bytes: [] as number[], position: -1 }): XofContext {
+  return {
+    update(data) {
+      if (state.position >= 0) throw new Error('toy: update after squeeze');
+      state.bytes.push(...data);
+    },
+    squeeze(length) {
+      state.position = Math.max(state.position, 0);
+      const out = toyStream(toySeed(securityBits, Uint8Array.from(state.bytes), custom), state.position, length);
+      state.position += length;
+      return out;
+    },
+    clone: () => toyXofContext(securityBits, custom, { bytes: [...state.bytes], position: state.position }),
+  };
+}
+
+function toyXof(overrides: Partial<XofFunction> = {}): XofFunction {
+  const base = { id: 'toyshake128', blockSize: 168, securityBits: 128, customizable: false };
+  const xof: XofFunction = {
+    ...base,
+    xof: (data, outputLength, custom) => {
+      if (!xof.customizable && !isEmpty(custom)) throw new Error('toy: not customizable');
+      return toyStream(toySeed(xof.securityBits, data, custom), 0, outputLength);
+    },
+    create: (custom) => {
+      if (!xof.customizable && !isEmpty(custom)) throw new Error('toy: not customizable');
+      return toyXofContext(xof.securityBits, custom);
+    },
+    ...overrides,
+  };
+  return xof;
+}
+
+const toyCshake = (overrides: Partial<XofFunction> = {}): XofFunction => toyXof({ id: 'toycshake128', customizable: true, ...overrides });
+const xofFamily = (xofs: XofFunction[]): HashFamily => ({ id: 'toy', functions: [toyHash()], xofs });
+
+describe('hashFamilyProblems: incremental contexts', () => {
+  it('passes a context that matches hash()', () => expect(hashFamilyProblems(toyFamily([toyHash({ blockSize: 5 })]), 'toy')).toEqual([]));
+
+  it('reports a missing create()', () => {
+    const { create: _create, ...noCreate } = toyHash();
+    expect(hashFamilyProblems(toyFamily([noCreate as HashFunction]), 'toy')).toEqual(['Hash toy-256: create is not a function']);
+  });
+
+  it('reports a context that drops a short first update', () => {
+    const forgetful = toyHash({
+      create() {
+        const inner = bufferingContext((data) => toyHash().hash(data));
+        let first = true;
+        const update = (data: Uint8Array): void => {
+          const dropped = first && data.length > 0 && data.length < 64;
+          if (data.length > 0) first = false;
+          if (!dropped) inner.update(data);
+        };
+        return { ...inner, update };
+      },
+    });
+    expect(hashFamilyProblems(toyFamily([forgetful]), 'toy')).toEqual([
+      'Hash toy-256: create() + update (1 | n−1, 131 bytes) differs from hash()',
+      'Hash toy-256: create() + update (byte by byte, 65 bytes) differs from hash()',
+      'Hash toy-256: digest() stops a later update from counting',
+    ]);
+  });
+
+  it('reports digest() that consumes the context (finalising in place)', () => {
+    const finalising = toyHash({
+      create() {
+        let bytes: number[] = [];
+        const context: HashContext = {
+          update: (data) => { bytes.push(...data); },
+          digest: () => { const digest = toyHash().hash(Uint8Array.from(bytes)); bytes = [0x80]; return digest; },
+          clone: () => context,
+        };
+        return context;
+      },
+    });
+    const problems = hashFamilyProblems(toyFamily([finalising]), 'toy');
+    expect(problems).toContain('Hash toy-256: digest() twice gives different bytes');
+    expect(problems).toContain('Hash toy-256: clone() is not independent of its source');
+  });
+
+  it('reports a clone that shares its source’s state', () => {
+    const sharing = toyHash({
+      create() {
+        const context = bufferingContext((data) => toyHash().hash(data));
+        return { ...context, clone: () => context };
+      },
+    });
+    expect(hashFamilyProblems(toyFamily([sharing]), 'toy')).toEqual(['Hash toy-256: clone() is not independent of its source']);
+  });
+
+  it('reports a context that throws', () => {
+    const throwing = toyHash({ create: () => { throw new Error('no context'); } });
+    expect(hashFamilyProblems(toyFamily([throwing]), 'toy')).toEqual([
+      'Hash toy-256: create() + update (0 | n, 131 bytes) threw: no context',
+      'Hash toy-256: create() + update (1 | n−1, 131 bytes) threw: no context',
+      'Hash toy-256: create() + update (block-aligned, 131 bytes) threw: no context',
+      'Hash toy-256: create() + update (byte by byte, 65 bytes) threw: no context',
+      'Hash toy-256: digest() threw: no context',
+      'Hash toy-256: clone() threw: no context',
+    ]);
+  });
+});
+
+describe('hashFamilyProblems: XOFs', () => {
+  it('passes a sane SHAKE/cSHAKE pair', () => {
+    expect(hashFamilyProblems(xofFamily([toyXof(), toyCshake(), toyXof({ id: 'toyshake256', securityBits: 256, blockSize: 136 })]), 'toy')).toEqual([]);
+  });
+
+  it('reports ids that are not unique across functions and XOFs', () => {
+    expect(hashFamilyProblems(xofFamily([toyXof({ id: 'toy-256' })]), 'toy')).toEqual(['Hash: function id "toy-256" is not unique']);
+  });
+
+  it('reports bad sizes', () => {
+    expect(hashFamilyProblems(xofFamily([toyXof({ blockSize: 0 })]), 'toy')).toEqual(['Hash toyshake128: blockSize 0 is not a positive integer']);
+    expect(hashFamilyProblems(xofFamily([toyXof({ securityBits: -1 })]), 'toy')).toEqual(['Hash toyshake128: securityBits -1 is not a positive integer']);
+  });
+
+  it('reports a squeeze that restarts the stream', () => {
+    const testInput = Uint8Array.from({ length: 169 }, (_, i) => (i * 31 + 5) & 0xff);
+    const restarting = toyXof({ create: () => ({ ...toyXofContext(128, undefined), squeeze: (length) => toyStream(toySeed(128, testInput, undefined), 0, length) }) });
+    expect(hashFamilyProblems(xofFamily([restarting]), 'toy')).toContain('Hash toyshake128: squeeze(167) ‖ squeeze(170) differs from xof(m, 337)');
+  });
+
+  it('reports xof output of the wrong length', () => {
+    const short = toyXof({ xof: (_data, length) => new Uint8Array(length - 1) });
+    expect(hashFamilyProblems(xofFamily([short]), 'toy')).toContain('Hash toyshake128: xof(m, 337) is not 337 bytes');
+  });
+
+  it('reports update after squeeze that does not throw, and a shared clone', () => {
+    const lenient = toyXof({
+      create: () => {
+        const bytes: number[] = [];
+        const context: XofContext = { update: (data) => { bytes.push(...data); }, squeeze: (length) => toyStream(toySeed(128, Uint8Array.from(bytes), undefined), 0, length), clone: () => context };
+        return context;
+      },
+    });
+    const problems = hashFamilyProblems(xofFamily([lenient]), 'toy');
+    expect(problems).toContain('Hash toyshake128: context: clone() is not independent of its source');
+    expect(problems).toContain('Hash toyshake128: context: update after squeeze does not throw');
+  });
+
+  it('reports a non-customizable XOF that accepts N or S, or a non-boolean flag', () => {
+    const permissive = toyXof({ xof: (data, outputLength) => toyStream(toySeed(128, data, undefined), 0, outputLength) });
+    expect(hashFamilyProblems(xofFamily([permissive]), 'toy')).toEqual(['Hash toyshake128: is not customizable but accepts a non-empty N or S']);
+    expect(hashFamilyProblems(xofFamily([toyXof({ customizable: 'no' as unknown as boolean })]), 'toy')).toEqual(['Hash toyshake128: customizable is not a boolean']);
+  });
+
+  it('reports a non-customizable XOF that rejects empty N and S', () => {
+    const strict = toyXof({ xof: (data, outputLength, custom) => { if (custom !== undefined) throw new Error('no custom at all'); return toyStream(toySeed(128, data, undefined), 0, outputLength); } });
+    expect(hashFamilyProblems(xofFamily([strict]), 'toy')).toEqual(['Hash toyshake128: empty N and S threw: no custom at all']);
+  });
+
+  it('reports a cSHAKE whose empty N and S differ from the SHAKE of the same strength', () => {
+    const offDomain = toyCshake({ xof: (data, outputLength) => toyStream(toySeed(999, data, undefined), 0, outputLength) });
+    expect(hashFamilyProblems(xofFamily([toyXof(), offDomain]), 'toy')).toContain('Hash toycshake128: with empty N and S differs from toyshake128');
+    expect(hashFamilyProblems(xofFamily([toyXof({ securityBits: 256 }), offDomain]), 'toy')).not.toContain('Hash toycshake128: with empty N and S differs from toyshake128');
   });
 });
 

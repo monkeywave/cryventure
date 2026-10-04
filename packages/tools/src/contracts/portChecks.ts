@@ -1,4 +1,4 @@
-import { bytesEqual, isPortName, readText, type BlockCipher, type HashFamily, type HashFunction, type ParamField, type PortMap, type PortName, type PrimitiveManifest, type PrimitiveModule } from '@cryventure/core';
+import { bytesEqual, isPortName, readText, type BlockCipher, type HashFamily, type HashFunction, type ParamField, type PortMap, type PortName, type PrimitiveManifest, type PrimitiveModule, type XofContext, type XofCustomization, type XofFunction } from '@cryventure/core';
 
 /**
  * Contract checks for ports, port and text params and the `runIn` flag (docs/M3.md §1, §2, §8).
@@ -104,7 +104,8 @@ function collisionProblems(fn: HashFunction, lengths: readonly number[], digests
 
 /**
  * Sizes, then per 0-, 1- and block-sized input: deterministic, `outputSize` bytes, input unchanged;
- * once all three digests are well-formed, they must be pairwise distinct.
+ * once all three digests are well-formed, they must be pairwise distinct; once all of that holds,
+ * the incremental context must agree with `hash()` (docs/M6.md §1).
  */
 function hashFunctionProblems(fn: HashFunction): string[] {
   if (!isPositiveInteger(fn.blockSize)) return [`Hash ${fn.id}: blockSize ${fn.blockSize} is not a positive integer`];
@@ -113,20 +114,169 @@ function hashFunctionProblems(fn: HashFunction): string[] {
   const checks = lengths.map((length) => digestCheck(fn, length));
   const problems = checks.flatMap((check) => check.problems);
   const digests = checks.map((check) => check.digest).filter((digest) => digest !== undefined);
-  return digests.length === lengths.length ? [...problems, ...collisionProblems(fn, lengths, digests)] : problems;
+  if (digests.length !== lengths.length) return problems;
+  problems.push(...collisionProblems(fn, lengths, digests));
+  return problems.length > 0 ? problems : hashContextProblems(fn);
 }
 
-function duplicateIds(functions: readonly HashFunction[]): string[] {
-  const ids = functions.map((fn) => fn.id);
+/** `data` cut at `offsets` (ascending, within `data`). */
+const splitAt = (data: Uint8Array, offsets: readonly number[]): Uint8Array[] =>
+  [0, ...offsets].map((start, index) => data.subarray(start, offsets[index] ?? data.length));
+
+/** Every byte on its own. */
+const byteByByte = (data: Uint8Array): Uint8Array[] => Array.from(data, (byte) => Uint8Array.of(byte));
+
+/** The ways `create()` + `update` is fed (0 | n, 1 | n−1, block-aligned, byte by byte for a short input). */
+function hashSplits(blockSize: number): { name: string; length: number; parts: (data: Uint8Array) => Uint8Array[] }[] {
+  const length = 2 * blockSize + 3;
+  return [
+    { name: '0 | n', length, parts: (data) => splitAt(data, [0]) },
+    { name: '1 | n−1', length, parts: (data) => splitAt(data, [1]) },
+    { name: 'block-aligned', length, parts: (data) => splitAt(data, [blockSize, 2 * blockSize]) },
+    { name: 'byte by byte', length: blockSize + 1, parts: byteByByte },
+  ];
+}
+
+function absorbAll<C extends { update(data: Uint8Array): void }>(context: C, parts: readonly Uint8Array[]): C {
+  for (const part of parts) context.update(part);
+  return context;
+}
+
+/** Problems of one context check, or the reason it threw. */
+function guarded(where: string, check: () => string[]): string[] {
+  try {
+    return check();
+  } catch (error) {
+    return [`${where} threw: ${errorMessage(error)}`];
+  }
+}
+
+function hashSplitProblems(fn: HashFunction): string[] {
+  return hashSplits(fn.blockSize).flatMap(({ name, length, parts }) => {
+    const data = testBytes(length, HASH_INPUT_SEED);
+    const where = `Hash ${fn.id}: create() + update (${name}, ${length} bytes)`;
+    return guarded(where, () => (bytesEqual(absorbAll(fn.create(), parts(data)).digest(), fn.hash(data)) ? [] : [`${where} differs from hash()`]));
+  });
+}
+
+/** `digest()` twice gives the same bytes and does not stop `update`. */
+function hashDigestTwiceProblems(fn: HashFunction): string[] {
+  const where = `Hash ${fn.id}: digest()`;
+  return guarded(where, () => {
+    const data = testBytes(fn.blockSize + 1, HASH_INPUT_SEED);
+    const context = absorbAll(fn.create(), [data.subarray(0, 1)]);
+    const first = context.digest();
+    const problems = bytesEqual(first, context.digest()) ? [] : [`${where} twice gives different bytes`];
+    context.update(data.subarray(1));
+    return bytesEqual(context.digest(), fn.hash(data)) ? problems : [...problems, `${where} stops a later update from counting`];
+  });
+}
+
+/** A clone taken after `prefix` is independent of its source in both directions. */
+function hashCloneProblems(fn: HashFunction): string[] {
+  const where = `Hash ${fn.id}: clone()`;
+  return guarded(where, () => {
+    const prefix = testBytes(fn.blockSize + 1, HASH_INPUT_SEED);
+    const source = absorbAll(fn.create(), [prefix]);
+    const clone = source.clone();
+    source.update(Uint8Array.of(1));
+    const cloneUnchanged = bytesEqual(clone.digest(), fn.hash(prefix));
+    clone.update(Uint8Array.of(2));
+    const sourceUnchanged = bytesEqual(source.digest(), fn.hash(Uint8Array.of(...prefix, 1)));
+    return cloneUnchanged && sourceUnchanged ? [] : [`${where} is not independent of its source`];
+  });
+}
+
+function hashContextProblems(fn: HashFunction): string[] {
+  if (typeof fn.create !== 'function') return [`Hash ${fn.id}: create is not a function`];
+  return [...hashSplitProblems(fn), ...hashDigestTwiceProblems(fn), ...hashCloneProblems(fn)];
+}
+
+/** The output of a fresh context over `data`, squeezed in `lengths` pieces and joined. */
+function squeezed(context: XofContext, data: Uint8Array, lengths: readonly number[]): Uint8Array {
+  context.update(data);
+  return Uint8Array.from(lengths.flatMap((length) => [...context.squeeze(length)]));
+}
+
+/** `xof(m, a + b)` = `squeeze(a) ‖ squeeze(b)`, across a rate boundary, and the output length. */
+function xofSqueezeProblems(xof: XofFunction): string[] {
+  const where = `Hash ${xof.id}: squeeze`;
+  return guarded(where, () => {
+    const data = testBytes(xof.blockSize + 1, HASH_INPUT_SEED);
+    const [a, b] = [xof.blockSize - 1, xof.blockSize + 2];
+    const whole = xof.xof(data, a + b);
+    if (whole.length !== a + b) return [`Hash ${xof.id}: xof(m, ${a + b}) is not ${a + b} bytes`];
+    return bytesEqual(squeezed(xof.create(), data, [a, b]), whole) ? [] : [`${where}(${a}) ‖ squeeze(${b}) differs from xof(m, ${a + b})`];
+  });
+}
+
+/** A clone is independent of its source, and `update` after `squeeze` throws. */
+function xofContextProblems(xof: XofFunction): string[] {
+  const where = `Hash ${xof.id}: context`;
+  return guarded(where, () => {
+    const data = testBytes(3, HASH_INPUT_SEED);
+    const expected = xof.xof(data, 32);
+    const source = xof.create();
+    source.update(data);
+    const clone = source.clone();
+    source.update(Uint8Array.of(1));
+    const problems = bytesEqual(clone.squeeze(32), expected) ? [] : [`${where}: clone() is not independent of its source`];
+    return throws(() => clone.update(data)) ? problems : [...problems, `${where}: update after squeeze does not throw`];
+  });
+}
+
+const NON_EMPTY: readonly XofCustomization[] = [{ functionName: Uint8Array.of(0x4e) }, { customization: Uint8Array.of(0x53) }];
+const EMPTY: XofCustomization = { functionName: new Uint8Array(0), customization: new Uint8Array(0) };
+
+/** A non-customizable XOF throws on a non-empty N or S (in `xof` and `create`) and accepts empty ones. */
+function xofCustomizationProblems(xof: XofFunction): string[] {
+  if (typeof xof.customizable !== 'boolean') return [`Hash ${xof.id}: customizable is not a boolean`];
+  if (xof.customizable) return [];
+  const data = testBytes(3, HASH_INPUT_SEED);
+  const accepted = NON_EMPTY.filter((custom) => !throws(() => xof.xof(data, 16, custom)) || !throws(() => xof.create(custom)));
+  const where = `Hash ${xof.id}: empty N and S`;
+  const empty = guarded(where, () => (bytesEqual(xof.xof(data, 16, EMPTY), xof.xof(data, 16)) ? [] : [`${where} change the output`]));
+  return [...(accepted.length > 0 ? [`Hash ${xof.id}: is not customizable but accepts a non-empty N or S`] : []), ...empty];
+}
+
+function xofFunctionProblems(xof: XofFunction): string[] {
+  if (!isPositiveInteger(xof.blockSize)) return [`Hash ${xof.id}: blockSize ${xof.blockSize} is not a positive integer`];
+  if (!isPositiveInteger(xof.securityBits)) return [`Hash ${xof.id}: securityBits ${xof.securityBits} is not a positive integer`];
+  return [...xofSqueezeProblems(xof), ...xofContextProblems(xof), ...xofCustomizationProblems(xof)];
+}
+
+/** cSHAKE with N and S both empty equals the SHAKE of the same strength in the family (SP 800-185 §3.3). */
+function cshakeAsShakeProblems(xofs: readonly XofFunction[]): string[] {
+  const data = testBytes(5, HASH_INPUT_SEED);
+  return xofs
+    .filter((xof) => xof.customizable)
+    .flatMap((cshake) => {
+      const shake = xofs.find((xof) => !xof.customizable && xof.securityBits === cshake.securityBits);
+      if (shake === undefined) return [];
+      const where = `Hash ${cshake.id}: with empty N and S`;
+      return guarded(where, () => {
+        const plain = shake.xof(data, 32);
+        const same = [cshake.xof(data, 32), cshake.xof(data, 32, EMPTY), squeezed(cshake.create(EMPTY), data, [32])].every((output) => bytesEqual(output, plain));
+        return same ? [] : [`${where} differs from ${shake.id}`];
+      });
+    });
+}
+
+function duplicateIds(entries: readonly { readonly id: string }[]): string[] {
+  const ids = entries.map((entry) => entry.id);
   return [...new Set(ids.filter((id, index) => ids.indexOf(id) !== index))];
 }
 
-/** Family id = producer id, at least one function, unique function ids, and every function sane (docs/M5.md §1). */
+/**
+ * Family id = producer id, at least one function, unique ids across functions and XOFs, every
+ * function and XOF sane, and cSHAKE with empty N and S equal to SHAKE (docs/M5.md §1, docs/M6.md §1).
+ */
 export function hashFamilyProblems(family: HashFamily, producerId: string): string[] {
   const problems = family.id === producerId ? [] : [`Hash: family id "${family.id}" is not the producer id "${producerId}"`];
   if (family.functions.length === 0) return [...problems, 'Hash: functions is empty'];
-  problems.push(...duplicateIds(family.functions).map((id) => `Hash: function id "${id}" is not unique`));
-  return [...problems, ...family.functions.flatMap(hashFunctionProblems)];
+  const xofs = family.xofs ?? [];
+  problems.push(...duplicateIds([...family.functions, ...xofs]).map((id) => `Hash: function id "${id}" is not unique`));
+  return [...problems, ...family.functions.flatMap(hashFunctionProblems), ...xofs.flatMap(xofFunctionProblems), ...cshakeAsShakeProblems(xofs)];
 }
 
 /** The sanity check per port; the `Record` makes a new port without a check a type error. */

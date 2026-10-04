@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { lengthFieldBytes, sha2Pad, sha2Padding, type Sha2BlockBytes } from './padding.ts';
+import { lengthFieldBytes, sha2Pad, sha2PadTail, sha2Padding, type Sha2BlockBytes } from './padding.ts';
 
 /** A message of `length` bytes 0x01, 0x02, … (never 0x00 or 0x80, so the padding stands out). */
 const message = (length: number) => Uint8Array.from({ length }, (_, index) => (index % 0x7f) + 1);
@@ -56,5 +56,20 @@ describe('sha2Pad', () => {
   it('is the padded message of sha2Padding', () => {
     expect(sha2Pad([0x61, 0x62, 0x63], 64)).toEqual(sha2Padding([0x61, 0x62, 0x63], 64).padded);
     expect(sha2Pad([], 128)).toEqual(sha2Padding([], 128).padded);
+  });
+});
+
+describe.each([64, 128] as const)('sha2PadTail into %i-byte blocks', (blockBytes) => {
+  it.each([0, 1, 55, 56, blockBytes - 1])('ends a longer message exactly as sha2Pad does (%i-byte tail)', (tailLength) => {
+    for (const blocks of [0, 1, 3]) {
+      const whole = message(blocks * blockBytes + tailLength);
+      const tail = whole.subarray(blocks * blockBytes);
+      expect(sha2PadTail(tail, whole.length, blockBytes)).toEqual(sha2Pad(whole, blockBytes).subarray(blocks * blockBytes));
+    }
+  });
+
+  it('rejects a tail of a whole block or longer than the message', () => {
+    expect(() => sha2PadTail(message(blockBytes), blockBytes, blockBytes)).toThrow(RangeError);
+    expect(() => sha2PadTail(message(3), 2, blockBytes)).toThrow(RangeError);
   });
 });

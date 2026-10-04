@@ -13,6 +13,9 @@ function toyHash(id: string, salt: number): HashFunction {
       data.forEach((byte, i) => { digest[i % 4]! ^= byte; });
       return digest;
     },
+    create: () => {
+      throw new Error('toy: hashRunProblems uses hash() only');
+    },
   };
 }
 

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { hashFunction, isPortName, PORT_NAMES, type HashFamily, type HashFunction } from './ports.ts';
+import { hashFunction, isPortName, PORT_NAMES, xofFunction, type HashContext, type HashFamily, type HashFunction, type XofContext, type XofFunction } from './ports.ts';
 
 describe('PORT_NAMES / isPortName', () => {
   it('lists every port', () => expect(PORT_NAMES).toEqual(['BlockCipher', 'Hash']));
@@ -13,7 +13,8 @@ describe('PORT_NAMES / isPortName', () => {
 });
 
 describe('hashFunction', () => {
-  const fakeHash = (id: string, outputSize: number): HashFunction => ({ id, blockSize: 128, outputSize, hash: () => new Uint8Array(outputSize) });
+  const fakeContext = (outputSize: number): HashContext => ({ update: () => undefined, digest: () => new Uint8Array(outputSize), clone: () => fakeContext(outputSize) });
+  const fakeHash = (id: string, outputSize: number): HashFunction => ({ id, blockSize: 128, outputSize, hash: () => new Uint8Array(outputSize), create: () => fakeContext(outputSize) });
   const family: HashFamily = { id: 'sha512', functions: [fakeHash('sha-384', 48), fakeHash('sha-512', 64)] };
 
   it('finds a function of the family by id', () => {
@@ -24,5 +25,32 @@ describe('hashFunction', () => {
   it('returns undefined for an id the family does not offer', () => {
     expect(hashFunction(family, 'sha-256')).toBeUndefined();
     expect(hashFunction({ id: 'empty', functions: [] }, 'sha-512')).toBeUndefined();
+  });
+});
+
+describe('xofFunction', () => {
+  const fakeXofContext = (): XofContext => ({ update: () => undefined, squeeze: (length) => new Uint8Array(length), clone: fakeXofContext });
+  const fakeXof = (id: string, securityBits: number): XofFunction => ({
+    id,
+    blockSize: securityBits === 128 ? 168 : 136,
+    securityBits,
+    customizable: false,
+    xof: (_data, outputLength) => new Uint8Array(outputLength),
+    create: fakeXofContext,
+  });
+  const family: HashFamily = { id: 'sha3', functions: [], xofs: [fakeXof('shake128', 128), fakeXof('shake256', 256)] };
+
+  it('finds an XOF of the family by id', () => {
+    expect(xofFunction(family, 'shake256')).toBe(family.xofs![1]);
+    expect(xofFunction(family, 'shake128')).toBe(family.xofs![0]);
+  });
+
+  it('returns undefined for an id the family does not offer, or a family without XOFs', () => {
+    expect(xofFunction(family, 'cshake128')).toBeUndefined();
+    expect(xofFunction({ id: 'sha256', functions: [] }, 'shake128')).toBeUndefined();
+  });
+
+  it('does not look at the fixed-length functions', () => {
+    expect(xofFunction({ id: 'mixed', functions: [{ id: 'shake128', blockSize: 168, outputSize: 32, hash: () => new Uint8Array(32), create: () => { throw new Error('unused'); } }] }, 'shake128')).toBeUndefined();
   });
 });

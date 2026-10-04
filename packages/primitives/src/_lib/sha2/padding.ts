@@ -37,3 +37,14 @@ export function sha2Padding(message: ArrayLike<number>, blockBytes: Sha2BlockByt
 export function sha2Pad(message: ArrayLike<number>, blockBytes: Sha2BlockBytes): Uint8Array {
   return sha2Padding(message, blockBytes).padded;
 }
+
+/**
+ * The final block(s) of an incremental computation: `tail` (the bytes after the last whole block)
+ * padded with the length of the whole `messageBytes`-byte message, as `sha2Pad` would end it.
+ */
+export function sha2PadTail(tail: ArrayLike<number>, messageBytes: number, blockBytes: Sha2BlockBytes): Uint8Array {
+  if (tail.length >= blockBytes || messageBytes < tail.length) throw new RangeError(`sha2PadTail: a ${tail.length}-byte tail does not end a ${messageBytes}-byte message in ${blockBytes}-byte blocks`);
+  const padded = sha2Pad(tail, blockBytes);
+  new DataView(padded.buffer).setBigUint64(padded.length - 8, BigInt(messageBytes) * 8n);
+  return padded;
+}

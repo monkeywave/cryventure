@@ -68,6 +68,9 @@ export interface Sha2IvGeneration<W extends Word> {
 /** Either word size; the untraced hash narrows it by `params.arith.bits`. */
 export type AnySha2Algorithm = Sha2Algorithm<number> | Sha2Algorithm<bigint>;
 
+/** Narrows an algorithm to 32-bit words (SHA-224/256). */
+export const isWord32 = (algorithm: AnySha2Algorithm): algorithm is Sha2Algorithm<number> => algorithm.params.arith.bits === 32;
+
 const algorithm = <W extends Word>(id: Sha2AlgorithmId, name: string, params: Sha2Params<W>, iv: readonly W[], outputSize: number, ivGeneration?: Sha2IvGeneration<W>): Sha2Algorithm<W> => ({
   id,
   name,

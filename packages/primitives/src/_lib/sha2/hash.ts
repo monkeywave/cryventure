@@ -1,12 +1,14 @@
 import { utf8Bytes, type HashFamily, type HashFunction } from '@cryventure/core';
-import { SHA256_ALGORITHMS, SHA512_ALGORITHMS, SHA2_IDS, type AnySha2Algorithm, type Sha2Algorithm, type Sha2AlgorithmId, type Sha2Id } from './algorithms.ts';
+import { createSha2Context } from './context.ts';
+import { isWord32, SHA256_ALGORITHMS, SHA512_ALGORITHMS, SHA2_IDS, type AnySha2Algorithm, type Sha2Algorithm, type Sha2AlgorithmId, type Sha2Id } from './algorithms.ts';
 import { sha2Pad } from './padding.ts';
 import { sha256Compress, sha512Compress } from './reference.ts';
 import { WORD64, wordsFromBytes } from './words.ts';
 
 /**
  * The untraced SHA-2 hash functions (docs/M5.md §2a): padding, the reference compression per block,
- * and truncation. `SHA2_FUNCTIONS` are the six `HashFunction`s behind the producers' `Hash` ports.
+ * and truncation, plus incremental contexts (docs/M6.md §1). `SHA2_FUNCTIONS` are the six `HashFunction`s
+ * behind the producers' `Hash` ports.
  */
 
 const ALGORITHMS: Readonly<Record<Sha2AlgorithmId, AnySha2Algorithm>> = { ...SHA256_ALGORITHMS, ...SHA512_ALGORITHMS };
@@ -31,8 +33,6 @@ function digest64(algorithm: Sha2Algorithm<bigint>, data: Uint8Array): Uint8Arra
   return bytes.slice(0, algorithm.outputSize);
 }
 
-const isWord32 = (algorithm: AnySha2Algorithm): algorithm is Sha2Algorithm<number> => algorithm.params.arith.bits === 32;
-
 /** The digest of `data` under `algorithm` (untraced). */
 export function sha2Digest(algorithm: AnySha2Algorithm, data: Uint8Array): Uint8Array {
   return isWord32(algorithm) ? digest32(algorithm, data) : digest64(algorithm, data);
@@ -52,7 +52,13 @@ export function sha512tIv(t: number): bigint[] {
 
 function sha2HashFunction(id: Sha2Id): HashFunction {
   const algorithm = ALGORITHMS[id];
-  return { id, blockSize: algorithm.params.blockBytes, outputSize: algorithm.outputSize, hash: (data) => sha2Digest(algorithm, data) };
+  return {
+    id,
+    blockSize: algorithm.params.blockBytes,
+    outputSize: algorithm.outputSize,
+    hash: (data) => sha2Digest(algorithm, data),
+    create: () => createSha2Context(algorithm),
+  };
 }
 
 /** The six FIPS 180-4 SHA-2 functions, untraced. */
