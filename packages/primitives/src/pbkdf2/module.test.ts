@@ -15,7 +15,7 @@ import conformance from './vectors/conformance.json' with { type: 'json' };
 import { PBKDF2_PRESETS, pbkdf2Manifest, type Pbkdf2Params } from './manifest.ts';
 import { macDisplayName } from '../_lib/hmac/macCalls.ts';
 import { run } from './module.ts';
-import { resolverFor } from './testMacs.ts';
+import { CONFORMANCE_TIMEOUT_MS, resolverFor } from './testMacs.ts';
 
 const NS = 'plugin.pbkdf2';
 const TC1 = PBKDF2_PRESETS[0]!.params;
@@ -39,7 +39,7 @@ const runWith = (overrides: Partial<Pbkdf2Params>) => bundle(run({ ...TC1, ...ov
 describe('pbkdf2 run: conformance', () => {
   it.each(conformance.cases.map((testCase) => [testCase.name, testCase] as const))('%s', (_name, testCase) => {
     expect(toHex(bundle(run(testCase.params as Pbkdf2Params, { resolve })).output['dk'] ?? [])).toBe(testCase.outputs.dk);
-  });
+  }, CONFORMANCE_TIMEOUT_MS);
 
   it('records the source, filter and count of its vectors', () => {
     expect(conformance.count).toBe(conformance.cases.length);

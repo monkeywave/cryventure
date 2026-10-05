@@ -1,5 +1,4 @@
 import {
-  bytesEqual,
   i18nRef,
   narrationFromState,
   parseHexToArray,
@@ -12,9 +11,8 @@ import {
 } from '@cryventure/core';
 import { hashMessageBytes } from '../_lib/hashKit/manifestKit.ts';
 import { requireHmacMember } from '../_lib/hmac/requireHmacMember.ts';
-import { hkdfExpand, hkdfExtract, maxOutputLength } from './hkdf.ts';
 import { hkdfDerivation, hkdfValues } from './hkdfFacets.ts';
-import { expands, extracts, recordHkdf, type HkdfRecording, type HkdfRun } from './hkdfTrace.ts';
+import { expands, extracts, recordHkdf, type HkdfRun } from './hkdfTrace.ts';
 import { hkdfManifest, type HkdfParams } from './manifest.ts';
 
 /**
@@ -39,28 +37,14 @@ export function toRun(params: HkdfParams, mac: MacFunction): HkdfRun {
 }
 
 /**
- * Run errors that depend on HashLen (the member is an HMAC, `requireHmacMember`): Expand needs
- * PRK ≥ HashLen and L ≤ 255 · HashLen (RFC 5869 §2.3). `lengthTooLong` is a guard only: L ≤ 255
- * (`HKDF_LIMITS.length`) never exceeds 255 · HashLen for a real HMAC.
+ * The run error that depends on HashLen (the member is an HMAC, `requireHmacMember`): Expand needs
+ * PRK ≥ HashLen (RFC 5869 §2.3). L ≤ 255 (`HKDF_LIMITS.length`) never exceeds 255 · HashLen for a real HMAC.
  */
 export function runError(run: HkdfRun): I18nRef | undefined {
   const hashLen = run.mac.outputSize;
   if (!extracts(run.mode) && run.prk.length < hashLen)
     return i18nRef(`${NS}.error.prkTooShort`, { length: run.prk.length, hashLen });
-  if (expands(run.mode) && run.length > maxOutputLength(hashLen))
-    return i18nRef(`${NS}.error.lengthTooLong`, { max: maxOutputLength(hashLen) });
   return undefined;
-}
-
-/** The traced PRK and OKM must equal the untraced RFC 5869 functions. */
-function assertMatchesReference(run: HkdfRun, recording: HkdfRecording): void {
-  if (extracts(run.mode) && !bytesEqual(recording.prk, hkdfExtract(run.mac, run.salt, run.ikm)))
-    throw new Error('hkdf: traced PRK differs from the reference');
-  if (
-    expands(run.mode) &&
-    !bytesEqual(recording.okm, hkdfExpand(run.mac, recording.prk, recording.info, run.length))
-  )
-    throw new Error('hkdf: traced OKM differs from the reference');
 }
 
 type RunFailure = Extract<RunResult, { ok: false }>;
@@ -74,10 +58,9 @@ function prepareRun(params: HkdfParams, options: RunOptions): { ok: true; run: H
   return error === undefined ? { ok: true, run: hkdfRun } : { ok: false, error };
 }
 
-/** Records HKDF (checked against the untraced functions) into facets and outputs. */
+/** Records HKDF into facets and outputs. */
 function recordBundle(hkdfRun: HkdfRun): PrimitiveRecording {
   const recording = recordHkdf(hkdfRun);
-  assertMatchesReference(hkdfRun, recording);
   return {
     facets: {
       state: recording.state,

@@ -140,6 +140,12 @@ function portSuite<P>(manifest: PrimitiveManifest<P>, producers: ProducerSet): v
 }
 
 /**
+ * Timeout for the tests and hooks that run a producer's presets or vectors: some take seconds (PBKDF2
+ * at c = 80000, the hash labs over every member), well past vitest's defaults on a loaded 2-core CI runner.
+ */
+const HEAVY_RUN_TIMEOUT_MS = 60_000;
+
+/**
  * The `Hash` cross-checks: with `hashLabParams`, every port function in the producer's own lab
  * (`hashLabProblems`) and the XOF presets by their params; without it, every default/preset by its params.
  */
@@ -147,12 +153,12 @@ function hashSuite<P>(manifest: PrimitiveManifest<P>, producers: ProducerSet): v
   if (manifest.hashLabParams === undefined) {
     it('reproduces every default/preset digest with its own Hash port (algorithms outside the family skipped)', async () => {
       expect(await hashPortRunProblems(manifest, producers)).toEqual([]);
-    });
+    }, HEAVY_RUN_TIMEOUT_MS);
     return;
   }
   it('reproduces every Hash port function in its own lab via hashLabParams', async () => {
     expect(await hashLabRunProblems(manifest, manifest.hashLabParams!, producers)).toEqual([]);
-  });
+  }, HEAVY_RUN_TIMEOUT_MS);
   it('reproduces every default/preset XOF digest with its own Hash port', async () => {
     expect(await hashPortRunProblems(manifest, producers, { xofOnly: true })).toEqual([]);
   });
@@ -212,9 +218,9 @@ function runSuite<P>(manifest: PrimitiveManifest<P>, catalogs: LocaleCatalogs, p
     module = await manifest.load();
     options = await runOptionsFor(manifest, testCase.params, producers.lookup);
     bundle = runOrThrow(module, testCase.params, options);
-  });
+  }, HEAVY_RUN_TIMEOUT_MS);
 
-  it('is deterministic', () => expect(runOrThrow(module, testCase.params, options)).toEqual(bundle));
+  it('is deterministic', () => expect(runOrThrow(module, testCase.params, options)).toEqual(bundle), HEAVY_RUN_TIMEOUT_MS);
   it('emits every declared facet', () => expect(missingFacetKinds(manifest.facets, bundle)).toEqual([]));
   it('labels regions, scope levels and values with keys present in EN and DE', () => expect(missingKeys(runtimeLabelKeys(bundle), catalogs)).toEqual([]));
   it('declares region layouts whose words fit their regions', () => {
@@ -321,7 +327,7 @@ function conformanceSuite<P>(manifest: PrimitiveManifest<P>, vectors: unknown, p
     if (conformanceFormatProblems(vectors).length > 0) throw new Error('vectors/conformance.json is missing or malformed (see the previous test)');
     const prepare = (params: unknown) => runOptionsFor(manifest, params, producers.lookup);
     expect(await conformanceProblems(await manifest.load(), vectors as ConformanceVectors, prepare)).toEqual([]);
-  });
+  }, HEAVY_RUN_TIMEOUT_MS);
 }
 
 /** Registers the generic contract suite for one primitive plugin (call at test-file top level). */

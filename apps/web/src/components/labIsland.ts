@@ -5,7 +5,6 @@ import { labMessages } from '../labs/labMessages.ts';
 import { deriversForFacets, resolveLab, viewsForProducer } from '../labs/registry.ts';
 import { isLabMode, parseStartAt } from '../labs/startAt.ts';
 import { isVariantName } from '../labs/variantName.ts';
-import { resolveLayoutAliases } from '../labs/viewAliases.ts';
 
 /**
  * Server-side only: validates the options of a lab island wrapper (`Lab.astro`, `HeroLab.astro`) and
@@ -77,9 +76,7 @@ export function labIsland(options: LabIslandOptions, lang: string, settings: Lab
   if (!resolved.ok) return fail(`unknown producer "${options.producerId}"`);
   const { producer } = resolved.lab;
   validateOptions(options, producer, fail);
-  const { messages: givenMessages, mode, ...rest } = options;
-  // The only place a lesson's layout preset gets renamed view ids resolved: message pruning and the island see the same ids.
-  const layout = resolveLayoutAliases(options.layout);
+  const { messages: givenMessages, mode, layout, ...rest } = options;
   const allMessages = givenMessages ?? labMessages(lang, producer);
   const messages = { ...(layoutViewsOnly ? withoutHiddenViewMessages(allMessages, producer, layout) : allMessages), ...extraMessages };
   return { producer, props: { ...rest, layout, mode: isLabMode(mode) ? mode : undefined, messages, locale: lang } };

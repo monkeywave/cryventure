@@ -92,6 +92,5 @@
   "plugin.hkdf.error.labelLength": "Das Label hat {{length}} Byte; erlaubt sind höchstens 249, damit „tls13 “ und das Label in 255 Byte passen.",
   "plugin.hkdf.error.labelEmpty": "HKDF-Expand-Label braucht ein Label (TLS-1.3-Labels haben nach „tls13 “ mindestens ein Byte).",
   "plugin.hkdf.error.notHmac": "{{id}} ist kein HMAC; HKDF ist über HMAC definiert.",
-  "plugin.hkdf.error.prkTooShort": "PRK hat {{length}} Byte; Expand braucht mindestens HashLen = {{hashLen}} (RFC 5869, §2.3).",
-  "plugin.hkdf.error.lengthTooLong": "L darf höchstens 255 · HashLen = {{max}} Byte lang sein, weil der Zähler nur ein Byte hat."
+  "plugin.hkdf.error.prkTooShort": "PRK hat {{length}} Byte; Expand braucht mindestens HashLen = {{hashLen}} (RFC 5869, §2.3)."
 }

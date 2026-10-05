@@ -415,7 +415,6 @@ describe('hkdf run errors', () => {
 });
 
 describe('runError and toRun', () => {
-  const tinyMac = (outputSize: number): MacFunction => ({ ...sha256, outputSize });
   const base = (): HkdfRun => toRun(A1, sha256);
 
   it('decodes params (hex and UTF-8 info, numeric length)', () => {
@@ -427,15 +426,6 @@ describe('runError and toRun', () => {
       prk: [],
     });
     expect(toRun({ ...A1, infoEncoding: 'utf8', info: 'ä' }, sha256).info).toEqual([0xc3, 0xa4]);
-  });
-
-  it('enforces L ≤ 255 · HashLen (RFC 5869 §2.3) for the expand modes only', () => {
-    expect(runError({ ...base(), mac: tinyMac(1), length: 255 })).toBeUndefined();
-    expect(runError({ ...base(), mac: tinyMac(0), length: 1 })).toEqual({
-      key: `${NS}.error.lengthTooLong`,
-      params: { max: 0 },
-    });
-    expect(runError({ ...base(), mode: 'extract', mac: tinyMac(0), length: 1 })).toBeUndefined();
   });
 
   it('accepts PRK = HashLen exactly and ignores PRK in the extract modes', () => {

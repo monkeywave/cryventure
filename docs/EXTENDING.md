@@ -382,6 +382,20 @@ kit discovers and checks on its own (no test code per plugin):
   `Hex` suffix: outputs are byte arrays, not strings.
 - Other files in `vectors/` (e.g. intermediate values of FIPS 197 App. B) stay plugin-specific and
   are used by the plugin's own tests.
+- A case that takes seconds (e.g. PBKDF2 at c = 80000) gets an explicit per-test timeout, so a
+  loaded CI runner does not hit vitest's 5 s default.
+
+### Slow and timing tests (`CV_PERF`, `CV_SLOW`)
+
+`pnpm test` runs on loaded CI machines (2 cores, parallel workers), so tests that measure time
+assert loose bounds by default and the strict ones only on opt-in:
+
+- `CV_PERF=1 pnpm test` (a quiet machine): the strict speed targets — the ≥ 10× hi/lo port
+  speed-ups (`_lib/sha2/hilo.test.ts`, `_lib/legacy-md/compressSpeed.test.ts`) and the full PBKDF2
+  budget (c = 100000, 32 bytes, < 10 s per HMAC member, `pbkdf2/budget.test.ts`). Without it these
+  tests keep a cheap regression guard (≥ 3–4×; PBKDF2 at c = 2000 with a generous bound), so a
+  gross slowdown still fails.
+- `CV_SLOW=1 pnpm test`: cases that take minutes (RFC 6070 TC4, c = 16 777 216, `pbkdf2/slow.test.ts`).
 
 ## Add a view
 
@@ -412,9 +426,9 @@ under `view.<id>.*`.
   player's caption shows the same content there (the narration view does this). Views are ordered
   by `order` (unset last), then id; `viewsFor` applies this order (`compareViews` in core).
 
-Renaming a view id (as `key-schedule` → `derivation` in M7) adds the old id to `VIEW_ID_ALIASES`
-(`apps/web/src/labs/viewAliases.ts`): lesson `layout` presets and the panel sizes a reader saved
-are resolved through it. Deep links never carry view ids.
+Renaming a view id (as `key-schedule` → `derivation` in M7) has no alias: update the lesson
+`layout` presets with it; panel sizes a reader saved under the old id fall back to the preset
+layout. Deep links never carry view ids.
 
 ### Layout presets
 

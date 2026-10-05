@@ -10,6 +10,12 @@ export function testEnv(name: string): string | undefined {
   return (globalThis as unknown as { process?: { env: Record<string, string | undefined> } }).process?.env[name];
 }
 
+/**
+ * Per-test timeout for the conformance cases: RFC 7914 §11 case 2 runs c = 80000 iterations, which
+ * takes well over vitest's 5 s default on a loaded 2-core CI runner.
+ */
+export const CONFORMANCE_TIMEOUT_MS = 60_000;
+
 /** The port resolver a host would prepare for `params` (loads only the named producer). */
 export function resolverFor(params: unknown): Promise<PortResolver> {
   return portResolverFor(pbkdf2Manifest, params);

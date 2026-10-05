@@ -39,7 +39,7 @@ export { useScrollFocusable } from './cells/useScrollRegion.ts';
 // workspace
 export type { ReactViewManifest, ViewComponent, ViewProps } from './workspace/viewTypes.ts';
 export { Workspace, type WorkspaceProps } from './workspace/Workspace.tsx';
-export { formatLayoutEntries, parseLayoutEntries, parseLayoutPreset, type LayoutEntry } from './workspace/planPanels.ts';
+export { parseLayoutEntries, parseLayoutPreset, type LayoutEntry } from './workspace/planPanels.ts';
 export { ViewStatus, type ViewStatusKind, type ViewStatusProps } from './workspace/ViewStatus.tsx';
 export { ErrorBoundary, type ErrorBoundaryProps } from './workspace/ErrorBoundary.tsx';
 export { safeStorage } from './workspace/safeStorage.ts';

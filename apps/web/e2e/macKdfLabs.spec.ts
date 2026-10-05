@@ -84,17 +84,6 @@ for (const lang of LANGS) {
   });
 }
 
-test('a saved layout naming the old "key-schedule" panel still shows the derivation view', async ({ page }) => {
-  await page.addInitScript((labId) => {
-    localStorage.setItem(`cv.layout.v1.${labId}`, JSON.stringify({ version: 1, panelIds: ['state', 'key-schedule'], sizes: { state: 40, 'key-schedule': 60 } }));
-  }, KEY_SCHEDULE_LAB.labId);
-  await page.goto(`en/${KEY_SCHEDULE_LAB.path}`);
-  const lab = await waitForLab(page, KEY_SCHEDULE_LAB.labId);
-  await expect(derivation(lab).locator('.cv-derivation__word')).toHaveCount(44);
-  const stored = await page.evaluate((labId) => localStorage.getItem(`cv.layout.v1.${labId}`), KEY_SCHEDULE_LAB.labId);
-  expect(stored).not.toContain('key-schedule');
-});
-
 /* ---------- zoom: HKDF / PBKDF2 → hmac lab → hash lab ---------- */
 
 test('HKDF: PRK zooms into the hmac lab with salt and IKM; its tag is HMAC-SHA-256(salt, IKM); the inner hash zooms into the SHA-256 lab', async ({ page }) => {

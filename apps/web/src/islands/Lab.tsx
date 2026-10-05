@@ -11,7 +11,6 @@ import { ParamPanel } from './lab/ParamPanel.tsx';
 import { PlayerBar } from './lab/PlayerBar.tsx';
 import { useHashSync } from './lab/useHashSync.ts';
 import { useLabSession } from './lab/useLabSession.ts';
-import { useStoredLayoutMigration } from './lab/useStoredLayoutMigration.ts';
 
 export interface LabProps {
   /** Unique per page; keys the deep link and saved panel sizes. */
@@ -71,8 +70,6 @@ interface ReadyLabProps {
 
 function ReadyLab({ labId, layout, lens, session, params, onParams, onRequestParams, requestError, computing, toolbar: Toolbar, views: viewsOption, paramPanel }: ReadyLabProps) {
   const t = useT();
-  // `layout` arrives with renamed view ids already resolved (`labIsland`); saved panel sizes are migrated here.
-  useStoredLayoutMigration(labId);
   const views = useMemo(() => viewsToShow(session.views, layout, viewsOption), [session.views, layout, viewsOption]);
   useHashSync(labId, session.store, session.params, { clearLink: session.notice });
   return (

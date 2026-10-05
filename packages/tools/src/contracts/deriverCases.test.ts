@@ -44,5 +44,5 @@ describe('deriver applicability to the MAC/KDF producers (docs/M7.md §6)', () =
     const cases = await primitiveBundleCases({ list, lookup: producerRegistry(primitiveManifests) });
     const applied = cases.flatMap(({ name, bundle }) => deriverManifests.filter((deriver) => appliesToBundle(deriver, bundle)).map((deriver) => `${deriver.id} applies to ${name}`));
     expect(applied).toEqual([]);
-  }, 30_000); // pbkdf2's rfc7914-sha256-c80000 preset records 80 000 iterations
+  }, 60_000); // pbkdf2's rfc7914-sha256-c80000 preset records 80 000 iterations (seconds on a loaded CI runner)
 });

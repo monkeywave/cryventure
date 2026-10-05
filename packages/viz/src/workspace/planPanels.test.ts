@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { defaultPanelSizes, formatLayoutEntries, parseLayoutEntries, parseLayoutPreset, planPanels, stackedOrder } from './planPanels.ts';
+import { defaultPanelSizes, parseLayoutEntries, parseLayoutPreset, planPanels, stackedOrder } from './planPanels.ts';
 
 describe('parseLayoutPreset', () => {
   it('splits, trims and dedupes', () => {
@@ -32,15 +32,6 @@ describe('planPanels', () => {
   it('handles one or zero views', () => {
     expect(planPanels(['state'])).toEqual([{ id: 'state', viewIds: ['state'] }]);
     expect(planPanels([], 'state')).toEqual([]);
-  });
-});
-
-describe('formatLayoutEntries', () => {
-  it('writes entries back in the preset grammar, round-tripping parseLayoutEntries', () => {
-    expect(formatLayoutEntries([{ id: 'state', size: 60 }, { id: 'narration' }])).toBe('state:60|narration');
-    expect(formatLayoutEntries([])).toBe('');
-    const preset = 'state:55|derivation:45|narration';
-    expect(formatLayoutEntries(parseLayoutEntries(preset))).toBe(preset);
   });
 });
 

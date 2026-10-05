@@ -3,7 +3,7 @@ import { beforeAll, describe, expect, it } from 'vitest';
 import conformance from './vectors/conformance.json' with { type: 'json' };
 import { keyedMac } from '../_lib/hmac/macCalls.ts';
 import { int32be, pbkdf2, pbkdf2Block, saltWithIndex } from './pbkdf2.ts';
-import { hmacMember } from './testMacs.ts';
+import { CONFORMANCE_TIMEOUT_MS, hmacMember } from './testMacs.ts';
 
 let sha1: MacFunction;
 let sha256: MacFunction;
@@ -62,7 +62,7 @@ describe('pbkdf2', () => {
     const mac = testCase.params.mac === 'sha1:hmac-sha-1' ? sha1 : sha256;
     const { password, salt, iterations, length } = testCase.params;
     expect(toHex(pbkdf2(mac, parseHexOrThrow(password), parseHexOrThrow(salt), Number(iterations), Number(length)))).toBe(testCase.outputs.dk);
-  });
+  }, CONFORMANCE_TIMEOUT_MS);
 
   it('keys the MAC once and clones it per call (the midstate trick)', () => {
     let creates = 0;

@@ -39,14 +39,6 @@ describe('labIsland', () => {
     expect(JSON.stringify(props.messages).length).toBeLessThan(JSON.stringify(all).length);
   });
 
-  it('resolves renamed view ids in the layout once, before pruning messages (layout-only key-schedule → derivation)', () => {
-    const { props } = labIsland({ ...HERO, layout: 'state:60|key-schedule:40' }, 'en', { layoutViewsOnly: true });
-    expect(props.layout).toBe('state:60|derivation:40');
-    expect(hasPrefix(props.messages, 'view.derivation.')).toBe(true);
-    expect(hasPrefix(props.messages, 'view.narration.')).toBe(false);
-    expect(labIsland({ ...HERO, layout: undefined }, 'en').props.layout).toBeUndefined();
-  });
-
   it('fails the build on invalid options, naming the wrapper', () => {
     expect(() => labIsland({ labId: 'x', producerId: 'nope' }, 'en')).toThrow('<Lab labId="x">: unknown producer "nope"');
     expect(() => labIsland({ ...HERO, presetId: 'nope' }, 'en', { tag: 'HeroLab' })).toThrow('<HeroLab labId="hero">: unknown preset "nope"');
