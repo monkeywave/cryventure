@@ -1,4 +1,4 @@
-import type { DeriverManifest, DerivationFacet, PrimitiveManifest, ProducerLookup, TraceBundle } from '@cryventure/core';
+import { paramFieldsOf, portOptions, portParamFields, type DeriverManifest, type DerivationFacet, type PrimitiveManifest, type ProducerLookup, type TraceBundle } from '@cryventure/core';
 import { deriverManifests } from '@cryventure/derivers';
 import { isDeriverApplicable } from '@cryventure/viz';
 import { producerRegistry } from './producers.ts';
@@ -20,11 +20,24 @@ function sampleParams(producer: PrimitiveManifest): unknown[] {
   return [producer.defaults, ...presets];
 }
 
-/** The bundles of a producer's sample params (`sampleParams`; failed runs are left out). */
-export async function sampleBundles(producer: PrimitiveManifest, producers: ProducerLookup = producerRegistry): Promise<TraceBundle[]> {
-  const params = sampleParams(producer);
+/**
+ * The defaults with one member field (docs/M7.md §1b) set to each of its options: one sample per
+ * member the learner can pick, whose run may zoom elsewhere (e.g. HMAC-SHA-1 into the SHA-1 lab).
+ */
+export function memberSampleParams(producer: PrimitiveManifest, registered: readonly PrimitiveManifest[] = producerRegistry.list()): unknown[] {
+  const memberFields = portParamFields(paramFieldsOf(producer)).filter((field) => field.member === true);
+  return memberFields.flatMap((field) => portOptions(registered, field).map((option) => ({ ...(producer.defaults as object), [field.name]: option.value })));
+}
+
+/** The bundles of runs of `producer` on each of `params` (failed runs are left out). */
+async function runSamples(producer: PrimitiveManifest, params: readonly unknown[], producers: ProducerLookup): Promise<TraceBundle[]> {
   const results = await Promise.all(params.map((sample) => runProducer(producer, sample, producers)));
   return results.flatMap((result) => (result.ok ? [result.trace] : []));
+}
+
+/** The bundles of a producer's sample params (`sampleParams`; failed runs are left out). */
+export function sampleBundles(producer: PrimitiveManifest, producers: ProducerLookup = producerRegistry): Promise<TraceBundle[]> {
+  return runSamples(producer, sampleParams(producer), producers);
 }
 
 /** The derivers applicable (viz `isDeriverApplicable`) to at least one of `bundles`. */
@@ -45,16 +58,17 @@ export function zoomTargetsOf(bundles: readonly TraceBundle[]): string[] {
 
 interface SampleFacts {
   derivers: readonly DeriverManifest[];
-  zoomTargets: readonly string[];
+  /** The sample bundles plus one per pickable member (`memberSampleParams`). */
+  labSamples: readonly TraceBundle[];
+}
+
+async function sampleFactsOf(producer: PrimitiveManifest): Promise<SampleFacts> {
+  const [bundles, memberBundles] = await Promise.all([sampleBundles(producer), runSamples(producer, memberSampleParams(producer), producerRegistry)]);
+  return { derivers: deriversApplicableToAny(bundles), labSamples: [...bundles, ...memberBundles] };
 }
 
 async function sampleFacts(): Promise<ReadonlyMap<string, SampleFacts>> {
-  const entries = await Promise.all(
-    producerRegistry.list().map(async (producer) => {
-      const bundles = await sampleBundles(producer);
-      return [producer.id, { derivers: deriversApplicableToAny(bundles), zoomTargets: zoomTargetsOf(bundles) }] as const;
-    }),
-  );
+  const entries = await Promise.all(producerRegistry.list().map(async (producer) => [producer.id, await sampleFactsOf(producer)] as const));
   return new Map(entries);
 }
 
@@ -67,9 +81,9 @@ export function sampleApplicableDerivers(producerId: string): readonly DeriverMa
 }
 
 /**
- * The producers a registered producer's samples zoom into (`zoomTargetsOf`); empty for an unknown one.
- * A member the learner picks later may zoom elsewhere: its link then falls back to the generic text.
+ * A registered producer's sample bundles plus one per pickable member, so their zoom targets
+ * (`zoomTargetsOf`) cover whichever member the learner picks; empty for an unknown producer.
  */
-export function sampleZoomTargets(producerId: string): readonly string[] {
-  return SAMPLE_FACTS.get(producerId)?.zoomTargets ?? [];
+export function labSamples(producerId: string): readonly TraceBundle[] {
+  return SAMPLE_FACTS.get(producerId)?.labSamples ?? [];
 }

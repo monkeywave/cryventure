@@ -7,6 +7,7 @@ import { createBlockLabHref, createLabHref } from '../../labs/labHref.ts';
 import { createLabRunner, type LabRunner } from '../../labs/labRunner.ts';
 import { rerunLab, startLab, type IsCurrentRun, type LabParams, type LabSession, type ReadySession } from '../../labs/labSession.ts';
 import { mergeParams } from '../../labs/paramFields.ts';
+import { RUN_FAILED_ERROR } from '../../labs/runProducer.ts';
 import { parseStartAt } from '../../labs/startAt.ts';
 
 export interface UseLabSessionOptions {
@@ -167,11 +168,15 @@ function useParamRuns(session: LabSession, setSession: (session: LabSession) => 
     (ready: ReadySession, params: LabParams) => {
       const current = beginRun();
       setPendingParams(params);
-      void rerunLab(ready, params, current.isCurrent).then((outcome) => {
-        if (!current.isCurrent()) return;
-        current.settle(outcome.ok ? undefined : outcome.error);
-        if (outcome.ok) setSession(outcome.session);
-      });
+      void rerunLab(ready, params, current.isCurrent).then(
+        (outcome) => {
+          if (!current.isCurrent()) return;
+          current.settle(outcome.ok ? undefined : outcome.error);
+          if (outcome.ok) setSession(outcome.session);
+        },
+        // A throw after the run (e.g. mapping the step onto the new trace) is a run error too.
+        () => current.settle(RUN_FAILED_ERROR),
+      );
     },
     [beginRun, setPendingParams, setSession],
   );
@@ -218,13 +223,15 @@ export function useLabSession({ labId, producerId, presetId, startAt, mode, vari
   // Every start (after `reset`, or on changed props) supersedes any pending re-run.
   useLabStart({ labId, producerId, presetId, startAt, mode, variant }, { runner, labHref, blockLabHref, supersede: runs.supersede }, generation, settleStart);
 
-  // The new start (a new `generation`) does the run bookkeeping.
+  // Supersedes a pending re-run right away, so its result cannot land before the new start's effect.
+  const { supersede } = runs;
   const reset = useCallback(() => {
+    supersede();
     createLabHashWriter(labId, browserHashEnvironment()).clear();
     setPendingParams(null);
     setSession({ status: 'loading' });
     setGeneration((current) => current + 1);
-  }, [labId, setPendingParams]);
+  }, [labId, setPendingParams, supersede]);
 
   return { session, pendingParams, applyParams, requestParams, requestError: runs.requestError, computing: runs.computing, reset };
 }

@@ -6,7 +6,7 @@ import { loadViewMessages } from '@cryventure/views/messages';
 import { loadVizMessages } from '@cryventure/viz/messages';
 import { loadMessages, pickPrefix, toLocale } from '../i18n/loadMessages.ts';
 import { deriversForFacets, producerRegistry, viewRegistry, viewsForProducer } from './registry.ts';
-import { sampleApplicableDerivers } from './sampleDerivers.ts';
+import { labSamples, sampleApplicableDerivers, zoomTargetsOf } from './sampleDerivers.ts';
 
 /**
  * Server-side only: assembles the exact message table one lab island needs for one locale,
@@ -61,9 +61,18 @@ function portFields(producer: LabMessagesProducer, member: boolean): PortParamFi
  * resolved, and its run speaks its own namespace.
  */
 function portProducerMessages(locale: string, producer: LabMessagesProducer, registered: readonly PrimitiveManifest[]): Messages {
-  const namespaces = new Set(portNamespaces({ ...producer, paramFields: portFields(producer, false) }, registered));
+  const namespaces = new Set(nonMemberPortNamespaces(producer, registered));
   const options = registered.filter((candidate) => namespaces.has(candidate.i18nNamespace));
   return Object.assign({}, ...options.map((option) => producerMessages(locale, option)));
+}
+
+/**
+ * Core `portNamespaces` restricted to the non-member `port` fields: it also counts member fields,
+ * whose producers' whole namespaces a lab must not ship (only their option labels, `memberOptionLabels`).
+ * Workaround until core skips them (backlog: "portNamespaces should skip member fields — core, M8").
+ */
+export function nonMemberPortNamespaces(producer: LabMessagesProducer, registered: readonly PrimitiveManifest[]): string[] {
+  return portNamespaces({ ...producer, paramFields: portFields(producer, false) }, registered);
 }
 
 /**
@@ -82,11 +91,13 @@ function memberOptionLabels(locale: string, producer: LabMessagesProducer, regis
 }
 
 /**
- * Every registered producer's lab title (`titleKey`, one short message each), so a derivation zoom
- * link can say "Open the lab “HMAC …”" whichever member the learner picks.
+ * The lab titles (`titleKey`) of the producers this lab's derivation nodes zoom into, whichever member
+ * the learner picks (`labSamples`), so a zoom link can say "Open the lab “HMAC …”". A target the
+ * samples miss (or a producer outside the registry) gets the generic link text.
  */
-function producerTitles(locale: string, registered: readonly PrimitiveManifest[]): Messages {
-  return Object.assign({}, ...registered.map((target) => pickKey(loadPrimitiveMessages(target.id, locale), target.titleKey)));
+function zoomTargetTitles(locale: string, producer: LabMessagesProducer, registered: readonly PrimitiveManifest[]): Messages {
+  const targets = new Set(zoomTargetsOf(labSamples(producer.id)));
+  return Object.assign({}, ...registered.filter((target) => targets.has(target.id)).map((target) => pickKey(loadPrimitiveMessages(target.id, locale), target.titleKey)));
 }
 
 /** `{ [key]: message }` when `messages` has `key`, else `{}`. */
@@ -97,7 +108,7 @@ function pickKey(messages: Messages, key: string): Messages {
 /**
  * viz `ui.*` + offered views' `view.*` + offered derivers' `deriver.*` + app `ui.lab.*` + `core.*`
  * errors + non-member port options' namespaces and member options' labels (among `registered`,
- * default: the app's registry) + every registered lab title + the producer's own `i18nNamespace`.
+ * default: the app's registry) + its zoom targets' lab titles + the producer's own `i18nNamespace`.
  */
 export function labMessages(lang: string | undefined, producer: LabMessagesProducer, registered: readonly PrimitiveManifest[] = producerRegistry.list()): Messages {
   const locale = toLocale(lang);
@@ -109,7 +120,7 @@ export function labMessages(lang: string | undefined, producer: LabMessagesProdu
     ...loadCoreMessages(locale),
     ...portProducerMessages(locale, producer, registered),
     ...memberOptionLabels(locale, producer, registered),
-    ...producerTitles(locale, registered),
+    ...zoomTargetTitles(locale, producer, registered),
     ...producerMessages(locale, producer),
   };
 }

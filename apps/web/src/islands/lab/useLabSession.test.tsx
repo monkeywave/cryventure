@@ -79,6 +79,33 @@ describe('useLabSession stale results', () => {
     await act(async () => rerun.resolve(ran('stale')));
     expect(tagOf(result.current.session)).toBe('restarted');
   });
+
+  it('supersedes a pending re-run as soon as reset is called, before the restart effect runs', async () => {
+    const { result } = await renderReady();
+    labSession.rerunLab.mockReturnValueOnce(new Promise(() => undefined));
+    act(() => result.current.applyParams({ n: 1 }));
+    const rerunGuard = labSession.rerunLab.mock.calls[0]?.[2] as () => boolean;
+    labSession.startLab.mockReturnValueOnce(new Promise(() => undefined));
+    act(() => {
+      result.current.reset();
+      expect(rerunGuard()).toBe(false);
+    });
+  });
+
+  it('keeps loading when a re-run resolves between reset and the restart effect', async () => {
+    const { result } = await renderReady();
+    const rerun = deferred<RunOutcome>();
+    labSession.rerunLab.mockReturnValueOnce(rerun.promise);
+    act(() => result.current.applyParams({ n: 1 }));
+    labSession.startLab.mockReturnValueOnce(new Promise(() => undefined));
+    await act(async () => {
+      result.current.reset();
+      rerun.resolve(ran('stale'));
+      await rerun.promise;
+      await Promise.resolve();
+    });
+    expect(result.current.session.status).toBe('loading');
+  });
 });
 
 describe('useLabSession run errors', () => {
@@ -106,6 +133,15 @@ describe('useLabSession run errors', () => {
     await act(async () => result.current.requestParams({ plaintextHex: '00' }));
     expect(tagOf(result.current.session)).toBe('start');
     expect(result.current.requestError).toEqual({ key: 'core.error.notBlockAligned' });
+  });
+
+  it('settles and reports a run error when the re-run throws (e.g. while mapping the step)', async () => {
+    const { result } = await renderReady();
+    labSession.rerunLab.mockRejectedValueOnce(new RangeError('latestStepAt'));
+    await act(async () => result.current.applyParams({ n: 1 }));
+    expect(result.current.computing).toBe(false);
+    expect(result.current.requestError).toEqual({ key: 'ui.lab.error.runFailed' });
+    expect(tagOf(result.current.session)).toBe('start');
   });
 });
 

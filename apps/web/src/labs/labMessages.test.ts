@@ -2,15 +2,15 @@ import { describe, expect, it } from 'vitest';
 import { extractParams, portOptions, type ParamField, type PrimitiveManifest } from '@cryventure/core';
 import { loadCoreMessages } from '@cryventure/core/messages';
 import { producerRegistry, viewRegistry, viewsForProducer } from './registry.ts';
-import { deriversApplicableToAny, sampleBundles } from './sampleDerivers.ts';
-import { labMessages } from './labMessages.ts';
+import { deriversApplicableToAny, labSamples, sampleBundles, zoomTargetsOf } from './sampleDerivers.ts';
+import { labMessages, nonMemberPortNamespaces } from './labMessages.ts';
 
 const AES = producerRegistry.require('aes');
 
-/** Every registered producer's lab title key (each lab ships them for its zoom links). */
+/** Every registered producer's lab title key. */
 const TITLE_KEYS = new Set(producerRegistry.list().map((producer) => producer.titleKey));
-/** The `plugin.*` keys of `messages` outside namespace `ns`, other than lab titles. */
-const foreignPluginKeys = (messages: Record<string, string>, ns: string) => Object.keys(messages).filter((key) => key.startsWith('plugin.') && !key.startsWith(`${ns}.`) && !TITLE_KEYS.has(key));
+/** The `plugin.*` keys of `messages` outside namespace `ns`. */
+const foreignPluginKeys = (messages: Record<string, string>, ns: string) => Object.keys(messages).filter((key) => key.startsWith('plugin.') && !key.startsWith(`${ns}.`));
 
 describe('labMessages', () => {
   const en = labMessages('en', AES);
@@ -120,9 +120,18 @@ describe('labMessages for a producer with member port fields (docs/M7.md §1b)',
 });
 
 describe('labMessages for zoom link targets', () => {
-  it('ships every registered lab title, so a zoom link names the lab of any picked member', () => {
-    const titles = Object.keys(labMessages('en', producerRegistry.require('hmac'))).filter((key) => TITLE_KEYS.has(key));
-    expect(titles.sort()).toEqual([...TITLE_KEYS].sort());
+  it("ships only the titles of the labs it can zoom into, including those any picked member zooms into", () => {
+    const hmac = producerRegistry.require('hmac');
+    const titles = Object.keys(labMessages('en', hmac)).filter((key) => TITLE_KEYS.has(key) && key !== hmac.titleKey);
+    const expected = zoomTargetsOf(labSamples('hmac')).map((id) => producerRegistry.require(id).titleKey);
+    expect(titles.sort()).toEqual(expected.sort());
+    const hashProducers = producerRegistry.list().filter((producer) => producer.portMembers?.Hash !== undefined);
+    for (const producer of hashProducers) expect(titles).toContain(producer.titleKey);
+    expect(titles).not.toContain(AES.titleKey);
+  });
+
+  it('ships no other lab title to a lab without zoom links', () => {
+    expect(Object.keys(labMessages('en', AES)).filter((key) => TITLE_KEYS.has(key))).toEqual([AES.titleKey]);
   });
 
   // A derivation node's zoom link names its target lab by that producer's title (`view.derivation.zoomTitled`).
@@ -134,5 +143,18 @@ describe('labMessages for zoom link targets', () => {
   ])('the %s lab ships the title of the lab it zooms into (%s)', (producerId, titleKey) => {
     expect(labMessages('en', producerRegistry.require(producerId))[titleKey]).toBeTypeOf('string');
     expect(labMessages('de', producerRegistry.require(producerId))[titleKey]).toBeTypeOf('string');
+  });
+});
+
+describe('nonMemberPortNamespaces', () => {
+  // `portNamespaces` (core) also counts member fields; a member field ships only its option labels.
+  it("names the namespaces of a non-member port's producers only, not a member field's", () => {
+    const cipherField = { name: 'cipher', kind: 'port', port: 'BlockCipher', labelKey: 'plugin.xor.title' } as const satisfies ParamField;
+    const hashField = { name: 'hash', kind: 'port', port: 'Hash', member: true, labelKey: 'plugin.xor.title' } as const satisfies ParamField;
+    const registered = producerRegistry.list();
+    const ciphers = registered.filter((producer) => producer.implements.includes('BlockCipher')).map((producer) => producer.i18nNamespace);
+    const composite = { id: 'xor', i18nNamespace: 'plugin.xor', facets: AES.facets, defaults: {}, paramFields: [cipherField, hashField] };
+    expect(nonMemberPortNamespaces(composite, registered).sort()).toEqual([...new Set(ciphers)].sort());
+    expect(nonMemberPortNamespaces({ ...composite, paramFields: [hashField] }, registered)).toEqual([]);
   });
 });

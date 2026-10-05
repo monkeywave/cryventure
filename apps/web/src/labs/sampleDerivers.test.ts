@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
-import type { DeriverManifest, TraceBundle } from '@cryventure/core';
+import { paramFieldsOf, portOptions, portParamFields, type DeriverManifest, type TraceBundle } from '@cryventure/core';
 import { producerRegistry } from './registry.ts';
-import { deriversApplicableToAny, sampleApplicableDerivers, sampleBundles, sampleZoomTargets, zoomTargetsOf } from './sampleDerivers.ts';
+import { deriversApplicableToAny, labSamples, memberSampleParams, sampleApplicableDerivers, sampleBundles, zoomTargetsOf } from './sampleDerivers.ts';
 
 const deriver = (id: string, appliesTo?: (bundle: TraceBundle) => boolean) =>
   ({ kind: 'deriver', id, apiVersion: 1, from: ['state'], provides: ['memory'], appliesTo, load: async () => ({}) }) as unknown as DeriverManifest;
@@ -49,12 +49,33 @@ describe('zoomTargetsOf', () => {
   });
 });
 
-describe('sampleZoomTargets', () => {
-  it('names the labs the MAC/KDF samples zoom into; none for labs without zoom links', () => {
-    expect(sampleZoomTargets('hkdf')).toEqual(['hmac']);
-    expect(sampleZoomTargets('pbkdf2')).toEqual(['hmac']);
-    expect(sampleZoomTargets('hmac')).toContain('sha256');
-    expect(sampleZoomTargets('aes')).toEqual([]);
-    expect(sampleZoomTargets('nope')).toEqual([]);
+describe('memberSampleParams', () => {
+  it("sets each member field of the defaults to each of its options (docs/M7.md §1b)", () => {
+    const hmac = producerRegistry.require('hmac');
+    const hashField = portParamFields(paramFieldsOf(hmac)).find((field) => field.member === true)!;
+    const options = portOptions(producerRegistry.list(), hashField).map((option) => option.value);
+    expect(options.length).toBeGreaterThan(1);
+    expect(memberSampleParams(hmac).map((params) => (params as Record<string, unknown>)[hashField.name])).toEqual(options);
+    expect(memberSampleParams(hmac)[0]).toMatchObject({ ...(hmac.defaults as object), [hashField.name]: options[0] });
+  });
+
+  it('is empty for a producer without member fields', () => {
+    expect(memberSampleParams(producerRegistry.require('aes'))).toEqual([]);
+  });
+});
+
+describe('labSamples', () => {
+  const targets = (producerId: string) => zoomTargetsOf(labSamples(producerId));
+
+  it("zooms the hmac lab into the lab of every Hash producer a member can come from", () => {
+    const hashProducers = producerRegistry.list().filter((producer) => producer.portMembers?.Hash !== undefined).map((producer) => producer.id);
+    expect(hashProducers.length).toBeGreaterThan(1);
+    expect(targets('hmac')).toEqual(expect.arrayContaining(hashProducers));
+  });
+
+  it('zooms the KDF/PRF labs into hmac whichever MAC member is picked; no zoom targets for labs without zoom links or unknown ones', () => {
+    for (const producerId of ['hkdf', 'pbkdf2', 'tls12-prf']) expect(targets(producerId)).toEqual(['hmac']);
+    expect(targets('aes')).toEqual([]);
+    expect(labSamples('nope')).toEqual([]);
   });
 });
