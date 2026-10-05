@@ -108,8 +108,6 @@ export function pieces(data: Uint8Array, cuts: readonly number[]): Uint8Array[] 
   return [...points, data.length].map((end, index) => data.subarray(index === 0 ? 0 : points[index - 1]!, end));
 }
 
-/** The concatenation of `parts` (kept for importers; the oracles use noble's `concatBytes` directly). */
-export { concatBytes } from '@noble/hashes/utils.js';
 
 /**
  * Feeds `message` to `fn.create(key, options)` in pieces; after the first `cloneAt mod (pieces + 1)`

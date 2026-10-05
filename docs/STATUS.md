@@ -4,7 +4,7 @@
 > `docs/EXTENDING.md` / `docs/AUTHORING.md` as needed. Continue with **Next up** below.
 > Update this file at the end of every milestone or significant change.
 
-_Last updated: 2026-10-04 (M6 complete + /simplify + /code-review)._
+_Last updated: 2026-10-05 (M7 complete + /simplify + /code-review)._
 
 ## Where things live
 
@@ -19,6 +19,7 @@ _Last updated: 2026-10-04 (M6 complete + /simplify + /code-review)._
 | M4 design brief (derivers)    | `docs/M4.md`                                                                         |
 | M5 design brief (hash, SHA-2) | `docs/M5.md`                                                                         |
 | M6 design brief (SHA-3, BLAKE2)| `docs/M6.md`                                                                         |
+| M7 design brief (MAC, KDF I)  | `docs/M7.md`                                                                         |
 | Add plugins                   | `docs/EXTENDING.md` (`pnpm cv new primitive\|view <id>`)                             |
 | Write lessons, EN/DE workflow | `docs/AUTHORING.md`, `docs/GLOSSARY.md`                                              |
 | Deploy                        | `docs/DEPLOY.md`                                                                     |
@@ -36,7 +37,8 @@ _Last updated: 2026-10-04 (M6 complete + /simplify + /code-review)._
 | M4 GCM + Memory & Hardware (ISA/memory derivers + views) | ✅ done | ghash/gcm, derivers isa-x86/isa-armv8/memory, views instructions/registers/memory/field, CSP; **no core diff** after wave 1 (see `docs/M4.md`) |
 | M5 Hash I (SHA-2, Hash port, SHA-NI/ARMv8 SHA2 derivers) | ✅ done | sha256/sha512/sha2-constants, `Hash` port, derivers isa-x86-sha/isa-armv8-sha, view wordops, hash lessons; **no core diff** after wave 1 (see `docs/M5.md`) |
 | M6 Hash II (SHA-3/Keccak, BLAKE2, MD5/SHA-1, ARMv8.2)    | ✅ done | sha3/keccak-constants/blake2/md5/sha1, incremental `Hash` port + XOFs, `sponge` facet + view, wordops v2, derivers ARMv8.2 SHA512/SHA3; **no core diff** after wave 1 (see `docs/M6.md`) |
-| M7 MAC & KDF I (proposed, see Next up)                   | ⏭ next  | Phase 2b: HMAC, HKDF, PBKDF2, KMAC, TLS PRFs                                                                                     |
+| M7 MAC & KDF I (HMAC, KMAC, HKDF, PBKDF2, TLS PRFs)      | ✅ done | `Mac` port + port members, `_lib/hmac`, hmac/kmac/hkdf/pbkdf2/tls12-prf/tls10-prf, `derivation` view, first worker producer; **no core diff** after wave 1 (see `docs/M7.md`) |
+| M8 MAC & KDF II + RNG (proposed, see Next up)            | ⏭ next  | Phase 2b: CMAC, SP 800-108/56C, SSH KDF, scrypt, Argon2id, DRBGs                                                                 |
 | Phases 2–10                                              | ☐       | see `docs/PLAN.md` §6                                                                                                            |
 
 ## What M2 delivered
@@ -181,19 +183,69 @@ _Last updated: 2026-10-04 (M6 complete + /simplify + /code-review)._
 - **Tests/CI:** e2e `hash2Lessons`, `hash2Labs`, `sponge` (96 named lesson screenshots), the view
   contract render timeout raised for the SHA3 listings. Unit tests 7072, e2e 333 (root and subpath).
 
-## Next up — M7 (proposal: MAC & KDF I, PLAN §6 Phase 2b)
+## What M7 delivered
 
-Write `docs/M7.md` first. Suggested scope:
-1. A `Mac` port (core, wave 1) and `HMAC(Hash)` over the incremental `Hash` port: ipad/opad
-   ("why these constants"), the midstate via `clone()`, HMAC-SHA-256/384/512, HMAC-SHA3, keyed
-   BLAKE2 through the same port; RFC 4231 / RFC 2202 / NIST vectors.
-2. `HKDF(Mac)` (RFC 5869) with the `derivation` facet (consider renaming the `key-schedule` view to
-   `derivation`), TLS 1.3 `HKDF-Expand-Label` as a preview; `PBKDF2` (RFC 8018, iteration counter
-   view); KMAC128/256 on cSHAKE (SP 800-185); TLS 1.2 PRF (P_SHA256) and the TLS 1.0 PRF (MD5 ⊕ SHA-1).
-3. Nested child traces (zoom HMAC → inner SHA-256 compression) — decide whether `children` is needed
-   now (a core change).
-4. Before planning any attack lab (e.g. HMAC timing comparison, length extension vs HMAC), ask the
-   user (see Deviations).
+- **No-core-diff proof:** core changed only in wave 1, in three commits: `51f49b7` (`Mac` port —
+  `MacFunction`/`MacContext`/`MacFamily`/`MacConstruction`, `PortMap.Mac`, optional
+  `HashContext.chainingState` — and port members: member refs `"<producer>:<member>"`,
+  `portMembers` on the manifest, `member`/`constructions` on `ParamField`, `portOptions`,
+  `requirePortMember`, `readPortMemberRef`), `e210c04` (`DerivationNode.zoom`,
+  `DerivationFacet.title`, `LabZoom`) and `07238d3` (validator gaps, `latestStepAt` for
+  `mathStepAt`/`fieldStepAt`, `ParamField.encodingParam`, `PrimitiveManifest.hashLabParams`).
+  `git diff 07238d3 -- packages/core` stayed empty through producers, views, lessons, the three
+  reviews, `/simplify` and `/code-review`.
+- **MACs:** `_lib/hmac` (RFC 2104 / FIPS 198-1, keyed-once contexts holding both midstates,
+  `timingSafeEqual`); `Mac` on every hash producer (HMAC-MD5, HMAC-SHA-1, HMAC-SHA-224…512,
+  HMAC-SHA-512/t, HMAC-SHA3-*) and keyed BLAKE2 (`keyed-hash`); `chainingState` on the hash
+  contexts. Producers `hmac` (ipad/opad, midstates, truncation, constant-time verify; zoom into the
+  hash labs via `hashLabParams`) and `kmac` (KMAC128/256 + KMACXOF on the shared `_lib/keccak`
+  sponge recording; `ports.Mac` = kmac128/kmac256).
+- **KDFs and PRFs:** `hkdf` (RFC 5869 Extract/Expand + TLS 1.3 `HKDF-Expand-Label` preview),
+  `pbkdf2` (RFC 8018, midstate trick, `runIn: 'worker'`), `tls12-prf` (P_hash, P_SHA256 default,
+  P_SHA384, RFC 7627 EMS preset) and `tls10-prf` (P_MD5 ⊕ P_SHA-1) on the shared `_lib/prf`.
+- **Vectors:** RFC 4231 / RFC 2202, a CAVP HMAC subset and a Wycheproof HMAC-SHA3/SHA-512/t subset
+  (through the ports), the BLAKE2 keyed KATs through `ports.Mac`, SP 800-185 KMAC/KMACXOF samples,
+  RFC 5869 A.1–A.7 and RFC 8448 ("derived", "c hs traffic"), RFC 6070 / RFC 7914 §11, CAVP SP
+  800-135 TLS KDF plus IETF-list vectors for the TLS PRFs. Noble oracles for every producer (an
+  independent P_hash on noble `hmac` for the PRFs) and a MAC cross-check (`hmac` lab vs every `Mac`
+  member).
+- **View `derivation`** (renamed from `key-schedule`): facet `title` (AES „Schlüsselplan“), op
+  catalog, zoom links to the target lab named with the lab's title, names on result nodes, wrapped
+  hex, long chains scroll in the panel.
+- **Web:** member port pickers (`portOptions`), `labHref(zoom)` zoom links, worker runs with
+  superseded runs terminated and a "Computing…" state after 300 ms.
+- **Perf:** SHA-512 and Keccak hi/lo `Uint32Array` port paths, fast MD5/SHA-1 port compression;
+  PBKDF2 budget (every HMAC member, c = 100000) under `CV_PERF=1`, c = 2000 guard by default.
+- **Content (EN+DE, ai-reviewed):** `mac/{index,hmac,kmac}`, `kdf/{hkdf,pbkdf2,tls-prf}` in two new
+  sidebar groups; GLOSSARY M7 terms; open German questions under „M7“ in
+  `docs/translation-review-2026-10.md`. EXTENDING: MACs and port members, `encodingParam`,
+  `hashLabParams`, `LabZoom`.
+- **Tests/CI:** e2e `macKdfLessons`, `macKdfLabs`, `derivation` (240 named screenshots: 144 lesson + 96 derivation/hmac view);
+  contract-kit checks for `PORT_SANITY.Mac`, port members, `hashLabParams` lengths and derivation
+  zooms. Unit tests 9448 (+1 skipped), e2e 494 (+1 skipped; root and subpath). Precache 471 files, 14.83 MB.
+
+## Next up — M8 (proposal: MAC & KDF II + RNG, PLAN §6 Phase 2b)
+
+Write `docs/M8.md` first. Suggested scope:
+1. **CMAC** (RFC 4493, SP 800-38B) over the `BlockCipher` port (AES): subkey generation by doubling
+   in GF(2¹²⁸) (K1, K2 from L = E_K(0¹²⁸), the `field`/`math` facets), last-block padding vs
+   complete block; exposed through the `Mac` port (a new `MacConstruction` kind is a core change —
+   decide in wave 1).
+2. **KDFs on the `Mac` port:** SP 800-108 KDF in counter mode (and feedback/pipeline if cheap),
+   SP 800-56C one-step/two-step KDF, the SSH KDF (RFC 4253 §7.2: K ‖ H ‖ letter ‖ session_id), all
+   on the `derivation` view with zoom into `hmac`/`cmac`.
+3. **Memory-hard KDFs in the worker:** scrypt (RFC 7914: PBKDF2 + ROMix/Salsa20/8 BlockMix) and
+   Argon2id (RFC 9106); decide whether a memory view (block matrix, reference indices) is needed or
+   the existing views suffice.
+4. **DRBGs** (SP 800-90A Rev. 1): HMAC_DRBG, Hash_DRBG, CTR_DRBG (instantiate/generate/reseed with
+   CAVP DRBG vectors); Linux RNG, RDRAND and the 2008 Debian OpenSSL bug as conceptual and
+   historical prose.
+5. If core changes anyway (wave 1), take the core items from the M7 backlog: non-throwing
+   `latestStepAt`, `validateDerivationFacet` rejecting NaN steps / out-of-range bytes,
+   `portNamespaces` skipping member fields, a producer-set node flag instead of the opTagShown
+   heuristic, host-resolved `LabZoom` for hash labs, a scope template total.
+6. Before planning any attack lab (e.g. Debian weak keys, DRBG state compromise), ask the user
+   (see Deviations).
 
 ## Deviations from the plan (decided)
 
@@ -242,12 +294,36 @@ Write `docs/M7.md` first. Suggested scope:
   Keccak reference 3.0 §1.2 is cited for RC.
 - **Keccak spans (M6 §5c as built):** the RC load and clang's late `xar` for lane 24 are zero-width
   at χ (spans never decrease); SHA spans still throw on reordered round instructions.
-- **Text params:** only the text field named `input` is hex-measured when `encoding` is `'hex'`
-  (`textFieldByteLength`); a per-field declaration would need core.
+- **Text params:** ~~only the text field named `input` is hex-measured~~ — since M7 a text field
+  declares `encodingParam` (the sibling select that makes it hex-measured).
 - **Lesson word limit:** some cited facts in `hash/{index,sha512,blake2}` moved into tables to keep
   prose ≤ 150 words per section.
 - **Port speed tests** use a generous 1000 ms per KiB bound (flake-proof; catches only gross
   regressions).
+- **M7 attack labs not planned:** HMAC timing comparison and length extension vs HMAC are
+  conceptual/historical prose only (user rule); the Xbox 360 timing case was left out (source
+  uncertain), Keyczar 2009 is cited.
+- **M7 core budget:** three wave-1 commits (`Mac` port + port members, derivation facet additions,
+  backlog: validators/`encodingParam`/`hashLabParams`); nothing after.
+- **M7 hash lab limits:** the hash labs accept messages up to B + 256 bytes (sha256, md5, sha1 320;
+  sha512, blake2 384; sha3 400; kmac stays 200) so every HMAC hop zooms into a hash lab.
+- **M7 perf:** besides the planned SHA-512 hi/lo port, a Keccak hi/lo port and fast MD5/SHA-1
+  compression were added. The full PBKDF2 budget (c = 100000 for every HMAC member) runs only under
+  `CV_PERF=1`; the default run checks c = 2000.
+- **M7 PBKDF2:** the iteration label reads "Iteration j" (the scope template has no total); default
+  preset RFC 6070 TC1.
+- **M7 hmac zoom:** the `hmac` module imports the primitives index to read the hash producer's
+  `hashLabParams` (a host-resolved `LabZoom` would avoid this; backlog).
+- **M7 naming:** the AES derivation title is „Schlüsselplan“ (GLOSSARY), not „Schlüsselexpansion“;
+  constant-time comparison = „Vergleich mit konstanter Laufzeit“.
+- **M7 removals (user decision):** no `key-schedule` → `derivation` alias migration for stored
+  layouts (old sizes fall back to the preset); the hkdf self-check and its `lengthTooLong` error
+  were removed.
+- **M7 TLS PRFs:** P_SHA384 for the RFC 5288 and RFC 5289 `*_SHA384` suites; secret ≥ 1 byte,
+  label ≥ 1 character.
+- **M7 KMAC:** the encode steps (`encodeKey`, `encodeLength`) have no sponge step.
+- **M7 hmac conformance:** RFC 4231 TC5 for SHA-384/512 is not in `conformance.json` (16-byte tag
+  below max(10, L/2)); it runs through the `Mac` port.
 - **German review** is an AI editorial pass (`translation.status: ai-reviewed`); a human native
   speaker sign-off (`human-reviewed`) is still outstanding.
 
@@ -279,8 +355,8 @@ Write `docs/M7.md` first. Suggested scope:
   - Facet-agnostic timeline (still tied to the `state` facet); deep-linked facet variants.
   - Static deriver applicability (producer capabilities in the manifest) and an async `derive` so ISA
     derivers can lazy-load only the listing for the run's key size — both need core changes.
-  - Worker graphs duplicate primitive modules in the precache (~15 KB each); no producer uses
-    `runIn: 'worker'` yet — prune when one does.
+  - Worker graphs duplicate primitive modules in the precache — see "From M7" (pbkdf2 now uses the
+    worker).
   - Tests may not import producers, so views/derivers use snapshot fixtures; consider a test-only ESLint
     exception instead.
   - LLP64 probe struct, riscv64/Windows triples, zeroization/lifetimes (Phase 8), PCLMULQDQ GHASH (Phase 4).
@@ -289,7 +365,8 @@ Write `docs/M7.md` first. Suggested scope:
 - **From M5:**
   - x86 SHA-512 hardware (`vsha512rnds2`…); ARMv8.2 SHA512 done in M6.
   - `SHA256_CTX` in the memory deriver.
-  - SHA-512 reference with 64-bit words as 32-bit hi/lo pairs (the `bigint` port is ~37× slower than noble).
+  - ~~SHA-512 reference with 64-bit words as 32-bit hi/lo pairs~~ — done for the port in M7 (the
+    traced producer keeps `bigint`).
   - Deriver applicability by facet contract instead of producer id; listing types generic over the role set.
   - Runtime listing JSON still carries `source` (≈15 KB); the penguin worker bundles all manifests.
   - Empty space next to short panels on desktop (panels are content-height since M6, but the row is
@@ -299,16 +376,12 @@ Write `docs/M7.md` first. Suggested scope:
   - AES bundle fixtures switch to single-line JSON on their next change.
   - Style point „drücke ▶“ vs „Drück“ in `view.wordops.upcoming`; human German review of the M5 pages.
 - **From M6:**
-  - Core-only fixes found in M6 reviews: validators ignore `kind`, accept NaN/Infinity params and
-    `stepCount: NaN`, and wordops accepts a transfer source with both `register` and `term`;
-    `latestStepAt` assumes sorted input; core still has `mathStepAt`/`fieldStepAt` copies.
-  - A per-field "hex-switchable" declaration on `ParamField` (replacing the `input` name convention),
-    a manifest hook mapping params to a port call (hash cross-check without hard-coded param names),
-    a term expression ref on `WordTerm`/`RegisterTransfer` (the wordops view splits translated labels
+  - ~~Core-only validator fixes, `mathStepAt`/`fieldStepAt` copies~~ — done in M7 (`07238d3`).
+  - ~~Per-field hex declaration, a port-call hook for `Hash`~~ — done in M7 (`encodingParam`,
+    `hashLabParams`). Still open: a term expression ref on `WordTerm`/`RegisterTransfer` (the wordops view splits translated labels
     on " = "), a "computes-at" step on `AlignSpan` (instructions scheduled ahead of their round).
   - Async `derive` (or a split deriver) so the SHA-256 lab doesn't download the SHA-512 listing (≈85 KB).
-  - 32-bit hi/lo Keccak/BLAKE2b/SHA-512 port implementations (Keccak port ≈ 56× slower than node's
-    sha3) — needed once PBKDF2/ML-KEM use the ports.
+  - 32-bit hi/lo port implementations: SHA-512 and Keccak done in M7; BLAKE2b still open.
   - Deriver applicability from bundle contents instead of producer ids.
   - Golden/bundle fixtures are large (SHA3 golden 2.9 MB pretty-printed, ≈ 114 KB gzipped; CAVP SHA-3
     vectors 1.2 MB): consider minified JSON or per-facet hashes.
@@ -316,9 +389,22 @@ Write `docs/M7.md` first. Suggested scope:
   - Sponge π arrows switch at a hand-tuned 30rem container width (tied to `--cv-sponge-lane`).
   - 15 copies of `overflow-wrap: anywhere` across view CSS → one shared hex-text class.
   - Human German review of the M6 pages (open items under „M6“ in the review report).
-- The `key-schedule` view now renders any `derivation` facet generically — consider renaming it to
-  `derivation` when HKDF/TLS key schedules arrive.
-- `selection.valueRefId` is published by the key-schedule and `wordops` views and consumed by
+- **From M7:**
+  - Core `latestStepAt` throws on non-increasing steps (guarded by the contract kit); make it
+    non-throwing.
+  - `validateDerivationFacet` accepts NaN `step` and out-of-range bytes (tools guard them).
+  - `portNamespaces` should skip member fields (web works around it with `nonMemberPortNamespaces`).
+  - The derivation view's `opTagShown` label heuristic → a producer-set node flag.
+  - A host-resolved `LabZoom` for hash labs instead of the `hmac` module importing the primitives
+    index.
+  - Lab size limits checked at link time via the target's `validate`.
+  - The player scope template lacks a total (`{{count}}`) for "Iteration j of c".
+  - The "Computing…" state makes the layout jump.
+  - Worker graphs duplicate primitive modules in the precache (~378 KB).
+  - The Wycheproof HMAC subset pins no commit.
+  - Human German review of the M7 pages (open items under „M7“ in the review report).
+  - Nested child traces (`children`): decide in TLS 1.3 (Phase 7).
+- `selection.valueRefId` is published by the `derivation` and `wordops` views and consumed by
   `wordops`, `instructions` and `memory`; `MathTerm` has no `valueRef` yet.
 - Lab islands render `data-lens="engineer"` until hydration (`client:visible`), so story/cryptographer learners
   see engineer view content briefly; `<Lens>` blocks in MDX don't flash (inline head script).
