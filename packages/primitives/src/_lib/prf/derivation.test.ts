@@ -1,8 +1,8 @@
-import { assertTopologicalOrder, parseHexOrThrow, toHex, validateDerivationFacet } from '@cryventure/core';
+import { assertTopologicalOrder, concatBlocks, parseHexOrThrow, toHex, validateDerivationFacet } from '@cryventure/core';
 import { describe, expect, it } from 'vitest';
 import { DerivationBuilder } from '../derivation.ts';
 import { addChainNodes, addPrfInputNodes } from './derivation.ts';
-import { concatBytes, labelSeed, pHashChain } from './pHash.ts';
+import { labelSeed, pHashChain } from './pHash.ts';
 import { HMAC_SHA256 } from './testMacs.ts';
 
 const NS = 'plugin.test-prf';
@@ -42,7 +42,7 @@ describe('addChainNodes', () => {
   it('zooms each HMAC node into the hmac lab with that call’s key and message', () => {
     expect(node('prf/a/1').zoom?.params['input']).toBe(toHex(JOINED));
     expect(node('prf/a/2').zoom?.params['input']).toBe(toHex(CHAIN.a[0]!));
-    expect(node('prf/p/2').zoom?.params['input']).toBe(toHex(concatBytes(CHAIN.a[1]!, JOINED)));
+    expect(node('prf/p/2').zoom?.params['input']).toBe(toHex(concatBlocks([CHAIN.a[1]!, JOINED])));
     expect(node('prf/p/2').zoom?.params['key']).toBe('0102030405');
   });
 });

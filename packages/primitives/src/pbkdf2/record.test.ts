@@ -2,13 +2,13 @@ import { toHex, utf8Bytes, type MacFunction } from '@cryventure/core';
 import { beforeAll, describe, expect, it } from 'vitest';
 import { pbkdf2, pbkdf2Block } from './pbkdf2.ts';
 import { iterationRecording, pbkdf2Cost, PBKDF2_SCOPE_LEVELS, recordPbkdf2, type Pbkdf2Input } from './record.ts';
-import { hmacMember } from './testMacs.ts';
+import { macMember } from '../testing/hmacPorts.ts';
 
 const NS = 'plugin.pbkdf2';
 let sha1: MacFunction;
 
 beforeAll(async () => {
-  sha1 = await hmacMember('sha1:hmac-sha-1');
+  sha1 = await macMember('sha1:hmac-sha-1');
 });
 
 const ascii = (text: string): number[] => Array.from(utf8Bytes(text));
@@ -33,8 +33,44 @@ describe('iterationRecording', () => {
 });
 
 describe('pbkdf2Cost', () => {
-  it('counts l · c calls at two compressions each', () => {
-    expect(pbkdf2Cost(2, 4096)).toEqual({ calls: 8192, compressions: 16384 });
+  it('counts l · c calls at two compressions each when S ‖ INT(i) fits one block', () => {
+    expect(pbkdf2Cost(sha1, 4, 2, 4096)).toEqual({ calls: 8192, compressions: 16384 });
+  });
+
+  it('HMAC-SHA-256, 128-byte salt, c = 1: U1 costs 3 inner + 1 outer compressions', async () => {
+    const sha256 = await macMember('sha256:hmac-sha-256');
+    expect(pbkdf2Cost(sha256, 128, 1, 1)).toEqual({ calls: 1, compressions: 4 });
+    expect(pbkdf2Cost(sha256, 128, 2, 3)).toEqual({ calls: 6, compressions: 2 * (4 + 2 * 2) });
+  });
+
+  it('MD padding (0x80 + 8-byte length, B = 64): S ‖ INT(i) of 55 bytes fits, 56 does not', async () => {
+    const sha256 = await macMember('sha256:hmac-sha-256');
+    expect(pbkdf2Cost(sha256, 51, 1, 1).compressions).toBe(2);
+    expect(pbkdf2Cost(sha256, 52, 1, 1).compressions).toBe(3);
+  });
+
+  it('SHA-512 (B = 128, 16-byte length field): 111 bytes fit, 112 do not', async () => {
+    const sha512 = await macMember('sha512:hmac-sha-512');
+    expect(pbkdf2Cost(sha512, 107, 1, 1).compressions).toBe(2);
+    expect(pbkdf2Cost(sha512, 108, 1, 1).compressions).toBe(3);
+    expect(pbkdf2Cost(sha512, 108, 1, 5).compressions).toBe(3 + 4 * 2);
+  });
+
+  it('SHA3 (B = rate, pad10*1 ≥ 1 byte): SHA3-256 fits 135 bytes, SHA3-512 fits 71', async () => {
+    const sha3256 = await macMember('sha3:hmac-sha3-256');
+    const sha3512 = await macMember('sha3:hmac-sha3-512');
+    expect(pbkdf2Cost(sha3256, 131, 1, 1).compressions).toBe(2);
+    expect(pbkdf2Cost(sha3256, 132, 1, 1).compressions).toBe(3);
+    expect(pbkdf2Cost(sha3512, 67, 1, 2).compressions).toBe(2 + 2);
+    expect(pbkdf2Cost(sha3512, 68, 1, 2).compressions).toBe(3 + 2);
+  });
+});
+
+describe('recordPbkdf2: cost narration', () => {
+  it('narrates the exact count: HMAC-SHA-256, 128-byte salt, c = 1 → 4 compressions', async () => {
+    const sha256 = await macMember('sha256:hmac-sha-256');
+    const recording = recordPbkdf2({ mac: sha256, password: ascii('password'), salt: Array(128).fill(0x73), iterations: 1, length: 32 });
+    expect(recording.state.steps.at(-1)?.narration).toEqual({ key: `${NS}.step.output`, params: { length: 32, count: 1, iterations: 1, calls: 1, compressions: 4, mac: 'HMAC-SHA-256' } });
   });
 });
 

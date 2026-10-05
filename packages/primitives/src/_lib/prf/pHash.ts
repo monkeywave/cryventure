@@ -20,11 +20,6 @@ export interface PHashChain {
   readonly output: Uint8Array;
 }
 
-/** a ‖ b as a new array. */
-export function concatBytes(a: Uint8Array, b: Uint8Array): Uint8Array {
-  return concatBlocks([a, b]);
-}
-
 /** label ‖ seed: the ASCII label's bytes followed by the seed (RFC 5246 §5). */
 export function labelSeed(label: string, seed: Uint8Array): Uint8Array {
   return concatBlocks([utf8Bytes(label), seed]);

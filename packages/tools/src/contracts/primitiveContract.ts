@@ -56,6 +56,7 @@ import { checksMacLab, HMAC_LAB_ID, macLabProblems } from './macRunChecks.ts';
 import { modeFacetIssues, modeFacetRefs } from './modeFacetChecks.ts';
 import { implementedPortProblems, portFieldProblems, portMemberProblems, runInProblems, textFieldProblems } from './portChecks.ts';
 import { runOptionsFor, type ProducerSet } from './runWithPorts.ts';
+import { stepOrderProblems } from './stepOrderChecks.ts';
 
 export interface PrimitiveContractOptions<P> {
   /** Plugin EN/DE catalogs; defaults to `packages/primitives/src/<id>/i18n/{en,de}.json`. */
@@ -233,6 +234,7 @@ function runSuite<P>(manifest: PrimitiveManifest<P>, catalogs: LocaleCatalogs, p
     expect(state === undefined ? [] : replayProblems(state)).toEqual([]);
   });
   it('is JSON-serializable', () => expect(jsonRoundTrip(bundle)).toEqual(bundle));
+  it('orders every math/field/wordops/sponge facet (any variant, declared or not) by strictly increasing step', () => expect(stepOrderProblems(bundle.facets)).toEqual([]));
   it('emits valid chain/wire facets (if any) labelled with keys and {{params}} present in EN and DE', () => {
     expect([...modeFacetIssues(bundle), ...refProblems(modeFacetRefs(bundle), catalogs)]).toEqual([]);
   });

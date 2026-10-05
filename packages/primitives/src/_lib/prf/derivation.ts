@@ -1,5 +1,5 @@
 import { concatBlocks, utf8Bytes, valueId, type MacFunction } from '@cryventure/core';
-import { DerivationBuilder, type DerivationNodeSpec } from '../derivation.ts';
+import { DerivationBuilder } from '../derivation.ts';
 import { macLabZoom } from '../hmac/labZoom.ts';
 import type { PHashChain, PrfRunInputs } from './pHash.ts';
 import { prfName, type PrfBlockSteps } from './record.ts';
@@ -9,13 +9,6 @@ import { prfName, type PrfBlockSteps } from './record.ts';
  * chain A(1) → A(2) → … with its blocks P(i) as results, and the output. Every HMAC node links to
  * the `hmac` lab computing exactly that call when key and message fit the lab.
  */
-
-/** One node to add (kept for the PRF callers; the shared builder's spec). */
-export type PrfNodeSpec = DerivationNodeSpec;
-
-/** The PRF derivation builder: the shared `DerivationBuilder` (labels `<ns>.derivation.*`). */
-export const PrfDerivationBuilder = DerivationBuilder;
-export type PrfDerivationBuilder = DerivationBuilder;
 
 /** The node ids every TLS PRF derivation starts from. */
 export interface PrfInputNodeIds {

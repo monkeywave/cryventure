@@ -18,6 +18,7 @@ import {
   selectField,
   type HashEncoding,
 } from '../_lib/hashKit/manifestKit.ts';
+import { hmacMemberField } from '../_lib/hmac/manifestKit.ts';
 import { readDigits } from '../_lib/params/manifestKit.ts';
 /**
  * Manifest for HKDF (RFC 5869) over any HMAC of the `Mac` port, plus the TLS 1.3
@@ -143,15 +144,7 @@ const textField = (
 });
 
 export const HKDF_PARAM_FIELDS: ParamField[] = [
-  {
-    name: 'mac',
-    kind: 'port',
-    port: 'Mac',
-    member: true,
-    constructions: ['hmac'],
-    labelKey: `${NS}.param.mac`,
-    hintKey: `${NS}.param.macHint`,
-  },
+  hmacMemberField(NS, 'mac'),
   selectField(NS, 'mode', HKDF_MODES),
   hexField('ikm'),
   hexField('salt'),

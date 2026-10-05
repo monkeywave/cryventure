@@ -28,17 +28,6 @@ export function pbkdf2Values(recording: Pbkdf2Recording, input: Pick<Pbkdf2Input
   };
 }
 
-/**
- * Where the derivation's HMAC calls come from: the Hash member behind the Mac, the password, the salt.
- * No longer used by `pbkdf2Derivation`, which takes the run's `Pbkdf2Input` (its `mac` names the hash).
- */
-export interface DerivationInput {
-  /** The Mac member's `construction.hash`, e.g. `sha256:sha-256`. */
-  hashRef: string;
-  password: number[];
-  salt: number[];
-}
-
 type DerivationSource = Pick<Pbkdf2Input, 'mac' | 'password' | 'salt'>;
 
 /** S ‖ INT(i) → U₁ → … → U_c (recorded ones) → T_i = U₁ ⊕ … ⊕ U_c, the last U continuing the chain; U₁ links to the `hmac` lab. */

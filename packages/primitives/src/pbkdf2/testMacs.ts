@@ -1,9 +1,8 @@
 import type { PortResolver } from '@cryventure/core';
-import { macMember, portResolverFor } from '../testing/hmacPorts.ts';
+import { portResolverFor } from '../testing/hmacPorts.ts';
 import { pbkdf2Manifest } from './manifest.ts';
 
-/** Test support: the real `Mac` ports of the registered producers (`testing/hmacPorts.ts`), as PBKDF2's tests use them. */
-export { allHmacMembers, type HmacMember } from '../testing/hmacPorts.ts';
+/** Test support of PBKDF2's tests; the real `Mac` members come from `testing/hmacPorts.ts`. */
 
 /** An environment variable of the test runner (Node), without depending on Node's types. */
 export function testEnv(name: string): string | undefined {
@@ -20,6 +19,3 @@ export const CONFORMANCE_TIMEOUT_MS = 60_000;
 export function resolverFor(params: unknown): Promise<PortResolver> {
   return portResolverFor(pbkdf2Manifest, params);
 }
-
-/** The HMAC member `ref` (e.g. `sha1:hmac-sha-1`); throws when it is not registered. */
-export const hmacMember = macMember;

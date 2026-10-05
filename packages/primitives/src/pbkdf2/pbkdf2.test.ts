@@ -3,14 +3,15 @@ import { beforeAll, describe, expect, it } from 'vitest';
 import conformance from './vectors/conformance.json' with { type: 'json' };
 import { keyedMac } from '../_lib/hmac/macCalls.ts';
 import { int32be, pbkdf2, pbkdf2Block, saltWithIndex } from './pbkdf2.ts';
-import { CONFORMANCE_TIMEOUT_MS, hmacMember } from './testMacs.ts';
+import { macMember } from '../testing/hmacPorts.ts';
+import { CONFORMANCE_TIMEOUT_MS } from './testMacs.ts';
 
 let sha1: MacFunction;
 let sha256: MacFunction;
 
 beforeAll(async () => {
-  sha1 = await hmacMember('sha1:hmac-sha-1');
-  sha256 = await hmacMember('sha256:hmac-sha-256');
+  sha1 = await macMember('sha1:hmac-sha-1');
+  sha256 = await macMember('sha256:hmac-sha-256');
 });
 
 const ascii = (text: string): Uint8Array => utf8Bytes(text);

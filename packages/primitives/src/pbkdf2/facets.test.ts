@@ -2,7 +2,7 @@ import { isResultNode, validateDerivationFacet, type MacFunction } from '@cryven
 import { beforeAll, describe, expect, it } from 'vitest';
 import { blockValueId, DK_ID, PASSWORD_ID, pbkdf2Derivation, pbkdf2Values, SALT_ID, uNodeId } from './facets.ts';
 import { recordPbkdf2, type Pbkdf2Recording } from './record.ts';
-import { hmacMember } from './testMacs.ts';
+import { macMember } from '../testing/hmacPorts.ts';
 
 const NS = 'plugin.pbkdf2';
 const PASSWORD = [0x70, 0x77];
@@ -10,7 +10,7 @@ const SALT = [0x73];
 let sha1: MacFunction;
 
 beforeAll(async () => {
-  sha1 = await hmacMember('sha1:hmac-sha-1');
+  sha1 = await macMember('sha1:hmac-sha-1');
 });
 
 function recording(iterations: number, length: number): Pbkdf2Recording {

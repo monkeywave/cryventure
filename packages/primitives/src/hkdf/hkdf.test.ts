@@ -1,4 +1,4 @@
-import { blockCount, toHex, type MacFunction } from '@cryventure/core';
+import { blockCount, parseHexToArray as bytes, toHex, type MacFunction } from '@cryventure/core';
 import { beforeAll, describe, expect, it } from 'vitest';
 import {
   expandMessage,
@@ -11,7 +11,7 @@ import {
   maxOutputLength,
   okmOf,
 } from './hkdf.ts';
-import { bytes, realMac } from './testPorts.ts';
+import { macMember } from '../testing/hmacPorts.ts';
 
 /** RFC 5869 A.1 (HKDF-SHA-256). */
 const A1 = {
@@ -33,7 +33,7 @@ let sha256: MacFunction;
 let sha1: MacFunction;
 
 beforeAll(async () => {
-  [sha256, sha1] = await Promise.all([realMac('sha256:hmac-sha-256'), realMac('sha1:hmac-sha-1')]);
+  [sha256, sha1] = await Promise.all([macMember('sha256:hmac-sha-256'), macMember('sha1:hmac-sha-1')]);
 });
 
 describe('extractSalt', () => {

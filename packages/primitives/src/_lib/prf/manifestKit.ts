@@ -4,7 +4,8 @@ import { readDigits } from '../params/manifestKit.ts';
 
 /**
  * The manifest parts both TLS PRF producers share (docs/M7.md §2f): the secret, label, seed and
- * length fields, their limits and validation, and the HMAC member fields. Manifests load eagerly,
+ * length fields, their limits and validation, and the HMAC member refs (the field itself is
+ * `hmacMemberField` of _lib/hmac/manifestKit.ts). Manifests load eagerly,
  * so this module imports `@cryventure/core` only.
  */
 
@@ -28,11 +29,6 @@ export interface PrfInputs {
 const ASCII_LABEL = /^[\x20-\x7e]+$/;
 /** Enough digits for `PRF_LIMITS.outputBytes`. */
 const LENGTH_DIGITS = 3;
-
-/** A `Mac` member field `name` limited to HMAC (a TLS PRF is defined over HMAC only), labelled `<ns>.param.<name>`. */
-export function hmacMemberField(ns: string, name: string): ParamField {
-  return { name, kind: 'port', port: 'Mac', member: true, constructions: ['hmac'], labelKey: `${ns}.param.${name}`, hintKey: `${ns}.param.${name}Hint` };
-}
 
 /** The secret, label, seed and length fields, labelled `<ns>.param.<name>` with a `<name>Hint`. */
 export function prfInputFields(ns: string): ParamField[] {

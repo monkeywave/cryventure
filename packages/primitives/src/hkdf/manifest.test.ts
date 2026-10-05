@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { hmacMemberField } from '../_lib/hmac/manifestKit.ts';
 import {
   HKDF_LIMITS,
   HKDF_PARAM_FIELDS,
@@ -135,6 +136,7 @@ describe('hkdf manifest', () => {
   it('declares a Mac member field limited to HMAC, defaulting to HMAC-SHA-256', () => {
     const mac = HKDF_PARAM_FIELDS.find((field) => field.name === 'mac');
     expect(mac).toMatchObject({ kind: 'port', port: 'Mac', member: true, constructions: ['hmac'] });
+    expect(JSON.stringify(mac)).toBe(JSON.stringify(hmacMemberField('plugin.hkdf', 'mac')));
     expect(BASE.mac).toBe('sha256:hmac-sha-256');
   });
 

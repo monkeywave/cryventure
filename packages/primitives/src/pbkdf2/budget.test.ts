@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { PBKDF2_ITERATIONS, PBKDF2_PRESETS } from './manifest.ts';
 import { run } from './module.ts';
-import { allHmacMembers, resolverFor, testEnv } from './testMacs.ts';
+import { allHmacMembers } from '../testing/hmacPorts.ts';
+import { resolverFor, testEnv } from './testMacs.ts';
 
 /**
  * The §2e budget (docs/M7.md): a traced PBKDF2 run at the iteration cap (100000) and 32 bytes must

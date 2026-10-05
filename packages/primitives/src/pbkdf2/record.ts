@@ -1,4 +1,5 @@
 import { allIndices, blockCount, highlight, i18nRef, RecordingTracer, scopeLevels, toHex, u8Regions, zeroSnapshot, type MacFunction, type RegionSpec, type Snapshot, type StateFacet } from '@cryventure/core';
+import { hmacCallCompressions } from '../_lib/hmac/compressions.ts';
 import { macDisplayName } from '../_lib/hmac/macCalls.ts';
 import type { Pbkdf2OpName } from './manifest.ts';
 import { int32be, pbkdf2Block } from './pbkdf2.ts';
@@ -73,10 +74,16 @@ function initialSnapshot(regions: RegionSpec<Pbkdf2Region>[], input: Pbkdf2Input
   return Object.fromEntries(Object.entries(zeroSnapshot(regions)).map(([id, zeros]) => [id, known[id as Pbkdf2Region] ?? zeros])) as Snapshot<Pbkdf2Region>;
 }
 
-/** Total PRF calls l · c and the compressions they cost after the two midstates (2 per call; U1 needs more when S ‖ INT(i) spans more than one block). */
-export function pbkdf2Cost(blocks: number, iterations: number): { calls: number; compressions: number } {
-  const calls = blocks * iterations;
-  return { calls, compressions: 2 * calls };
+/** Bytes of the big-endian block index INT(i) appended to the salt in U1 (RFC 8018 §5.2). */
+const BLOCK_INDEX_BYTES = 4;
+
+/**
+ * Total PRF calls l · c and the exact compressions they cost after the two midstates: per block, U1
+ * hashes S ‖ INT(i) (more than one inner block for a long salt), U2 … Uc each a digest-long U.
+ */
+export function pbkdf2Cost(mac: MacFunction, saltBytes: number, blocks: number, iterations: number): { calls: number; compressions: number } {
+  const perBlock = hmacCallCompressions(mac, saltBytes + BLOCK_INDEX_BYTES) + (iterations - 1) * hmacCallCompressions(mac, mac.outputSize);
+  return { calls: blocks * iterations, compressions: blocks * perBlock };
 }
 
 class Pbkdf2Recorder {
@@ -173,7 +180,7 @@ class Pbkdf2Recorder {
   }
 
   output(blocks: number): void {
-    const { calls, compressions } = pbkdf2Cost(blocks, this.input.iterations);
+    const { calls, compressions } = pbkdf2Cost(this.input.mac, this.input.salt.length, blocks, this.input.iterations);
     this.tracer.step({
       op: 'output',
       writes: [],

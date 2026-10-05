@@ -1,5 +1,6 @@
 import { definePrimitive, opLabels, type Preset, type ValidationResult } from '@cryventure/core';
-import { hmacMemberField, prfInputFields, readMacRef, readParamsRecord, readPrfInputs, type PrfInputs } from '../_lib/prf/manifestKit.ts';
+import { hmacMemberField } from '../_lib/hmac/manifestKit.ts';
+import { prfInputFields, readMacRef, readParamsRecord, readPrfInputs, type PrfInputs } from '../_lib/prf/manifestKit.ts';
 
 /** Manifest for the TLS 1.2 PRF, P_<hash>(secret, label ‖ seed) (RFC 5246 §5; docs/M7.md §2f). Imports core and the PRF manifest kit only. */
 export interface Tls12PrfParams extends PrfInputs {

@@ -1,23 +1,9 @@
 import { describe, expect, it } from 'vitest';
-import { hmacMemberField, PRF_LIMITS, prfInputFields, readLabel, readMacRef, readOutputLength, readParamsRecord, readPrfInputs } from './manifestKit.ts';
+import { PRF_LIMITS, prfInputFields, readLabel, readMacRef, readOutputLength, readParamsRecord, readPrfInputs } from './manifestKit.ts';
 
 const NS = 'plugin.test-prf';
 const err = (name: string, params?: Record<string, number>) => ({ ok: false, error: params === undefined ? { key: `${NS}.error.${name}` } : { key: `${NS}.error.${name}`, params } });
 const INPUTS = { secret: 'AB:cd', label: 'master secret', seed: '0102', length: '048' };
-
-describe('hmacMemberField', () => {
-  it('is a Mac member port field limited to HMAC', () => {
-    expect(hmacMemberField(NS, 'mac')).toEqual({
-      name: 'mac',
-      kind: 'port',
-      port: 'Mac',
-      member: true,
-      constructions: ['hmac'],
-      labelKey: `${NS}.param.mac`,
-      hintKey: `${NS}.param.macHint`,
-    });
-  });
-});
 
 describe('prfInputFields', () => {
   it('declares secret and seed as hex, label and length as text with byte limits', () => {

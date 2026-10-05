@@ -2,15 +2,16 @@ import {
   i18nRef,
   narrationFromState,
   parseHexToArray,
-  runPrimitive,
   type I18nRef,
   type MacFunction,
   type PrimitiveRecording,
   type RunOptions,
   type RunResult,
+  type ValidationResult,
 } from '@cryventure/core';
 import { hashMessageBytes } from '../_lib/hashKit/manifestKit.ts';
 import { requireHmacMember } from '../_lib/hmac/requireHmacMember.ts';
+import { runPrimitiveChecked } from '../_lib/runChecked.ts';
 import { hkdfDerivation, hkdfValues } from './hkdfFacets.ts';
 import { expands, extracts, recordHkdf, type HkdfRun } from './hkdfTrace.ts';
 import { hkdfManifest, type HkdfParams } from './manifest.ts';
@@ -47,15 +48,13 @@ export function runError(run: HkdfRun): I18nRef | undefined {
   return undefined;
 }
 
-type RunFailure = Extract<RunResult, { ok: false }>;
-
 /** Resolves the HMAC of validated params and decodes the run, or the run error (missing member, HashLen limits). */
-function prepareRun(params: HkdfParams, options: RunOptions): { ok: true; run: HkdfRun } | RunFailure {
+function prepareRun(params: HkdfParams, options: RunOptions): ValidationResult<HkdfRun> {
   const resolved = requireHmacMember(options.resolve, params.mac, NS);
   if (!resolved.ok) return resolved;
   const hkdfRun = toRun(params, resolved.mac);
   const error = runError(hkdfRun);
-  return error === undefined ? { ok: true, run: hkdfRun } : { ok: false, error };
+  return error === undefined ? { ok: true, value: hkdfRun } : { ok: false, error };
 }
 
 /** Records HKDF into facets and outputs. */
@@ -75,19 +74,7 @@ function recordBundle(hkdfRun: HkdfRun): PrimitiveRecording {
   };
 }
 
-const NO_RECORDING: PrimitiveRecording = { facets: {}, output: {} };
-
-/**
- * Validates `params` once (`runPrimitive`), then resolves the HMAC and records HKDF inside its
- * callback; a run error replaces the bundle.
- */
+/** Validates `params`, resolves the HMAC (`prepareRun`, whose failure is the run error) and records HKDF. */
 export function run(params: HkdfParams, options: RunOptions = {}): RunResult {
-  let failure: RunFailure | undefined;
-  const result = runPrimitive(hkdfManifest, params, (validated) => {
-    const prepared = prepareRun(validated, options);
-    if (prepared.ok) return recordBundle(prepared.run);
-    failure = prepared;
-    return NO_RECORDING;
-  });
-  return failure ?? result;
+  return runPrimitiveChecked(hkdfManifest, params, (value) => prepareRun(value, options), (_value, hkdfRun) => recordBundle(hkdfRun));
 }

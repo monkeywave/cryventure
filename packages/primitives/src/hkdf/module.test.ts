@@ -2,6 +2,7 @@ import {
   assertTopologicalOrder,
   getFacet,
   isResultNode,
+  parseHexToArray,
   toHex,
   validateDerivationFacet,
   type AnyStateFacet,
@@ -19,14 +20,14 @@ import { macDisplayName } from '../_lib/hmac/macCalls.ts';
 import { initialNarration, type HkdfRun } from './hkdfTrace.ts';
 import { HKDF_OP_NAMES, hkdfManifest, type HkdfParams } from './manifest.ts';
 import { run, runError, toRun } from './module.ts';
-import { bytes, realMac, resolverFor } from './testPorts.ts';
+import { macMember, portResolverFor } from '../testing/hmacPorts.ts';
 
 const NS = 'plugin.hkdf';
 const A1 = hkdfManifest.presets[0]!.params;
 const preset = (id: string) => hkdfManifest.presets.find((entry) => entry.id === id)!.params;
 
 async function runParams(params: HkdfParams): Promise<RunResult> {
-  return run(params, { resolve: await resolverFor(params) });
+  return run(params, { resolve: await portResolverFor(hkdfManifest, params) });
 }
 
 async function bundle(params: HkdfParams): Promise<TraceBundle> {
@@ -44,7 +45,7 @@ const hexOut = (trace: TraceBundle, name: string) => toHex(trace.output[name] ??
 let sha256: MacFunction;
 
 beforeAll(async () => {
-  sha256 = await realMac('sha256:hmac-sha-256');
+  sha256 = await macMember('sha256:hmac-sha-256');
 });
 
 describe('hkdf run: mode hkdf (RFC 5869 A.1)', () => {
@@ -322,7 +323,7 @@ describe('hkdf run: mode expand-label (TLS 1.3)', () => {
 
   it('uses HkdfLabel as info in the HMAC messages and the derivation', async () => {
     const trace = await bundle(preset('tls13-derived'));
-    const struct = hkdfLabel(32, 'derived', bytes(preset('tls13-derived').context)).bytes;
+    const struct = hkdfLabel(32, 'derived', parseHexToArray(preset('tls13-derived').context)).bytes;
     const nodes = derivationOf(trace).nodes;
     expect(nodes.map((node) => node.id)).toEqual([
       'prk',

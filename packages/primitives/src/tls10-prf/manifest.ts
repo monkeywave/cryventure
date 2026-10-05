@@ -1,5 +1,6 @@
 import { definePrimitive, opLabels, type Preset, type ValidationResult } from '@cryventure/core';
-import { hmacMemberField, prfInputFields, readMacRef, readParamsRecord, readPrfInputs, type PrfInputs } from '../_lib/prf/manifestKit.ts';
+import { hmacMemberField } from '../_lib/hmac/manifestKit.ts';
+import { prfInputFields, readMacRef, readParamsRecord, readPrfInputs, type PrfInputs } from '../_lib/prf/manifestKit.ts';
 
 /**
  * Manifest for the TLS 1.0/1.1 PRF, P_MD5(S1, label ‖ seed) ⊕ P_SHA-1(S2, label ‖ seed) (RFC 2246

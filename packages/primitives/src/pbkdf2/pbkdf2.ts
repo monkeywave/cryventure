@@ -4,7 +4,7 @@ import { keyedMac } from '../_lib/hmac/macCalls.ts';
 /**
  * PBKDF2 (RFC 8018 §5.2) over a `Mac` port function, untraced. Every PRF call clones ONE context
  * keyed with the password (for HMAC: the inner and outer midstates), so the password is never
- * re-keyed: each iteration costs two compressions.
+ * re-keyed: each iteration after U1 costs two compressions (`pbkdf2Cost` in record.ts has the exact count).
  */
 
 /** INT(i): the block index as four big-endian bytes (RFC 8018 §5.2 step 3). */
